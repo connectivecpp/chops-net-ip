@@ -16,10 +16,8 @@ Chops Wait Queue is a multi-reader, multi-writer queue with wait and no-wait pop
 
 # Dependencies
 
-The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's Asio library. Asio is available at https://think-async.com/ as well as @github/chriskohlhoff https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the 'networking-ts-impl' repository from Chris' Github account.
+The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's Asio library. Asio is available at https://think-async.com/ as well as @chriskohlhoff, https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the 'networking-ts-impl' repository from Chris' Github account.
 
-The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework. The Catch library is available at https://github.com/catchorg/Catch2.
+The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework. The Catch library is available at @catchorg, https://github.com/catchorg/Catch2.
 
-For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene has written a nice set of small header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include 'std::optional', 'std::variant', 'std::any', and 'std::byte' (from C++ 17) as well as 'std::ring_span' (C++ 20, most likely). He also has multiple other repositories such as an implementation of the C++ Guideline Support Library (GSL).
-
-
+For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene has written a nice set of small header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include 'std::optional', 'std::variant', 'std::any', and 'std::byte' (from C++ 17) as well as 'std::ring_span' (C++ 20, most likely). He also has multiple other repositories such as an implementation of the C++ Guideline Support Library (GSL). Martin's repositories are available at @martinmoeone, https://github.com/martinmoene.
