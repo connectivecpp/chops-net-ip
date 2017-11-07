@@ -6,8 +6,8 @@ The Chops Medley is a collection of C++ libraries oriented towards networking an
 
 Chops Net is an asynchronous general purpose networking library layered on top of the C++ Networking Technical Standard (TS). It has three main goals:
 
-- Encapsulate and simplify 
-- lkdsjf
+- Encapsulate and simplify the (sometimes complex) details of asynchronous network programming. Managing buffer lifetimes can be tricky, dkljflk, and lsdkfj, and this library makes sure it is done correctly.
+- Abstracting 
 - sdlkfj
 
 ## Chops Wait Queue
