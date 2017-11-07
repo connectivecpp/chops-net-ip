@@ -2,8 +2,6 @@
 
 The Chops Medley is a collection of C++ libraries oriented towards networking and distributed processing. It is written using modern C++ design idioms and the latest (2017) C++ standard. A significant number of C++ 11 features are used, while only basic C++ 14 and 17 features are used (e.g. 'std::optional', 'std::byte', simple usages of structured bindings, generic lambdas).
 
-# Contents
-
 ## Chops Net
 
 Chops Net is an asynchronous general purpose networking library layered on top of the C++ Networking Technical Standard (TS). It has three main goals:
