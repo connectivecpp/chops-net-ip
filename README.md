@@ -1,4 +1,5 @@
-# chops
+# Chops - _C_onnective _H_andcrafted _Op_enwork _S_oftware Medley
+
 The Chops Medley is a collection of C++ libraries oriented towards networking and distributed processing. It is written using modern C++ design idioms and the latest (2017) C++ standard. A significant number of C++ 11 features are used, while only basic C++ 14 and 17 features are used (e.g. 'std::optional', 'std::byte', simple usages of structured bindings, generic lambdas).
 
 # Contents
@@ -17,7 +18,7 @@ Chops Wait Queue is a multi-reader, multi-writer queue with wait and no-wait pop
 
 # Dependencies
 
-The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's Asio library. Asio is available at https://think-async.com/ as well as https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the 'networking-ts-impl' repository from Chris' Github account.
+The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's Asio library. Asio is available at https://think-async.com/ as well as @github/chriskohlhoff https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the 'networking-ts-impl' repository from Chris' Github account.
 
 The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework. The Catch library is available at https://github.com/catchorg/Catch2.
 
