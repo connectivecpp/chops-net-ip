@@ -1,6 +1,8 @@
 # Chops - Connective Handcrafted Openwork Software Medley
 
-The Chops Medley is a collection of C++ libraries oriented towards networking and distributed processing. It is written using modern C++ design idioms and the latest (2017) C++ standard. A significant number of C++ 11 features are used, while only basic C++ 14 and 17 features are used (e.g. `std::optional`, `std::byte`, simple usages of structured bindings, generic lambdas).
+The Chops Medley is a collection of C++ libraries oriented towards networking and distributed processing. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+
+# Chops Libraries
 
 ## Chops Net
 
@@ -12,7 +14,16 @@ Chops Net is an asynchronous general purpose networking library layered on top o
 
 ## Chops Wait Queue
 
-Chops Wait Queue is a multi-reader, multi-writer queue with wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). This lsdjf
+Chops Wait Queue is a multi-reader, multi-writer queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). It uses C++ standard library 
+
+# C++ Language Requirements and Alternatives
+
+A significant number of C++ 11 features are used, while only basic C++ 14 and 17 features are used (e.g. `std::optional`, `std::byte`, simple usages of structured bindings, generic lambdas). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene has written an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other repositories including an implementation of the C++ Guideline Support Library (GSL). Martin's repositories are available at https://github.com/martinmoene.
+
+Using Boost libraries instead of `std::optional` (and similar C++ 17 features) is also an option, and would require minimal porting.
+
+While the main production branch of Chops will always be developed and tested with C++ 17 features (and the latest compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is 
+very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes as to be almost a different codebase).
 
 # Dependencies
 
@@ -20,9 +31,12 @@ The libraries and API's have minimal library dependencies. Currently the non-tes
 
 The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework. The Catch library is available at https://github.com/catchorg/Catch2.
 
-For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene has written a nice set of small header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other repositories such as an implementation of the C++ Guideline Support Library (GSL). Martin's repositories are available at https://github.com/martinmoene.
+# Supported Compilers
 
-## Author Note 
+Chops is compiled and tested on g++ 7.2, clang xx, and VS xx.
+
+## Author Note on Naming
+
 >Yes, the name / acronym is a stretch. Quite a stretch. I like the word "chops", which is a jazz term for strong technique, so I decided on that for a name. For example, "Check out Tal Wilkenfeld, she's got mad chops."
 
 >I considered many names, at least two or three dozen, but my favorite ideas were all taken (or too close to existing names and could create confusion). It seems that a lot of software developers have similar creative ideas when it comes to names.
