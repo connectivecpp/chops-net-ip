@@ -20,19 +20,25 @@ Multiple writer and reader threads can access a Wait Queue simultaneously, altho
 
 Close sementics are simple, and consist of setting an internal flag and notifying all waiting reader threads. Subsequent pushes are disallowed (an error is returned on the push). On close, if the queue is non-empty data is not flushed (elements in the queue will be destructed when the Wait Queue object is destructed, as typical in C++).
 
-Wait Queue uses C++ standard library concurrency facilities (mutex, condition variables) in its implementation. It is not a lock-free queue, but it has been designed to be used in memory constrained or performance critical environments. In particular, Wait Queue:
+Wait Queue uses C++ standard library concurrency facilities (mutex, condition variables) in its implementation. It is not a lock-free queue, but it has been designed to be used in memory constrained environments or where deterministic performance is needed. In particular, Wait Queue:
 
-- Has been tested with Martin Moene's `ring_span` library for the internal container (see the Language Requirements and Alternatives section for more details). This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
+- Has been tested with Martin Moene's `ring_span` library for the internal container (see the Language Requirements and Alternatives section for more details). A `ring_span` is traditionally known as a "ring buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
 
 - Does not throw or catch exceptions anywhere in its code base. 
 
-The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. His web site is http://www.justsoftwaresolutions.co.uk. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) that is available in pre-release form.
+The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. His web site is http://www.justsoftwaresolutions.co.uk. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
 
 The core logic in this library is the same as provided by Anthony in his book, but the API has changed and additional features added. The name of the utility class template in Anthony's book is `threadsafe_queue`.
 
+## Chops Utilities
+
+Useful utility code, including:
+
+- Repeat, a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo, https://vittorioromeo.info/. The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap. His blog is excellent and well worth reading.
+
 # Chops C++ Language Requirements and Alternatives
 
-A significant number of C++ 11 features are used, while only basic C++ 14 and 17 features are used (e.g. `std::optional`, `std::byte`, simple usages of structured bindings, generic lambdas). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene has written an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). Martin's repositories are available at https://github.com/martinmoene.
+A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use, although they tend to be relatively simple features of those standards (e.g. `std::optional`, `std::byte`, structured bindings, generic lambdas). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). Martin's repositories are available at https://github.com/martinmoene.
 
 Using Boost libraries instead of `std::optional` (and similar C++ 17 features) is also an option, and should require minimal porting.
 
@@ -49,7 +55,7 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 
 Chops is compiled and tested on g++ 7.2, clang xx, and VS xx.
 
-## Author Note on Naming
+## Author Note on the Name
 
 >Yes, the name / acronym is a stretch. Quite a stretch. I like the word "chops", which is a jazz term for strong technique, so I decided on that for a name. For example, "Check out Tal Wilkenfeld, she's got mad chops."
 
