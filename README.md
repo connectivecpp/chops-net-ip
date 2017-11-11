@@ -42,6 +42,8 @@ Chops Net has the following design goals:
 - Make it easy to write correct network code, and hard to write incorrect network code. An example is that message sending cannot be started before a TCP connection is active. Another example is that correctly collecting all of the bytes in a TCP message header is easier with this library (this is a common source of errors in TCP network programming).
 - Provide customization points so that the application can be notified of anything of interest.
 
+(State transition diagram to be inserted here.)
+
 ### Constraints
 
 Chops Net works well with the following communication patterns:
