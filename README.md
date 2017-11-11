@@ -27,7 +27,7 @@ Chops Net is designed to make it easy and efficient for an application to create
 
 ### General Usage and Design Model
 
-Chops Net is generally a "create network entity, provide function objects and let them do the work" API for incoming data, and a "send and forget" API for outgoing data. 
+Chops Net is (in general terms) a "create network entity, provide function objects and let them do the work" API for incoming data, and a "send and forget" API for outgoing data. 
 
 For incoming data, an application provides callable function objects to the appropriate Chops Net object for message framing (if needed), message processing, and connection state transitions.
 
@@ -37,10 +37,10 @@ Various Chops Net objects are provided to the application (typically in applicat
 
 Chops Net has the following design goals:
 
-- Encapsulate and simplify the (sometimes complex) details of asynchronous network programming. Managing buffer lifetimes can be tricky, and this library makes sure it is done correctly. Chaining asynchronous events together is handled within this library, so application code is simplified. Error handling is simpler for the application.
-- Abstract and separate the message framing and message processing for message streams. Sometimes the same "wire protocol" (i.e. message header and message body definition) is used on multiple connections, but different message processing is required depending on the connection address (or connection type). Chops Net provides specific customization points to ease code sharing and code isolation. In particular, a particular message framing function object might be defined for a TCP stream (and not needed for a UDP entity), but a message processing function object used for both TCP and UDP entities.
+- Encapsulate and simplify the (sometimes complex) details of asynchronous network programming. Managing buffer lifetimes can be tricky, and this library makes sure it is done correctly. Chaining asynchronous events together is not always an easy application task, and this library simplifies that logic. Error handling is simpler for the application.
+- Abstract and separate the message framing and message processing for message streams. Sometimes the same "wire protocol" (i.e. message header and message body definition) is used on multiple connections, but different message processing is required depending on the connection address (or connection type). Chops Net provides specific customization points to ease code sharing and code isolation. In particular, a message framing function object might be defined for a TCP stream (and not needed for a UDP entity), but a message processing function object used for both TCP and UDP entities.
 - Make it easy to write correct network code, and hard to write incorrect network code. An example is that message sending cannot be started before a TCP connection is active. Another example is that correctly collecting all of the bytes in a TCP message header is easier with this library (this is a common source of errors in TCP network programming).
-- Provide customization points so that the application can be notified of anything of interest.
+- Provide customization points so that the application can be notified of interesting events.
 
 (State transition diagram to be inserted here.)
 
