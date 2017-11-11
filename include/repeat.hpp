@@ -16,6 +16,9 @@
  * 
  */
 
+#ifndef REPEAT_INCLUDED_H
+#define REPEAT_INCLUDED_H
+
 #include <type_traits>
 
 template <typename F>
@@ -39,3 +42,6 @@ constexpr auto repeat(int n, F&& f)
         f();
     }
 }
+
+#endif
+
