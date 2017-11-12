@@ -21,12 +21,12 @@ Chops Net is an asynchronous general purpose networking library layered on top o
   - an endpoint has been created or destroyed (UDP).
   - an error has occurred.
 - implements the "plumbing" for asynchronous processing on multiple simultaneous connections.
-- abstracts some of the differences between protocols (TCP, UDP, UDP multicast), allowing easier application transitioning between protocol types.
+- abstracts many differences between network protocols (TCP, UDP, UDP multicast), allowing easier application transitioning between protocol types.
 - allows the application to control threading (no threads are created or managed inside the library).
 - is agnostic with respect to data marshalling or serialization or "wire protocols" (application code provides any and all data marshalling and endian logic).
 - does not impose any structure on network message content.
 
-Chops Net is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no mutexes or threads or thread pools within Chops Net, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
+Chops Net is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
 ### General Usage and Design Model
 
@@ -36,12 +36,12 @@ For incoming data, an application provides callable function objects to the appr
 
 For outgoing data, an application passes message data (as byte buffers) to the appropriate Chops Net object for queueing and transmission. A callable function object can be provided by the application to monitor the size of an outgoing queue.
 
-Various Chops Net objects are provided to the application (typically in application provided function objects) as connection or endpoint states transition. For example, the object for data sending is only created when a connection becomes active (TCP acceptor connection is created, or a TCP connector connection succeeds). This guarantees that an application cannot start sending data before a connection is active.
+Various Chops Net objects are provided to the application (typically in application provided function objects) as connection or endpoint states transition. For example, the Chops Net object for data sending is only created when a connection becomes active (TCP acceptor connection is created, or a TCP connector connection succeeds). This guarantees that an application cannot start sending data before a connection is active.
 
 Chops Net has the following design goals:
 
-- Encapsulate and simplify the (sometimes complex) details of asynchronous network programming. Managing buffer lifetimes can be tricky, and this library makes sure it is done correctly. Chaining asynchronous events together is not always an easy application task, and this library simplifies that logic. Error handling is simpler for the application.
-- Abstract and separate the message framing and message processing for message streams. Sometimes the same "wire protocol" (i.e. message header and message body definition) is used on multiple connections, but different message processing is required depending on the connection address (or connection type). Chops Net provides specific customization points to ease code sharing and code isolation. In particular, a message framing function object might be defined for a TCP stream (and not needed for a UDP entity), but a message processing function object used for both TCP and UDP entities.
+- Encapsulate and simplify the (sometimes complex) details of asynchronous network programming. Managing buffer lifetimes can be tricky, and this library makes sure it is done correctly. Chaining asynchronous events together is not always easy application code, and this library simplifies that logic. Error handling is simpler for the application.
+- Abstract and separate the message framing and message processing for message streams. Sometimes the same "wire protocol" (i.e. message header and message body definition) is used on multiple connections, but different message processing is required depending on the connection address (or connection type). Chops Net provides specific customization points to ease code sharing and code isolation. In particular, a message framing function object might be defined for a TCP stream (and not needed for a UDP entity), but the same message processing code used for both TCP and UDP entities.
 - Make it easy to write correct network code, and hard to write incorrect network code. An example is that message sending cannot be started before a TCP connection is active. Another example is that correctly collecting all of the bytes in a TCP message header is easier with this library (this is a common source of errors in TCP network programming).
 - Provide customization points so that the application can be notified of interesting events.
 
@@ -51,15 +51,15 @@ Chops Net has the following design goals:
 
 Chops Net works well with the following communication patterns:
 
-- Receive data, process it quickly (which may involve passing data along to another thread).
-- Receive data, process it quickly (as above), send data back through the same connection or endpoint.
-- Send data.
+- Receive data, process it quickly (which may involve passing data along to another thread), ready for more incoming data.
+- Receive data, process it quickly (as above), send data back through the same connection or endpoint, ready for more incoming data.
+- Send data, go back to other work.
 
 Chops Net requires more work with the following communication pattern:
 
-- Send data, wait for reply (request-reply pattern). Everything in Chops Net is no-wait from the application perspective, so request-reply must be emulated through application logic (i.e. store some form of message transaction id in an outgoing table, correlate incoming data using the message transaction id).
+- Send data, wait for reply (request-reply pattern). Everything in Chops Net is no-wait from the application perspective, so request-reply must be emulated through application logic (e.g. store some form of message transaction id in an outgoing table and correlate incoming data using the message transaction id, or track outstanding requests by connection address).
 
-Chops Net works extremely well in environments where there might be a lot of network connections (e.g. thousands), each with a moderate amount of traffic, and each with different kinds of data or data processing. In environments where each connection is very busy, or a lot of processing is required for each incoming message (and it cannot be passed along to another thread), then more traditional communication patterns or designs might be appropriate (e.g. blocking or synchronous I/O, or "thread per connection" models).
+Chops Net works extremely well in environments where there might be a lot of network connections (e.g. thousands), each with a moderate amount of traffic, and each with different kinds of data or data processing. In environments where each connection is very busy, or a lot of processing is required for each incoming message (and it cannot be passed along to another thread), then more traditional communication patterns or designs might be appropriate (e.g. blocking or synchronous I/O, or "thread per connection" models.
 
 Applications that do only one thing and must do it as fast as possible and want the least amount of overhead might not want the abstraction penalties and slight overhead of Chops Net. For example, a high performance web server where buffer lifetimes for incoming data are easily managed might not want the queuing and "shared buffer" overhead of Chops Net.
 
@@ -73,10 +73,10 @@ Example environments where Chops Net is a good fit:
 
 ### Future Directions
 
-- Additional compiler C++ standard support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below).
-- SSL support may be added, as long as collaborators with appropriate expertise are available.
+- Older compiler (along with older C++ standard) support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below), depending on availability and collaboration support.
+- SSL support may be added, depending on collaborators with expertise being available.
 - Additional protocols may be added (or parallel libraries added) to the TCP, UDP, and UDP multicast support, including serial I/O and Bluetooth. If a reliable multicast protocol is popular enough, support may be added.
-- Publish and Subscribe communications models may be added, but would likely be a library layered at a higher level.
+- Publish and Subscribe communications models may be added, but would likely be a separate library with a completely different API (using Chops Net internally, possibly).
 
 ## Chops Wait Queue
 
@@ -90,7 +90,7 @@ Wait Queue uses C++ standard library concurrency facilities (mutex, condition va
 
 - Has been tested with Martin Moene's `ring_span` library for the internal container (see References Section below). A `ring_span` is traditionally known as a "ring buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
 
-- Does not throw or catch exceptions anywhere in its code base. 
+- Does not throw or catch exceptions anywhere in its code base. Elements passed through the queue may throw exceptions, and must be handled at an application level.
 
 The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams (see References Section below). 
 
@@ -108,14 +108,13 @@ A significant number of C++ 11 features are in the implementation and API. There
 
 Using Boost libraries instead of `std::optional` (and similar C++ 17 features) is also an option, and should require minimal porting.
 
-While the main production branch of Chops will always be developed and tested with C++ 17 features (and the latest compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is 
-very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
+While the main production branch of Chops will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
 
 # Dependencies
 
-The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` (see References Section below).
+The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` library (see References Section below).
 
-The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework (see Reference Section below). Various tests for templatized queues use Martin Moene's `ring_span` library for fixed buffer queue semantics.
+The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework (see Reference Section below). Various tests for templatized queue container types use Martin Moene's `ring_span` library for fixed buffer queue semantics.
 
 # References
 
@@ -127,7 +126,7 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 
 - Martin Moene is a C++ expert and member and former editor of accu-org, His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
 
-- Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple years for CppCon. His Github site is https://github.com/kirkshoop.
+- Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple times at CppCon. His Github site is https://github.com/kirkshoop.
 
 - Vittorio Romeo is a blog author and C++ expert. His web site is https://vittorioromeo.info/ and his Github site is https://github.com/SuperV1234. Vittorio's blog is excellent and well worth reading.
 
