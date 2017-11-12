@@ -22,6 +22,9 @@ Chops Net is an asynchronous general purpose networking library layered on top o
   - an error has occurred.
 - implements the "plumbing" for asynchronous processing on multiple simultaneous connections.
 - abstracts some of the differences between protocols (TCP, UDP, UDP multicast), allowing easier application transitioning between protocol types.
+- allows the application to control threading (no threads are created or managed inside the library).
+- is agnostic with respect to data marshalling or serialization or "wire protocols" (application code provides any and all data marshalling and endian logic).
+- does not impose any structure on network message content.
 
 Chops Net is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no mutexes or threads or thread pools within Chops Net, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
@@ -68,6 +71,13 @@ Example environments where Chops Net is a good fit:
 - Small footprint or embedded environments, where all network processing is run inside a single thread.
 - Applications with relatively simple network processing that need an easy-to-use and quick-for-development network library.
 
+### Future Directions
+
+- Additional compiler C++ standard support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below).
+- SSL support may be added, as long as collaborators with appropriate expertise are available.
+- Additional protocols may be added (or parallel libraries added) to the TCP, UDP, and UDP multicast support, including serial I/O and Bluetooth. If a reliable multicast protocol is popular enough, support may be added.
+- Publish and Subscribe communications models may be added, but would likely be a library layered at a higher level.
+
 ## Chops Wait Queue
 
 Chops Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication).
@@ -78,11 +88,11 @@ Close sementics are simple, and consist of setting an internal flag and notifyin
 
 Wait Queue uses C++ standard library concurrency facilities (mutex, condition variables) in its implementation. It is not a lock-free queue, but it has been designed to be used in memory constrained environments or where deterministic performance is needed. In particular, Wait Queue:
 
-- Has been tested with Martin Moene's `ring_span` library for the internal container (see the Language Requirements and Alternatives section for more details). A `ring_span` is traditionally known as a "ring buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
+- Has been tested with Martin Moene's `ring_span` library for the internal container (see References Section below). A `ring_span` is traditionally known as a "ring buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
 
 - Does not throw or catch exceptions anywhere in its code base. 
 
-The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. His web site is http://www.justsoftwaresolutions.co.uk. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
+The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams (see References Section below). 
 
 The core logic in this library is the same as provided by Anthony in his book, but the API has changed and additional features added. The name of the utility class template in Anthony's book is `threadsafe_queue`.
 
@@ -90,11 +100,11 @@ The core logic in this library is the same as provided by Anthony in his book, b
 
 Useful utility code, including:
 
-- Repeat, a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo, https://vittorioromeo.info/. The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap. His blog is excellent and well worth reading.
+- Repeat, a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see References Section below). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
 
 # Chops C++ Language Requirements and Alternatives
 
-A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use, although they tend to be relatively simple features of those standards (e.g. `std::optional`, `std::byte`, structured bindings, generic lambdas). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). Martin's repositories are available at https://github.com/martinmoene.
+A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use, although they tend to be relatively simple features of those standards (e.g. `std::optional`, `std::byte`, structured bindings, generic lambdas). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards (see References Section below).
 
 Using Boost libraries instead of `std::optional` (and similar C++ 17 features) is also an option, and should require minimal porting.
 
@@ -103,9 +113,23 @@ very welcome. A branch supporting a pre-C++ 11 compiler or language conformance 
 
 # Dependencies
 
-The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's Asio library. Asio is available at https://think-async.com/ as well as https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
+The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` (see References Section below).
 
-The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework. The Catch library is available at https://github.com/catchorg/Catch2. Various tests for templatized queues use Martin Moene's `ring_span` library for fixed buffer queue semantics.
+The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework (see Reference Section below). Various tests for templatized queues use Martin Moene's `ring_span` library for fixed buffer queue semantics.
+
+# References
+
+- Chris Kohlhoff is a networking and C++ expert, creator of the Asio library and initial author of the C++ Networking Technical Standard (TS). Asio is available at https://think-async.com/ and Chris' Github site is https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
+
+- Phil Nash is the author of the Catch C++ unit testing library. The Catch library is available at https://github.com/catchorg/Catch2.
+
+- Anthony Williams is the author of Concurrency in Action, Practical Multithreading. His web site is http://www.justsoftwaresolutions.co.uk and his Github site is https://github.com/anthonywilliams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
+
+- Martin Moene is a C++ expert and member and former editor of accu-org, His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
+
+- Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple years for CppCon. His Github site is https://github.com/kirkshoop.
+
+- Vittorio Romeo is a blog author and C++ expert. His web site is https://vittorioromeo.info/ and his Github site is https://github.com/SuperV1234. Vittorio's blog is excellent and well worth reading.
 
 # Supported Compilers
 
