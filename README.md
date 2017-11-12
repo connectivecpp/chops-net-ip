@@ -22,6 +22,9 @@ Chops Net is an asynchronous general purpose networking library layered on top o
   - an error has occurred.
 - implements the "plumbing" for asynchronous processing on multiple simultaneous connections.
 - abstracts some of the differences between protocols (TCP, UDP, UDP multicast), allowing easier application transitioning between protocol types.
+- allows the application to control threading (no threads are created or managed inside the library).
+- is agnostic with respect to data marshalling or serialization or "wire protocols" (application code provides any and all data marshalling and endian logic).
+- does not impose any structure on network message content.
 
 Chops Net is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no mutexes or threads or thread pools within Chops Net, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
@@ -68,6 +71,13 @@ Example environments where Chops Net is a good fit:
 - Small footprint or embedded environments, where all network processing is run inside a single thread.
 - Applications with relatively simple network processing that need an easy-to-use and quick-for-development network library.
 
+### Future Directions
+
+- Additional compiler C++ standard support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below).
+- SSL support may be added, as long as collaborators with appropriate expertise are available.
+- Additional protocols may be added (or parallel libraries added) to the TCP, UDP, and UDP multicast support, including serial I/O and Bluetooth. If a reliable multicast protocol is popular enough, support may be added.
+- Publish and Subscribe communications models may be added, but would likely be a library layered at a higher level.
+
 ## Chops Wait Queue
 
 Chops Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication).
@@ -109,7 +119,7 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 
 # References
 
-- Chris Kohlhoff, networking and C++ expert, creator of the Asio library and initial author of the C++ Networking Technical Standard (TS). Asio is available at https://think-async.com/ and Chris' Github site is https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
+- Chris Kohlhoff is a networking and C++ expert, creator of the Asio library and initial author of the C++ Networking Technical Standard (TS). Asio is available at https://think-async.com/ and Chris' Github site is https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
 
 - Phil Nash is the author of the Catch C++ unit testing library. The Catch library is available at https://github.com/catchorg/Catch2.
 
