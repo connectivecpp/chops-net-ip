@@ -24,13 +24,20 @@
  *  @note A fixed size buffer can be used for this utility, which eliminates
  *  queue memory management happening during a push or pop. In particular,
  *  the proposed @c std::ring_span container (C++ 20, most likely) works well 
- *  for this use case, and this code has been tested with "ring-span lite" from 
+ *  for this use case, and this code has been tested with @c ring-span lite from 
  *  Martin Moene. 
  *
- *  @note Move semantics are not implemented, not sure what that would mean
- *  for an object that is not meant to be passed around like a value object.
- *  Copy semantics are provided, although making copies of a @c wait_queue
- *  is sensible only in limited situations.
+ *  @note Iterators are not supported, due to obvious difficulties with maintaining 
+ *  internal integrity. The @c apply method can be used to access the internal
+ *  data in a threadsafe manner.
+ *
+ *  @note Copy and move construction or assignment for the whole queue is
+ *  disallowed, since the use cases and underlying implications are not clear 
+ *  for those operations. In particular, the exception implications for 
+ *  assigning the internal data from one queue to another is messy, and the general 
+ *  semantics of what it means is not clearly defined. If there is data in one 
+ *  @c wait_queue that must be copied or moved to another, the @c apply method can 
+ *  be used, (even if it is not as efficient as an internal copy or move).
  *
  *  @authors Cliff Green, Anthony Williams
  *  @date 2017
@@ -53,7 +60,7 @@ private:
   mutable std::mutex mut;
   Container data_queue;
   std::condition data_cond;
-  bool open = true;
+  bool closed = false;
 
   using lock_guard = std::lock_guard<std::mutex>;
 
@@ -61,41 +68,29 @@ public:
 
   wait_queue() = default;
 
+  // disallow copy or move construction
+  wait_queue(const wait_queue&) = delete;
   wait_queue(wait_queue&&) = delete;
 
+  // disallow copy or move assigment
   wait_queue& operator=(const wait_queue&) = delete;
   wait_queue& operator=(wait_queue&&) = delete;
 
-
-  /**
-   * Copy construct from an existing @c wait_queue.
-   *
-   * @note Exact type match required, not interested in
-   * converting between template parameter types.
-   *
-   * @param rhs Object to copy from.
-   */
-  wait_queue(const wait_queue& rhs) : mut(), data_queue(), data_cond(), open(true) {
-    // lock other queue for correct threading semantics, then copy data
-    lock_guard lk(rhs.mut);
-    data_queue = rhs.data_queue;
-  }
-
-  bool push(const T& val) {
-    if (!open) {
+  bool push(const T& val) noexcept {
+    lock_guard lk(mut);
+    if (closed) {
       return false;
     }
-    lock_guard lk(mut);
     data_queue.push_back(val);
     data_cond.notify_one();
     return true;
   }
 
-  bool push(T&& val) {
-    if (!open) {
+  bool push(T&& val) noexcept {
+    lock_guard lk(mut);
+    if (closed) {
       return false;
     }
-    lock_guard lk(mut);
     data_queue.push_back(std::move(val));
     data_cond.notify_one();
     return true;
