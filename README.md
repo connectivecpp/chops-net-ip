@@ -78,11 +78,11 @@ Close sementics are simple, and consist of setting an internal flag and notifyin
 
 Wait Queue uses C++ standard library concurrency facilities (mutex, condition variables) in its implementation. It is not a lock-free queue, but it has been designed to be used in memory constrained environments or where deterministic performance is needed. In particular, Wait Queue:
 
-- Has been tested with Martin Moene's `ring_span` library for the internal container (see the Language Requirements and Alternatives section for more details). A `ring_span` is traditionally known as a "ring buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
+- Has been tested with Martin Moene's `ring_span` library for the internal container (see References Section below). A `ring_span` is traditionally known as a "ring buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
 
 - Does not throw or catch exceptions anywhere in its code base. 
 
-The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. His web site is http://www.justsoftwaresolutions.co.uk. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
+The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams (see References Section below). 
 
 The core logic in this library is the same as provided by Anthony in his book, but the API has changed and additional features added. The name of the utility class template in Anthony's book is `threadsafe_queue`.
 
@@ -90,7 +90,7 @@ The core logic in this library is the same as provided by Anthony in his book, b
 
 Useful utility code, including:
 
-- Repeat, a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo, https://vittorioromeo.info/. The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap. His blog is excellent and well worth reading.
+- Repeat, a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see References Section below). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
 
 # Chops C++ Language Requirements and Alternatives
 
@@ -106,6 +106,14 @@ very welcome. A branch supporting a pre-C++ 11 compiler or language conformance 
 The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's Asio library. Asio is available at https://think-async.com/ as well as https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
 
 The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework. The Catch library is available at https://github.com/catchorg/Catch2. Various tests for templatized queues use Martin Moene's `ring_span` library for fixed buffer queue semantics.
+
+# References
+
+- Anthony Williams is the author of Concurrency in Action, Practical Multithreading. His web site is http://www.justsoftwaresolutions.co.uk, and his Github site is https://github.com/anthonywilliams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts.  It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
+
+- Martin Moene,member and former editor of accu-org, C++ expert, his Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C+Martin's repositories are available at https://github.com/martinmoene.+ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
+
+- Vittorio Romeo, blog author, C++ expert, his web site is https://vittorioromeo.info/, and his Github site is https://github.com/SuperV1234. Vittorio's blog is excellent and well worth reading.
 
 # Supported Compilers
 
