@@ -21,10 +21,12 @@
 
 #include <type_traits>
 
+namespace chops {
+
 template <typename F>
 constexpr auto repeat(int n, F&& f)
     noexcept(noexcept(f(n)))
-    -> std::enable_if_t<std::is_invocable_v<int, N>>
+    -> std::enable_if_t<std::is_invocable_v<F&&, int>>
 {
     for(int i = 0; i < n; ++i)
     {
@@ -35,13 +37,15 @@ constexpr auto repeat(int n, F&& f)
 template <typename F>
 constexpr auto repeat(int n, F&& f)
     noexcept(noexcept(f()))
-    -> std::enable_if_t<!std::is_invocable_v<int, N>>
+    -> std::enable_if_t<!std::is_invocable_v<F&&, int>>
 {
     for(int i = 0; i < n; ++i)
     {
         f();
     }
 }
+
+} // end namespace
 
 #endif
 

@@ -1,4 +1,6 @@
-#include "catch_with_main.hpp"
+#define CATCH_CONFIG_MAIN
+
+#include "catch.hpp"
 
 #include "repeat.hpp"
 
@@ -9,42 +11,42 @@ void myfunc_a () {
 }
 
 void myfunc_b ( int i ) {
-  gsum += i;
+  REQUIRE (gSum == i);
+  gSum += 1;
 }
 
-TEST_CASE( "Repeat function test", "[repeat]" ) {
+TEST_CASE( "Testing repeat function template", "[repeat]" ) {
   gSum = 0;
   REQUIRE( gSum == 0 );
 
   const int N = 50;
-  const int Sum = N * (N + 1) / 2;
-  INFO ("N = " << N << ", Sum = " << Sum);
+  CAPTURE (N);
 
   SECTION ( "Testing myfunc without index") {
-    repeat(N, myfunc_a);
-    REQUIRE (gSum == Sum);
+    chops::repeat(N, myfunc_a);
+    REQUIRE (gSum == N);
   }
   SECTION ( "Testing myfunc with index") {
-    repeat(N, myfunc_b);
-    REQUIRE (gSum == Sum);
+    chops::repeat(N, myfunc_b);
+    REQUIRE (gSum == N);
   }
   SECTION ( "Testing lambda func without index") {
-    repeat(N, [] { myfunc_a() } );
-    REQUIRE (gSum == Sum);
+    chops::repeat(N, [] { myfunc_a(); } );
+    REQUIRE (gSum == N);
   }
   SECTION ( "Testing lambda func with index") {
-    repeat(N, [] { myfunc_a(int i) } );
-    REQUIRE (gSum == Sum);
+    chops::repeat(N, [] (int i) { myfunc_b(i); } );
+    REQUIRE (gSum == N);
   }
   SECTION ( "Testing lambda func without index and local var") {
     int lSum = 0;
-    repeat(N, [&lSum] { lSum += 1; } );
-    REQUIRE (lSum == Sum);
+    chops::repeat(N, [&lSum] { lSum += 1; } );
+    REQUIRE (lSum == N);
   }
   SECTION ( "Testing lambda func with index and local var") {
     int lSum = 0;
-    repeat(N, [&lSum] (int i) { lSum += i; } );
-    REQUIRE (lSum == Sum);
+    chops::repeat(N, [&lSum] (int i) { REQUIRE (lSum == i); lSum += 1; } );
+    REQUIRE (lSum == N);
   }
 
 }
