@@ -1,5 +1,4 @@
-#define CATCH_CONFIG_MAIN
-#include "catch.hpp"
+#include "catch_with_main.hpp"
 
 #include "repeat.hpp"
 
