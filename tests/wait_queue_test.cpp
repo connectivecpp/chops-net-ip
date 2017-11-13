@@ -4,6 +4,7 @@
 
 #include "wait_queue.hpp"
 #include "nonstd/ring_span.hpp"
+#include "repeat.hpp"
 
 
 template <typename Q>
@@ -41,9 +42,28 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue]" ) {
   }
 
   SECTION ( "Testing ring_span instantiation and basic method operation in non threaded operation" ) {
-    int buf[10];
-    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+9);
+    const int sz = 10;
+    int buf[sz];
+    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
     non_threaded_int_test(wq);
   }
+
+}
+
+TEST_CASE( "Testing ring_span roll around inside wait queue", "[wait_queue ring_span roll around]" ) {
+    const int sz = 20;
+    const int answer = 42;
+    const int answer_plus = 42+5;
+    int buf[sz];
+    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
+    chops::repeat(sz, [&wq, answer] { wq.push(answer); } );
+    REQUIRE (wq.size() == sz);
+    wq.apply([answer] (const int& i) { REQUIRE(i == answer); } );
+    chops::repeat(sz / 2, [&wq, answer] { wq.push(answer_plus); } );
+    REQUIRE (wq.size() == sz);
+    // wait_pop should immediately return if the queue is non empty
+    chops::repeat(sz / 2, [&wq, answer] { REQUIRE (wq.wait_and_pop() == answer); } );
+    chops::repeat(sz / 2, [&wq, answer] { REQUIRE (wq.wait_and_pop() == answer_plus); } );
+    REQUIRE (wq.empty());
 
 }
