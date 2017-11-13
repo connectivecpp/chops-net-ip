@@ -62,6 +62,7 @@ void read_func (Q& wq, set_type<T>& s) {
 }
 
 void write_func () {
+  // need stuff here
 }
 
 template <typename Q, typename T>
