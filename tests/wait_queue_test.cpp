@@ -3,9 +3,14 @@
 #include "catch.hpp"
 
 #include <utility> // std::pair
+#include <functional> // std::ref
 #include <vector>
 #include <set>
 #include <optional>
+#include <chrono>
+
+#include <thread>
+#include <mutex>
 
 #include "wait_queue.hpp"
 #include "nonstd/ring_span.hpp"
@@ -40,29 +45,27 @@ void non_threaded_int_test(Q& wq) {
 }
 
 
-template <typename T>
-using element_type = std::pair<int, T>;
-template <typename T>
-using opt_element_type = std::optional<element_type<T> >;
-template <typename T>
-using set_type = std::set<opt_element_type<T> >;
-
 template <typename Q, typename T>
-void read_func (Q& wq, set_type<T>& s) {
-  bool looping = true;
-  while (looping) {
-    opt_element_type<T> elem = wq.wait_and_pop();
-    if (elem) {
-      s.insert(*elem);
+void read_func (Q& wq, std::set<std::pair< int, T> >& s, std::mutex& mut) {
+  while (true) {
+    std::optional<std::pair<int, T> > opt_elem = wq.wait_and_pop();
+    if (!opt_elem) { // empty element means close has been called
+      return;
     }
-    else {
-      looping = false; // empty element means close has been called
-    }
+    std::lock_guard<std::mutex> lk(mut);
+    s.insert(*opt_elem);
   }
 }
 
-void write_func () {
-  // need stuff here
+template <typename Q, typename T>
+void write_func (Q& wq, int start, int slice, const T& val) {
+  chops::repeat (slice, [&wq, start, val] (const int& i) {
+      std::pair<int, T> elem((start+i), val);
+      if (!wq.push(elem)) {
+        FAIL("wait queue push failed in write_func");
+      }
+    }
+  );
 }
 
 template <typename Q, typename T>
@@ -70,20 +73,49 @@ void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& 
   // each writer pushes slice entries
   int tot = num_writers * slice;
 
-  set_type<T> s;
+  std::set<std::pair< int, T> > s;
+  std::mutex mut;
 
-  using std::vector<std::thread> thr_vec_type;
+  std::vector<std::thread> rd_thrs;
+  chops::repeat(num_readers, [&wq, &rd_thrs, &s, &mut] {
+      rd_thrs.push_back( std::thread (read_func<Q, T>, std::ref(wq), std::ref(s), std::ref(mut)) );
+    }
+  );
 
-  thr_vec_type rd_thrs;
-  chops::repeat(num_readers, [wq, &rd_thrs, &s] { rd_thrs.push_back( std::thread (read_func, wq, s); } );
+  std::vector<std::thread> wr_thrs;
+  chops::repeat(num_writers, [&wq, &wr_thrs, slice, val] (const int& i) {
+      wr_thrs.push_back( std::thread (write_func<Q, T>, std::ref(wq), (i*slice), slice, std::cref(val)));
+    }
+  );
+  // wait for writers to finish pushing vals
+  for (auto& thr : wr_thrs) {
+    thr.join();
+  }
+  // sleep and loop waiting for wait queue to be emptied by reader threads
+  while (!wq.empty()) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
+  wq.close();
 
-  thr_vec_type wr_thrs;
-  chops::repeat(num_writers, [wq, &wr_thrs, &s] { wr_thrs.push_back( std::thread (write_func, wq, s); } );
-
+  // wait for readers; since wait queue is empty and closed they should all join immediately
+  for (auto& thr : rd_thrs) {
+    thr.join();
+  }
+  REQUIRE (wq.empty());
+  REQUIRE (wq.is_closed());
+  // check set to make sure all entries are present
+  REQUIRE (s.size() == tot);
+  int idx = 0;
+  for (const auto& e : s) {
+    REQUIRE (e.first == idx);
+    REQUIRE (e.second == val);
+    ++idx;
+  }
+  INFO ("Set looks good!");
 
 }
 
-TEST_CASE( "Testing wait_queue class template", "[wait_queue]" ) {
+TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
   
   SECTION ( "Testing instantiation and basic method operation in non threaded operation" ) {
     chops::wait_queue<int> wq;
@@ -99,7 +131,7 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue]" ) {
 
 }
 
-TEST_CASE( "Testing ring_span roll around inside wait queue", "[wait_queue ring_span roll around]" ) {
+TEST_CASE( "Testing ring_span roll around inside wait queue", "[wait_queue_roll_around]" ) {
     const int sz = 20;
     const int answer = 42;
     const int answer_plus = 42+5;
@@ -114,5 +146,25 @@ TEST_CASE( "Testing ring_span roll around inside wait queue", "[wait_queue ring_
     chops::repeat(sz / 2, [&wq, answer] { REQUIRE (wq.wait_and_pop() == answer); } );
     chops::repeat(sz / 2, [&wq, answer] { REQUIRE (wq.wait_and_pop() == answer_plus); } );
     REQUIRE (wq.empty());
+
+}
+
+TEST_CASE( "Threaded wait queue test small numbers", "[wait_queue_threaded_small]" ) {
+  SECTION ( "Threaded test with deque int, 1 reader and 1 writer thread" ) {
+    chops::wait_queue<std::pair<int, int> > wq;
+    threaded_test(wq, 1, 1, 100, 44);
+  }
+  SECTION ( "Threaded test with deque int, 5 reader and 3 writer threads, 1000 slice" ) {
+    chops::wait_queue<std::pair<int, int> > wq;
+    threaded_test(wq, 5, 3, 1000, 1212);
+  }
+  SECTION ( "Threaded test with deque int, 60 reader and 40 writer threads, 5000 slice" ) {
+    chops::wait_queue<std::pair<int, int> > wq;
+    threaded_test(wq, 60, 40, 5000, 5656);
+  }
+  SECTION ( "Threaded test with deque string, 60 reader and 40 writer threads, 12000 slice" ) {
+    chops::wait_queue<std::pair<int, int> > wq;
+    threaded_test(wq, 60, 40, 12000, 5656);
+  }
 
 }
