@@ -5,6 +5,7 @@
 #include <utility> // std::pair
 #include <functional> // std::ref
 #include <vector>
+#include <string>
 #include <set>
 #include <optional>
 #include <chrono>
@@ -150,7 +151,7 @@ TEST_CASE( "Testing ring_span roll around inside wait queue", "[wait_queue_roll_
 }
 
 TEST_CASE( "Threaded wait queue test small numbers", "[wait_queue_threaded_small]" ) {
-  SECTION ( "Threaded test with deque int, 1 reader and 1 writer thread" ) {
+  SECTION ( "Threaded test with deque int, 1 reader and 1 writer thread, 100 slice" ) {
     chops::wait_queue<std::pair<int, int> > wq;
     threaded_test(wq, 1, 1, 100, 44);
   }
@@ -163,8 +164,14 @@ TEST_CASE( "Threaded wait queue test small numbers", "[wait_queue_threaded_small
     threaded_test(wq, 60, 40, 5000, 5656);
   }
   SECTION ( "Threaded test with deque string, 60 reader and 40 writer threads, 12000 slice" ) {
-    chops::wait_queue<std::pair<int, int> > wq;
-    threaded_test(wq, 60, 40, 12000, 5656);
+    using namespace std::literals::string_literals;
+    chops::wait_queue<std::pair<int, std::string> > wq;
+    threaded_test(wq, 60, 40, 12000, "cool, lit, sup"s);
   }
-
+}
+TEST_CASE( "Threaded wait queue test big numbers", "[wait_queue_threaded_big]" ) {
+  SECTION ( "Threaded test with deque int, 500 reader and 300 writer threads, 50000 slice" ) {
+    chops::wait_queue<std::pair<int, int> > wq;
+    threaded_test(wq, 500, 300, 50000, 7777);
+  }
 }
