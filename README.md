@@ -83,7 +83,6 @@ Applications that do only one thing and must do it as fast as possible and want 
 Applications that need to perform time consuming operations on incoming data and cannot pass that data off to another thread may encounter throughput issues. Multiple threads or thread pools or strands interacting with the event loop method (executor) may be a solution in those environments.
 
 
-
 ### Future Directions
 
 - Older compiler (along with older C++ standard) support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below), depending on availability and collaboration support.
@@ -91,7 +90,13 @@ Applications that need to perform time consuming operations on incoming data and
 - Additional protocols may be added (or parallel libraries added) to the TCP, UDP, and UDP multicast support, including serial I/O and Bluetooth. If a reliable multicast protocol is popular enough, support may be added.
 - Publish and Subscribe communications models may be added, but would likely be a separate library with a completely different API (using Chops Net internally, possibly).
 
-## Chops Wait Queue
+## Chops Utilities
+
+### Repeat
+
+Repeat is a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see References Section below). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
+
+### Chops Wait Queue
 
 Chops Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication).
 
@@ -113,11 +118,6 @@ The implementation is adapted from the book Concurrency in Action, Practical Mul
 
 The core logic in this library is the same as provided by Anthony in his book, but the API has changed and additional features added. The name of the utility class template in Anthony's book is `threadsafe_queue`.
 
-## Chops Utilities
-
-Useful utility code, including:
-
-- Repeat, a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see References Section below). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
 
 # Chops C++ Language Requirements and Alternatives
 
