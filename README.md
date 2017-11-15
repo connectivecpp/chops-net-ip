@@ -121,7 +121,7 @@ The core logic in this library is the same as provided by Anthony in his book, b
 
 # Chops C++ Language Requirements and Alternatives
 
-A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use, although they tend to be relatively simple features of those standards (e.g. `std::optional`, `std::byte`, structured bindings, generic lambdas). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards (see References Section below).
+A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use, although they tend to be relatively simple features of those standards (e.g. `std::optional`, `std::byte`, structured bindings, if constexpr, generic lambdas). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards (see References Section below).
 
 Using Boost libraries instead of `std::optional` (and similar C++ 17 features) is also an option, and should require minimal porting.
 

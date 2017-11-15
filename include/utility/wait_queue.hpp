@@ -26,7 +26,7 @@
  *    chops::wait_queue<int> wq;
  *
  *    // inside writer thread, assume wq passed in by reference
- *    wq.push(some_val);
+ *    wq.push(42);
  *    ...
  *    // all finished, time to shutdown
  *    wq.close();
@@ -58,7 +58,7 @@
  *  in his book, but the interfaces have changed and additional features added. 
  *  The name of the utility class template in Anthony's book is @c threadsafe_queue.
  *
- *  @note A fixed size buffer can be used for this utility, which eliminates
+ *  @note A fixed size buffer can be used for the container, which eliminates
  *  queue memory management happening during a @c push or @c pop. In particular,
  *  the proposed @c std::ring_span container (C++ 20, most likely) works well 
  *  for this use case, and this code has been tested with @c ring-span lite from 
@@ -108,8 +108,6 @@ private:
 
 public:
 
-  using size_type = typename Container::size_type;
-
   wait_queue() = default;
 
   /**
@@ -121,8 +119,8 @@ public:
    * begin and end iterators must implement the usual C++ iterator range 
    * semantics.
    *
-   * The iterators can also be used to initialize a typical internal buffer
-   * container (e.g. @c std::deque, the default container type) with starting 
+   * The iterators can also be used to initialize a typical container for the 
+   * internal buffer (e.g. @c std::deque, the default container type) with starting 
    * data.
    *
    * @param beg Beginning iterator.
@@ -206,7 +204,8 @@ public:
    * @return A value from the @c wait_queue (if non-empty). If the @c std::optional is empty, 
    * the @c wait_queue has been closed.
    */
-  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_move_constructible<T>::value) {
+  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_move_constructible<T>::value || 
+                                           std::is_nothrow_copy_constructible<T>::value) {
     std::unique_lock<std::mutex> lk{m_mut};
     if (m_closed) {
       return std::optional<T> {};
@@ -215,9 +214,16 @@ public:
     if (m_data_queue.empty()) {
       return std::optional<T> {}; // queue was closed, no data available
     }
-    std::optional<T> val{std::move(m_data_queue.front())};
-    m_data_queue.pop_front();
-    return val;
+    if constexpr (std::is_move_constructible<T>::value) {
+      std::optional<T> val {std::move(m_data_queue.front())}; // move ctor if possible
+      m_data_queue.pop_front();
+      return val;
+    }
+    else {
+      std::optional<T> val {m_data_queue.front()}; // copy ctor instead of move ctor
+      m_data_queue.pop_front();
+      return val;
+    }
   }
 
   /**
@@ -227,14 +233,22 @@ public:
    * @return A value from the @c wait_queue or an empty @c std::optional if no values are 
    * available in the @c wait_queue.
    */
-  std::optional<T> try_pop() noexcept(std::is_nothrow_move_constructible<T>::value) {
+  std::optional<T> try_pop() noexcept(std::is_nothrow_move_constructible<T>::value || 
+                                      std::is_nothrow_copy_constructible<T>::value) {
     lock_guard lk{m_mut};
     if (m_data_queue.empty()) {
-      return std::optional<T>{};
+      return std::optional<T> {};
     }
-    std::optional<T> val{std::move(m_data_queue.front())};
-    m_data_queue.pop_front();
-    return val;
+    if constexpr (std::is_move_constructible<T>::value) {
+      std::optional<T> val {std::move(m_data_queue.front())}; // move ctor if possible
+      m_data_queue.pop_front();
+      return val;
+    }
+    else {
+      std::optional<T> val {m_data_queue.front()}; // copy ctor instead of move ctor
+      m_data_queue.pop_front();
+      return val;
+    }
   }
 
   // non-modifying methods
@@ -251,9 +265,11 @@ public:
    * to interrogate values of the elements.
    *
    * @note The entire @c wait_queue is locked while @c apply is in process, 
-   * so do not pass in a function object that blocks or takes a lot of 
-   * processing time. In particular, it is undefined behavior if the function 
-   * object calls into the same @c wait_queue.
+   * so passing in a function object that blocks or takes a lot of processing 
+   * time may result in slow performance.
+   *
+   * @note It is undefined behavior if the function object calls into the 
+   * same @c wait_queue since it results in recursive mutex locks.
    */
   template <typename F>
   void apply(F&& f) const noexcept(std::is_nothrow_invocable<F&&, const T&>::value) {
@@ -282,6 +298,8 @@ public:
     lock_guard lk{m_mut};
     return m_data_queue.empty();
   }
+
+  using size_type = typename Container::size_type;
 
   /**
    * Get the number of elements in the @c wait_queue.
