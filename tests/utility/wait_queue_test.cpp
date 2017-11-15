@@ -133,7 +133,6 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
   
   SECTION ( "Testing copy construction or move construction only element type requirements" ) {
 
-	  /*
     struct Foo {
       Foo() = delete;
       Foo(double x) : doobie(x) { }
@@ -145,11 +144,11 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
     };
 
     chops::wait_queue<Foo> wqfoo;
-    wqfoo.push(Foo{42.0});
+    Foo answer {42.0};
+    wqfoo.push(answer);
     std::optional<Foo> foo { wqfoo.try_pop() };
     REQUIRE (wqfoo.empty());
     REQUIRE ((*foo).doobie == 42.0);
-    */
 
     struct Bar {
       Bar() = delete;
