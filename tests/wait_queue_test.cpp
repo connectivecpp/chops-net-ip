@@ -131,6 +131,42 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
     non_threaded_int_test(wq);
   }
 
+  SECTION ( "Testing copy construction or move construction only element type requirements" ) {
+
+	  /*
+    struct Foo {
+      Foo() = delete;
+      Foo(double x) : doobie(x) { }
+      Foo(const Foo&) = default;
+      Foo(Foo&&) = delete;
+      Foo& operator=(const Foo&) = delete;
+      Foo& operator=(Foo&&) = delete;
+      double doobie;
+    };
+
+    chops::wait_queue<Foo> wqfoo;
+    wqfoo.push(Foo{42.0});
+    std::optional<Foo> foo { wqfoo.try_pop() };
+    REQUIRE (wqfoo.empty());
+    REQUIRE ((*foo).doobie == 42.0);
+    */
+
+    struct Bar {
+      Bar() = delete;
+      Bar(double x) : doobie(x) { }
+      Bar(const Bar&) = delete;
+      Bar(Bar&&) = default;
+      Bar& operator=(const Bar&) = delete;
+      Bar& operator=(Bar&&) = delete;
+      double doobie;
+    };
+
+    chops::wait_queue<Bar> wqbar;
+    wqbar.push(Bar{42.0});
+    std::optional<Bar> bar { wqbar.try_pop() };
+    REQUIRE (wqbar.empty());
+    REQUIRE ((*bar).doobie == 42.0);
+  }
 }
 
 TEST_CASE( "Testing ring_span roll around inside wait queue", "[wait_queue_roll_around]" ) {
@@ -170,9 +206,11 @@ TEST_CASE( "Threaded wait queue test small numbers", "[wait_queue_threaded_small
     threaded_test(wq, 60, 40, 12000, "cool, lit, sup"s);
   }
 }
+/*
 TEST_CASE( "Threaded wait queue test big numbers", "[wait_queue_threaded_big]" ) {
   SECTION ( "Threaded test with deque int, 500 reader and 300 writer threads, 50000 slice" ) {
     chops::wait_queue<std::pair<int, int> > wq;
     threaded_test(wq, 500, 300, 50000, 7777);
   }
 }
+*/
