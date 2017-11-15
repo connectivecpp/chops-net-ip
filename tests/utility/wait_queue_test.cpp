@@ -130,7 +130,7 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
     chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
     non_threaded_int_test(wq);
   }
-
+  
   SECTION ( "Testing copy construction or move construction only element type requirements" ) {
 
 	  /*
