@@ -96,23 +96,23 @@ Applications that need to perform time consuming operations on incoming data and
 
 Repeat is a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see References Section below). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
 
-### Chops Wait Queue
+### Wait Queue
 
-Chops Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication).
+Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication).
 
 Multiple writer and reader threads can access a Wait Queue simultaneously, although when a value is pushed on the queue, only one reader thread will be notified to consume the value.
 
-Close sementics are simple, and consist of setting an internal flag and notifying all waiting reader threads. Subsequent pushes are disallowed (an error is returned on the push). On close, data is *not* flushed (i.e. elements remaining in the queue will be destructed when the Wait Queue object is destructed, as typical in C++). A closed Wait Queue can be reopened by calling `open`.
+Close semantics are simple, and consist of setting an internal flag and notifying all waiting reader threads. Subsequent pushes are disallowed (an error is returned on the push). On close, data is *not* flushed (i.e. elements remaining in the queue will be destructed when the Wait Queue object is destructed, as typical in C++). A closed Wait Queue can be reopened by calling `open`.
 
 Wait Queue uses C++ standard library concurrency facilities (mutex, condition variables) in its implementation. It is not a lock-free queue, but it has been designed to be used in memory constrained environments or where deterministic performance is needed. In particular, Wait Queue:
 
 - Has been tested with Martin Moene's `ring_span` library for the internal container (see References Section below). A `ring_span` is traditionally known as a "ring buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
 
-- Does not throw or catch exceptions anywhere in its code base. Elements passed through the queue may throw exceptions, and must be handled at an application level.
+- Does not throw or catch exceptions anywhere in its code base. Elements passed through the queue may throw exceptions, which must be handled at an application level.
 
 - Every method is either `noexcept` or is conditionally `noexcept` depending on the type of the data passed through the Wait Queue. This is critical for environments where exceptions are not enabled or used, but allows Wait Queue to be used for types that might throw an exception when copied or moved.
 
-The only requirement on the type passed through a Wait Queue is that it supports either copying or moving (construction and assignment). In particular, a default constructor is not required (this is enabled by using `std::optional`, which does not require a default constructor).
+The only requirement on the type passed through a Wait Queue is that it supports either copy construction or move construction. In particular, a default constructor is not required (this is enabled by using `std::optional`, which does not require a default constructor).
 
 The implementation is adapted from the book Concurrency in Action, Practical Multithreading, by Anthony Williams (see References Section below). 
 
