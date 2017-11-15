@@ -13,9 +13,10 @@
 #include <thread>
 #include <mutex>
 
-#include "wait_queue.hpp"
+#include "utility/wait_queue.hpp"
+#include "utility/repeat.hpp"
+
 #include "nonstd/ring_span.hpp"
-#include "repeat.hpp"
 
 
 template <typename Q>

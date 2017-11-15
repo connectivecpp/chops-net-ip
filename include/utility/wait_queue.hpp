@@ -20,6 +20,39 @@
  *  are notified, and an empty value returned to those threads. Subsequent calls 
  *  to @c push will return a @c false value.
  *
+ *  Example usage, defaulted container:
+ *
+ *  @code
+ *    chops::wait_queue<int> wq;
+ *
+ *    // inside writer thread, assume wq passed in by reference
+ *    wq.push(some_val);
+ *    ...
+ *    // all finished, time to shutdown
+ *    wq.close();
+ *
+ *    // inside reader thread, assume wq passed in by reference
+ *    std::optional<int> rtn_val = wq.wait_and_pop();
+ *    if (!rtn_val) { // empty optional, close has been called
+ *      // time to end reader thread
+ *    }
+ *    if (*rtn_val == 42) ...
+ *  @endcode
+ *
+ *  Example usage with ring buffer (from Martin Moene):
+ *
+ *  @code
+ *    const int sz = 20;
+ *    int buf[sz];
+ *    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
+ *    // push and pop same as code with default container
+ *  @endcode
+ *
+ *  The container type must support default construction, construction from a 
+ *  begin and end iterator, a @c push_back method (preferably overloaded for both 
+ *  copy and move), a @c front method, a @c pop_front method, a @c empty method, and 
+ *  a @c size method.
+ *
  *  This class is based on code from the book Concurrency in Action by Anthony 
  *  Williams. The core logic in this class is the same as provided by Anthony 
  *  in his book, but the interfaces have changed and additional features added. 
@@ -88,14 +121,6 @@ public:
    * begin and end iterators must implement the usual C++ iterator range 
    * semantics.
    *
-   * For example, using a ring_span for the container view:
-   *
-   * @code
-   *   const int sz = 20;
-   *   int buf[sz];
-   *   chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
-   * @endcode
-   *
    * The iterators can also be used to initialize a typical internal buffer
    * container (e.g. @c std::deque, the default container type) with starting 
    * data.
@@ -105,7 +130,7 @@ public:
    * @param end Ending iterator.
    */
   template <typename Iter>
-  wait_queue(Iter beg, Iter end) : m_mut(), m_data_queue(beg, end), 
+  wait_queue(Iter beg, Iter end) noexcept : m_mut(), m_data_queue(beg, end), 
     m_data_cond(), m_closed(false) { }
 
   // disallow copy or move construction of the entire object
@@ -146,7 +171,7 @@ public:
    *
    * @return @c true if successful, @c false if the @c wait_queue is closed.
    */
-  bool push(const T& val) noexcept(std::is_nothrow_copy_assignable<T>::value) {
+  bool push(const T& val) noexcept(std::is_nothrow_copy_constructible<T>::value) {
     lock_guard lk{m_mut};
     if (m_closed) {
       return false;
@@ -160,7 +185,7 @@ public:
    * This method has the same semantics as the other @c push, except that the value will 
    * be moved (if possible) instead of copied.
    */
-  bool push(T&& val) noexcept(std::is_nothrow_move_assignable<T>::value) {
+  bool push(T&& val) noexcept(std::is_nothrow_move_constructible<T>::value) {
     lock_guard lk{m_mut};
     if (m_closed) {
       return false;
@@ -181,7 +206,7 @@ public:
    * @return A value from the @c wait_queue (if non-empty). If the @c std::optional is empty, 
    * the @c wait_queue has been closed.
    */
-  std::optional<T> wait_and_pop() noexcept(true) { // note - add stuff to noexcept
+  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_move_constructible<T>::value) {
     std::unique_lock<std::mutex> lk{m_mut};
     if (m_closed) {
       return std::optional<T> {};
@@ -202,7 +227,7 @@ public:
    * @return A value from the @c wait_queue or an empty @c std::optional if no values are 
    * available in the @c wait_queue.
    */
-  std::optional<T> try_pop() noexcept(true) {
+  std::optional<T> try_pop() noexcept(std::is_nothrow_move_constructible<T>::value) {
     lock_guard lk{m_mut};
     if (m_data_queue.empty()) {
       return std::optional<T>{};
@@ -231,7 +256,7 @@ public:
    * object calls into the same @c wait_queue.
    */
   template <typename F>
-  void apply(F&& f) const noexcept {
+  void apply(F&& f) const noexcept(std::is_nothrow_invocable<F&&, const T&>::value) {
     lock_guard lk{m_mut};
     for (const T& elem : m_data_queue) {
       f(elem);
