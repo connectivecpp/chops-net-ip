@@ -2,7 +2,7 @@
 
 #include "catch.hpp"
 
-#include "repeat.hpp"
+#include "utility/repeat.hpp"
 
 int gSum = 0;
 
