@@ -147,9 +147,9 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 
 - Vittorio Romeo is a blog author and C++ expert. His web site is https://vittorioromeo.info/ and his Github site is https://github.com/SuperV1234. Vittorio's blog is excellent and well worth reading.
 
-# Supported Compilers
+# Supported Compilers and Platforms
 
-Chops is compiled and tested on g++ 7.2, clang xx, and VS xx.
+Chops has been compiled on g++ 7.2, clang xx, VS xx and tested on Linux (4.13), Windows 10, and xx.
 
 # Installation
 
