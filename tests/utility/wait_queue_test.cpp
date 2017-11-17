@@ -62,9 +62,8 @@ void read_func (Q& wq, std::set<std::pair< int, T> >& s, std::mutex& mut) {
 
 template <typename Q, typename T>
 void write_func (Q& wq, int start, int slice, const T& val) {
-  chops::repeat (slice, [&wq, start, val] (const int& i) {
-      std::pair<int, T> elem((start+i), val);
-      if (!wq.push(elem)) {
+  chops::repeat (slice, [&wq, start, &val] (const int& i) {
+      if (!wq.push(std::pair<int, T>{(start+i), val})) {
         FAIL("wait queue push failed in write_func");
       }
     }
@@ -86,8 +85,8 @@ void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& 
   );
 
   std::vector<std::thread> wr_thrs;
-  chops::repeat(num_writers, [&wq, &wr_thrs, slice, val] (const int& i) {
-      wr_thrs.push_back( std::thread (write_func<Q, T>, std::ref(wq), (i*slice), slice, std::cref(val)));
+  chops::repeat(num_writers, [&wq, &wr_thrs, slice, &val] (const int& i) {
+      wr_thrs.push_back( std::thread (write_func<Q, T>, std::ref(wq), (i*slice), slice, val));
     }
   );
   // wait for writers to finish pushing vals
