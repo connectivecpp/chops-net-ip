@@ -48,10 +48,11 @@
  *    // push and pop same as code with default container
  *  @endcode
  *
- *  The container type must support default construction, construction from a 
- *  begin and end iterator, a @c push_back method (preferably overloaded for both 
- *  copy and move), a @c front method, a @c pop_front method, a @c empty method, and 
- *  a @c size method.
+ *  The container type must support the following methods (depending on which 
+ *  ones are instantiated): default construction, construction from a 
+ *  begin and end iterator, @c push_back (preferably overloaded for both 
+ *  copy and move), @c emplace_back with a template parameter pack, @c front, 
+ *  @c pop_front, @c empty, and @c size.
  *
  *  This class is based on code from the book Concurrency in Action by Anthony 
  *  Williams. The core logic in this class is the same as provided by Anthony 
@@ -194,6 +195,29 @@ public:
   }
 
   /**
+   * Directly construct an object in the underlying container (using the container's
+   * @c emplace_back method) by forwarding the supplied arguments (can be more than one).
+   *
+   * @param args Arguments to be used in constructing an element at the end of the queue.
+   *
+   * @note The @c std containers return a reference to the newly constructed element from 
+   * @c emplace method calls. @c emplace_push does not follow this convention, and instead 
+   * has the same return as the @c push methods.
+   *
+   * @return @c true if successful, @c false if the @c wait_queue is closed.
+   */
+  template <typename ... Args>
+  bool emplace_push(Args &&... args) noexcept(std::is_nothrow_constructible<T, Args...>::value) {
+    lock_guard lk{m_mut};
+    if (m_closed) {
+      return false;
+    }
+    m_data_queue.emplace_back(std::forward<Args>(args)...);
+    m_data_cond.notify_one();
+    return true;
+  }
+
+  /**
    * Pop and return a value from the @c wait_queue, blocking and waiting for a writer thread to 
    * push a value if one is not immediately available.
    *
@@ -204,8 +228,7 @@ public:
    * @return A value from the @c wait_queue (if non-empty). If the @c std::optional is empty, 
    * the @c wait_queue has been closed.
    */
-  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_move_constructible<T>::value || 
-                                           std::is_nothrow_copy_constructible<T>::value) {
+  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_constructible<T>::value) {
     std::unique_lock<std::mutex> lk{m_mut};
     if (m_closed) {
       return std::optional<T> {};
@@ -226,8 +249,7 @@ public:
    * @return A value from the @c wait_queue or an empty @c std::optional if no values are 
    * available in the @c wait_queue.
    */
-  std::optional<T> try_pop() noexcept(std::is_nothrow_move_constructible<T>::value || 
-                                      std::is_nothrow_copy_constructible<T>::value) {
+  std::optional<T> try_pop() noexcept(std::is_nothrow_constructible<T>::value) {
     lock_guard lk{m_mut};
     if (m_data_queue.empty()) {
       return std::optional<T> {};
