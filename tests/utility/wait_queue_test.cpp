@@ -18,6 +18,7 @@
 
 #include "nonstd/ring_span.hpp"
 
+using namespace std::literals::string_literals;
 
 template <typename Q>
 void non_threaded_int_test(Q& wq) {
@@ -131,8 +132,9 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
     non_threaded_int_test(wq);
   }
   
-  SECTION ( "Testing copy construction or move construction only element type requirements" ) {
+  SECTION ( "Testing copy construction, move construction, emplacement" ) {
 
+  {
     struct Foo {
       Foo() = delete;
       Foo(double x) : doobie(x) { }
@@ -143,13 +145,15 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
       double doobie;
     };
 
-    chops::wait_queue<Foo> wqfoo;
+    chops::wait_queue<Foo> wq;
     Foo answer {42.0};
-    wqfoo.push(answer);
-    std::optional<Foo> foo { wqfoo.try_pop() };
-    REQUIRE (wqfoo.empty());
+    wq.push(answer);
+    std::optional<Foo> foo { wq.try_pop() };
+    REQUIRE (wq.empty());
     REQUIRE ((*foo).doobie == 42.0);
+  }
 
+  {
     struct Bar {
       Bar() = delete;
       Bar(double x) : doobie(x) { }
@@ -160,11 +164,40 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
       double doobie;
     };
 
-    chops::wait_queue<Bar> wqbar;
-    wqbar.push(Bar{42.0});
-    std::optional<Bar> bar { wqbar.try_pop() };
-    REQUIRE (wqbar.empty());
+    chops::wait_queue<Bar> wq;
+    wq.push(Bar{42.0});
+    std::optional<Bar> bar { wq.try_pop() };
+    REQUIRE (wq.empty());
     REQUIRE ((*bar).doobie == 42.0);
+  }
+
+  {
+    struct Band {
+      Band() = delete;
+      Band(double x, const std::string& bros) : doobie(x), brothers(bros), engagements() {
+        engagements = {"Seattle"s, "Portland"s, "Boise"s};
+      }
+      Band(const Band&) = delete;
+      Band(Band&&) = default;
+      Band& operator=(const Band&) = delete;
+      Band& operator=(Band&&) = delete;
+      double doobie;
+      std::string brothers;
+      std::vector<std::string> engagements;
+    };
+
+    chops::wait_queue<Band> wq;
+    wq.push(Band{42.0, "happy"s});
+    wq.emplace_push(44.0, "sad"s);
+    std::optional<Band> val1 { wq.try_pop() };
+    REQUIRE ((*val1).doobie == 42.0);
+    REQUIRE ((*val1).brothers == "happy"s);
+    std::optional<Band> val2 { wq.try_pop() };
+    REQUIRE ((*val2).doobie == 44.0);
+    REQUIRE ((*val2).brothers == "sad"s);
+    REQUIRE (wq.empty());
+  }
+
   }
 }
 
@@ -200,7 +233,6 @@ TEST_CASE( "Threaded wait queue test small numbers", "[wait_queue_threaded_small
     threaded_test(wq, 60, 40, 5000, 5656);
   }
   SECTION ( "Threaded test with deque string, 60 reader and 40 writer threads, 12000 slice" ) {
-    using namespace std::literals::string_literals;
     chops::wait_queue<std::pair<int, std::string> > wq;
     threaded_test(wq, 60, 40, 12000, "cool, lit, sup"s);
   }
