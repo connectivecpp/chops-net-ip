@@ -45,7 +45,7 @@ A detailed overview is [available here](doc/chops_net.md).
 
 The Periodic Timer class is an asynchronous periodic timer that adjusts for time jitter.
 
-Writing code using asynchronous timers from the C++ Networking Technical Specification (TS) is relatively easy. However, there are no timers that are periodic. This class simplifies the task, using application supplied function object callbacks.
+Writing code using asynchronous timers from the C++ Networking Technical Specification (TS) is relatively easy. However, there are no timers that are periodic or that attempt to adjust for jitter. This class simplifies the task, using application supplied function object callbacks.
 
 A detailed overview is [available here](doc/timer.md).
 
@@ -77,13 +77,13 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 
 # References
 
-- Chris Kohlhoff is a networking and C++ expert, creator of the Asio library and initial author of the C++ Networking Technical Standard (TS). Asio is available at https://think-async.com/ and Chris' Github site is https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
+- Chris Kohlhoff is a networking expert (among other expertises, including C++), creator of the Asio library and initial author of the C++ Networking Technical Standard (TS). Asio is available at https://think-async.com/ and Chris' Github site is https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
 
 - Phil Nash is the author of the Catch C++ unit testing library. The Catch library is available at https://github.com/catchorg/Catch2.
 
 - Anthony Williams is the author of Concurrency in Action, Practical Multithreading. His web site is http://www.justsoftwaresolutions.co.uk and his Github site is https://github.com/anthonywilliams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
 
-- Martin Moene is a C++ expert and member and former editor of accu-org, His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `std::ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
+- Martin Moene is a C++ expert and member and former editor of accu-org, His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
 
 - Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple times at CppCon. His Github site is https://github.com/kirkshoop.
 
@@ -100,6 +100,8 @@ All Chops libraries are header-only, so installation consists of downloading or 
 # About
 
 The primary author of Chops is Cliff Green, softwarelibre at codewrangler dot net. Cliff is a software engineer and has worked for years with networked and distributed systems, wireless networks, location technology, and large scale embedded systems in the military aerospace industry. He has volunteered every year at CppCon and presented at BoostCon (before it was renamed to C++ Now).
+
+Cliff lives in the Seattle area and you may know him from other interests including volleyball, hiking, railroading (both the model variety and the big ones in real life), music, or even parent support activities (if you have a teen with difficulties check out the Changes Parent Support Network, http://cpsn.org).
 
 Co-authors include ...
 
