@@ -91,7 +91,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <optional>
-#include <utility> // std::move
+#include <utility> // std::move, std::move_if_noexcept
 #include <type_traits> // for noexcept specs
 
 namespace chops {
@@ -214,16 +214,9 @@ public:
     if (m_data_queue.empty()) {
       return std::optional<T> {}; // queue was closed, no data available
     }
-    if constexpr (std::is_move_constructible<T>::value) {
-      std::optional<T> val {std::move(m_data_queue.front())}; // move ctor if possible
-      m_data_queue.pop_front();
-      return val;
-    }
-    else {
-      std::optional<T> val {m_data_queue.front()}; // copy ctor instead of move ctor
-      m_data_queue.pop_front();
-      return val;
-    }
+    std::optional<T> val {std::move_if_noexcept(m_data_queue.front())}; // move construct if possible
+    m_data_queue.pop_front();
+    return val;
   }
 
   /**
@@ -239,16 +232,9 @@ public:
     if (m_data_queue.empty()) {
       return std::optional<T> {};
     }
-    if constexpr (std::is_move_constructible<T>::value) {
-      std::optional<T> val {std::move(m_data_queue.front())}; // move ctor if possible
-      m_data_queue.pop_front();
-      return val;
-    }
-    else {
-      std::optional<T> val {m_data_queue.front()}; // copy ctor instead of move ctor
-      m_data_queue.pop_front();
-      return val;
-    }
+    std::optional<T> val {std::move_if_noexcept(m_data_queue.front())}; // move construct if possible
+    m_data_queue.pop_front();
+    return val;
   }
 
   // non-modifying methods
