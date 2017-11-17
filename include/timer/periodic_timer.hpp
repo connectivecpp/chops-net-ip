@@ -16,18 +16,18 @@
  *  one invocation (i.e. unconditionally return @c false from the function 
  *  object).
  *
- *  An asynchronous timer is more resource-friendly with system resources 
+ *  An asynchronous timer is more resource-friendly regarding system resources 
  *  than creating a thread that sleeps. In particular, creating hundreds or 
  *  thousands of timers is very expensive in a "thread per timer" design.
  *
  *  If the application cares about precise (as possible) periodicity, timer 
  *  design must adjust for processing time within the timer callback code 
- *  as well as operating environment imprecision. For example, application 
- *  "wonder app" desires a timer callback to be invoked once every 500 
- *  milliseconds and the callback takes 15 milliseconds to excecute. Also 
- *  occasionally the operating environment takes an extra 10 or 20 milliseconds 
- *  before invoking the callback. Without adjustment the actual interval is 
- *  now 515 milliseconds between callback invocations, with occasional intervals 
+ *  as well as operating environment imprecision. For example, an application 
+ *  may desire a timer callback to be invoked once every 500 milliseconds and 
+ *  the callback takes 15 milliseconds to excecute. Also occasionally the 
+ *  operating environment takes an extra 10 or 20 milliseconds before invoking 
+ *  the callback. Without adjustment the actual interval is now 515 
+ *  milliseconds between callback invocations, with occasional intervals 
  *  up to 535 milliseconds. The @c periodic_timer class adjusts for these 
  *  slippages, up to the precision allowed by the system and environment.
  *
@@ -52,18 +52,20 @@
 #define PERIODIC_TIMER_INCLUDED_H
 
 #include <experimental/timer>
+#include <experimental/io_context>
+
 #include <chrono>
+#include <functional>
+#include <system_error>
 
 namespace chops {
 
+template <typename Clock = std::chrono::steady_clock>
 class periodic_timer {
 private:
-  mutable std::mutex m_mut;
-  Container m_data_queue;
-  std::condition_variable m_data_cond;
-  bool m_closed = false;
 
-  using lock_guard = std::lock_guard<std::mutex>;
+  std::experimental::basic_waitable_timer<Clock> m_timer;
+  std::function<void (const std::error_code&)> m_cb;
 
 public:
 
@@ -83,7 +85,7 @@ public:
    * @param end Ending iterator.
    */
   template <typename Clock = std::chrono::steady_clock>
-  periodic_timer(
+  periodic_timer(std::experimental::io_context& context, 
     m_data_cond(), m_closed(false) { }
 
   // disallow copy or move construction of the entire object
