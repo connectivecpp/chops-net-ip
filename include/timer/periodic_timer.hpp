@@ -16,27 +16,6 @@
  *  one invocation (i.e. unconditionally return @c false from the function 
  *  object).
  *
- *  An asynchronous timer is more resource-friendly regarding system resources 
- *  than creating a thread that sleeps. In particular, creating hundreds or 
- *  thousands of timers is very expensive in a "thread per timer" design.
- *
- *  If the application cares about precise (as possible) periodicity, timer 
- *  design must adjust for processing time within the timer callback code 
- *  as well as operating environment imprecision. For example, an application 
- *  may desire a timer callback to be invoked once every 500 milliseconds and 
- *  the callback takes 15 milliseconds to excecute. Also occasionally the 
- *  operating environment takes an extra 10 or 20 milliseconds before invoking 
- *  the callback. Without adjustment the actual interval is now 515 
- *  milliseconds between callback invocations, with occasional intervals 
- *  up to 535 milliseconds. The @c periodic_timer class adjusts for these 
- *  slippages, up to the precision allowed by the system and environment.
- *
- *  An excellent article on this topic:
- *
- *  https://bulldozer00.com/2013/12/27/periodic-processing-with-standard-c11-facilities/
- *
- *
- *
  *  Example usage:
  *
  *  @code
