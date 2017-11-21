@@ -49,17 +49,25 @@ Writing code using asynchronous timers from the C++ Networking Technical Specifi
 
 A detailed overview is [available here](doc/timer.md).
 
+## Queue
+
+### Wait Queue
+
+Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). A fixed size container (e.g. a `ring_span`) can be used, eliminating any and all dynamic memory management (useful in embedded or performance constrained environments).
+
+A detailed overview is [available here](doc/queue.md).
+
 ## Chops Utilities
 
 ### Repeat
 
 Repeat is a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see [References Section](#references)). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
 
-### Wait Queue
+### Shared Buffer
 
-Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). A fixed size container (e.g. a `ring_span`) can be used, eliminating any and all dynamic memory management (useful in embedded or performance constrained environments).
+slkdjflk
 
-A detailed overview of the utilities is [available here](doc/utility.md).
+A detailed overview of utilities is [available here](doc/utility.md).
 
 # C++ Language Requirements and Alternatives
 
