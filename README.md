@@ -57,7 +57,7 @@ Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data betw
 
 A detailed overview is [available here](doc/queue.md).
 
-## Chops Utilities
+## Utilities
 
 ### Repeat
 
@@ -65,9 +65,9 @@ Repeat is a function template to abstract and simplify loops that repeat N times
 
 ### Shared Buffer
 
-slkdjflk
+Reference counted byte buffer classes are used within Chops Net, but can be useful in other contexts.
 
-A detailed overview of utilities is [available here](doc/utility.md).
+A detailed overview of the utilities is [available here](doc/utility.md).
 
 # C++ Language Requirements and Alternatives
 
