@@ -13,7 +13,7 @@
 #include <thread>
 #include <mutex>
 
-#include "utility/wait_queue.hpp"
+#include "queue/wait_queue.hpp"
 #include "utility/repeat.hpp"
 
 #include "nonstd/ring_span.hpp"
