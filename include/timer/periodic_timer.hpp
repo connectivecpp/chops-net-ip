@@ -35,12 +35,9 @@
 
 #include <chrono>
 #include <system_error>
-#include <utility> // std::move
+#include <utility> // std::move, std::forward
 
 namespace chops {
-
-namespace details {
-}
 
 template <typename Clock = std::chrono::steady_clock>
 class periodic_timer {
@@ -52,26 +49,24 @@ public:
 private:
 
   std::experimental::basic_waitable_timer<Clock> m_timer;
-  duration m_duration;
-  time_point m_last_tp;
 
 private:
   template <typename F>
-  void handler_impl(F&& f, const std::system_error& err) {
-    duration elapsed { Clock::now() - m_last_tp };
-    if (!f(err, elapsed)) {
-      return;
+  void handler_impl(F&& f, time_point&& last_tp, duration&& dur, const std::system_error& err) {
+    if (!f(err, (Clock::now() - last_tp))) { // pass err and elapsed time to app function obj
+      return; // app is finished with timer for now
     }
-    m_timer.expires_after(m_duration);
-    m_last_tp = Clock::now();
-    m_timer.async_wait(
-
+    m_timer.expires_after(std::move(dur));
+    m_timer.async_wait( [f = std::forward(f), dur = std::move(dur), this] (const std::system_error& e) {
+        handler_impl(f, Clock::now(), dur, e);
+      };
+    );
   }
 
 public:
 
   /**
-   * Construct a @c periodic_timer with an @c io_context and time duration. Other information 
+   * Construct a @c periodic_timer with an @c io_context. Other information such as duration 
    * will be supplied when @c start is called.
    *
    * Constructing a @c periodic_timer does not start the actual timer. Calling the @c start 
@@ -86,13 +81,11 @@ public:
    * construction or move assignment completes, all timers are cancelled with 
    * appropriate errors, and @c start will need to be called.
    *
-   * @param ldksjflk
+   * @param ioc @c io_context for asynchronous processing.
    *
-   * @param 
    */
   template <typename Clock = std::chrono::steady_clock>
-  explicit periodic_timer(std::experimental::io_context& ioc, duration&& dur) :
-      m_timer(ioc), std::move(dur), m_last_tp() { }
+  explicit periodic_timer(std::experimental::io_context& ioc) : m_timer(ioc) { }
 
   periodic_timer() = delete; // no default ctor
 
@@ -107,28 +100,55 @@ public:
   // modifying methods
 
   /**
+   * Start the timer, and the application supplied function object will be invoked 
+   * after an amount of time specified by the duration parameter.
+   *
+   * The function object will continue to be invoked as long as it returns @c true.
+   *
+   * @param f Function object to be invoked. The function object requires a 
+   * signature with two parameters, @c const std::system_error& and @c const duration&.
+   *
+   * @param dur Time duration between timer invocations of the function object.
    */
   template <typename F>
-  void start(F&& f) {
-    m_timer.expires_after(m_duration);
-    m_last_tp = Clock::now();
-    m_timer.async_wait ([f, this] mutable (const std::error& err) {
-        if (f(err)) {
-          
-        }
+  void start(F&& f, duration&& dur) {
+    m_timer.expires_after(std::move(dur));
+    m_timer.async_wait( [f = std::forward(f), dur = std::move(dur), this] (const std::system_error& e) {
+        handler_impl(f, Clock::now(), dur, e);
       };
     );
   }
+  /**
+   * Start the timer, and the application supplied function object will be invoked 
+   * first at a specified time point, then afterwards as specified by the duration 
+   * parameter.
+   *
+   * @param f Function object to be invoked. The function object requires a 
+   * signature with two parameters, @c const std::system_error& and @c const duration&.
+   *
+   * @param dur Time duration between timer invocations of the function object.
+   *
+   * @param when Time point when the first timer callback will be invoked.
+   */
   template <typename F>
-  void start(F&& f, time_point&& when) {
-    m_timer.expires_at(when);
-    // set m_last_tp accordingly
-    m_last_tp = Clock::now() - m_duration;
-    m_timer.async_wait (sdlkfj);
+  void start(F&& f, duration&& dur, time_point&& when) {
+    m_timer.expires_at(std::move(when));
+    m_timer.async_wait( [f = std::forward(f), dur = std::move(dur), this] (const std::system_error& e) {
+        handler_impl(f, Clock::now(), dur, e);
+      };
+    );
   }
 
-  // non-modifying methods
-
+  /**
+   * Cancel the timer. The application function object will be called with an 
+   * "operation aborted" error code.
+   *
+   * A cancel may implicitly be called if the @c periodic_timer object is move copy 
+   * constructed or move assigned.
+   */
+  void cancel() {
+    m_timer.cancel();
+  }
 };
 
 } // end namespace
