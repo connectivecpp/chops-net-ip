@@ -32,6 +32,7 @@
 
 #include <experimental/timer>
 #include <experimental/io_context>
+#include <experimental/executor>
 
 #include <chrono>
 #include <system_error>
@@ -48,7 +49,7 @@ public:
 
 private:
 
-  std::experimental::basic_waitable_timer<Clock> m_timer;
+  std::experimental::net::basic_waitable_timer<Clock> m_timer;
 
 private:
   template <typename F>
@@ -59,7 +60,7 @@ private:
     m_timer.expires_after(std::move(dur));
     m_timer.async_wait( [f = std::forward(f), dur = std::move(dur), this] (const std::system_error& e) {
         handler_impl(f, Clock::now(), dur, e);
-      };
+      }
     );
   }
 
@@ -84,14 +85,13 @@ public:
    * @param ioc @c io_context for asynchronous processing.
    *
    */
-  template <typename Clock = std::chrono::steady_clock>
-  explicit periodic_timer(std::experimental::io_context& ioc) : m_timer(ioc) { }
+  explicit periodic_timer(std::experimental::net::io_context& ioc) : m_timer(ioc) { }
 
   periodic_timer() = delete; // no default ctor
 
   // disallow copy construction and copy assignment
-  periodic_timer(const wait_queue&) = delete;
-  periodic_timer& operator=(const wait_queue&) = delete;
+  periodic_timer(const periodic_timer&) = delete;
+  periodic_timer& operator=(const periodic_timer&) = delete;
 
   // allow move construction and move assignment
   periodic_timer(periodic_timer&&) = default;
@@ -115,7 +115,7 @@ public:
     m_timer.expires_after(std::move(dur));
     m_timer.async_wait( [f = std::forward(f), dur = std::move(dur), this] (const std::system_error& e) {
         handler_impl(f, Clock::now(), dur, e);
-      };
+      }
     );
   }
   /**
@@ -135,7 +135,7 @@ public:
     m_timer.expires_at(std::move(when));
     m_timer.async_wait( [f = std::forward(f), dur = std::move(dur), this] (const std::system_error& e) {
         handler_impl(f, Clock::now(), dur, e);
-      };
+      }
     );
   }
 
