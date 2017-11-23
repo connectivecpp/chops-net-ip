@@ -15,38 +15,50 @@ void myfunc_b ( int i ) {
   gSum += 1;
 }
 
-TEST_CASE( "Testing repeat function template", "[repeat]" ) {
-  gSum = 0;
-  REQUIRE( gSum == 0 );
-
+SCENARIO( "Vittorio Romeo's repeat utility is a function template to repeat code N times", "[repeat]" ) {
   const int N = 50;
-  CAPTURE (N);
-
-  SECTION ( "Testing myfunc without index") {
+  GIVEN ("A global counter set to 0 and an iteration count set to N") {
+  }
+  WHEN ("A function that doesn't care about the passed in index is invoked") {
+    gSum = 0;
     chops::repeat(N, myfunc_a);
-    REQUIRE (gSum == N);
+    THEN ("the global counter should now equal N") {
+      REQUIRE (gSum == N);
+    }
   }
-  SECTION ( "Testing myfunc with index") {
+  WHEN ("A function that does care about the passed in index is invoked") {
+    gSum = 0;
     chops::repeat(N, myfunc_b);
-    REQUIRE (gSum == N);
+    THEN ("the global counter should now equal N") {
+      REQUIRE (gSum == N);
+    }
   }
-  SECTION ( "Testing lambda func without index") {
+  WHEN ("A lambda func that doesn't care about the passed in index is invoked") {
+    gSum = 0;
     chops::repeat(N, [] { myfunc_a(); } );
-    REQUIRE (gSum == N);
+    THEN ("the global counter should now equal N") {
+      REQUIRE (gSum == N);
+    }
   }
-  SECTION ( "Testing lambda func with index") {
+  WHEN ("A lambda func that does care about the passed in index is invoked") {
+    gSum = 0;
     chops::repeat(N, [] (int i) { myfunc_b(i); } );
-    REQUIRE (gSum == N);
+    THEN ("the global counter should now equal N") {
+      REQUIRE (gSum == N);
+    }
   }
-  SECTION ( "Testing lambda func without index and local var") {
+  WHEN ("A lambda func that doesn't care about the index but has a local var is invoked") {
     int lSum = 0;
     chops::repeat(N, [&lSum] { lSum += 1; } );
-    REQUIRE (lSum == N);
+    THEN ("the local counter should now equal N") {
+      REQUIRE (lSum == N);
+    }
   }
-  SECTION ( "Testing lambda func with index and local var") {
+  WHEN ("A lambda func that does care about the index and has a local var is invoked") {
     int lSum = 0;
     chops::repeat(N, [&lSum] (int i) { REQUIRE (lSum == i); lSum += 1; } );
-    REQUIRE (lSum == N);
+    THEN ("the local counter should now equal N") {
+      REQUIRE (lSum == N);
+    }
   }
-
 }
