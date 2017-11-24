@@ -2,7 +2,7 @@
 
 The Chops Medley is a collection of C++ libraries for networking and distributed processing. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
-# Chops Libraries
+# Chops Components
 
 ## Chops Net
 
@@ -16,6 +16,7 @@ Example environments where Chops Net is a good fit:
 - Small footprint or embedded environments, where all network processing is run inside a single thread.
 - Applications with relatively simple network processing that need an easy-to-use and quick-for-development network library.
 - Applications with configuration driven networks that may need to switch (for example) between connect versus accept for a given connection, or between TCP and UDP for a given communication path.
+- Peer-to-peer applications where the application doesn't care which side connects or accepts, only that there's a data connection.
 
 Chops Net:
 
@@ -43,9 +44,9 @@ A detailed overview is [available here](doc/chops_net.md).
 
 ### Periodic Timer
 
-The Periodic Timer class is an asynchronous periodic timer that adjusts for time jitter.
+The Periodic Timer class is an asynchronous periodic timer that simplifies interacting with the C++ Networking Technical Standard (TS) timer facilities. The periodicity can be based on either a duration or on timepoints.
 
-Writing code using asynchronous timers from the C++ Networking Technical Specification (TS) is relatively easy. However, there are no timers that are periodic or that attempt to adjust for jitter. This class simplifies the task, using application supplied function object callbacks.
+Writing code using asynchronous timers from the C++ Networking Technical Specification (TS) is relatively easy. However, there are no timers that are periodic. This class simplifies the task, using application supplied function object callbacks. When the timer is started, the application specifies whether each callback is invoked based on a duration (i.e. one second after the last callback), or on timepoints (i.e. a callback will be invoked each second according to the clock).
 
 A detailed overview is [available here](doc/timer.md).
 
@@ -65,9 +66,9 @@ Repeat is a function template to abstract and simplify loops that repeat N times
 
 ### Shared Buffer
 
-Reference counted byte buffer classes are used within Chops Net, but can be useful in other contexts.
+Reference counted byte buffer classes are used within Chops Net, but can be useful in other contexts. These classes are based on example code inside Chris Kohlhoff's Asio library (see [References Section](#references)).
 
-A detailed overview of the utilities is [available here](doc/utility.md).
+A detailed overview of the utility classes is [available here](doc/utility.md).
 
 # C++ Language Requirements and Alternatives
 
@@ -107,7 +108,7 @@ All Chops libraries are header-only, so installation consists of downloading or 
 
 # About
 
-The primary author of Chops is Cliff Green, softwarelibre at codewrangler dot net. Cliff is a software engineer and has worked for years with networked and distributed systems, wireless networks, location technology, and large scale embedded systems in the military aerospace industry. He has volunteered every year at CppCon and presented at BoostCon (before it was renamed to C++ Now).
+The primary author of Chops is Cliff Green, softwarelibre at codewrangler dot net. Cliff is a software engineer and has worked for years writing infrastructural libraries and applications for use in networked and distributed systems, typically where high reliability or uptime is required. The domains where he has worked include wireless networks, simulation systems, location technology, and large scale embedded systems in the military aerospace industry. He has volunteered every year at CppCon and presented at BoostCon (before it was renamed to C++ Now).
 
 Cliff lives in the Seattle area and you may know him from other interests including volleyball, hiking, railroading (both the model variety and the big ones in real life), music, or even parent support activities (if you are having major difficulties with your teen check out the Changes Parent Support Network, http://cpsn.org).
 
