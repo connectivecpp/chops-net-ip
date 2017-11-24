@@ -17,6 +17,7 @@ void myfunc_b ( int i ) {
 
 SCENARIO( "Vittorio Romeo's repeat utility is a function template to repeat code N times", "[repeat]" ) {
   const int N = 50;
+  INFO("N = " << N);
   GIVEN ("A global counter set to 0 and an iteration count set to N") {
   }
   WHEN ("A function that doesn't care about the passed in index is invoked") {
