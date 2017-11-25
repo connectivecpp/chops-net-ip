@@ -6,12 +6,26 @@
 
 #include <chrono>
 #include <thread>
+#include <optional>
+#include <system_error>
 
 #include "timer/periodic_timer.hpp"
 #include "utility/repeat.hpp"
 
-template <typename Clock, typename Dur, typename TP>
-void timer_test (int expected, Dur timer_dur, Dur wait_time, TP start_time) {
+template <typename Clock>
+struct timer_cb {
+  int count = 0;
+  void operator() (const std::error_code& err, const typename Clock::duration& elapsed) {
+    ++count;
+    INFO ("Now time = " << Clock::now() << ", count = " << count << ", elapsed = " << elapsed << 
+      ", err code = " << err.value() << ", " << err.message());
+  }
+};
+
+
+template <typename Clock>
+int timer_test (typename Clock::duration timer_dur, typename Clock::duration wait_time,
+                std::optional<typename Clock::time_point> start_time, bool dur_timer) {
 
   chops::periodic_timer<Clock> timer;
   std::experimental::net::io_context ioc;
@@ -21,19 +35,32 @@ void timer_test (int expected, Dur timer_dur, Dur wait_time, TP start_time) {
   std::thread thr([&ioc] () { ioc.run(); } );
   
   int count = 0;
-  timer.start([&count] (const std::system_error& err, const Dur& elapsed) {
-      ++count;
-      INFO ("count  " << count << ", sys err = " << err.what());
+  if (dur_timer) {
+    if (start_time) {
+      timer.start_duration_timer(timer_cb<Clock>(), timer_dur, start_time);
     }
-  );
+    else {
+      timer.start_duration_timer(timer_cb<Clock>(), timer_dur);
+    }
+  }
+  else {
+    if (start_time) {
+      timer.start_timepoint_timer(timer_cb<Clock>(), timer_dur, start_time);
+    }
+    else {
+      timer.start_timepoint_timer(timer_cb<Clock>(), timer_dur);
+    }
+  }
   std::this_thread::sleep_for(wait_time);
   wg.reset();
   thr.join();
   INFO ("Thread joined");
-  REQUIRE (count == expected);
+  return count;
 }
 
-TEST_CASE( "Testing periodic timer", "[periodic_timer]" ) {
+SCENARIO ( "Periodic timers can be started to callback on durations", "[periodic_timer_duration]" ) {
+  GIVEN ( "A duration and ")
   
+  REQUIRE (count == expected);
 }
 
