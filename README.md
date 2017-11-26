@@ -85,11 +85,11 @@ While the main production branch of Chops will always be developed and tested wi
 # External Dependencies
 
 The libraries and API's have minimal (as possible) library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` library (see [References Section](#references)).
-- Version x.xx of Chris' Networking TS repository is required (for Chops Net and Timer).
+- Version 1.11 (or later) of Chris' Networking TS repository is required (for Chops Net and Timer). Note that the version number is from the Asio version and may not exactly match the Networking TS version.
 
 The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework (see [Reference Section](#references)). Various tests for templatized queue container types use Martin Moene's `ring_span` library for fixed buffer queue semantics.
-- Version 2.01 of Phil's Catch 2.0 is required (for all testing).
-- Version 0.00 of Martin's Ring Span Lite is required (for Wait Queue and Chops Net tests).
+- Version 2.01 (or later) of Phil's Catch 2.0 is required (for all testing).
+- Version 0.00 (or later) of Martin's Ring Span Lite is required (for Wait Queue and Chops Net tests).
 
 # References
 
