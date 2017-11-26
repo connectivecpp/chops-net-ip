@@ -46,9 +46,9 @@ A detailed overview is [available here](doc/chops_net.md).
 
 ### Periodic Timer
 
-The Periodic Timer class is an asynchronous periodic timer that simplifies interacting with the C++ Networking Technical Standard (TS) timer facilities. The periodicity can be based on either a duration or on timepoints.
+The Periodic Timer class is an asynchronous periodic timer that wraps and simplifies C++ Networking Technical Standard (TS) timers when periodic callbacks are needed. The periodicity can be based on either a simple duration or on timepoints based on a duration.
 
-Writing code using asynchronous timers from the C++ Networking Technical Specification (TS) is relatively easy. However, there are no timers that are periodic. This class simplifies the task, using application supplied function object callbacks. When the timer is started, the application specifies whether each callback is invoked based on a duration (i.e. one second after the last callback), or on timepoints (i.e. a callback will be invoked each second according to the clock).
+Asynchronous timers from the C++ Networking Technical Specification (TS) are relatively easy to use. However, there are no timers that are periodic. This class simplifies the usage, using application supplied function object callbacks. When the timer is started, the application specifies whether each callback is invoked based on a duration (e.g. one second after the last callback), or on timepoints (e.g. a callback will be invoked each second according to the clock).
 
 A detailed overview is [available here](doc/timer.md).
 
@@ -57,6 +57,8 @@ A detailed overview is [available here](doc/timer.md).
 ### Wait Queue
 
 Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). A fixed size container (e.g. a `ring_span`) can be used, eliminating any and all dynamic memory management (useful in embedded or performance constrained environments).
+
+Wait Queue is inspired by code from Anthony Williams' Concurrency in Action book (see [References Section](#references)), although heavily modified.
 
 A detailed overview is [available here](doc/queue.md).
 
@@ -80,11 +82,14 @@ Using Boost libraries instead of `std::optional` (and similar C++ 17 features) i
 
 While the main production branch of Chops will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
 
-# Dependencies
+# External Dependencies
 
-The libraries and API's have minimal library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` library (see [References Section](#references)).
+The libraries and API's have minimal (as possible) library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` library (see [References Section](#references)).
+- Version x.xx of Chris' Networking TS repository is required (for Chops Net and Timer).
 
 The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework (see [Reference Section](#references)). Various tests for templatized queue container types use Martin Moene's `ring_span` library for fixed buffer queue semantics.
+- Version 2.01 of Phil's Catch 2.0 is required (for all testing).
+- Version 0.00 of Martin's Ring Span Lite is required (for Wait Queue and Chops Net tests).
 
 # References
 
@@ -94,7 +99,7 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 
 - Anthony Williams is the author of Concurrency in Action, Practical Multithreading. His web site is http://www.justsoftwaresolutions.co.uk and his Github site is https://github.com/anthonywilliams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
 
-- Martin Moene is a C++ expert and member and former editor of accu-org, His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
+- Martin Moene is a C++ expert and member and former editor of accu-org. His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
 
 - Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple times at CppCon. His Github site is https://github.com/kirkshoop.
 
