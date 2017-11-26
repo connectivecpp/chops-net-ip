@@ -2,6 +2,8 @@
 
 The Chops Medley is a collection of C++ libraries for networking and distributed processing. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
+This project is licensed under the terms of the MIT license.
+
 # Chops Components
 
 ## Chops Net
