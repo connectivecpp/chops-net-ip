@@ -20,35 +20,111 @@
 
 using namespace std::literals::string_literals;
 
-template <typename Q>
-void non_threaded_int_test(Q& wq) {
-  const int base = 10;
-  wq.push(base+1); wq.push(base+2); wq.push(base+3); wq.push(base+4); 
-  REQUIRE (!wq.empty());
-  REQUIRE (!wq.is_closed());
-  REQUIRE (wq.size() == 4);
+template <typename T, typename Q>
+void non_threaded_push_test(T val, int count) {
 
-  CAPTURE (wq.size());
+  GIVEN ("A newly constructed wait_queue") {
 
-  int sum = 0;
-  wq.apply( [&sum] (const int& i) { sum += i; } );
-  REQUIRE (sum == 50);
+    chops::wait_queue<T, Q> wq;
+    REQUIRE (wq.empty());
+    REQUIRE (wq.size() == 0);
 
-  REQUIRE (wq.try_pop() == (base+1));
-  REQUIRE (wq.size() == 3);
-  REQUIRE (wq.try_pop() == (base+2));
-  REQUIRE (wq.size() == 2);
-  REQUIRE (wq.try_pop() == (base+3));
-  REQUIRE (wq.size() == 1);
-  REQUIRE (wq.try_pop() == (base+4));
-  REQUIRE (wq.size() == 0);
-  REQUIRE (wq.empty());
+    WHEN ("Values are pushed on the queue") {
+      chops::repeat(count, [&wq, val] () { REQUIRE(wq.push(val)); } );
+      THEN ("the size is increased") {
+        REQUIRE (!wq.empty());
+        REQUIRE (wq.size() == count);
+      }
+    }
 
-  CAPTURE (wq.size());
+    WHEN ("Values are popped from the queue") {
+      chops::repeat(count, [&wq, val] () { REQUIRE(*(wq.try_pop()) == val); } );
+      THEN ("the size decreases to zero") {
+        REQUIRE (wq.empty());
+        REQUIRE (wq.size() == 0);
+      }
+    }
+  } // end given
 }
 
+template <typename T, typename Q>
+void non_threaded_arithmetic_test(T base_val, int count, T expected_sum) {
 
-template <typename Q, typename T>
+  GIVEN ("A newly constructed wait_queue, which will have numeric values added") {
+    chops::wait_queue<T, Q> wq;
+
+    WHEN ("Values are pushed on the queue") {
+      chops::repeat(count, [&wq, base_val] (const int& i) { REQUIRE(wq.push(base_val+i)); } );
+      THEN ("the size is increased") {
+        REQUIRE (!wq.empty());
+        REQUIRE (wq.size() == count);
+      }
+    }
+
+    WHEN ("Apply is called against all elements to compute a sum") {
+      T sum { 0 };
+      wq.apply( [&sum] (const int& i) { sum += i; } );
+      THEN ("the sum should match the expected sum") {
+        REQUIRE (sum == expected_sum);
+      }
+    }
+
+    WHEN ("Try_pop is called") {
+      THEN ("elements should be popped in FIFO order") {
+        chops::repeat(count, [&wq, base_val] (const int& i) { REQUIRE(*(wq.try_pop()) == (base_val+i)); } );
+        REQUIRE (wq.size() == 0);
+        REQUIRE (wq.empty());
+      }
+    }
+
+  } // end given
+
+}
+
+template <typename T, typename Q>
+void non_threaded_open_close_test(T val, int count) {
+
+  GIVEN ("A newly constructed wait_queue") {
+
+    chops::wait_queue<T, Q> wq;
+    REQUIRE (!wq.is_closed());
+
+    WHEN ("Close is called") {
+      wq.close();
+      THEN ("the state is now closed, and pushes fail") {
+        REQUIRE (wq.is_closed());
+        REQUIRE (!wq.push(val));
+        REQUIRE (wq.empty());
+      }
+    }
+    WHEN ("Open is called") {
+      wq.open();
+      THEN ("the state is now open, and pushes will succeed") {
+        REQUIRE (!wq.is_closed());
+        REQUIRE (wq.empty());
+        chops::repeat(count, [&wq, val] () { wq.push(val); } );
+        REQUIRE (wq.size() == count);
+      }
+    }
+    WHEN ("Close is called again") {
+      REQUIRE (!wq.empty());
+      wq.close();
+      THEN ("wait_and_pops will not return data, but try_pops will") {
+        std::optional<T> ret = wq.wait_and_pop();
+        REQUIRE (!ret);
+        ret = wq.wait_and_pop();
+        REQUIRE (!ret);
+        chops::repeat(count, [&wq, &ret] () { ret = wq.try_pop(); REQUIRE(ret); } );
+        REQUIRE (wq.empty());
+        ret = wq.try_pop();
+        REQUIRE (!ret);
+      }
+    }
+
+  } // end given
+}
+
+template <typename T, typename Q>
 void read_func (Q& wq, std::set<std::pair< int, T> >& s, std::mutex& mut) {
   while (true) {
     std::optional<std::pair<int, T> > opt_elem = wq.wait_and_pop();
@@ -60,7 +136,7 @@ void read_func (Q& wq, std::set<std::pair< int, T> >& s, std::mutex& mut) {
   }
 }
 
-template <typename Q, typename T>
+template <typename T, typename Q>
 void write_func (Q& wq, int start, int slice, const T& val) {
   chops::repeat (slice, [&wq, start, &val] (const int& i) {
       if (!wq.push(std::pair<int, T>{(start+i), val})) {
@@ -70,7 +146,7 @@ void write_func (Q& wq, int start, int slice, const T& val) {
   );
 }
 
-template <typename Q, typename T>
+template <typename T, typename Q>
 void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& val) {
   // each writer pushes slice entries
   int tot = num_writers * slice;
@@ -80,13 +156,13 @@ void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& 
 
   std::vector<std::thread> rd_thrs;
   chops::repeat(num_readers, [&wq, &rd_thrs, &s, &mut] {
-      rd_thrs.push_back( std::thread (read_func<Q, T>, std::ref(wq), std::ref(s), std::ref(mut)) );
+      rd_thrs.push_back( std::thread (read_func<T, Q>, std::ref(wq), std::ref(s), std::ref(mut)) );
     }
   );
 
   std::vector<std::thread> wr_thrs;
   chops::repeat(num_writers, [&wq, &wr_thrs, slice, &val] (const int& i) {
-      wr_thrs.push_back( std::thread (write_func<Q, T>, std::ref(wq), (i*slice), slice, val));
+      wr_thrs.push_back( std::thread (write_func<T, Q>, std::ref(wq), (i*slice), slice, val));
     }
   );
   // wait for writers to finish pushing vals
@@ -117,18 +193,34 @@ void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& 
 
 }
 
+// TODO - figure out command line parsing to pass in counts
+const int N = 20;
+
+SCENARIO ( "A wait_queue can be used as a FIFO, with element type int and the default container type of std::deque" ) {
+  non_threaded_push_test<int, std::deque<int> >(42, N);
+  non_threaded_arithmetic_test<int, std::deque<int> >(10, N, 300);
+  non_threaded_open_close_test<int, std::deque<int> >(42, N);
+}
+
+SCENARIO ( "A wait_queue can be used as a FIFO, with element type double and the default container type of std::deque" ) {
+  non_threaded_push_test<double, std::deque<double> >(42.0, N);
+  non_threaded_arithmetic_test<double, std::deque<double> >(10.0, N, 300.0);
+  non_threaded_open_close_test<double, std::deque<double> >(42.0, N);
+}
+  
+#if 0
+
 TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
   
   SECTION ( "Testing instantiation and basic method operation in non threaded operation" ) {
-    chops::wait_queue<int> wq;
-    non_threaded_int_test(wq);
+    non_threaded_push_test<int, std::deque<int> >();
   }
 
   SECTION ( "Testing ring_span instantiation and basic method operation in non threaded operation" ) {
     const int sz = 10;
     int buf[sz];
     chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
-    non_threaded_int_test(wq);
+    non_threaded_test(wq);
   }
   
   SECTION ( "Testing copy construction, move construction, emplacement" ) {
@@ -244,3 +336,5 @@ TEST_CASE( "Threaded wait queue test big numbers", "[wait_queue_threaded_big]" )
   }
 }
 */
+#endif
+
