@@ -1,6 +1,10 @@
 # Author Notes and Contributor Information
 
-## Author Note on the Chops Name
+## An Author Note on Behavior Driven Development
+
+>I'm dipping my toe (for the first time) into BDD (Behavior Driven Development), using the Catch 2 testing facilities. It's an interesting way to specify and test behavior of the interfaces, and so far I'm liking it.
+
+## An Author Note on the Chops Name
 
 >Yes, the name / acronym is a stretch. Quite a stretch. I like the word "chops", which is a jazz term for strong technique, so I decided on that for a name. For example, "Check out Tal Wilkenfeld, she's got mad chops."
 
