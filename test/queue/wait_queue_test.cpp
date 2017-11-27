@@ -21,11 +21,9 @@
 using namespace std::literals::string_literals;
 
 template <typename T, typename Q>
-void non_threaded_push_test(T val, int count) {
+void non_threaded_push_test(Q& wq, T val, int count) {
 
   GIVEN ("A newly constructed wait_queue") {
-
-    chops::wait_queue<T, Q> wq;
     REQUIRE (wq.empty());
     REQUIRE (wq.size() == 0);
 
@@ -38,7 +36,8 @@ void non_threaded_push_test(T val, int count) {
     }
 
     WHEN ("Values are popped from the queue") {
-      chops::repeat(count, [&wq, val] () { REQUIRE(*(wq.try_pop()) == val); } );
+      chops::repeat(count, [&wq, val] () { wq.push(val); } );
+      chops::repeat(count, [&wq, val] () { auto ret = wq.try_pop(); REQUIRE(*ret == val); } );
       THEN ("the size decreases to zero") {
         REQUIRE (wq.empty());
         REQUIRE (wq.size() == 0);
@@ -48,20 +47,13 @@ void non_threaded_push_test(T val, int count) {
 }
 
 template <typename T, typename Q>
-void non_threaded_arithmetic_test(T base_val, int count, T expected_sum) {
+void non_threaded_arithmetic_test(Q& wq, T base_val, int count, T expected_sum) {
 
   GIVEN ("A newly constructed wait_queue, which will have numeric values added") {
-    chops::wait_queue<T, Q> wq;
-
-    WHEN ("Values are pushed on the queue") {
-      chops::repeat(count, [&wq, base_val] (const int& i) { REQUIRE(wq.push(base_val+i)); } );
-      THEN ("the size is increased") {
-        REQUIRE (!wq.empty());
-        REQUIRE (wq.size() == count);
-      }
-    }
+    REQUIRE (wq.empty());
 
     WHEN ("Apply is called against all elements to compute a sum") {
+      chops::repeat(count, [&wq, base_val] (const int& i) { REQUIRE(wq.push(base_val+i)); } );
       T sum { 0 };
       wq.apply( [&sum] (const int& i) { sum += i; } );
       THEN ("the sum should match the expected sum") {
@@ -70,6 +62,7 @@ void non_threaded_arithmetic_test(T base_val, int count, T expected_sum) {
     }
 
     WHEN ("Try_pop is called") {
+      chops::repeat(count, [&wq, base_val] (const int& i) { wq.push(base_val+i); } );
       THEN ("elements should be popped in FIFO order") {
         chops::repeat(count, [&wq, base_val] (const int& i) { REQUIRE(*(wq.try_pop()) == (base_val+i)); } );
         REQUIRE (wq.size() == 0);
@@ -82,11 +75,10 @@ void non_threaded_arithmetic_test(T base_val, int count, T expected_sum) {
 }
 
 template <typename T, typename Q>
-void non_threaded_open_close_test(T val, int count) {
+void non_threaded_open_close_test(Q& wq, T val, int count) {
 
   GIVEN ("A newly constructed wait_queue") {
 
-    chops::wait_queue<T, Q> wq;
     REQUIRE (!wq.is_closed());
 
     WHEN ("Close is called") {
@@ -98,6 +90,8 @@ void non_threaded_open_close_test(T val, int count) {
       }
     }
     WHEN ("Open is called") {
+      wq.close();
+      REQUIRE (wq.is_closed());
       wq.open();
       THEN ("the state is now open, and pushes will succeed") {
         REQUIRE (!wq.is_closed());
@@ -106,11 +100,12 @@ void non_threaded_open_close_test(T val, int count) {
         REQUIRE (wq.size() == count);
       }
     }
-    WHEN ("Close is called again") {
+    WHEN ("Close is called") {
+      chops::repeat(count, [&wq, val] () { wq.push(val); } );
       REQUIRE (!wq.empty());
       wq.close();
       THEN ("wait_and_pops will not return data, but try_pops will") {
-        std::optional<T> ret = wq.wait_and_pop();
+        auto ret = wq.wait_and_pop();
         REQUIRE (!ret);
         ret = wq.wait_and_pop();
         REQUIRE (!ret);
@@ -194,18 +189,28 @@ void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& 
 }
 
 // TODO - figure out command line parsing to pass in counts
-const int N = 20;
+const int N = 10;
 
 SCENARIO ( "A wait_queue can be used as a FIFO, with element type int and the default container type of std::deque" ) {
-  non_threaded_push_test<int, std::deque<int> >(42, N);
-  non_threaded_arithmetic_test<int, std::deque<int> >(10, N, 300);
-  non_threaded_open_close_test<int, std::deque<int> >(42, N);
+  chops::wait_queue<int> wq;
+  non_threaded_push_test(wq, 42, N);
+  non_threaded_arithmetic_test(wq, 0, N, 45);
+  non_threaded_open_close_test(wq, 42, N);
 }
 
 SCENARIO ( "A wait_queue can be used as a FIFO, with element type double and the default container type of std::deque" ) {
-  non_threaded_push_test<double, std::deque<double> >(42.0, N);
-  non_threaded_arithmetic_test<double, std::deque<double> >(10.0, N, 300.0);
-  non_threaded_open_close_test<double, std::deque<double> >(42.0, N);
+  chops::wait_queue<double> wq;
+  non_threaded_push_test(wq, 42.0, N);
+  non_threaded_arithmetic_test(wq, 0.0, N, 45.0);
+  non_threaded_open_close_test(wq, 42.0, N);
+}
+
+SCENARIO ( "A wait_queue can be used as a FIFO, with element type int and the default container type of std::deque" ) {
+    int buf[sz];
+    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
+  non_threaded_push_test<int, std::deque<int> >(42, N);
+  non_threaded_arithmetic_test<int, std::deque<int> >(0, N, 45);
+  non_threaded_open_close_test<int, std::deque<int> >(42, N);
 }
   
 #if 0
