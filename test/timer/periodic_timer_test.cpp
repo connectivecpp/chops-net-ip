@@ -27,8 +27,8 @@ template <typename Clock>
 int timer_test (typename Clock::duration timer_dur, typename Clock::duration wait_time,
                 std::optional<typename Clock::time_point> start_time, bool dur_timer) {
 
-  chops::periodic_timer<Clock> timer;
   std::experimental::net::io_context ioc;
+  chops::periodic_timer<Clock> timer {ioc};
   std::experimental::net::executor_work_guard<std::experimental::net::io_context::executor_type>
     wg { std::experimental::net::make_work_guard(ioc) };
 
@@ -58,9 +58,16 @@ int timer_test (typename Clock::duration timer_dur, typename Clock::duration wai
   return count;
 }
 
+const int Expected = 5;
+
 SCENARIO ( "Periodic timers can be started to callback on durations", "[periodic_timer_duration]" ) {
-  GIVEN ( "A duration and ")
-  
-  REQUIRE (count == expected);
+  GIVEN ( "A steady clock, a duration, and a wait time") {
+    int count = timer_test<std::chrono::steady_clock>(std::chrono::seconds(1), std::chrono::seconds(6),
+                           std::optional<std::chrono::steady_clock::time_point>(), true);
+
+    THEN ( "the timer callback count should match expected") {
+      REQUIRE (count == Expected);
+    }
+  } // end given
 }
 
