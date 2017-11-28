@@ -2,7 +2,7 @@
 
 #include "catch.hpp"
 
-#include <utility> // std::pair
+#include <utility> // std::pair, std::forward
 #include <functional> // std::ref
 #include <vector>
 #include <string>
@@ -21,14 +21,14 @@
 using namespace std::literals::string_literals;
 
 template <typename T, typename Q>
-void non_threaded_push_test(Q& wq, T val, int count) {
+void non_threaded_push_test(Q& wq, const T& val, int count) {
 
   GIVEN ("A newly constructed wait_queue") {
     REQUIRE (wq.empty());
     REQUIRE (wq.size() == 0);
 
     WHEN ("Values are pushed on the queue") {
-      chops::repeat(count, [&wq, val] () { REQUIRE(wq.push(val)); } );
+      chops::repeat(count, [&wq, &val] () { REQUIRE(wq.push(val)); } );
       THEN ("the size is increased") {
         REQUIRE (!wq.empty());
         REQUIRE (wq.size() == count);
@@ -36,8 +36,8 @@ void non_threaded_push_test(Q& wq, T val, int count) {
     }
 
     WHEN ("Values are popped from the queue") {
-      chops::repeat(count, [&wq, val] () { wq.push(val); } );
-      chops::repeat(count, [&wq, val] () { auto ret = wq.try_pop(); REQUIRE(*ret == val); } );
+      chops::repeat(count, [&wq, &val] () { wq.push(val); } );
+      chops::repeat(count, [&wq, &val] () { auto ret = wq.try_pop(); REQUIRE(*ret == val); } );
       THEN ("the size decreases to zero") {
         REQUIRE (wq.empty());
         REQUIRE (wq.size() == 0);
@@ -47,13 +47,13 @@ void non_threaded_push_test(Q& wq, T val, int count) {
 }
 
 template <typename T, typename Q>
-void non_threaded_arithmetic_test(Q& wq, T base_val, int count, T expected_sum) {
+void non_threaded_arithmetic_test(Q& wq, const T& base_val, int count, const T& expected_sum) {
 
   GIVEN ("A newly constructed wait_queue, which will have numeric values added") {
     REQUIRE (wq.empty());
 
     WHEN ("Apply is called against all elements to compute a sum") {
-      chops::repeat(count, [&wq, base_val] (const int& i) { REQUIRE(wq.push(base_val+i)); } );
+      chops::repeat(count, [&wq, &base_val] (const int& i) { REQUIRE(wq.push(base_val+i)); } );
       T sum { 0 };
       wq.apply( [&sum] (const int& i) { sum += i; } );
       THEN ("the sum should match the expected sum") {
@@ -62,9 +62,9 @@ void non_threaded_arithmetic_test(Q& wq, T base_val, int count, T expected_sum) 
     }
 
     WHEN ("Try_pop is called") {
-      chops::repeat(count, [&wq, base_val] (const int& i) { wq.push(base_val+i); } );
+      chops::repeat(count, [&wq, &base_val] (const int& i) { wq.push(base_val+i); } );
       THEN ("elements should be popped in FIFO order") {
-        chops::repeat(count, [&wq, base_val] (const int& i) { REQUIRE(*(wq.try_pop()) == (base_val+i)); } );
+        chops::repeat(count, [&wq, &base_val] (const int& i) { REQUIRE(*(wq.try_pop()) == (base_val+i)); } );
         REQUIRE (wq.size() == 0);
         REQUIRE (wq.empty());
       }
@@ -75,7 +75,7 @@ void non_threaded_arithmetic_test(Q& wq, T base_val, int count, T expected_sum) 
 }
 
 template <typename T, typename Q>
-void non_threaded_open_close_test(Q& wq, T val, int count) {
+void non_threaded_open_close_test(Q& wq, const T& val, int count) {
 
   GIVEN ("A newly constructed wait_queue") {
 
@@ -96,12 +96,12 @@ void non_threaded_open_close_test(Q& wq, T val, int count) {
       THEN ("the state is now open, and pushes will succeed") {
         REQUIRE (!wq.is_closed());
         REQUIRE (wq.empty());
-        chops::repeat(count, [&wq, val] () { wq.push(val); } );
+        chops::repeat(count, [&wq, &val] () { wq.push(val); } );
         REQUIRE (wq.size() == count);
       }
     }
     WHEN ("Close is called") {
-      chops::repeat(count, [&wq, val] () { wq.push(val); } );
+      chops::repeat(count, [&wq, &val] () { wq.push(val); } );
       REQUIRE (!wq.empty());
       wq.close();
       THEN ("wait_and_pops will not return data, but try_pops will") {
@@ -142,7 +142,7 @@ void write_func (Q& wq, int start, int slice, const T& val) {
 }
 
 template <typename T, typename Q>
-void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& val) {
+bool threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& val) {
   // each writer pushes slice entries
   int tot = num_writers * slice;
 
@@ -184,90 +184,113 @@ void threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& 
     REQUIRE (e.second == val);
     ++idx;
   }
-  INFO ("Set looks good!");
-
+  return true;
 }
 
-// TODO - figure out command line parsing to pass in counts
-const int N = 10;
+constexpr int N = 40;
+template <typename T>
+constexpr T ExpectedSum = (N / 2) * (N - 1);
 
-SCENARIO ( "A wait_queue can be used as a FIFO, with element type int and the default container type of std::deque" ) {
+SCENARIO ( "Non-threading wait_queue test, with element type int and default container type of std::deque",
+           "[wait_queue_int_def_container]" ) {
   chops::wait_queue<int> wq;
   non_threaded_push_test(wq, 42, N);
-  non_threaded_arithmetic_test(wq, 0, N, 45);
+  non_threaded_arithmetic_test(wq, 0, N, ExpectedSum<int>);
   non_threaded_open_close_test(wq, 42, N);
 }
 
-SCENARIO ( "A wait_queue can be used as a FIFO, with element type double and the default container type of std::deque" ) {
+SCENARIO ( "Non-threading wait_queue test, with element type double and default container type of std::deque",
+           "[wait_queue_double_def_container]" ) {
   chops::wait_queue<double> wq;
   non_threaded_push_test(wq, 42.0, N);
-  non_threaded_arithmetic_test(wq, 0.0, N, 45.0);
+  non_threaded_arithmetic_test(wq, 0.0, N, ExpectedSum<double>);
   non_threaded_open_close_test(wq, 42.0, N);
 }
 
-SCENARIO ( "A wait_queue can be used as a FIFO, with element type int and the default container type of std::deque" ) {
-    int buf[sz];
-    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
-  non_threaded_push_test<int, std::deque<int> >(42, N);
-  non_threaded_arithmetic_test<int, std::deque<int> >(0, N, 45);
-  non_threaded_open_close_test<int, std::deque<int> >(42, N);
+SCENARIO ( "Non-threading wait_queue test, with element type int and ring_span container type",
+           "[wait_queue_int_ring_span_container]" ) {
+  int buf[N];
+  chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+N);
+  non_threaded_push_test(wq, 42, N);
+  non_threaded_arithmetic_test(wq, 0, N, ExpectedSum<int>);
+  non_threaded_open_close_test(wq, 42, N);
 }
-  
-#if 0
 
-TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
-  
-  SECTION ( "Testing instantiation and basic method operation in non threaded operation" ) {
-    non_threaded_push_test<int, std::deque<int> >();
-  }
+SCENARIO ( "Non-threading wait_queue test, with element type std::string and default container type of std::deque",
+           "[wait_queue_string_def_container]" ) {
+  chops::wait_queue<std::string> wq;
+  non_threaded_push_test(wq, "Howzit going, bro!"s, N);
+  non_threaded_open_close_test(wq, "It's hanging, bro!"s, N);
+}
 
-  SECTION ( "Testing ring_span instantiation and basic method operation in non threaded operation" ) {
-    const int sz = 10;
-    int buf[sz];
-    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
-    non_threaded_test(wq);
-  }
-  
-  SECTION ( "Testing copy construction, move construction, emplacement" ) {
+SCENARIO ( "Non-threading wait_queue test, with element type std::string and ring_span container type",
+           "[wait_queue_string_ring_span_container]" ) {
+  std::string buf[N];
+  chops::wait_queue<std::string, nonstd::ring_span<std::string> > wq(buf+0, buf+N);
+  non_threaded_push_test(wq, "No bro speak, please"s, N);
+  non_threaded_open_close_test(wq, "Why so serious, bro?"s, N);
+}
 
-  {
-    struct Foo {
-      Foo() = delete;
-      Foo(double x) : doobie(x) { }
-      Foo(const Foo&) = default;
-      Foo(Foo&&) = delete;
-      Foo& operator=(const Foo&) = delete;
-      Foo& operator=(Foo&&) = delete;
-      double doobie;
-    };
+SCENARIO ( "Non-threading wait_queue test, testing copy construction without move construction",
+           "[wait_queue_copy_no_move]" ) {
 
-    chops::wait_queue<Foo> wq;
-    Foo answer {42.0};
-    wq.push(answer);
-    std::optional<Foo> foo { wq.try_pop() };
-    REQUIRE (wq.empty());
-    REQUIRE ((*foo).doobie == 42.0);
-  }
+  struct Foo {
+    Foo() = delete;
+    Foo(double x) : doobie(x) { }
+    Foo(const Foo&) = default;
+    Foo(Foo&&) = delete;
+    Foo& operator=(const Foo&) = default;
+    Foo& operator=(Foo&&) = delete;
 
-  {
+    double doobie;
+
+    bool operator==(const Foo& rhs) const { return doobie == rhs.doobie; }
+  };
+
+  chops::wait_queue<Foo> wq;
+  non_threaded_push_test(wq, Foo(42.0), N);
+  non_threaded_open_close_test(wq, Foo(42.0), N);
+}
+
+SCENARIO ( "Non-threading wait_queue test, testing move construction without copy construction",
+           "[wait_queue_move_no_copy]" ) {
+
+  GIVEN ("A newly constructed wait_queue with a move-only type") {
+
     struct Bar {
       Bar() = delete;
       Bar(double x) : doobie(x) { }
       Bar(const Bar&) = delete;
       Bar(Bar&&) = default;
       Bar& operator=(const Bar&) = delete;
-      Bar& operator=(Bar&&) = delete;
+      Bar& operator=(Bar&&) = default;
+
       double doobie;
+
+      bool operator==(const Bar& rhs) const { return doobie == rhs.doobie; }
     };
 
     chops::wait_queue<Bar> wq;
-    wq.push(Bar{42.0});
-    std::optional<Bar> bar { wq.try_pop() };
-    REQUIRE (wq.empty());
-    REQUIRE ((*bar).doobie == 42.0);
-  }
+    WHEN ("Values are pushed on the queue") {
+      wq.push(Bar(42.0));
+      wq.push(Bar(52.0));
+      THEN ("the values are moved through the wait_queue") {
+        REQUIRE (wq.size() == 2);
+        auto ret1 { wq.try_pop() };
+        REQUIRE (*ret1 == Bar(42.0));
+        auto ret2 { wq.try_pop() };
+        REQUIRE (*ret2 == Bar(52.0));
+        REQUIRE (wq.empty());
+      }
+    }
+  } // end given
+}
 
-  {
+SCENARIO ( "Non-threading wait_queue test, testing complex constructor and emplacement",
+           "[wait_queue_complex_type]" ) {
+
+  GIVEN ("A newly constructed wait_queue with a more complex type") {
+
     struct Band {
       Band() = delete;
       Band(double x, const std::string& bros) : doobie(x), brothers(bros), engagements() {
@@ -283,63 +306,98 @@ TEST_CASE( "Testing wait_queue class template", "[wait_queue_deque]" ) {
     };
 
     chops::wait_queue<Band> wq;
+    REQUIRE (wq.size() == 0);
     wq.push(Band{42.0, "happy"s});
     wq.emplace_push(44.0, "sad"s);
-    std::optional<Band> val1 { wq.try_pop() };
-    REQUIRE ((*val1).doobie == 42.0);
-    REQUIRE ((*val1).brothers == "happy"s);
-    std::optional<Band> val2 { wq.try_pop() };
-    REQUIRE ((*val2).doobie == 44.0);
-    REQUIRE ((*val2).brothers == "sad"s);
-    REQUIRE (wq.empty());
-  }
 
-  }
+    WHEN ("Values are emplace pushed on the queue") {
+      THEN ("the size is increased") {
+        REQUIRE (!wq.empty());
+        REQUIRE (wq.size() == 2);
+      }
+    }
+
+    WHEN ("Values are popped from the queue") {
+      std::optional<Band> val1 { wq.try_pop() };
+      std::optional<Band> val2 { wq.try_pop() };
+      THEN ("the values are correct and the wait_queue is empty") {
+        REQUIRE ((*val1).doobie == 42.0);
+        REQUIRE ((*val1).brothers == "happy"s);
+        REQUIRE ((*val2).doobie == 44.0);
+        REQUIRE ((*val2).brothers == "sad"s);
+        REQUIRE (wq.empty());
+      }
+    }
+  } // end given
 }
 
-TEST_CASE( "Testing ring_span roll around inside wait queue", "[wait_queue_roll_around]" ) {
-    const int sz = 20;
-    const int answer = 42;
-    const int answer_plus = 42+5;
-    int buf[sz];
-    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+sz);
-    chops::repeat(sz, [&wq, answer] { wq.push(answer); } );
-    REQUIRE (wq.size() == sz);
-    wq.apply([answer] (const int& i) { REQUIRE(i == answer); } );
-    chops::repeat(sz / 2, [&wq, answer] { wq.push(answer_plus); } );
-    REQUIRE (wq.size() == sz);
-    // wait_pop should immediately return if the queue is non empty
-    chops::repeat(sz / 2, [&wq, answer] { REQUIRE (wq.wait_and_pop() == answer); } );
-    chops::repeat(sz / 2, [&wq, answer] { REQUIRE (wq.wait_and_pop() == answer_plus); } );
-    REQUIRE (wq.empty());
+SCENARIO ( "Fixed size ring_span, testing wrap around with int type",
+           "[wait_queue_int_ring_span_wrap_around]" ) {
 
+  GIVEN ("A newly constructed wait_queue using a ring_span") {
+
+    int buf[N];
+    chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+N);
+
+    const int Answer = 42;
+    const int AnswerPlus = 42+5;
+
+    WHEN ("The wait_queue is loaded completely with answer") {
+      chops::repeat(N, [&wq, Answer] { wq.push(Answer); } );
+      THEN ("the size is full and all values match answer") {
+        REQUIRE (wq.size() == N);
+        wq.apply([Answer] (const int& i) { REQUIRE(i == Answer); } );
+      }
+    }
+    WHEN ("The wait_queue is loaded completely with answer, then answer plus is added") {
+      chops::repeat(N, [&wq, Answer] { wq.push(Answer); } );
+      chops::repeat(N / 2, [&wq, AnswerPlus] { wq.push(AnswerPlus); } );
+      THEN ("the size is full but half match answer and half answer plus, since there's been wrap") {
+        REQUIRE (wq.size() == N);
+        // wait_pop should immediately return if the queue is non empty
+        chops::repeat(N / 2, [&wq, Answer] { REQUIRE (wq.wait_and_pop() == Answer); } );
+        chops::repeat(N / 2, [&wq, AnswerPlus] { REQUIRE (wq.wait_and_pop() == AnswerPlus); } );
+        REQUIRE (wq.empty());
+      }
+    }
+  } // end given
 }
 
-TEST_CASE( "Threaded wait queue test small numbers", "[wait_queue_threaded_small]" ) {
-  SECTION ( "Threaded test with deque int, 1 reader and 1 writer thread, 100 slice" ) {
+SCENARIO ( "Threaded wait queue, deque int", "[wait_queue_threaded_deque_int]" ) {
+
+  GIVEN ("A newly constructed wait_queue, deque int") {
     chops::wait_queue<std::pair<int, int> > wq;
-    threaded_test(wq, 1, 1, 100, 44);
-  }
-  SECTION ( "Threaded test with deque int, 5 reader and 3 writer threads, 1000 slice" ) {
-    chops::wait_queue<std::pair<int, int> > wq;
-    threaded_test(wq, 5, 3, 1000, 1212);
-  }
-  SECTION ( "Threaded test with deque int, 60 reader and 40 writer threads, 5000 slice" ) {
-    chops::wait_queue<std::pair<int, int> > wq;
-    threaded_test(wq, 60, 40, 5000, 5656);
-  }
-  SECTION ( "Threaded test with deque string, 60 reader and 40 writer threads, 12000 slice" ) {
+
+    WHEN ("Parameters are 1 reader, 1 writer thread, 100 slice") {
+      THEN ("threads will be created and joined") {
+        REQUIRE ( threaded_test(wq, 1, 1, 100, 44) );
+      }
+    }
+
+    WHEN ("Parameters are 5 reader, 3 writer threads, 1000 slice") {
+      THEN ("threads will be created and joined") {
+        REQUIRE ( threaded_test(wq, 5, 3, 1000, 1212) );
+      }
+    }
+
+    WHEN ("Parameters are 60 reader, 40 writer threads, 5000 slice") {
+      THEN ("threads will be created and joined") {
+        REQUIRE ( threaded_test(wq, 60, 40, 5000, 5656) );
+      }
+    }
+  } // end given
+}
+
+SCENARIO ( "Threaded wait queue, deque string", "[wait_queue_threaded_deque_string]" ) {
+
+  GIVEN ("A newly constructed wait_queue, deque string") {
     chops::wait_queue<std::pair<int, std::string> > wq;
-    threaded_test(wq, 60, 40, 12000, "cool, lit, sup"s);
-  }
+
+    WHEN ("Parameters are 60 reader, 40 writer threads, 12000 slice") {
+      THEN ("threads will be created and joined") {
+        REQUIRE ( threaded_test(wq, 60, 40, 12000, "cool, lit, sup"s) );
+      }
+    }
+  } // end given
 }
-/*
-TEST_CASE( "Threaded wait queue test big numbers", "[wait_queue_threaded_big]" ) {
-  SECTION ( "Threaded test with deque int, 500 reader and 300 writer threads, 50000 slice" ) {
-    chops::wait_queue<std::pair<int, int> > wq;
-    threaded_test(wq, 500, 300, 50000, 7777);
-  }
-}
-*/
-#endif
 
