@@ -13,6 +13,7 @@
  * 
  * @authors Vittorio Romeo, Cliff Green
  * @date 2017
+ * @copyright Cliff Green, MIT License
  * 
  */
 

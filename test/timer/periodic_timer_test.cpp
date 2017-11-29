@@ -1,3 +1,15 @@
+/** @file
+ *
+ *  @ingroup test_module
+ *
+ *  @brief Test scenarios for @c periodic_timer class template.
+ *
+ *  @author Cliff Green
+ *  @date 2017
+ *  @copyright Cliff Green, MIT License
+ *
+ */
+
 #define CATCH_CONFIG_MAIN
 
 #include "catch.hpp"

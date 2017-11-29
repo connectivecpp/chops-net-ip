@@ -1,3 +1,15 @@
+/** @file
+ *
+ *  @ingroup test_module
+ *
+ *  @brief Test scenarios for Vittorio Romeo's repeat utility function.
+ *
+ *  @author Cliff Green
+ *  @date 2017
+ *  @copyright Cliff Green, MIT License
+ *
+ */
+
 #define CATCH_CONFIG_MAIN
 
 #include "catch.hpp"

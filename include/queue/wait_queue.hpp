@@ -1,6 +1,6 @@
 /** @file
  *
- *  @ingroup utility_module
+ *  @ingroup queue_module
  *
  *  @brief Multi-reader multi-writer wait queue class for transferring
  *  data between threads.
@@ -82,6 +82,7 @@
  *
  *  @authors Cliff Green, Anthony Williams
  *  @date 2017
+ *  @copyright Cliff Green, MIT License
  *
  */
 
