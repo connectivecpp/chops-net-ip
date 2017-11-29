@@ -73,7 +73,7 @@ private:
     if (!f(err, (Clock::now() - last_tp)) || err == std::experimental::net::error::operation_aborted) {
       return; // app is finished with timer for now or timer was cancelled
     }
-    m_timer.at(last_tp + dur + dur);
+    m_timer.expires_at(last_tp + dur + dur);
     m_timer.async_wait( [f = std::forward<F>(f), last_tp, dur, this]
             (const std::error_code& e) {
         timepoint_handler_impl(f, (last_tp+dur), dur, e);
