@@ -2,19 +2,19 @@
  *
  *  @ingroup utility_module
  *
- *  @brief Reference counted byte buffers, both const and mutable versions.
+ *  @brief Reference counted byte buffer classes, both const and mutable versions.
  *
  *  The @c mutable_shared_buffer and @c const_shared_buffer classes provide byte
  *  oriented buffer classes with internal reference counting. These classes are
- *  used within the Chops Net library to manage data buffer lifetimes. The 
- *  @c mutable_shared_buffer class can be used to construct a data buffer, 
- *  and then a @c const_shared_buffer can be move constructed from the 
- *  @c mutable_shared_buffer for use with the asynchronous library functions 
- *  (whether Chops Net or C++ Networking TS or Asio). Besides the data buffer 
- *  lifetime management, these utility classes eliminate data buffer copies.
+ *  used within the Chops Net library to manage data buffer lifetimes, but can also 
+ *  be used in application code as utility buffer classes. The @c mutable_shared_buffer 
+ *  class can be used to construct a data buffer, and then a @c const_shared_buffer can 
+ *  be move constructed from the @c mutable_shared_buffer for use with asynchronous 
+ *  library functions (whether Chops Net or C++ Networking TS or Asio). Besides the data 
+ *  buffer lifetime management, these utility classes eliminate data buffer copies.
  *
  *  This code is based on and modified from Chris Kohlhoff's Asio example code. It has
- *  been significantly modified by adding a mutable @c shared_buffer class as well as 
+ *  been significantly modified by adding a @c mutable_shared_buffer class as well as 
  *  adding convenience methods to the @c shared_const_buffer class.
  *
  *  Example code:
@@ -31,9 +31,6 @@
 #ifndef SHARED_BUFFER_HPP_INCLUDED
 #define SHARED_BUFFER_HPP_INCLUDED
 
-#include <deque>
-#include <mutex>
-#include <condition_variable>
 #include <optional>
 #include <utility> // std::move, std::move_if_noexcept
 #include <type_traits> // for noexcept specs
