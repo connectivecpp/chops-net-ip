@@ -54,29 +54,29 @@ private:
 
 private:
   template <typename F>
-  void duration_handler_impl(F&& f, time_point&& last_tp, duration&& dur, const std::error_code& err) {
+  void duration_handler_impl(F&& f, const time_point& last_tp, const duration& dur, const std::error_code& err) {
     time_point now_time { Clock::now() };
     // pass err and elapsed time to app function obj
     if (!f(err, now_time - last_tp) || err == std::experimental::net::error::operation_aborted) {
       return; // app is finished with timer for now or timer was cancelled
     }
     m_timer.expires_after(dur);
-    m_timer.async_wait( [f = std::forward<F>(f), dur = std::move(dur), now_time = std::move(now_time), this]
+    m_timer.async_wait( [f = std::forward<F>(f), now_time, dur, this]
             (const std::error_code& e) {
         duration_handler_impl(f, now_time, dur, e);
       }
     );
   }
   template <typename F>
-  void timepoint_handler_impl(F&& f, time_point&& last_tp, duration&& dur, const std::error_code& err) {
+  void timepoint_handler_impl(F&& f, const time_point& last_tp, const duration& dur, const std::error_code& err) {
     // pass err and elapsed time to app function obj
     if (!f(err, (Clock::now() - last_tp)) || err == std::experimental::net::error::operation_aborted) {
       return; // app is finished with timer for now or timer was cancelled
     }
     m_timer.at(last_tp + dur + dur);
-    m_timer.async_wait( [f = std::forward<F>(f), dur = std::move(dur), last_tp = std::move(last_tp), this]
+    m_timer.async_wait( [f = std::forward<F>(f), last_tp, dur, this]
             (const std::error_code& e) {
-        handler_impl(f, (last_tp+dur), dur, e);
+        timepoint_handler_impl(f, (last_tp+dur), dur, e);
       }
     );
   }
@@ -134,9 +134,9 @@ public:
    * @param dur Interval to be used between callback invocations.
    */
   template <typename F>
-  void start_duration_timer(F&& f, duration&& dur) {
+  void start_duration_timer(F&& f, const duration& dur) {
     m_timer.expires_after(dur);
-    m_timer.async_wait( [f = std::forward<F>(f), dur = std::move(dur), this] (const std::error_code& e) {
+    m_timer.async_wait( [f = std::forward<F>(f), dur, this] (const std::error_code& e) {
         duration_handler_impl(f, Clock::now(), dur, e);
       }
     );
@@ -155,9 +155,9 @@ public:
    * @param when Time point when the first timer callback will be invoked.
    */
   template <typename F>
-  void start_duration_timer(F&& f, duration&& dur, time_point&& when) {
+  void start_duration_timer(F&& f, const duration& dur, const time_point& when) {
     m_timer.expires_at(when);
-    m_timer.async_wait( [f = std::forward<F>(f), dur = std::move(dur), this] (const std::error_code& e) {
+    m_timer.async_wait( [f = std::forward<F>(f), dur, this] (const std::error_code& e) {
         duration_handler_impl(f, Clock::now(), dur, e);
       }
     );
@@ -173,7 +173,7 @@ public:
    * @param dur Interval to be used between callback invocations.
    */
   template <typename F>
-  void start_timepoint_timer(F&& f, duration&& dur) {
+  void start_timepoint_timer(F&& f, const duration& dur) {
     start_timepoint_timer(std::forward<F>(f), dur, (Clock::now() + dur));
   }
   /**
@@ -192,9 +192,9 @@ public:
    * duration interval.
    */
   template <typename F>
-  void start_timepoint_timer(F&& f, duration&& dur, time_point&& when) {
+  void start_timepoint_timer(F&& f, const duration& dur, const time_point& when) {
     m_timer.expires_at(when);
-    m_timer.async_wait( [f = std::forward<F>(f), dur = std::move(dur), when = std::move(when), this]
+    m_timer.async_wait( [f = std::forward<F>(f), when, dur, this]
             (const std::error_code& e) {
         timepoint_handler_impl(f, (when-dur), dur, e);
       }
