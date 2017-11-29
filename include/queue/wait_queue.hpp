@@ -86,8 +86,8 @@
  *
  */
 
-#ifndef WAIT_QUEUE_INCLUDED_H
-#define WAIT_QUEUE_INCLUDED_H
+#ifndef WAIT_QUEUE_HPP_INCLUDED
+#define WAIT_QUEUE_HPP_INCLUDED
 
 #include <deque>
 #include <mutex>

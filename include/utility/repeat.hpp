@@ -17,8 +17,8 @@
  * 
  */
 
-#ifndef REPEAT_INCLUDED_H
-#define REPEAT_INCLUDED_H
+#ifndef REPEAT_HPP_INCLUDED
+#define REPEAT_HPP_INCLUDED
 
 #include <type_traits>
 

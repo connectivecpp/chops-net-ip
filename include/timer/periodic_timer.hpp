@@ -29,8 +29,8 @@
  *
  */
 
-#ifndef PERIODIC_TIMER_INCLUDED_H
-#define PERIODIC_TIMER_INCLUDED_H
+#ifndef PERIODIC_TIMER_HPP_INCLUDED
+#define PERIODIC_TIMER_HPP_INCLUDED
 
 #include <experimental/timer>
 #include <experimental/io_context>
