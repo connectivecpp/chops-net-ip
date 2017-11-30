@@ -35,7 +35,7 @@
 #ifndef PERIODIC_TIMER_HPP_INCLUDED
 #define PERIODIC_TIMER_HPP_INCLUDED
 
-#include <experimental/timer>
+#include <experimental/timer> // Networking TS include
 #include <experimental/io_context>
 #include <experimental/executor>
 
