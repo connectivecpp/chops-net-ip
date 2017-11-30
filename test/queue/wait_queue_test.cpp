@@ -351,8 +351,8 @@ SCENARIO ( "Fixed size ring_span, testing wrap around with int type",
     int buf[N];
     chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+N);
 
-    const int Answer = 42;
-    const int AnswerPlus = 42+5;
+    constexpr int Answer = 42;
+    constexpr int AnswerPlus = 42+5;
 
     WHEN ("The wait_queue is loaded completely with answer") {
       chops::repeat(N, [&wq, Answer] { wq.push(Answer); } );
