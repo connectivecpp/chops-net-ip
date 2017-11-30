@@ -5,13 +5,12 @@
  *  @brief Reference counted byte buffers, both const and mutable versions.
  *
  *  The @c mutable_shared_buffer and @c const_shared_buffer classes provide byte
- *  oriented buffer classes with internal reference counting. These classes are
- *  used within the Chops Net library to manage data buffer lifetimes. The 
- *  @c mutable_shared_buffer class can be used to construct a data buffer, 
- *  and then a @c const_shared_buffer can be move constructed from the 
- *  @c mutable_shared_buffer for use with the asynchronous library functions 
- *  (whether Chops Net or C++ Networking TS or Asio). Besides the data buffer 
- *  lifetime management, these utility classes eliminate data buffer copies.
+ *  buffer classes with internal reference counting. These classes are used within 
+ *  the Chops Net library to manage data buffer lifetimes. The @c mutable_shared_buffer 
+ *  class can be used to construct a data buffer, and then a @c const_shared_buffer can 
+ *  be move constructed from the @c mutable_shared_buffer for use with the asynchronous 
+ *  library functions (whether Chops Net or C++ Networking TS or Asio). Besides the 
+ *  data buffer lifetime management, these utility classes eliminate data buffer copies.
  *
  *  This code is based on and modified from Chris Kohlhoff's Asio example code. It has
  *  been significantly modified by adding a mutable @c shared_buffer class as well as 
@@ -31,238 +30,257 @@
 #ifndef SHARED_BUFFER_HPP_INCLUDED
 #define SHARED_BUFFER_HPP_INCLUDED
 
-#include <deque>
-#include <mutex>
-#include <condition_variable>
-#include <optional>
+#include <cstddef> // std::byte
+#include <vector>
+#include <memory> // std::shared_ptr
+
 #include <utility> // std::move, std::move_if_noexcept
 #include <type_traits> // for noexcept specs
+#include <cstring> // std::memcpy
 
 namespace chops {
 
-template <typename T, typename Container = std::deque<T> >
-class wait_queue {
-private:
-  mutable std::mutex m_mut;
-  Container m_data_queue;
-  std::condition_variable m_data_cond;
-  bool m_closed = false;
+class const_shared_buffer;
 
-  using lock_guard = std::lock_guard<std::mutex>;
+/**
+ *  @brief A mutable (modifiable) byte buffer class with convenience methods, internally 
+ *  reference-counted for efficient copying.
+ *
+ *  This class provides ownership, copying, and lifetime management for byte oriented 
+ *  buffers. In particular, it is designed to be used in conjunction with the 
+ *  @c const_shared_buffer class for efficient transfer and correct lifetime management 
+ *  of buffers in asynchronous libraries (such as the C++ Networking TS). In particular, 
+ *  a reference counted buffer can be passed among multiple layers of software without 
+ *  any one layer "owning" the buffer.
+ *
+ *  A std::byte pointer returned by the @c data method may be invalidated if the 
+ *  @c mutable_shared_buffer is modified in any way (this follows the usual constraints
+ *  on @c std::vector iterator invalidation).
+ *
+ *  This class is similar to @c const_shared_buffer, but with mutable characteristics.
+ *  While the mutable version can be used with the C++ Networking TS facilities, the 
+ *  @c const_shared_buffer class is specifically designed to be used with 
+ *  C++ Networking TS buffers.
+ *
+ *  @note Modifying the underlying buffer of data (for example by writing bytes using the 
+ *  @c data method, or appending data) will show up in any other @c mutable_shared_buffer 
+ *  objects that have been copied to or from the original object.
+ *
+ */
+
+class mutable_shared_buffer {
+public:
+  using byte_vec = std::vector<std::byte>;
+  using size_type = typename byte_vec::size_type;
+
+private:
+  std::shared_ptr<byte_vec> m_data;
+
+private:
+  friend class const_shared_buffer;
 
 public:
 
-  wait_queue() = default;
+  // default copy and move construction, copy and move assignment
+  mutable_shared_buffer(const mutable_shared_buffer&) = default;
+  mutable_shared_buffer(mutable_shared_buffer&&) = default;
+  mutable_shared_buffer& operator=(const mutable_shared_buffer&) = default;
+  mutable_shared_buffer& operator=(mutable_shared_buffer&&) = default;
 
-  /**
-   * Construct a @c wait_queue with an iterator range for the container, versus 
-   * default construction for the container.
-   *
-   * This constructor supports a container view type to be used for the internal 
-   * container, which require an iterator range as part of the construction. The
-   * begin and end iterators must implement the usual C++ iterator range 
-   * semantics.
-   *
-   * The iterators can also be used to initialize a typical container for the 
-   * internal buffer (e.g. @c std::deque, the default container type) with starting 
-   * data.
-   *
-   * @param beg Beginning iterator.
-   *
-   * @param end Ending iterator.
-   */
-  template <typename Iter>
-  wait_queue(Iter beg, Iter end) noexcept : m_mut(), m_data_queue(beg, end), 
-    m_data_cond(), m_closed(false) { }
+/**
+ *  @brief Default construct the @c mutable_shared_buffer.
+ *
+ */
+  mutable_shared_buffer() noexcept : mutable_shared_buffer(size_type(0)) { }
 
-  // disallow copy or move construction of the entire object
-  wait_queue(const wait_queue&) = delete;
-  wait_queue(wait_queue&&) = delete;
+/**
+ *  @brief Construct a @c mutable_shared_buffer with an initial size, contents
+ *  set to zero.
+ *
+ *  Allocate zero initialized space which can be overwritten with data as needed.
+ *  The @c data method is called to get access to the underlying @c std::byte 
+ *  buffer.
+ *
+ *  @param sz Size for internal @c std::byte buffer.
+ */
+  explicit mutable_shared_buffer(size_type sz)
+    : m_data(boost::make_shared<byte_vec>(sz)) { }
 
-  // disallow copy or move assigment of the entire object
-  wait_queue& operator=(const wait_queue&) = delete;
-  wait_queue& operator=(wait_queue&&) = delete;
+/**
+ *  @brief Construct by copying from a @c std::byte array.
+ *
+ *  @pre Size cannot be greater than the source buffer.
+ *
+ *  @param buf @c std::byte array containing buffer of data. The data is
+ *  copied into an internal buffer.
+ *
+ *  @param sz Size of buffer.
+ */
+  mutable_shared_buffer(const std::byte* buf, size_type sz)
+    : m_data(boost::make_shared<byte_vec>(buf, buf+sz)) { }
 
-  // modifying methods
+/**
+ *  @brief Construct by copying @c std::bytes from a arbitrary pointer.
+ *
+ *  This method wraps pointer casts into a @c std::byte pointer. In particular,
+ *  this method can be used for @c char pointers, @c void pointers, @ unsigned 
+ *  @c char pointers, etc.
+ *
+ *  @param buf Pointer to a buffer of data. The pointer must be convertible 
+ *  to a @c void pointer and then to a @c std::byte pointer.
+ *
+ *  @param sz Size of buffer.
+ */
+  template <typename T>
+  mutable_shared_buffer(const T* buf, size_type sz)
+    : mutable_shared_buffer(static_cast<std::byte*>(static_cast<void*>(buf)), sz) { }
 
-  /**
-   * Open a previously closed @c wait_queue for processing.
-   *
-   * @note The initial state of a @c wait_queue is open.
-   */
-  void open() noexcept {
-    lock_guard lk{m_mut};
-    m_closed = false;
+/**
+ *  @brief Construct from input iterators.
+ *
+ *  @pre Valid iterator range.
+ *
+ *  @param beg Beginning input iterator of range.
+ *  @param end Ending input iterator of range.
+ *
+ */
+  template <typename InIt>
+  mutable_shared_buffer(InIt beg, InIt end)
+    : m_data(boost::make_shared<byte_vec>(beg, end)) { }
+
+/**
+ *  @brief Return @c std::byte pointer to beginning of buffer.
+ *
+ *  This method provides pointer access to the beginning of the buffer. If the
+ *  buffer is empty the pointer cannot be dereferenced.
+ *
+ *  Accessing past the end of the internal buffer results in undefined behavior.
+ *
+ *  @return @c std::byte pointer to buffer.
+ */
+  std::byte* data() noexcept { return m_data->data(); }
+
+/**
+ *  @brief Return @c const @c std::byte pointer to beginning of buffer.
+ *
+ *  This method provides pointer access to the beginning of the buffer. If the
+ *  buffer is empty the pointer cannot be dereferenced.
+
+ *  @return @c const @c std::byte pointer to buffer.
+ */
+  const std::byte* data() noexcept const { return m_data->begin(); }
+
+/**
+ *  @brief Return size (number of bytes) of buffer.
+ *
+ *  @return Size of buffer, which may be zero.
+ */
+  size_type size() noexcept const { return m_data->size(); }
+
+/**
+ *  @brief Query to see if size is zero.
+ *
+ *  @return @c true if empty (size equals zero).
+ */
+  bool empty() noexcept const { return m_data->empty(); }
+
+/**
+ *  @brief Resize internal buffer.
+ *
+ *  @param sz New size for buffer. If the buffer is expanded, new bytes are added,
+ *  each zero initialized. The size can also be contracted.
+ *
+ *  Resizing to zero results in an empty buffer.
+ */
+  void resize(size_type sz) { m_data->resize(sz); }
+
+/**
+ *  @brief Swap with the contents of another @c mutable_shared_buffer object.
+ */
+  void swap(mutable_shared_buffer& rhs) noexcept { m_data.swap(rhs.m_data); }
+
+/**
+ *  @brief Compare two @c mutable_shared_buffer objects for byte-by-byte equality.
+ *
+ *  @return @c true if @c size() same for each, and each byte compares @c true.
+ */
+  bool operator== (const mutable_shared_buffer& rhs) noexcept const { return *m_data == *(rhs.m_data); }  
+
+/**
+ *  @brief Compare two @c mutable_shared_buffer objects for inequality.
+ *
+ *  @return Opposite of @c operator==.
+ */
+  bool operator!= (const mutable_shared_buffer& rhs) noexcept const { return *m_data != *(rhs.m_data); }
+
+/**
+ *  @brief Append a @c std::byte buffer to the end of the internal buffer.
+ *
+ *  @param buf @c std::byte array containing buffer of data.
+ *
+ *  @param sz Size of buffer.
+ *
+ *  @return Reference to @c this (to allow method chaining).
+ */
+  mutable_shared_buffer& append(const std::byte* buf, size_type sz) {
+    size_type old_sz = size();
+    resize(old_sz + sz); // set up buffer space
+    std::memcpy(data() + old_sz, buf, sz);
+    return *this;
   }
 
-  /**
-   * Close a @c wait_queue for processing. All waiting reader threaders will be 
-   * notified. Subsequent @c push operations will return @c false.
-   */
-  void close() noexcept {
-    lock_guard lk{m_mut};
-    m_closed = true;
-    m_data_cond.notify_all();
+/**
+ *  @brief Append the contents of another @c mutable_shared_buffer to the end.
+ *
+ *  @param rhs @c mutable_shared_buffer to append from.
+ *
+ *  @return Reference to @c this (to allow method chaining).
+ */
+  mutable_shared_buffer& append(const mutable_shared_buffer& rhs) {
+    return append(rhs.data(), rhs.size());
   }
 
-  /**
-   * Push a value, by copying, to the @c wait_queue. A waiting reader thread (if any) 
-   * will be notified that a value has been added.
-   *
-   * @param val Val to copy into the queue.
-   *
-   * @return @c true if successful, @c false if the @c wait_queue is closed.
-   */
-  bool push(const T& val) noexcept(std::is_nothrow_copy_constructible<T>::value) {
-    lock_guard lk{m_mut};
-    if (m_closed) {
-      return false;
-    }
-    m_data_queue.push_back(val);
-    m_data_cond.notify_one();
-    return true;
+/**
+ *  @brief Append the contents of another @c mutable_shared_buffer to the end.
+ *
+ *  See @c append method for details.
+ */
+  mutable_shared_buffer& operator+=(const mutable_shared_buffer& rhs) {
+    return append(rhs);
   }
 
-  /**
-   * This method has the same semantics as the other @c push, except that the value will 
-   * be moved (if possible) instead of copied.
-   */
-  bool push(T&& val) noexcept(std::is_nothrow_move_constructible<T>::value) {
-    lock_guard lk{m_mut};
-    if (m_closed) {
-      return false;
-    }
-    m_data_queue.push_back(std::move(val));
-    m_data_cond.notify_one();
-    return true;
+/**
+ *  @brief Append a single @c std::byte to the end.
+ *
+ *  @param b Byte to append.
+ *
+ *  @return Reference to @c this (to allow method chaining).
+ */
+  mutable_shared_buffer& append(std::byte b) {
+    return append(&b, 1);
   }
 
-  /**
-   * Directly construct an object in the underlying container (using the container's
-   * @c emplace_back method) by forwarding the supplied arguments (can be more than one).
-   *
-   * @param args Arguments to be used in constructing an element at the end of the queue.
-   *
-   * @note The @c std containers return a reference to the newly constructed element from 
-   * @c emplace method calls. @c emplace_push does not follow this convention, and instead 
-   * has the same return as the @c push methods.
-   *
-   * @return @c true if successful, @c false if the @c wait_queue is closed.
-   */
-  template <typename ... Args>
-  bool emplace_push(Args &&... args) noexcept(std::is_nothrow_constructible<T, Args...>::value) {
-    lock_guard lk{m_mut};
-    if (m_closed) {
-      return false;
-    }
-    m_data_queue.emplace_back(std::forward<Args>(args)...);
-    m_data_cond.notify_one();
-    return true;
+/**
+ *  @brief Append a single @c std::byte to the end.
+ *
+ *  See @c append method (single @c std::byte) for details.
+ */
+  mutable_shared_buffer& operator+=(std::byte b) {
+    return append(b);
   }
 
-  /**
-   * Pop and return a value from the @c wait_queue, blocking and waiting for a writer thread to 
-   * push a value if one is not immediately available.
-   *
-   * If this method is called after a @c wait_queue has been closed, an empty @c std::optional 
-   * is returned. If a @c wait_queue needs to be flushed after it is closed, @c try_pop should 
-   * be called instead.
-   *
-   * @return A value from the @c wait_queue (if non-empty). If the @c std::optional is empty, 
-   * the @c wait_queue has been closed.
-   */
-  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_constructible<T>::value) {
-    std::unique_lock<std::mutex> lk{m_mut};
-    if (m_closed) {
-      return std::optional<T> {};
-    }
-    m_data_cond.wait ( lk, [this] { return m_closed || !m_data_queue.empty(); } );
-    if (m_data_queue.empty()) {
-      return std::optional<T> {}; // queue was closed, no data available
-    }
-    std::optional<T> val {std::move_if_noexcept(m_data_queue.front())}; // move construct if possible
-    m_data_queue.pop_front();
-    return val;
-  }
+}; // end mutable_shared_buffer class
 
-  /**
-   * Pop and return a value from the @c wait_queue if an element is immediately 
-   * available, otherwise return an empty @c std::optional.
-   *
-   * @return A value from the @c wait_queue or an empty @c std::optional if no values are 
-   * available in the @c wait_queue.
-   */
-  std::optional<T> try_pop() noexcept(std::is_nothrow_constructible<T>::value) {
-    lock_guard lk{m_mut};
-    if (m_data_queue.empty()) {
-      return std::optional<T> {};
-    }
-    std::optional<T> val {std::move_if_noexcept(m_data_queue.front())}; // move construct if possible
-    m_data_queue.pop_front();
-    return val;
-  }
+/**
+ *  @brief Swap two @c mutable_shared_buffer objects.
+ *
+ *  @relates mutable_shared_buffer
+ */
 
-  // non-modifying methods
+inline void swap(mutable_shared_buffer& lhs, mutable_shared_buffer& rhs) {
+  lhs.swap(rhs);
+}
 
-  /**
-   * Apply a non-modifying function object to all elements of the queue.
-   *
-   * The function object is not allowed to modify any of the elements. 
-   * The supplied function object is passed a const reference to the element 
-   * type.
-   *
-   * This method can be used when an iteration of the elements is needed,
-   * such as to print the elements, or copy them to another container, or 
-   * to interrogate values of the elements.
-   *
-   * @note The entire @c wait_queue is locked while @c apply is in process, 
-   * so passing in a function object that blocks or takes a lot of processing 
-   * time may result in slow performance.
-   *
-   * @note It is undefined behavior if the function object calls into the 
-   * same @c wait_queue since it results in recursive mutex locks.
-   */
-  template <typename F>
-  void apply(F&& f) const noexcept(std::is_nothrow_invocable<F&&, const T&>::value) {
-    lock_guard lk{m_mut};
-    for (const T& elem : m_data_queue) {
-      f(elem);
-    }
-  }
-
-  /**
-   * Query whether the @ close method has been called on the @c wait_queue.
-   *
-   * @return @c true if the @c wait_queue has been closed.
-   */
-  bool is_closed() const noexcept {
-    lock_guard lk{m_mut};
-    return m_closed;
-  }
-
-  /**
-   * Query whether the @c wait_queue is empty or not.
-   *
-   * @return @c true if the @c wait_queue is empty.
-   */
-  bool empty() const noexcept {
-    lock_guard lk{m_mut};
-    return m_data_queue.empty();
-  }
-
-  using size_type = typename Container::size_type;
-
-  /**
-   * Get the number of elements in the @c wait_queue.
-   *
-   * @return Number of elements in the @c wait_queue.
-   */
-  size_type size() const noexcept {
-    lock_guard lk{m_mut};
-    return m_data_queue.size();
-  }
-
-};
 
 } // end namespace
 
