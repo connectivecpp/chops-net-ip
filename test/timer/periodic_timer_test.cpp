@@ -35,8 +35,8 @@ bool lambda_util (const std::error_code& err) {
 
 using wk_guard = std::experimental::net::executor_work_guard<std::experimental::net::io_context::executor_type>;
 
-void wait_util (int wait, wk_guard& wg, std::thread& thr) {
-  std::this_thread::sleep_for(std::chrono::seconds(wait));
+void wait_util (std::chrono::milliseconds ms, wk_guard& wg, std::thread& thr) {
+  std::this_thread::sleep_for(ms);
   wg.reset();
   thr.join();
   INFO ("Thread joined");
@@ -55,45 +55,49 @@ void test_util () {
     std::thread thr([&ioc] () { ioc.run(); } );
     count = 0;
 
-    WHEN ( "The duration is one second" ) {
+    WHEN ( "The duration is 100 ms" ) {
+      auto test_dur { 100 };
       timer.start_duration_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
           return lambda_util(err);
-        } , std::chrono::seconds(1));
+        } , std::chrono::milliseconds(test_dur));
 
-      wait_util (Expected+1, wg, thr);
+      wait_util (std::chrono::milliseconds((Expected+1)*test_dur), wg, thr);
 
       THEN ( "the timer callback count should match expected") {
         REQUIRE (count == Expected);
       }
     }
-    WHEN ( "The duration is two seconds and the start time is 5 seconds in the future" ) {
+    WHEN ( "The duration is 200 ms and the start time is 2 seconds in the future" ) {
+      auto test_dur { 200 };
       timer.start_duration_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
           return lambda_util(err);
-        } , std::chrono::seconds(2), Clock::now() + std::chrono::seconds(5));
+        } , std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2));
 
-      wait_util(Expected * 2 + 5 + 1, wg, thr);
-
-      THEN ( "the timer callback count should match expected") {
-        REQUIRE (count == Expected);
-      }
-    }
-    WHEN ( "The duration is one second and the timer pops on timepoints" ) {
-      timer.start_timepoint_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
-          return lambda_util(err);
-        } , std::chrono::seconds(1));
-
-      wait_util (Expected+1, wg, thr);
+      wait_util(std::chrono::milliseconds((Expected+1)*test_dur + 2000), wg, thr);
 
       THEN ( "the timer callback count should match expected") {
         REQUIRE (count == Expected);
       }
     }
-    WHEN ( "The duration is two seconds and the timer pops on timepoints starting 5 seconds in the future" ) {
+    WHEN ( "The duration is 100 ms and the timer pops on timepoints" ) {
+      auto test_dur { 100 };
       timer.start_timepoint_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
           return lambda_util(err);
-        } , std::chrono::seconds(2), Clock::now() + std::chrono::seconds(5));
+        } , std::chrono::milliseconds(test_dur));
 
-      wait_util(Expected * 2 + 5 + 1, wg, thr);
+      wait_util (std::chrono::milliseconds((Expected+1)*test_dur), wg, thr);
+
+      THEN ( "the timer callback count should match expected") {
+        REQUIRE (count == Expected);
+      }
+    }
+    WHEN ( "The duration is 200 ms and the timer pops on timepoints starting 2 seconds in the future" ) {
+      auto test_dur { 200 };
+      timer.start_timepoint_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
+          return lambda_util(err);
+        } , std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2));
+
+      wait_util(std::chrono::milliseconds((Expected+1)*test_dur + 2000), wg, thr);
 
       THEN ( "the timer callback count should match expected") {
         REQUIRE (count == Expected);
