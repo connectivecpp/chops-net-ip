@@ -23,6 +23,9 @@
  *    // fill in here
  *  @endcode
  *
+ *  @note @c std::chrono facilities seem to be underspecified on @c noexcept,
+ *  very few of the functions in @c periodic_timer are @c noexcept.
+ *
  *  @author Cliff Green
  *  @date 2017
  *  @copyright Cliff Green, MIT License
@@ -107,7 +110,7 @@ public:
    * @param ioc @c io_context for asynchronous processing.
    *
    */
-  explicit periodic_timer(std::experimental::net::io_context& ioc) : m_timer(ioc) { }
+  explicit periodic_timer(std::experimental::net::io_context& ioc) noexcept : m_timer(ioc) { }
 
   periodic_timer() = delete; // no default ctor
 

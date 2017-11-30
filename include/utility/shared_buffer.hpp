@@ -2,7 +2,7 @@
  *
  *  @ingroup utility_module
  *
- *  @brief Reference counted byte buffers, both const and mutable versions.
+ *  @brief Reference counted byte buffer classes, both const and mutable versions.
  *
  *  The @c mutable_shared_buffer and @c const_shared_buffer classes provide byte
  *  buffer classes with internal reference counting. These classes are used within 
@@ -13,7 +13,7 @@
  *  data buffer lifetime management, these utility classes eliminate data buffer copies.
  *
  *  This code is based on and modified from Chris Kohlhoff's Asio example code. It has
- *  been significantly modified by adding a mutable @c shared_buffer class as well as 
+ *  been significantly modified by adding a @c mutable_shared_buffer class as well as 
  *  adding convenience methods to the @c shared_const_buffer class.
  *
  *  Example code:
