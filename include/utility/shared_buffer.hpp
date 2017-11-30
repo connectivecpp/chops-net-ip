@@ -30,11 +30,13 @@
 #ifndef SHARED_BUFFER_HPP_INCLUDED
 #define SHARED_BUFFER_HPP_INCLUDED
 
+#include <experimental/buffer> // Networking TS include
+
 #include <cstddef> // std::byte
 #include <vector>
 #include <memory> // std::shared_ptr
 
-#include <utility> // std::move, std::move_if_noexcept
+#include <utility> // std::move
 #include <type_traits> // for noexcept specs
 #include <cstring> // std::memcpy
 
@@ -66,6 +68,8 @@ class const_shared_buffer;
  *  @c data method, or appending data) will show up in any other @c mutable_shared_buffer 
  *  objects that have been copied to or from the original object.
  *
+ *  @ingroup utility_module
+ *
  */
 
 class mutable_shared_buffer {
@@ -77,7 +81,11 @@ private:
   std::shared_ptr<byte_vec> m_data;
 
 private:
+
   friend class const_shared_buffer;
+
+  friend bool operator==(const mutable_shared_buffer&, const mutable_shared_buffer&);
+  friend bool operator<(const mutable_shared_buffer&, const mutable_shared_buffer&);
 
 public:
 
@@ -112,7 +120,7 @@ public:
  *  @pre Size cannot be greater than the source buffer.
  *
  *  @param buf @c std::byte array containing buffer of data. The data is
- *  copied into an internal buffer.
+ *  copied into the internal buffer of the @c mutable_shared_buffer.
  *
  *  @param sz Size of buffer.
  */
@@ -120,25 +128,25 @@ public:
     : m_data(boost::make_shared<byte_vec>(buf, buf+sz)) { }
 
 /**
- *  @brief Construct by copying @c std::bytes from a arbitrary pointer.
+ *  @brief Construct by copying bytes from an arbitrary pointer.
  *
- *  This method wraps pointer casts into a @c std::byte pointer. In particular,
- *  this method can be used for @c char pointers, @c void pointers, @ unsigned 
- *  @c char pointers, etc.
+ *  The pointer passed into this constructor is cast into a @c std::byte pointer and bytes 
+ *  are then copied. In particular, this method can be used for @c char pointers, 
+ *  @c void pointers, @ unsigned @c char pointers, etc.
  *
  *  @param buf Pointer to a buffer of data. The pointer must be convertible 
  *  to a @c void pointer and then to a @c std::byte pointer.
  *
- *  @param sz Size of buffer.
+ *  @param sz Size of buffer, in bytes.
  */
   template <typename T>
   mutable_shared_buffer(const T* buf, size_type sz)
-    : mutable_shared_buffer(static_cast<std::byte*>(static_cast<void*>(buf)), sz) { }
+    : mutable_shared_buffer(static_cast<const std::byte*>(static_cast<const void*>(buf)), sz) { }
 
 /**
  *  @brief Construct from input iterators.
  *
- *  @pre Valid iterator range.
+ *  @pre Valid iterator range, where each element is convertible to a @c std::byte.
  *
  *  @param beg Beginning input iterator of range.
  *  @param end Ending input iterator of range.
@@ -152,9 +160,11 @@ public:
  *  @brief Return @c std::byte pointer to beginning of buffer.
  *
  *  This method provides pointer access to the beginning of the buffer. If the
- *  buffer is empty the pointer cannot be dereferenced.
+ *  buffer is empty the pointer cannot be dereferenced or undefined behavior will 
+ *  occur.
  *
- *  Accessing past the end of the internal buffer results in undefined behavior.
+ *  Accessing past the end of the internal buffer (as defined by the @c size() 
+ *  method) results in undefined behavior.
  *
  *  @return @c std::byte pointer to buffer.
  */
@@ -163,12 +173,12 @@ public:
 /**
  *  @brief Return @c const @c std::byte pointer to beginning of buffer.
  *
- *  This method provides pointer access to the beginning of the buffer. If the
- *  buffer is empty the pointer cannot be dereferenced.
+ *  This method provides pointer access to the beginning of the buffer, same as 
+ *  the non-const method, but providing @c const access.
 
  *  @return @c const @c std::byte pointer to buffer.
  */
-  const std::byte* data() noexcept const { return m_data->begin(); }
+  const std::byte* data() noexcept const { return m_data->data(); }
 
 /**
  *  @brief Return size (number of bytes) of buffer.
@@ -185,12 +195,25 @@ public:
   bool empty() noexcept const { return m_data->empty(); }
 
 /**
+ *  @brief Clear the internal contents back to an empty state.
+ *
+ *  This method is handy after a @c mutable_shared_buffer has been moved into 
+ *  another object (e.g. a @c const_shared_buffer). At that point the contents
+ *  are in a consistent but unknown state. Calling @c clear puts the internal
+ *  buffer into a known and empty state.
+ *
+ */
+  void clear() noexcept { m_data->clear(); }
+
+/**
  *  @brief Resize internal buffer.
  *
  *  @param sz New size for buffer. If the buffer is expanded, new bytes are added,
- *  each zero initialized. The size can also be contracted.
+ *  each zero initialized. The size can also be contracted. @c resize does not 
+ *  destroy old data in the internal buffer, so @c clear may need to be called first.
  *
- *  Resizing to zero results in an empty buffer.
+ *  Resizing to zero results in an empty buffer, although calling @c clear is 
+ *  preferred.
  */
   void resize(size_type sz) { m_data->resize(sz); }
 
@@ -198,20 +221,6 @@ public:
  *  @brief Swap with the contents of another @c mutable_shared_buffer object.
  */
   void swap(mutable_shared_buffer& rhs) noexcept { m_data.swap(rhs.m_data); }
-
-/**
- *  @brief Compare two @c mutable_shared_buffer objects for byte-by-byte equality.
- *
- *  @return @c true if @c size() same for each, and each byte compares @c true.
- */
-  bool operator== (const mutable_shared_buffer& rhs) noexcept const { return *m_data == *(rhs.m_data); }  
-
-/**
- *  @brief Compare two @c mutable_shared_buffer objects for inequality.
- *
- *  @return Opposite of @c operator==.
- */
-  bool operator!= (const mutable_shared_buffer& rhs) noexcept const { return *m_data != *(rhs.m_data); }
 
 /**
  *  @brief Append a @c std::byte buffer to the end of the internal buffer.
@@ -271,6 +280,7 @@ public:
 
 }; // end mutable_shared_buffer class
 
+// non-member functions
 /**
  *  @brief Swap two @c mutable_shared_buffer objects.
  *
@@ -281,6 +291,236 @@ inline void swap(mutable_shared_buffer& lhs, mutable_shared_buffer& rhs) {
   lhs.swap(rhs);
 }
 
+/**
+ *  @brief Compare two @c mutable_shared_buffer objects for internal buffer 
+ *  byte-by-byte equality.
+ *
+ *  Internally this invokes the @c std::vector @c operator== on @c std::byte 
+ *  elements.
+ *
+ *  @return @c true if @c size() same for each, and each byte compares @c true.
+ *
+ *  @relates mutable_shared_buffer
+ */
+inline bool operator== (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept { 
+  return *(lhs.m_data) == *(rhs.m_data);
+}  
+
+/**
+ *  @brief Compare two @c mutable_shared_buffer objects for inequality.
+ *
+ *  @return Opposite of @c operator==.
+ *
+ *  @relates mutable_shared_buffer
+ */
+inline bool operator!= (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept {
+  return !(lhs == rhs);
+}
+
+/**
+ *  @brief Compare two @c mutable_shared_buffer objects for internal buffer 
+ *  byte-by-byte less-than ordering.
+ *
+ *  Internally this invokes the @c std::vector @c operator< on @c std::byte 
+ *  elements.
+ *
+ *  @return @c true if internal buffer of left is less than internal buffer of right.
+ *
+ *  @relates mutable_shared_buffer
+ */
+inline bool operator< (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept { 
+  return *(lhs.m_data) < *(rhs.m_data);
+}  
+
+/**
+ *  @brief A reference counted non-modifiable buffer class with various convenience methods, 
+ *  providing efficient copying and convenient buffer lifetime management. 
+ *
+ *  The primary difference between this class and the @c mutable_shared_buffer class is that
+ *  once a @c const_shared_buffer object is constructed, nothing inside it can be modified. This 
+ *  allows it to be used with asynchronous IO functions which depend on the buffer staying the 
+ *  same (i.e. the internal pointer to the data and the size) for the full lifetime of the 
+ *  asynchronous operations.
+ *
+ *  There are declarations and methods to make it compatible with the C++ Networking TS
+ *  library (and possibly with Chris' Asio library).
+ *
+ *  @ingroup utility_module
+ *
+ */
+
+class const_shared_buffer {
+public:
+  using byte_vec = std::vector<std::byte>;
+  using size_type = typename byte_vec::size_type;
+
+private:
+  std::shared_ptr<byte_vec> m_data;
+  std::experimental::net::const_buffer m_cbuf;
+
+public:
+  // Implement the Asio ConstBufferSequence requirements, allowing easy
+  // use by Asio code for writing output buffers (which won't be modified)
+  typedef boost::asio::const_buffer value_type;
+  typedef const boost::asio::const_buffer* const_iterator;
+  const_iterator begin() const { return &ac_buf; }
+  const_iterator end() const { return &ac_buf + 1; }
+
+private:
+
+  friend bool operator==(const const_shared_buffer&, const const_shared_buffer&);
+  friend bool operator<(const const_shared_buffer&, const const_shared_buffer&);
+
+public:
+
+  const_shared_buffer() = delete;
+
+  // default copy and move construction, copy and move assignment, they should all
+  // do the right thing, including copying or moving the net::const_buffer object
+  const_shared_buffer(const const_shared_buffer&) = default;
+  const_shared_buffer(const_shared_buffer&&) = default;
+  const_shared_buffer& operator=(const const_shared_buffer&) = default;
+  const_shared_buffer& operator=(const_shared_buffer&&) = default;
+
+/**
+ *  @brief Construct by copying from a @c std::byte array.
+ *
+ *  @pre Size cannot be greater than the source buffer.
+ *
+ *  @param buf @c std::byte array containing buffer of data. The data is
+ *  copied into the internal buffer of the @c const_shared_buffer.
+ *
+ *  @param sz Size of buffer.
+ */
+  const_shared_buffer(const std::byte* buf, size_type sz)
+    : m_data(std::make_shared<byte_vec>(buf, buf+sz)), m_cbuf(m_data->data(), m_data->size()) { }
+
+/**
+ *  @brief Construct by copying bytes from an arbitrary pointer.
+ *
+ *  The pointer passed into this constructor is cast into a @c std::byte pointer and bytes 
+ *  are then copied. In particular, this method can be used for @c char pointers, 
+ *  @c void pointers, @ unsigned @c char pointers, etc.
+ *
+ *  @param buf Pointer to a buffer of data. The pointer must be convertible 
+ *  to a @c void pointer and then to a @c std::byte pointer.
+ *
+ *  @param sz Size of buffer, in bytes.
+ */
+  template <typename T>
+  const_shared_buffer(const T* buf, size_type sz)
+    : const_shared_buffer(static_cast<const std::byte*>(static_cast<const void*>(buf)), sz) { }
+
+/**
+ *  @brief Construct by copying from a @c mutable_shared_buffer object.
+ *
+ *  This constructor will copy from a @c mutable_shared_buffer. To reduce copying,
+ *  the @c mutable_shared_buffer can be passed in as a @c rvalue (see documentation
+ *  of the appropriate constructor).
+ *  
+ *  @param rhs @c mutable_shared_buffer containing bytes to be copied.
+ */
+  explicit const_shared_buffer(const mutable_shared_buffer& rhs)
+    : const_shared_buffer(rhs.data(), rhs.size()) { }
+
+/**
+ *  @brief Construct by moving from a @c mutable_shared_buffer object.
+ *
+ *  This constructor will move from a @c mutable_shared_buffer into a @c const_shared_buffer. 
+ *  This allows efficient API boundaries, where application code can construct and fill in a
+ *  @c mutable_shared_buffer, then @c std::move it into a @c const_shared_buffer for use
+ *  with asynchronous functions.
+ *  
+ *  @param rhs @c mutable_shared_buffer to be moved from; after moving the 
+ *  @c mutable_shared_buffer should not be accessed until the @c clear method is called on it.
+ */
+  explicit const_shared_buffer(mutable_shared_buffer&& rhs)
+    : m_data(std::move(rhs.m_data)), m_cbuf(m_data->data(), m_data->size()) { }
+
+/**
+ *  @brief Construct from input iterators.
+ *
+ *  @pre Valid iterator range, where each element is convertible to a @c std::byte.
+ *
+ *  @param beg Beginning input iterator of range.
+ *  @param end Ending input iterator of range.
+ *
+ */
+  template <typename InIt>
+  const_shared_buffer(InIt beg, InIt end)
+    : m_data(boost::make_shared<byte_vec>(beg, end)), m_cbuf(m_data->data(), m_data->size()) { }
+
+/**
+ *  @brief Return @c const @c std::byte pointer to beginning of buffer.
+ *
+ *  This method provides pointer access to the beginning of the buffer. If the
+ *  buffer is empty the pointer cannot be dereferenced or undefined behavior will 
+ *  occur.
+ *
+ *  Accessing past the end of the internal buffer (as defined by the @c size() 
+ *  method) results in undefined behavior.
+ *
+ *  @return @c const @c std::byte pointer to buffer.
+ */
+  const std::byte* data() noexcept const { return m_data->data(); }
+
+/**
+ *  @brief Return size (number of bytes) of buffer.
+ *
+ *  @return Size of buffer, which may be zero.
+ */
+  size_type size() noexcept const { return m_data->size(); }
+
+/**
+ *  @brief Query to see if size is zero.
+ *
+ *  @return @c true if empty (size equals zero).
+ */
+  bool empty() noexcept const { return (*m_data).empty(); }
+
+}; // end const_shared_buffer class
+
+// non-member functions
+/**
+ *  @brief Compare two @c const_shared_buffer objects for internal buffer 
+ *  byte-by-byte equality.
+ *
+ *  Internally this invokes the @c std::vector @c operator== on @c std::byte 
+ *  elements.
+ *
+ *  @return @c true if @c size() same for each, and each byte compares @c true.
+ *
+ *  @relates const_shared_buffer
+ */
+inline bool operator== (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept { 
+  return *(lhs.m_data) == *(rhs.m_data);
+}  
+
+/**
+ *  @brief Compare two @c const_shared_buffer objects for inequality.
+ *
+ *  @return Opposite of @c operator==.
+ *
+ *  @relates const_shared_buffer
+ */
+inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept {
+  return !(lhs == rhs);
+}
+
+/**
+ *  @brief Compare two @c const_shared_buffer objects for internal buffer 
+ *  byte-by-byte less-than ordering.
+ *
+ *  Internally this invokes the @c std::vector @c operator< on @c std::byte 
+ *  elements.
+ *
+ *  @return @c true if internal buffer of left is less than internal buffer of right.
+ *
+ *  @relates const_shared_buffer
+ */
+inline bool operator< (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept { 
+  return *(lhs.m_data) < *(rhs.m_data);
+}  
 
 } // end namespace
 
