@@ -24,7 +24,7 @@
 #include "timer/periodic_timer.hpp"
 #include "utility/repeat.hpp"
 
-const int Expected = 9;
+constexpr int Expected = 9;
 int count = 0;
 
 bool lambda_util (const std::error_code& err) {
