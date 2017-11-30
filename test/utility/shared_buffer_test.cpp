@@ -21,8 +21,58 @@
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 
+constexpr std::byte Harhar { 42 };
+
+template <typename SB, typename TS>
+void pointer_check(const T* bp, typename SB::size_type sz) {
+
+  GIVEN ("A buf pointer and a size") {
+    SB sb(bp, sz);
+
+    WHEN ("A shared buffer is constructed with the buf and size") {
+      THEN ("the shared buffer is not empty, the size matches and the contents match") {
+        REQUIRE (!sb.empty());
+        REQUIRE (sb.size() == sz);
+        const std::byte* buf = static_cast<const std::byte*>(static_cast<const void*>(bp));
+        chops::repeat(sz, [&sb, buf] (const int& i) { REQUIRE(*(sb.data()+i) == *(buf+i)); } );
+      }
+    }
+    WHEN ("A separate hared buffer is constructed with the buf and size") {
+      SB sb2(bp, sz);
+      REQUIRE (!sb2.empty());
+      THEN ("the two shared buffers compare equal and changes to each are separate") {
+        REQUIRE (sb == sb2);
+        *sb.data() = Harhar;
+        REQUIRE (sb ! = sb2);
+      }
+    }
+    WHEN ("A second shared buffer is copy constructed") {
+      SB sb2(sb);
+      REQUIRE (!sb2.empty());
+      THEN ("the two shared buffers compare equal and a change to the first shows in the second") {
+        *sb.data() = Harhar;
+        REQUIRE (sb == sb2);
+        *sb2.data() = Harhar + 1;
+        REQUIRE (sb == sb2);
+      }
+    }
+  } // end given
+}
+
 template <typename SB>
-void shared_buffer_construction(const std::byte* buf, typename SB::size_type sz) {
+void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
+  pointer_check<SB>(buf, sz);
+  pointer_check<SB>(static_cast<const void*>(buf), sz);
+  pointer_check<SB>(static_cast<const char*>(buf), sz);
+  pointer_check<SB>(static_cast<const unsigned char*>(buf), sz);
+  pointer_check<SB>(static_cast<const signed char*>(buf), sz);
+
+  GIVEN ("A buf pointer and a size") {
+
+}
+
+
+
 
   GIVEN ("A default constructed shared_buffer") {
 
@@ -36,103 +86,6 @@ void shared_buffer_construction(const std::byte* buf, typename SB::size_type sz)
         chops::repeat(sz, [&sb] (const int& i) { REQUIRE (*(sb.data() + i) == 0); } );
       }
     }
-    WHEN ("Open is called") {
-      wq.close();
-      REQUIRE (wq.is_closed());
-      wq.open();
-      THEN ("the state is now open, and pushes will succeed") {
-        REQUIRE (!wq.is_closed());
-        REQUIRE (wq.empty());
-        chops::repeat(count, [&wq, &val] () { wq.push(val); } );
-        REQUIRE (wq.size() == count);
-      }
-    }
-    WHEN ("Close is called") {
-      chops::repeat(count, [&wq, &val] () { wq.push(val); } );
-      REQUIRE (!wq.empty());
-      wq.close();
-      THEN ("wait_and_pops will not return data, but try_pops will") {
-        auto ret = wq.wait_and_pop();
-        REQUIRE (!ret);
-        ret = wq.wait_and_pop();
-        REQUIRE (!ret);
-        chops::repeat(count, [&wq, &ret] () { ret = wq.try_pop(); REQUIRE(ret); } );
-        REQUIRE (wq.empty());
-        ret = wq.try_pop();
-        REQUIRE (!ret);
-      }
-    }
-
-  } // end given
-}
-
-template <typename T, typename Q>
-void read_func (Q& wq, std::set<std::pair< int, T> >& s, std::mutex& mut) {
-  while (true) {
-    std::optional<std::pair<int, T> > opt_elem = wq.wait_and_pop();
-    if (!opt_elem) { // empty element means close has been called
-      return;
-    }
-    std::lock_guard<std::mutex> lk(mut);
-    s.insert(*opt_elem);
-  }
-}
-
-template <typename T, typename Q>
-void write_func (Q& wq, int start, int slice, const T& val) {
-  chops::repeat (slice, [&wq, start, &val] (const int& i) {
-      if (!wq.push(std::pair<int, T>{(start+i), val})) {
-        FAIL("wait queue push failed in write_func");
-      }
-    }
-  );
-}
-
-template <typename T, typename Q>
-bool threaded_test(Q& wq, int num_readers, int num_writers, int slice, const T& val) {
-  // each writer pushes slice entries
-  int tot = num_writers * slice;
-
-  std::set<std::pair< int, T> > s;
-  std::mutex mut;
-
-  std::vector<std::thread> rd_thrs;
-  chops::repeat(num_readers, [&wq, &rd_thrs, &s, &mut] {
-      rd_thrs.push_back( std::thread (read_func<T, Q>, std::ref(wq), std::ref(s), std::ref(mut)) );
-    }
-  );
-
-  std::vector<std::thread> wr_thrs;
-  chops::repeat(num_writers, [&wq, &wr_thrs, slice, &val] (const int& i) {
-      wr_thrs.push_back( std::thread (write_func<T, Q>, std::ref(wq), (i*slice), slice, val));
-    }
-  );
-  // wait for writers to finish pushing vals
-  for (auto& thr : wr_thrs) {
-    thr.join();
-  }
-  // sleep and loop waiting for wait queue to be emptied by reader threads
-  while (!wq.empty()) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-  }
-  wq.close();
-
-  // wait for readers; since wait queue is empty and closed they should all join immediately
-  for (auto& thr : rd_thrs) {
-    thr.join();
-  }
-  REQUIRE (wq.empty());
-  REQUIRE (wq.is_closed());
-  // check set to make sure all entries are present
-  REQUIRE (s.size() == tot);
-  int idx = 0;
-  for (const auto& e : s) {
-    REQUIRE (e.first == idx);
-    REQUIRE (e.second == val);
-    ++idx;
-  }
-  return true;
-}
 
 constexpr int N = 40;
 template <typename T>
