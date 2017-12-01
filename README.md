@@ -40,7 +40,7 @@ Chops Net IP:
 
 Chops Net IP is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net IP, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
-A detailed overview is [available here](doc/chops_net.md).
+A detailed overview is [available here](doc/chops_net_ip.md).
 
 ## Timer
 
@@ -70,7 +70,7 @@ Repeat is a function template to abstract and simplify loops that repeat N times
 
 ### Make Byte Array
 
-Since `std::byte` is used as the general buffer interface, this small utility function from Blitz Rakete (on Stackoverflow) is useful to simplify creation of byte buffers, specially for testing purposes.
+Since `std::byte` pointers are used as a general buffer interface, a small utility function from Blitz Rakete as posted on Stackoverflow (see [References Section](#references)) is useful to simplify creation of byte buffers, specially for testing purposes.
 
 ### Shared Buffer
 
@@ -108,6 +108,8 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 - Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple times at CppCon. His Github site is https://github.com/kirkshoop.
 
 - Vittorio Romeo is a blog author and C++ expert. His web site is https://vittorioromeo.info/ and his Github site is https://github.com/SuperV1234. Vittorio's blog is excellent and well worth reading.
+
+- Blitz Rakete is a student software developer who has the user id of Rakete1111 on many forums and sites (including Stackoverflow). His Github site is https://github.com/Rakete1111.
 
 # Supported Compilers and Platforms
 
