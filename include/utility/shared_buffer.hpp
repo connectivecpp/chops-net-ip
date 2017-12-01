@@ -16,6 +16,9 @@
  *  been significantly modified by adding a @c mutable_shared_buffer class as well as 
  *  adding convenience methods to the @c shared_const_buffer class.
  *
+ *  It is likely that this shared buffer design and code will change as the C++ 
+ *  Networking TS buffer features are expanded, changed, or better understood.
+ *
  *  Example code:
  *  @code
  *    ... fill in example code
