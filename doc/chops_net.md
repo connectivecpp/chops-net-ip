@@ -1,18 +1,18 @@
-# Chops Net Detailed Overview
+# Chops Net IP Detailed Overview
 
 ## Motivation
 
-Chops Net is motivated by the need for a networking library that:
+Chops Net IP is motivated by the need for a networking library that:
 - is easy to use
 - scales well
-- integrates relatively quickly into an application
+- integrates relatively quickly into an application or library
 - is easy to use correctly and hard to use incorrectly
 - abstracts common TCP design usages into application supplied callback functions
 - performs well in many environments
 
 ## General Usage and Design Model
 
-Chops Net is (in general terms) a "create network entity, provide function objects and let them do the work" API for incoming data, and a "send and forget" API for outgoing data. 
+Chops Net IP is (in general terms) a "create network entity, provide function objects and let them do the work" API for incoming data, and a "send and forget" API for outgoing data. 
 
 For incoming data, an application provides callable function objects to the appropriate Chops Net object for message framing (if needed), message processing, and connection state transitions.
 
