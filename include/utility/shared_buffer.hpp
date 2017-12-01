@@ -37,7 +37,6 @@
 #include <memory> // std::shared_ptr
 
 #include <utility> // std::move
-#include <type_traits> // for noexcept specs
 #include <cstring> // std::memcpy
 
 namespace chops {
@@ -112,7 +111,7 @@ public:
  *  @param sz Size for internal @c std::byte buffer.
  */
   explicit mutable_shared_buffer(size_type sz)
-    : m_data(boost::make_shared<byte_vec>(sz)) { }
+    : m_data(std::make_shared<byte_vec>(sz)) { }
 
 /**
  *  @brief Construct by copying from a @c std::byte array.
@@ -125,7 +124,7 @@ public:
  *  @param sz Size of buffer.
  */
   mutable_shared_buffer(const std::byte* buf, size_type sz)
-    : m_data(boost::make_shared<byte_vec>(buf, buf+sz)) { }
+    : m_data(std::make_shared<byte_vec>(buf, buf+sz)) { }
 
 /**
  *  @brief Construct by copying bytes from an arbitrary pointer.
@@ -154,7 +153,7 @@ public:
  */
   template <typename InIt>
   mutable_shared_buffer(InIt beg, InIt end)
-    : m_data(boost::make_shared<byte_vec>(beg, end)) { }
+    : m_data(std::make_shared<byte_vec>(beg, end)) { }
 
 /**
  *  @brief Return @c std::byte pointer to beginning of buffer.
@@ -178,21 +177,21 @@ public:
 
  *  @return @c const @c std::byte pointer to buffer.
  */
-  const std::byte* data() noexcept const { return m_data->data(); }
+  const std::byte* data() const noexcept { return m_data->data(); }
 
 /**
  *  @brief Return size (number of bytes) of buffer.
  *
  *  @return Size of buffer, which may be zero.
  */
-  size_type size() noexcept const { return m_data->size(); }
+  size_type size() const noexcept { return m_data->size(); }
 
 /**
  *  @brief Query to see if size is zero.
  *
  *  @return @c true if empty (size equals zero).
  */
-  bool empty() noexcept const { return m_data->empty(); }
+  bool empty() const noexcept { return m_data->empty(); }
 
 /**
  *  @brief Clear the internal contents back to an empty state.
@@ -302,7 +301,7 @@ inline void swap(mutable_shared_buffer& lhs, mutable_shared_buffer& rhs) {
  *
  *  @relates mutable_shared_buffer
  */
-inline bool operator== (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept { 
+inline bool operator== (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) { 
   return *(lhs.m_data) == *(rhs.m_data);
 }  
 
@@ -313,7 +312,7 @@ inline bool operator== (const mutable_shared_buffer& lhs, const mutable_shared_b
  *
  *  @relates mutable_shared_buffer
  */
-inline bool operator!= (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept {
+inline bool operator!= (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) {
   return !(lhs == rhs);
 }
 
@@ -328,7 +327,7 @@ inline bool operator!= (const mutable_shared_buffer& lhs, const mutable_shared_b
  *
  *  @relates mutable_shared_buffer
  */
-inline bool operator< (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept { 
+inline bool operator< (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) { 
   return *(lhs.m_data) < *(rhs.m_data);
 }  
 
@@ -361,10 +360,10 @@ private:
 public:
   // Implement the Asio ConstBufferSequence requirements, allowing easy
   // use by Asio code for writing output buffers (which won't be modified)
-  typedef boost::asio::const_buffer value_type;
-  typedef const boost::asio::const_buffer* const_iterator;
-  const_iterator begin() const { return &ac_buf; }
-  const_iterator end() const { return &ac_buf + 1; }
+//  typedef boost::asio::const_buffer value_type;
+//  typedef const boost::asio::const_buffer* const_iterator;
+//  const_iterator begin() const { return &ac_buf; }
+//  const_iterator end() const { return &ac_buf + 1; }
 
 private:
 
@@ -375,12 +374,12 @@ public:
 
   const_shared_buffer() = delete;
 
-  // default copy and move construction, copy and move assignment, they should all
-  // do the right thing, including copying or moving the net::const_buffer object
+  // default copy and move construction, should do the right thing
   const_shared_buffer(const const_shared_buffer&) = default;
   const_shared_buffer(const_shared_buffer&&) = default;
-  const_shared_buffer& operator=(const const_shared_buffer&) = default;
-  const_shared_buffer& operator=(const_shared_buffer&&) = default;
+  // copy and move assignment disabled
+  const_shared_buffer& operator=(const const_shared_buffer&) = delete;
+  const_shared_buffer& operator=(const_shared_buffer&&) = delete;
 
 /**
  *  @brief Construct by copying from a @c std::byte array.
@@ -448,7 +447,7 @@ public:
  */
   template <typename InIt>
   const_shared_buffer(InIt beg, InIt end)
-    : m_data(boost::make_shared<byte_vec>(beg, end)), m_cbuf(m_data->data(), m_data->size()) { }
+    : m_data(std::make_shared<byte_vec>(beg, end)), m_cbuf(m_data->data(), m_data->size()) { }
 
 /**
  *  @brief Return @c const @c std::byte pointer to beginning of buffer.
@@ -462,21 +461,21 @@ public:
  *
  *  @return @c const @c std::byte pointer to buffer.
  */
-  const std::byte* data() noexcept const { return m_data->data(); }
+  const std::byte* data() const noexcept { return m_data->data(); }
 
 /**
  *  @brief Return size (number of bytes) of buffer.
  *
  *  @return Size of buffer, which may be zero.
  */
-  size_type size() noexcept const { return m_data->size(); }
+  size_type size() const noexcept { return m_data->size(); }
 
 /**
  *  @brief Query to see if size is zero.
  *
  *  @return @c true if empty (size equals zero).
  */
-  bool empty() noexcept const { return (*m_data).empty(); }
+  bool empty() const noexcept { return (*m_data).empty(); }
 
 }; // end const_shared_buffer class
 
@@ -492,7 +491,7 @@ public:
  *
  *  @relates const_shared_buffer
  */
-inline bool operator== (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept { 
+inline bool operator== (const const_shared_buffer& lhs, const const_shared_buffer& rhs) { 
   return *(lhs.m_data) == *(rhs.m_data);
 }  
 
@@ -503,7 +502,7 @@ inline bool operator== (const const_shared_buffer& lhs, const const_shared_buffe
  *
  *  @relates const_shared_buffer
  */
-inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept {
+inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffer& rhs) {
   return !(lhs == rhs);
 }
 
@@ -518,7 +517,7 @@ inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffe
  *
  *  @relates const_shared_buffer
  */
-inline bool operator< (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept { 
+inline bool operator< (const const_shared_buffer& lhs, const const_shared_buffer& rhs) { 
   return *(lhs.m_data) < *(rhs.m_data);
 }  
 

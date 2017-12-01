@@ -17,7 +17,9 @@
  * @endcode
  *
  * This code is taken from an example by Blitz Rakete from an answer on Stackoverflow 
- * (Blitz is user Rakete1111 on SO).
+ * (Blitz is user Rakete1111 on SO). The @c static_cast was added to eliminate
+ * "narrowing" warnings (since typically integer values are used to initialize the
+ * @c std::byte values, which would be a narrowing conversion).
  * 
  * @authors Blitz Rakete, Cliff Green
  * @date 2017
@@ -35,7 +37,7 @@ namespace chops {
 
 template<typename... Ts>
 std::array<std::byte, sizeof...(Ts)> make_byte_array(Ts&&... args) noexcept {
-    return { std::byte{std::forward<Ts>(args)}... };
+    return { std::byte{static_cast<std::byte>(std::forward<Ts>(args))}... };
 }
 
 } // end namespace
