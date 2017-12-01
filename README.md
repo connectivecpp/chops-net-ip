@@ -6,21 +6,21 @@ This project is licensed under the terms of the MIT license.
 
 # Chops Components
 
-## Chops Net
+## Chops Net IP
 
 ### Overview
 
-Chops Net is an asynchronous general purpose networking library layered on top of the C++ Networking Technical Standard (TS). It is designed to simplify application code for processing data on multiple simultaneous connections or endpoints in an asynchronous, efficient manner. Every application interaction with Chops Net operations is no-wait (i.e. there are no blocking methods) and all network processing operations are performed asynchronously.
+Chops Net IP is an asynchronous general purpose networking library layered on top of the C++ Networking Technical Standard (TS) handling Internet Protocol (IP) communications. It is designed to simplify application code for processing data on multiple simultaneous connections or endpoints in an asynchronous, efficient manner. Every application interaction with Chops Net IP operations is no-wait (i.e. there are no blocking methods) and all network processing operations are performed asynchronously. IP
 
-Example environments where Chops Net is a good fit:
+Example environments where Chops Net IP is a good fit:
 
 - Applications interacting with multiple connections (e.g. handling multiple sensors or inputs or outputs), each with low to moderate throughput needs (i.e. IoT environments, chat networks, gaming networks).
 - Small footprint or embedded environments, where all network processing is run inside a single thread.
-- Applications with relatively simple network processing that need an easy-to-use and quick-for-development network library.
+- Applications with relatively simple network processing that need an easy-to-use and quick-for-development networking library.
 - Applications with configuration driven networks that may need to switch (for example) between connect versus accept for a given connection, or between TCP and UDP for a given communication path.
 - Peer-to-peer applications where the application doesn't care which side connects or accepts, only that there's a data connection.
 
-Chops Net:
+Chops Net IP:
 
 - simplifies the creation of various IP (Internet Protocol) networking entities including TCP acceptors and connectors, UDP senders and receivers, and UDP multicast senders and receivers.
 - simplifies the resolution of network names to IP addresses (i.e. domain name system lookups).
@@ -34,11 +34,11 @@ Chops Net:
   - an error has occurred.
 - implements the "plumbing" for asynchronous processing on multiple simultaneous connections.
 - abstracts many differences between network protocols (TCP, UDP, UDP multicast), allowing easier application transitioning between protocol types.
-- allows the application to control threading (no threads are created or managed inside Chops Net).
+- allows the application to control threading (no threads are created or managed inside Chops Net IP).
 - is agnostic with respect to data marshalling or serialization or "wire protocols" (application code provides any and all data marshalling and endian logic).
 - does not impose any structure on network message content.
 
-Chops Net is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
+Chops Net IP is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net IP, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
 A detailed overview is [available here](doc/chops_net.md).
 
@@ -74,7 +74,7 @@ Since `std::byte` is used as the general buffer interface, this small utility fu
 
 ### Shared Buffer
 
-Reference counted byte buffer classes are used within Chops Net, but can be useful in other contexts. These classes are based on example code inside Chris Kohlhoff's Asio library (see [References Section](#references)).
+Reference counted byte buffer classes are used within Chops Net IP, but can be useful in other contexts. These classes are based on example code inside Chris Kohlhoff's Asio library (see [References Section](#references)).
 
 A detailed overview of the utility classes is [available here](doc/utility.md).
 
@@ -89,15 +89,15 @@ While the main production branch of Chops will always be developed and tested wi
 # External Dependencies
 
 The libraries and API's have minimal (as possible) library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` library (see [References Section](#references)).
-- Version 1.11 (or later) of Chris' Networking TS repository is required (for Chops Net and Timer). Note that the version number is from the Asio version and may not exactly match the Networking TS version.
+- Version 1.11 (or later) of Chris' Networking TS repository is required (for Chops Net IP and Timer). Note that the version number is from the Asio version and may not exactly match the Networking TS version.
 
 The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework (see [Reference Section](#references)). Various tests for templatized queue container types use Martin Moene's `ring_span` library for fixed buffer queue semantics.
 - Version 2.01 (or later) of Phil's Catch 2.0 is required (for all testing).
-- Version 0.00 (or later) of Martin's Ring Span Lite is required (for Wait Queue and Chops Net tests).
+- Version 0.00 (or later) of Martin's Ring Span Lite is required (for Wait Queue and Chops Net IP tests).
 
 # References
 
-- Chris Kohlhoff is a networking expert (among other expertises, including C++), creator of the Asio library and initial author of the C++ Networking Technical Standard (TS). Asio is available at https://think-async.com/ and Chris' Github site is https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net library uses the `networking-ts-impl` repository from Chris' Github account.
+- Chris Kohlhoff is a networking expert (among other expertises, including C++), creator of the Asio library and initial author of the C++ Networking Technical Standard (TS). Asio is available at https://think-async.com/ and Chris' Github site is https://github.com/chriskohlhoff/. Asio forms the basis for the C++ Networking Technical Standard (TS), which will (almost surely) be standardized in C++ 20. Currently the Chops Net IP library uses the `networking-ts-impl` repository from Chris' Github account.
 
 - Phil Nash is the author of the Catch C++ unit testing library. The Catch library is available at https://github.com/catchorg/Catch2.
 
