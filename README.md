@@ -68,6 +68,10 @@ A detailed overview is [available here](doc/queue.md).
 
 Repeat is a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see [References Section](#references)). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
 
+### Make Byte Array
+
+Since `std::byte` is used as the general buffer interface, this small utility function from Blitz Rakete (on Stackoverflow) is useful to simplify creation of byte buffers, specially for testing purposes.
+
 ### Shared Buffer
 
 Reference counted byte buffer classes are used within Chops Net, but can be useful in other contexts. These classes are based on example code inside Chris Kohlhoff's Asio library (see [References Section](#references)).
