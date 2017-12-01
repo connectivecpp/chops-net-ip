@@ -2,7 +2,8 @@
  *
  *  @ingroup timer_module
  *
- *  @brief An asynchronous periodic timer that adjusts for time jitter.
+ *  @brief An asynchronous periodic timer providing both duration and timepoint 
+ *  based periods.
  *
  *  Writing code using asynchronous timers from the C++ Networking Technical 
  *  Specification (TS) is relatively easy. However, there are no timers that 
@@ -22,231 +23,198 @@
  *    // fill in here
  *  @endcode
  *
+ *  @note @c std::chrono facilities seem to be underspecified on @c noexcept,
+ *  very few of the functions in @c periodic_timer are @c noexcept.
+ *
  *  @author Cliff Green
  *  @date 2017
+ *  @copyright Cliff Green, MIT License
  *
  */
 
-#ifndef PERIODIC_TIMER_INCLUDED_H
-#define PERIODIC_TIMER_INCLUDED_H
+#ifndef PERIODIC_TIMER_HPP_INCLUDED
+#define PERIODIC_TIMER_HPP_INCLUDED
 
-#include <experimental/timer>
+#include <experimental/timer> // Networking TS include
 #include <experimental/io_context>
+#include <experimental/executor>
 
 #include <chrono>
-#include <functional>
 #include <system_error>
+#include <utility> // std::move, std::forward
 
 namespace chops {
 
 template <typename Clock = std::chrono::steady_clock>
 class periodic_timer {
+public:
+
+  using duration = typename Clock::duration;
+  using time_point = typename Clock::time_point;
+
 private:
 
-  std::experimental::basic_waitable_timer<Clock> m_timer;
-  std::function<void (const std::error_code&)> m_cb;
+  std::experimental::net::basic_waitable_timer<Clock> m_timer;
+
+private:
+  template <typename F>
+  void duration_handler_impl(F&& f, const time_point& last_tp, const duration& dur, const std::error_code& err) {
+    time_point now_time { Clock::now() };
+    // pass err and elapsed time to app function obj
+    if (!f(err, now_time - last_tp) || err == std::experimental::net::error::operation_aborted) {
+      return; // app is finished with timer for now or timer was cancelled
+    }
+    m_timer.expires_after(dur);
+    m_timer.async_wait( [f = std::forward<F>(f), now_time, dur, this]
+            (const std::error_code& e) {
+        duration_handler_impl(f, now_time, dur, e);
+      }
+    );
+  }
+  template <typename F>
+  void timepoint_handler_impl(F&& f, const time_point& last_tp, const duration& dur, const std::error_code& err) {
+    // pass err and elapsed time to app function obj
+    if (!f(err, (Clock::now() - last_tp)) || err == std::experimental::net::error::operation_aborted) {
+      return; // app is finished with timer for now or timer was cancelled
+    }
+    m_timer.expires_at(last_tp + dur + dur);
+    m_timer.async_wait( [f = std::forward<F>(f), last_tp, dur, this]
+            (const std::error_code& e) {
+        timepoint_handler_impl(f, (last_tp+dur), dur, e);
+      }
+    );
+  }
 
 public:
 
-  periodic_timer() = delete;
-
   /**
-   * Construct a @c periodic_timer with a duration and an application supplied 
-   * funtion object callback.
+   * Construct a @c periodic_timer with an @c io_context. Other information such as duration 
+   * will be supplied when @c start is called.
+   *
+   * Constructing a @c periodic_timer does not start the actual timer. Calling one of the 
+   * @c start methods starts the timer.
+   *
+   * The application supplied function object requires a signature with two parameters, 
+   * @c const @c std::error_code& and @c const @c duration&. The second parameter provides an 
+   * elapsed time from the previous callback.
    *
    * The clock for the asynchronous timer defaults to @c std::chrono::steady_clock.
    * Other clock types can be used if desired (e.g. @c std::chrono::high_resolution_clock 
    * or @c std::chrono::system_clock). Note that some clocks allow time to be externally 
    * adjusted, which may influence the interval between the callback invocation.
    *
-   * @param ldksjflk
+   * Move semantics are allowed for this type, but not copy semantics. When a move 
+   * construction or move assignment completes, all timers are cancelled with 
+   * appropriate notification, and @c start will need to be called.
    *
-   * @param end Ending iterator.
+   * @param ioc @c io_context for asynchronous processing.
+   *
    */
-  template <typename Clock = std::chrono::steady_clock>
-  periodic_timer(std::experimental::io_context& context, 
-    m_data_cond(), m_closed(false) { }
+  explicit periodic_timer(std::experimental::net::io_context& ioc) noexcept : m_timer(ioc) { }
 
-  // disallow copy or move construction of the entire object
-  wait_queue(const wait_queue&) = delete;
-  wait_queue(wait_queue&&) = delete;
+  periodic_timer() = delete; // no default ctor
 
-  // disallow copy or move assigment of the entire object
-  wait_queue& operator=(const wait_queue&) = delete;
-  wait_queue& operator=(wait_queue&&) = delete;
+  // disallow copy construction and copy assignment
+  periodic_timer(const periodic_timer&) = delete;
+  periodic_timer& operator=(const periodic_timer&) = delete;
+
+  // allow move construction and move assignment
+  periodic_timer(periodic_timer&&) = default;
+  periodic_timer& operator=(periodic_timer&& rhs) {
+    m_timer.cancel();
+    m_timer = std::move(rhs.m_timer);
+  }
 
   // modifying methods
 
   /**
-   * Open a previously closed @c wait_queue for processing.
+   * Start the timer, and the application supplied function object will be invoked 
+   * after an amount of time specified by the duration parameter.
    *
-   * @note The initial state of a @c wait_queue is open.
-   */
-  void open() noexcept {
-    lock_guard lk{m_mut};
-    m_closed = false;
-  }
-
-  /**
-   * Close a @c wait_queue for processing. All waiting reader threaders will be 
-   * notified. Subsequent @c push operations will return @c false.
-   */
-  void close() noexcept {
-    lock_guard lk{m_mut};
-    m_closed = true;
-    m_data_cond.notify_all();
-  }
-
-  /**
-   * Push a value, by copying, to the @c wait_queue. A waiting reader thread (if any) 
-   * will be notified that a value has been added.
+   * The function object will continue to be invoked as long as it returns @c true.
    *
-   * @param val Val to copy into the queue.
+   * @param f Function object to be invoked. 
    *
-   * @return @c true if successful, @c false if the @c wait_queue is closed.
-   */
-  bool push(const T& val) noexcept(std::is_nothrow_copy_constructible<T>::value) {
-    lock_guard lk{m_mut};
-    if (m_closed) {
-      return false;
-    }
-    m_data_queue.push_back(val);
-    m_data_cond.notify_one();
-    return true;
-  }
-
-  /**
-   * This method has the same semantics as the other @c push, except that the value will 
-   * be moved (if possible) instead of copied.
-   */
-  bool push(T&& val) noexcept(std::is_nothrow_move_constructible<T>::value) {
-    lock_guard lk{m_mut};
-    if (m_closed) {
-      return false;
-    }
-    m_data_queue.push_back(std::move(val));
-    m_data_cond.notify_one();
-    return true;
-  }
-
-  /**
-   * Pop and return a value from the @c wait_queue, blocking and waiting for a writer thread to 
-   * push a value if one is not immediately available.
-   *
-   * If this method is called after a @c wait_queue has been closed, an empty @c std::optional 
-   * is returned. If a @c wait_queue needs to be flushed after it is closed, @c try_pop should 
-   * be called instead.
-   *
-   * @return A value from the @c wait_queue (if non-empty). If the @c std::optional is empty, 
-   * the @c wait_queue has been closed.
-   */
-  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_move_constructible<T>::value || 
-                                           std::is_nothrow_copy_constructible<T>::value) {
-    std::unique_lock<std::mutex> lk{m_mut};
-    if (m_closed) {
-      return std::optional<T> {};
-    }
-    m_data_cond.wait ( lk, [this] { return m_closed || !m_data_queue.empty(); } );
-    if (m_data_queue.empty()) {
-      return std::optional<T> {}; // queue was closed, no data available
-    }
-    if constexpr (std::is_move_constructible<T>::value) {
-      std::optional<T> val {std::move(m_data_queue.front())}; // move ctor if possible
-      m_data_queue.pop_front();
-      return val;
-    }
-    else {
-      std::optional<T> val {m_data_queue.front()}; // copy ctor instead of move ctor
-      m_data_queue.pop_front();
-      return val;
-    }
-  }
-
-  /**
-   * Pop and return a value from the @c wait_queue if an element is immediately 
-   * available, otherwise return an empty @c std::optional.
-   *
-   * @return A value from the @c wait_queue or an empty @c std::optional if no values are 
-   * available in the @c wait_queue.
-   */
-  std::optional<T> try_pop() noexcept(std::is_nothrow_move_constructible<T>::value || 
-                                      std::is_nothrow_copy_constructible<T>::value) {
-    lock_guard lk{m_mut};
-    if (m_data_queue.empty()) {
-      return std::optional<T> {};
-    }
-    if constexpr (std::is_move_constructible<T>::value) {
-      std::optional<T> val {std::move(m_data_queue.front())}; // move ctor if possible
-      m_data_queue.pop_front();
-      return val;
-    }
-    else {
-      std::optional<T> val {m_data_queue.front()}; // copy ctor instead of move ctor
-      m_data_queue.pop_front();
-      return val;
-    }
-  }
-
-  // non-modifying methods
-
-  /**
-   * Apply a non-modifying function object to all elements of the queue.
-   *
-   * The function object is not allowed to modify any of the elements. 
-   * The supplied function object is passed a const reference to the element 
-   * type.
-   *
-   * This method can be used when an iteration of the elements is needed,
-   * such as to print the elements, or copy them to another container, or 
-   * to interrogate values of the elements.
-   *
-   * @note The entire @c wait_queue is locked while @c apply is in process, 
-   * so passing in a function object that blocks or takes a lot of processing 
-   * time may result in slow performance.
-   *
-   * @note It is undefined behavior if the function object calls into the 
-   * same @c wait_queue since it results in recursive mutex locks.
+   * @param dur Interval to be used between callback invocations.
    */
   template <typename F>
-  void apply(F&& f) const noexcept(std::is_nothrow_invocable<F&&, const T&>::value) {
-    lock_guard lk{m_mut};
-    for (const T& elem : m_data_queue) {
-      f(elem);
-    }
+  void start_duration_timer(F&& f, const duration& dur) {
+    m_timer.expires_after(dur);
+    m_timer.async_wait( [f = std::forward<F>(f), dur, this] (const std::error_code& e) {
+        duration_handler_impl(f, Clock::now(), dur, e);
+      }
+    );
+  }
+  /**
+   * Start the timer, and the application supplied function object will be invoked 
+   * first at a specified time point, then afterwards as specified by the duration 
+   * parameter.
+   *
+   * The function object will continue to be invoked as long as it returns @c true.
+   *
+   * @param f Function object to be invoked.
+   *
+   * @param dur Interval to be used between callback invocations.
+   *
+   * @param when Time point when the first timer callback will be invoked.
+   */
+  template <typename F>
+  void start_duration_timer(F&& f, const duration& dur, const time_point& when) {
+    m_timer.expires_at(when);
+    m_timer.async_wait( [f = std::forward<F>(f), dur, this] (const std::error_code& e) {
+        duration_handler_impl(f, Clock::now(), dur, e);
+      }
+    );
+  }
+  /**
+   * Start the timer, and the application supplied function object will be invoked 
+   * on timepoints with an interval specified by the duration.
+   *
+   * The function object will continue to be invoked as long as it returns @c true.
+   *
+   * @param f Function object to be invoked. 
+   *
+   * @param dur Interval to be used between callback invocations.
+   */
+  template <typename F>
+  void start_timepoint_timer(F&& f, const duration& dur) {
+    start_timepoint_timer(std::forward<F>(f), dur, (Clock::now() + dur));
+  }
+  /**
+   * Start the timer on the specified timepoint, and the application supplied function object 
+   * will be invoked on timepoints with an interval specified by the duration.
+   *
+   * The function object will continue to be invoked as long as it returns @c true.
+   *
+   * @param f Function object to be invoked. 
+   *
+   * @param dur Interval to be used between callback invocations.
+   *
+   * @param when Time point when the first timer callback will be invoked.
+   *
+   * @note The elapsed time for the first callback invocation is artificially set to the 
+   * duration interval.
+   */
+  template <typename F>
+  void start_timepoint_timer(F&& f, const duration& dur, const time_point& when) {
+    m_timer.expires_at(when);
+    m_timer.async_wait( [f = std::forward<F>(f), when, dur, this]
+            (const std::error_code& e) {
+        timepoint_handler_impl(f, (when-dur), dur, e);
+      }
+    );
   }
 
   /**
-   * Query whether the @ close method has been called on the @c wait_queue.
+   * Cancel the timer. The application function object will be called with an 
+   * "operation aborted" error code.
    *
-   * @return @c true if the @c wait_queue has been closed.
+   * A cancel may implicitly be called if the @c periodic_timer object is move copy 
+   * constructed or move assigned.
    */
-  bool is_closed() const noexcept {
-    lock_guard lk{m_mut};
-    return m_closed;
+  void cancel() {
+    m_timer.cancel();
   }
-
-  /**
-   * Query whether the @c wait_queue is empty or not.
-   *
-   * @return @c true if the @c wait_queue is empty.
-   */
-  bool empty() const noexcept {
-    lock_guard lk{m_mut};
-    return m_data_queue.empty();
-  }
-
-  using size_type = typename Container::size_type;
-
-  /**
-   * Get the number of elements in the @c wait_queue.
-   *
-   * @return Number of elements in the @c wait_queue.
-   */
-  size_type size() const noexcept {
-    lock_guard lk{m_mut};
-    return m_data_queue.size();
-  }
-
 };
 
 } // end namespace
