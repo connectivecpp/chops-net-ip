@@ -147,7 +147,7 @@ SCENARIO ( "Mutable shared buffer resize and clear", "[mutable_shared_resize_cle
     chops::mutable_shared_buffer sb;
     WHEN ("Resize is called") {
       sb.resize(N);
-      THEN ("the internal buffer should have all zeros") {
+      THEN ("the internal buffer will have all zeros") {
         REQUIRE (sb.size() == N);
         chops::repeat(N, [&sb] (const int& i) { REQUIRE (*(sb.data() + i) == std::byte{0} ); } );
       }
@@ -166,7 +166,7 @@ SCENARIO ( "Mutable shared buffer resize and clear", "[mutable_shared_resize_cle
     WHEN ("The mutable shared buffer is cleared") {
       sb.resize(N);
       sb.clear();
-      THEN ("the size should be zero and the buffer is empty") {
+      THEN ("the size will be zero and the buffer is empty") {
         REQUIRE (sb.size() == 0);
         REQUIRE (sb.empty());
       }
@@ -185,7 +185,7 @@ SCENARIO ( "Mutable shared buffer swap", "[mutable_shared_swap]" ) {
 
     WHEN ("The buffers are swapped") {
       chops::swap(sb1, sb2);
-      THEN ("the sizes and contents should be swapped") {
+      THEN ("the sizes and contents will be swapped") {
         REQUIRE (sb1.size() == arr2.size());
         REQUIRE (sb2.size() == arr1.size());
         REQUIRE (*(sb1.data()+0) == *(arr2.data()+0));
@@ -208,20 +208,20 @@ SCENARIO ( "Mutable shared buffer append", "[mutable_shared_append]" ) {
     chops::mutable_shared_buffer sb;
     WHEN ("Append with a pointer and size is called") {
       sb.append(arr.data(), arr.size());
-      THEN ("the internal buffer should contain the appended data") {
+      THEN ("the internal buffer will contain the appended data") {
         REQUIRE (sb == ta);
       }
     }
     WHEN ("Append with a mutable shared buffer is called") {
       sb.append(ta);
-      THEN ("the internal buffer should contain the appended data") {
+      THEN ("the internal buffer will contain the appended data") {
         REQUIRE (sb == ta);
       }
     }
     WHEN ("Append is called twice") {
       sb.append(ta);
       sb.append(ta);
-      THEN ("the internal buffer should contain twice the appended data") {
+      THEN ("the internal buffer will contain twice the appended data") {
         REQUIRE (sb == ta2);
       }
     }
@@ -229,9 +229,46 @@ SCENARIO ( "Mutable shared buffer append", "[mutable_shared_append]" ) {
       sb.append(std::byte(0xaa));
       sb.append(std::byte(0xbb));
       sb += std::byte(0xcc);
-      THEN ("the internal buffer should contain the appended data") {
+      THEN ("the internal buffer will contain the appended data") {
         REQUIRE (sb == ta);
       }
     }
   } // end given
 }
+
+SCENARIO ( "Compare a mutable shared_buffer with a const shared buffer", "[shared_buffer_compare]" ) {
+
+  GIVEN ("An array of bytes") {
+    auto arr = chops::make_byte_array (0xaa, 0xbb, 0xcc);
+    WHEN ("A mutable_shared_buffer and a const_shared_buffer are created from the bytes") {
+      chops::mutable_shared_buffer msb(arr.cbegin(), arr.cend());
+      chops::const_shared_buffer csb(arr.cbegin(), arr.cend());
+      THEN ("the shared buffers will compare equal") {
+        REQUIRE (msb == csb);
+        REQUIRE (csb == msb);
+      }
+    }
+  } // end given
+}
+
+SCENARIO ( "Mutable shared buffer move into const shared buffer", "[mutable_shared_move_to_const_shared]" ) {
+
+  auto arr1 = chops::make_byte_array (0xaa, 0xbb, 0xcc);
+  auto arr2 = chops::make_byte_array (0x01, 0x02, 0x03, 0x04, 0x05);
+
+  GIVEN ("A mutable_shared_buffer") {
+    chops::mutable_shared_buffer msb(arr1.cbegin(), arr1.cend());
+    WHEN ("A const_shared_buffer is move constructed from the mutable_shared_buffer") {
+      chops::const_shared_buffer csb(std::move(msb));
+      THEN ("the const_shared_buffer will contain the data and the mutable_shared_buffer will not") {
+        REQUIRE (csb == chops::const_shared_buffer(arr1.cbegin(), arr1.cend()));
+        REQUIRE (!(msb == csb));
+        msb.clear();
+        msb.resize(arr2.size());
+        msb.append(arr2.cbegin(), arr2.size());
+        REQUIRE (!(msb == csb));
+      }
+    }
+  } // end given
+}
+
