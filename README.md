@@ -44,7 +44,7 @@ A detailed overview is [available here](doc/chops_net_ip.md).
 
 ## Future Components
 
-### MQQT
+### MQTT
 
 (More info to be added.)
 
