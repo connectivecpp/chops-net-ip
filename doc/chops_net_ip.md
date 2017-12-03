@@ -63,6 +63,5 @@ Applications that need to perform time consuming operations on incoming data and
 
 - Older compiler (along with older C++ standard) support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below), depending on availability and collaboration support.
 - SSL support may be added, depending on collaborators with expertise being available.
-- Additional protocols may be added (or parallel libraries added) to the TCP, UDP, and UDP multicast support, including serial I/O and Bluetooth. If a reliable multicast protocol is popular enough, support may be added.
-- Publish and Subscribe communications models may be added, but would likely be a separate library with a completely different API (using Chops Net IP internally, possibly).
+- Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
 
