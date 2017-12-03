@@ -1,10 +1,10 @@
 # Chops - Connective Handcrafted Openwork Software Medley
 
-The Chops Medley is a collection of C++ libraries for networking and distributed processing. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+The Chops Medley is a collection of C++ libraries for networking and distributed processing and simulation. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 This project is licensed under the terms of the MIT license.
 
-# Chops Components
+# Chops Major Components
 
 ## Chops Net IP
 
@@ -41,6 +41,26 @@ Chops Net IP:
 Chops Net IP is designed to make it easy and efficient for an application to create hundreds or thousands of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net IP, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
 A detailed overview is [available here](doc/chops_net_ip.md).
+
+## Future Components
+
+### MQQT
+
+(More info to be added.)
+
+### Discrete Event Sim
+
+(More info to be added.)
+
+### Bluetooth
+
+(More info to be added.)
+
+### Serial
+
+(More info to be added.)
+
+# Chops Minor Components
 
 ## Timer
 
