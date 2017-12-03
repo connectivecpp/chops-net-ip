@@ -66,6 +66,8 @@ class const_shared_buffer;
  *  @c const_shared_buffer class is specifically designed to be used with 
  *  C++ Networking TS buffers.
  *
+ *  @invariant There will always be an internal buffer of data, even if the size is zero.
+ *
  *  @note Modifying the underlying buffer of data (for example by writing bytes using the 
  *  @c data method, or appending data) will show up in any other @c mutable_shared_buffer 
  *  objects that have been copied to or from the original object.
@@ -88,6 +90,9 @@ private:
 
   friend bool operator==(const mutable_shared_buffer&, const mutable_shared_buffer&);
   friend bool operator<(const mutable_shared_buffer&, const mutable_shared_buffer&);
+
+  friend bool operator==(const mutable_shared_buffer&, const const_shared_buffer&);
+  friend bool operator==(const const_shared_buffer&, const mutable_shared_buffer&);
 
 public:
 
@@ -347,6 +352,8 @@ inline bool operator< (const mutable_shared_buffer& lhs, const mutable_shared_bu
  *  There are declarations and methods to make it compatible with the C++ Networking TS
  *  library (and possibly with Chris' Asio library).
  *
+ *  @invariant There will always be an internal buffer of data, even if the size is zero.
+ *
  *  @ingroup utility_module
  *
  */
@@ -372,6 +379,9 @@ private:
 
   friend bool operator==(const const_shared_buffer&, const const_shared_buffer&);
   friend bool operator<(const const_shared_buffer&, const const_shared_buffer&);
+
+  friend bool operator==(const mutable_shared_buffer&, const const_shared_buffer&);
+  friend bool operator==(const const_shared_buffer&, const mutable_shared_buffer&);
 
 public:
 
@@ -416,9 +426,8 @@ public:
 /**
  *  @brief Construct by copying from a @c mutable_shared_buffer object.
  *
- *  This constructor will copy from a @c mutable_shared_buffer. To reduce copying,
- *  the @c mutable_shared_buffer can be passed in as a @c rvalue (see documentation
- *  of the appropriate constructor).
+ *  This constructor will copy from a @c mutable_shared_buffer. There is an alternative
+ *  constructor that will move from a @c mutable_shared_buffer instead of copying.
  *  
  *  @param rhs @c mutable_shared_buffer containing bytes to be copied.
  */
@@ -434,10 +443,12 @@ public:
  *  with asynchronous functions.
  *  
  *  @param rhs @c mutable_shared_buffer to be moved from; after moving the 
- *  @c mutable_shared_buffer should not be accessed until the @c clear method is called on it.
+ *  @c mutable_shared_buffer will be empty.
  */
   explicit const_shared_buffer(mutable_shared_buffer&& rhs)
-    : m_data(std::move(rhs.m_data)), m_cbuf(m_data->data(), m_data->size()) { }
+    : m_data(std::move(rhs.m_data)), m_cbuf(m_data->data(), m_data->size()) {
+          rhs.m_data = std::make_shared<byte_vec>(0); // set rhs back to invariant
+        }
 
 /**
  *  @brief Construct from input iterators.
@@ -522,6 +533,26 @@ inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffe
  */
 inline bool operator< (const const_shared_buffer& lhs, const const_shared_buffer& rhs) { 
   return *(lhs.m_data) < *(rhs.m_data);
+}  
+
+/**
+ *  @brief Compare a @c const_shared_buffer object with a @c mutable_shared_buffer for 
+ *  internal buffer byte-by-byte equality.
+ *
+ *  @return @c true if @c size() same for each, and each byte compares @c true.
+ */
+inline bool operator== (const const_shared_buffer& lhs, const mutable_shared_buffer& rhs) { 
+  return *(lhs.m_data) == *(rhs.m_data);
+}  
+
+/**
+ *  @brief Compare a @c mutable_shared_buffer object with a @c const_shared_buffer for 
+ *  internal buffer byte-by-byte equality.
+ *
+ *  @return @c true if @c size() same for each, and each byte compares @c true.
+ */
+inline bool operator== (const mutable_shared_buffer& lhs, const const_shared_buffer& rhs) { 
+  return *(lhs.m_data) == *(rhs.m_data);
 }  
 
 } // end namespace
