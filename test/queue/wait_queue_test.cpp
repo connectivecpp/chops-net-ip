@@ -203,7 +203,7 @@ constexpr int N = 40;
 template <typename T>
 constexpr T ExpectedSum = (N / 2) * (N - 1);
 
-SCENARIO ( "Non-threading wait_queue test, with element type int and default container type of std::deque",
+SCENARIO ( "Non-threaded wait_queue test, with element type int and default container type of std::deque",
            "[wait_queue_int_def_container]" ) {
   chops::wait_queue<int> wq;
   non_threaded_push_test(wq, 42, N);
@@ -211,7 +211,7 @@ SCENARIO ( "Non-threading wait_queue test, with element type int and default con
   non_threaded_open_close_test(wq, 42, N);
 }
 
-SCENARIO ( "Non-threading wait_queue test, with element type double and default container type of std::deque",
+SCENARIO ( "Non-threaded wait_queue test, with element type double and default container type of std::deque",
            "[wait_queue_double_def_container]" ) {
   chops::wait_queue<double> wq;
   non_threaded_push_test(wq, 42.0, N);
@@ -219,7 +219,7 @@ SCENARIO ( "Non-threading wait_queue test, with element type double and default 
   non_threaded_open_close_test(wq, 42.0, N);
 }
 
-SCENARIO ( "Non-threading wait_queue test, with element type int and ring_span container type",
+SCENARIO ( "Non-threaded wait_queue test, with element type int and ring_span container type",
            "[wait_queue_int_ring_span_container]" ) {
   int buf[N];
   chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+N);
@@ -228,14 +228,14 @@ SCENARIO ( "Non-threading wait_queue test, with element type int and ring_span c
   non_threaded_open_close_test(wq, 42, N);
 }
 
-SCENARIO ( "Non-threading wait_queue test, with element type std::string and default container type of std::deque",
+SCENARIO ( "Non-threaded wait_queue test, with element type std::string and default container type of std::deque",
            "[wait_queue_string_def_container]" ) {
   chops::wait_queue<std::string> wq;
   non_threaded_push_test(wq, "Howzit going, bro!"s, N);
   non_threaded_open_close_test(wq, "It's hanging, bro!"s, N);
 }
 
-SCENARIO ( "Non-threading wait_queue test, with element type std::string and ring_span container type",
+SCENARIO ( "Non-threaded wait_queue test, with element type std::string and ring_span container type",
            "[wait_queue_string_ring_span_container]" ) {
   std::string buf[N];
   chops::wait_queue<std::string, nonstd::ring_span<std::string> > wq(buf+0, buf+N);
@@ -243,7 +243,7 @@ SCENARIO ( "Non-threading wait_queue test, with element type std::string and rin
   non_threaded_open_close_test(wq, "Why so serious, bro?"s, N);
 }
 
-SCENARIO ( "Non-threading wait_queue test, testing copy construction without move construction",
+SCENARIO ( "Non-threaded wait_queue test, testing copy construction without move construction",
            "[wait_queue_copy_no_move]" ) {
 
   struct Foo {
@@ -264,7 +264,7 @@ SCENARIO ( "Non-threading wait_queue test, testing copy construction without mov
   non_threaded_open_close_test(wq, Foo(42.0), N);
 }
 
-SCENARIO ( "Non-threading wait_queue test, testing move construction without copy construction",
+SCENARIO ( "Non-threaded wait_queue test, testing move construction without copy construction",
            "[wait_queue_move_no_copy]" ) {
 
   GIVEN ("A newly constructed wait_queue with a move-only type") {
@@ -298,7 +298,7 @@ SCENARIO ( "Non-threading wait_queue test, testing move construction without cop
   } // end given
 }
 
-SCENARIO ( "Non-threading wait_queue test, testing complex constructor and emplacement",
+SCENARIO ( "Non-threaded wait_queue test, testing complex constructor and emplacement",
            "[wait_queue_complex_type]" ) {
 
   GIVEN ("A newly constructed wait_queue with a more complex type") {
