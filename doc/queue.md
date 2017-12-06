@@ -10,7 +10,7 @@ Wait Queue uses C++ standard library concurrency facilities (mutex, condition va
 
 - Has been tested with Martin Moene's `ring_span` library for the internal container (see [References Section](../README.md#references)). A `ring_span` is traditionally known as a "ring buffer" or "circular buffer". This implies that the Wait Queue can be used in environments where dynamic memory management (heap) is not allowed or is problematic. In particular, no heap memory is directly allocated within the Wait Queue.
 
-- Has not been tested with Boost's Circular Buffer. Boost Circular Buffer should work, however, as long as the Wait Queue `emplace_push` method is not instantiated.
+- Has been tested with Boost Circular Buffer. Boost Circular Buffer (as of Boost 1.65.1) does not support `emplace`, so the `emplace_push` method cannot be used when the Wait Queue is instantiated with a Boost Circular Buffer. 
 
 - Does not throw or catch exceptions anywhere in its code base. Elements passed through the queue may throw exceptions, which must be handled at an application level.
 
