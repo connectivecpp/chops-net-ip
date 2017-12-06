@@ -76,7 +76,7 @@ A detailed overview is [available here](doc/timer.md).
 
 ### Wait Queue
 
-Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). A fixed size container (e.g. a `ring_span`) can be used, eliminating any and all dynamic memory management (useful in embedded or performance constrained environments).
+Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). A fixed size container (e.g. a `ring_span`) can be used, eliminating any and all dynamic memory management (useful in embedded or performance constrained environments). Similarly, a circular buffer that only allocates on construction can be used, which eliminates dynamic memory management when pushing values on to the queue.
 
 Wait Queue is inspired by code from Anthony Williams' Concurrency in Action book (see [References Section](#references)), although heavily modified.
 
@@ -108,12 +108,26 @@ While the main production branch of Chops will always be developed and tested wi
 
 # External Dependencies
 
-The libraries and API's have minimal (as possible) library dependencies. Currently the non-test code depends on the standard C++ library and Chris Kohlhoff's `networking-ts-impl` library (see [References Section](#references)).
-- Version 1.11 (or later) of Chris' Networking TS repository is required (for Chops Net IP and Timer). Note that the version number is from the Asio version and may not exactly match the Networking TS version.
+The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code. The external dependencies are:
 
-The test suites have additional dependencies, including Phil Nash's Catch 2.0 for the unit test framework (see [Reference Section](#references)). Various tests for templatized queue container types use Martin Moene's `ring_span` library for fixed buffer queue semantics.
-- Version 2.01 (or later) of Phil's Catch 2.0 is required (for all testing).
-- Version 0.00 (or later) of Martin's Ring Span Lite is required (for Wait Queue and Chops Net IP tests).
+- Version 1.11 (or later) of Chris Kohlhoff's `networking-ts-impl` (Networking TS) repository is required for some components. Note that the version number is from the Asio version and may not exactly match the Networking TS version.
+- Version 2.01 (or later) of Phil Nash's Catch 2.0 is required for all test scenarios.
+- Version 0.00 (or later) of Martin's Ring Span Lite is required for some test scenarios.
+- Version 1.65.1 of the Boost library (specific usages below).
+
+See [Reference Section](#references)) for additional details on the above libraries.
+
+Specific dependencies:
+
+- All test scenarios: Catch 2.0
+- Chop Net IP (production): `networking-ts-impl`
+  - Boost.Endian (test)
+  - Ring Span Lite (test)
+- Wait Queue (production): none
+  - Ring Span Lite (test)
+  - Boost.Circular (test)
+- Periodic Timer (production): `networking-ts-impl`
+- Shared Buffer (production): `networking-ts-impl`
 
 # References
 
@@ -122,6 +136,8 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 - Phil Nash is the author of the Catch C++ unit testing library. The Catch library is available at https://github.com/catchorg/Catch2.
 
 - Anthony Williams is the author of Concurrency in Action, Practical Multithreading. His web site is http://www.justsoftwaresolutions.co.uk and his Github site is https://github.com/anthonywilliams. Anthony is a recognized expert in concurrency including Boost Thread and C++ standards efforts. It is highly recommended to buy his book, whether in paper or electronic form, and Anthony is busy at work on a second edition (covering C++ 14 and C++ 17 concurrency facilities) now available in pre-release form.
+
+- The Boost libraries collection is a high quality set of C++ libraries, available at http://www.boost.org/.
 
 - Martin Moene is a C++ expert and member and former editor of accu-org. His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
 
@@ -133,7 +149,10 @@ The test suites have additional dependencies, including Phil Nash's Catch 2.0 fo
 
 # Supported Compilers and Platforms
 
-Chops has been compiled on g++ 7.2, clang xx, VS xx and tested on Linux (4.13), Windows 10, and xx.
+Chops has been compiled and tests run on:
+
+- g++ 7.2, Linux (Ubuntu 17.10, Linux kernel 4.13)
+- (TBD, will include at least clang on linux and vc++ on Windows)
 
 # Installation
 
