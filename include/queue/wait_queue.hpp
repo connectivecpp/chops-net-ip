@@ -48,11 +48,13 @@
  *    // push and pop same as code with default container
  *  @endcode
  *
- *  The container type must support the following methods (depending on which 
+ *  The container type must support the following (depending on which 
  *  ones are instantiated): default construction, construction from a 
- *  begin and end iterator, @c push_back (preferably overloaded for both 
- *  copy and move), @c emplace_back with a template parameter pack, @c front, 
- *  @c pop_front, @c empty, and @c size.
+ *  begin and end iterator, construction with an initial size, 
+ *  @c push_back (preferably overloaded for both copy and move), 
+ *  @c emplace_back (with a template parameter pack), @c front, @c pop_front, 
+ *  @c empty, and @c size. The container type must also have a @c size_type
+ *  defined.
  *
  *  This class is based on code from the book Concurrency in Action by Anthony 
  *  Williams. The core logic in this class is the same as provided by Anthony 
@@ -66,6 +68,15 @@
  *  Martin Moene. The constructor that takes an iterator range can be used for 
  *  a container view type, which means that the @c wait_queue owns and manages 
  *  a view rather than the underlying container buffer.
+ *
+ *  @note The @c boost @c circular_buffer container type can be used. Memory is
+ *  allocated only once, at container construction time. This may be useful for
+ *  environments where construction can be dynamic, but a @c push or @c pop must
+ *  not allocate or deallocate memory. 
+ *
+ *  @note If the container type is @c boost @c circular_buffer then the default
+ *  constructor for @c wait_queue cannot be used (since it would result in a container
+ *  with an empty capacity).
  *
  *  @note Iterators are not supported, due to obvious difficulties with maintaining 
  *  consistency and integrity. The @c apply method can be used to access the internal
@@ -102,36 +113,61 @@ template <typename T, typename Container = std::deque<T> >
 class wait_queue {
 private:
   mutable std::mutex m_mut;
-  Container m_data_queue;
   std::condition_variable m_data_cond;
   bool m_closed = false;
+  Container m_data_queue;
 
   using lock_guard = std::lock_guard<std::mutex>;
+
+public:
+
+  using size_type = typename Container::size_type;
 
 public:
 
   wait_queue() = default;
 
   /**
-   * Construct a @c wait_queue with an iterator range for the container, versus 
-   * default construction for the container.
+   * Construct a @c wait_queue with an iterator range for the container.
    *
-   * This constructor supports a container view type to be used for the internal 
-   * container, which require an iterator range as part of the construction. The
-   * begin and end iterators must implement the usual C++ iterator range 
-   * semantics.
+   * Construct the container (or container view) with an iterator range. Whether
+   * element copies are performed depends on the container type. Most container
+   * types copy initial elements as defined by the range and the initial size is
+   * set accordingly. A @c ring_span, however, uses the range distance to define 
+   * a capacity and sets the initial size to zero.
    *
-   * The iterators can also be used to initialize a typical container for the 
-   * internal buffer (e.g. @c std::deque, the default container type) with starting 
-   * data.
+   * @note This is the only constructor that can be used with a @c ring_span
+   * container type.
    *
    * @param beg Beginning iterator.
    *
    * @param end Ending iterator.
    */
   template <typename Iter>
-  wait_queue(Iter beg, Iter end) noexcept : m_mut(), m_data_queue(beg, end), 
-    m_data_cond(), m_closed(false) { }
+  wait_queue(Iter beg, Iter end)
+    noexcept(std::is_nothrow_constructible<Container, Iter, Iter>::value) :
+      m_mut(), m_data_queue(beg, end), m_data_cond(), m_closed(false) { }
+
+  /**
+   * Construct a @c wait_queue with an initial size or capacity.
+   *
+   * Construct the container (or container view) with an initial size of default
+   * inserted elements or with an initial capacity, depending on the container type.
+   *
+   * @note This constructor cannot be used with a @c ring_span container type.
+   * 
+   * @note Using this constructor with a @c boost @c circular_buffer creates a
+   * container with the specified capacity, but an initial empty size.
+   *
+   * @note Using this constructor with most standard library container types 
+   * creates a container initialized with default inserted elements.
+   *
+   * @param sz Capacity or initial size, depending on container type.
+   *
+   */
+  wait_queue(size_type sz)
+    noexcept(std::is_nothrow_constructible<Container, size_type>::value) :
+      m_mut(), m_data_queue(sz), m_data_cond(), m_closed(false) { }
 
   // disallow copy or move construction of the entire object
   wait_queue(const wait_queue&) = delete;
@@ -307,8 +343,6 @@ public:
     lock_guard lk{m_mut};
     return m_data_queue.empty();
   }
-
-  using size_type = typename Container::size_type;
 
   /**
    * Get the number of elements in the @c wait_queue.

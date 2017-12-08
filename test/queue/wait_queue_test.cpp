@@ -28,7 +28,9 @@
 #include "queue/wait_queue.hpp"
 #include "utility/repeat.hpp"
 
-#include "nonstd/ring_span.hpp"
+// buffer types for testing
+#include <nonstd/ring_span.hpp>
+#include <boost/circular_buffer.hpp>
 
 using namespace std::literals::string_literals;
 
@@ -203,6 +205,8 @@ constexpr int N = 40;
 template <typename T>
 constexpr T ExpectedSum = (N / 2) * (N - 1);
 
+// test with std::deque first
+
 SCENARIO ( "Non-threaded wait_queue test, with element type int and default container type of std::deque",
            "[wait_queue_int_def_container]" ) {
   chops::wait_queue<int> wq;
@@ -219,6 +223,15 @@ SCENARIO ( "Non-threaded wait_queue test, with element type double and default c
   non_threaded_open_close_test(wq, 42.0, N);
 }
 
+SCENARIO ( "Non-threaded wait_queue test, with element type std::string and default container type of std::deque",
+           "[wait_queue_string_def_container]" ) {
+  chops::wait_queue<std::string> wq;
+  non_threaded_push_test(wq, "Howzit going, bro!"s, N);
+  non_threaded_open_close_test(wq, "It's hanging, bro!"s, N);
+}
+
+// test with ring_span
+
 SCENARIO ( "Non-threaded wait_queue test, with element type int and ring_span container type",
            "[wait_queue_int_ring_span_container]" ) {
   int buf[N];
@@ -228,11 +241,13 @@ SCENARIO ( "Non-threaded wait_queue test, with element type int and ring_span co
   non_threaded_open_close_test(wq, 42, N);
 }
 
-SCENARIO ( "Non-threaded wait_queue test, with element type std::string and default container type of std::deque",
-           "[wait_queue_string_def_container]" ) {
-  chops::wait_queue<std::string> wq;
-  non_threaded_push_test(wq, "Howzit going, bro!"s, N);
-  non_threaded_open_close_test(wq, "It's hanging, bro!"s, N);
+SCENARIO ( "Non-threaded wait_queue test, with element type double and ring_span container type",
+           "[wait_queue_double_ring_span_container]" ) {
+  double buf[N];
+  chops::wait_queue<double, nonstd::ring_span<double> > wq(buf+0, buf+N);
+  non_threaded_push_test(wq, 42.0, N);
+  non_threaded_arithmetic_test(wq, 0.0, N, ExpectedSum<double>);
+  non_threaded_open_close_test(wq, 42.0, N);
 }
 
 SCENARIO ( "Non-threaded wait_queue test, with element type std::string and ring_span container type",
@@ -241,6 +256,31 @@ SCENARIO ( "Non-threaded wait_queue test, with element type std::string and ring
   chops::wait_queue<std::string, nonstd::ring_span<std::string> > wq(buf+0, buf+N);
   non_threaded_push_test(wq, "No bro speak, please"s, N);
   non_threaded_open_close_test(wq, "Why so serious, bro?"s, N);
+}
+
+// test with boost circular_buffer
+
+SCENARIO ( "Non-threaded wait_queue test, with element type int and boost circular_buffer container type",
+           "[wait_queue_int_boost_circ_buf_container]" ) {
+  chops::wait_queue<int, boost::circular_buffer<int> > wq(N);
+  non_threaded_push_test(wq, 42, N);
+  non_threaded_arithmetic_test(wq, 0, N, ExpectedSum<int>);
+  non_threaded_open_close_test(wq, 42, N);
+}
+
+SCENARIO ( "Non-threaded wait_queue test, with element type double and boost circular_buffer container type",
+           "[wait_queue_double_boost_circ_buf_container]" ) {
+  chops::wait_queue<double, boost::circular_buffer<double> > wq(N);
+  non_threaded_push_test(wq, 42.0, N);
+  non_threaded_arithmetic_test(wq, 0.0, N, ExpectedSum<double>);
+  non_threaded_open_close_test(wq, 42.0, N);
+}
+
+SCENARIO ( "Non-threaded wait_queue test, with element type std::string and boost circular_buffer container type",
+           "[wait_queue_string_boost_circ_buf_container]" ) {
+  chops::wait_queue<std::string, boost::circular_buffer<std::string> > wq(N);
+  non_threaded_push_test(wq, "This code is bro-fessional level quality"s, N);
+  non_threaded_open_close_test(wq, "Please, please, no more bro!"s, N);
 }
 
 SCENARIO ( "Non-threaded wait_queue test, testing copy construction without move construction",
