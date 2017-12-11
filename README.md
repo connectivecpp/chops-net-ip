@@ -14,12 +14,14 @@ Chops Net IP is an asynchronous general purpose networking library layered on to
 
 Example environments where Chops Net IP is a good fit:
 
-- Applications interacting with multiple connections (e.g. handling multiple sensors or inputs or outputs), each with low to moderate throughput needs (i.e. IoT environments, chat networks, gaming networks).
-- Applications where the data flow is bi-directional and sends or receives are data-driven versus pattern-driven. In other words, data can be sent or received at any time independent of which entity initiated the send.
+- Applications that are event driven or highly asynchronous in nature.
+- Applications where data is generated and handled in a non-symmetric manner. Similarly, applications where the data flow is bi-directional and sends or receives are data-driven versus pattern-driven work well with this library.
+- Applications interacting with multiple (many) connections (e.g. handling multiple sensors or inputs or outputs), each with low to moderate throughput needs (i.e. IoT environments, chat networks, gaming networks).
 - Small footprint or embedded environments, where all network processing is run inside a single thread.
 - Applications with relatively simple network processing that need an easy-to-use and quick-for-development networking library.
 - Applications with configuration driven networks that may need to switch (for example) between connect versus accept for a given connection, or between TCP and UDP for a given communication path.
 - Peer-to-peer applications where the application doesn't care which side connects or accepts, only that there's a data connection.
+- Frameworks or groups of applications where abstracting wire-protocol code from message processing code makes sense.
 
 Chops Net IP:
 
@@ -109,7 +111,7 @@ While the main production branch of Chops will always be developed and tested wi
 
 # External Dependencies
 
-The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code. The external dependencies are:
+The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code. The external dependencies:
 
 - Version 1.11 (or later) of Chris Kohlhoff's `networking-ts-impl` (Networking TS) repository is required for some components. Note that the version number is from the Asio version and may not exactly match the Networking TS version.
 - Version 2.01 (or later) of Phil Nash's Catch 2.0 is required for all test scenarios.
@@ -121,7 +123,7 @@ See [Reference Section](#references)) for additional details on the above librar
 Specific dependencies:
 
 - All test scenarios: Catch 2.0
-- Chop Net IP (production): `networking-ts-impl`
+- Chops Net IP (production): `networking-ts-impl`
   - Boost.Endian (test)
   - Ring Span Lite (test)
 - Wait Queue (production): none
@@ -161,7 +163,7 @@ All Chops libraries are header-only, so installation consists of downloading or 
 
 # About
 
-The primary author of Chops is Cliff Green, softwarelibre at codewrangler dot net. Cliff is a software engineer and has worked for years writing infrastructural libraries and applications for use in networked and distributed systems, typically where high reliability or uptime is required. The domains where he has worked include wireless networks, simulation systems, location technology, and large scale embedded systems in the military aerospace industry. He has volunteered every year at CppCon and presented at BoostCon (before it was renamed to C++ Now).
+The primary author of Chops is Cliff Green, softwarelibre at codewrangler dot net. Cliff is a software engineer and has worked for years writing infrastructural libraries and applications for use in networked and distributed systems, typically where high reliability or uptime is required. The domains where he has worked include wireless networks, location technology, and large scale embedded and simulation systems in the military aerospace industry. He has volunteered every year at CppCon and presented at BoostCon (before it was renamed to C++ Now).
 
 Cliff lives in the Seattle area and you may know him from other interests including volleyball, hiking, railroading (both the model variety and the big ones in real life), music, or even parent support activities (if you are having major difficulties with your teen check out the Changes Parent Support Network, http://cpsn.org).
 
