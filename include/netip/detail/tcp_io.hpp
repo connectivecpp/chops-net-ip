@@ -6,6 +6,8 @@
  *
  *  @note For internal use only.
  *
+ *  Output queuing and policy responsibility is now pushed to the application code.
+ *
  *  @author Cliff Green
  *  @date 2017
  *  @copyright Cliff Green, MIT License
