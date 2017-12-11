@@ -3,13 +3,12 @@
 ## Motivation
 
 Chops Net IP is motivated by the need for a networking library that:
-- is easy to use
+- is easy to use and integrates relatively quickly into an application or library
 - scales well
-- integrates relatively quickly into an application or library
 - is easy to use correctly and hard to use incorrectly
 - abstracts common TCP design usages into application supplied callback functions
 - performs well in many environments
-- allows data sending and receiving completely independent from each other
+- allows independent bi-directional data flow
 
 ## General Usage and Design Model
 
@@ -17,7 +16,7 @@ Chops Net IP is (in general terms) a "create network entity, provide function ob
 
 For incoming data, an application provides callable function objects to the appropriate Chops Net IP object for message framing (if needed), message processing, and connection state transitions.
 
-For outgoing data, an application passes message data (as byte buffers) to the appropriate Chops Net IP object for queueing and transmission. A callable function object can be provided by the application to monitor the size of an outgoing queue.
+For outgoing data, an application passes message data (as byte buffers) to the appropriate Chops Net IP object for queueing and transmission. The application can customize policies and behaviors of the outgoing data queue.
 
 Various Chops Net IP objects are provided to the application (typically in application provided function objects) as connection or endpoint states transition. For example, the Chops Net IP object for data sending is only created when a connection becomes active (TCP acceptor connection is created, or a TCP connector connection succeeds). This guarantees that an application cannot start sending data before a connection is active.
 
@@ -27,7 +26,7 @@ Chops Net IP has the following design goals:
 - Abstract and separate the message framing and message processing for message streams. Sometimes the same "wire protocol" (i.e. message header and message body definition) is used on multiple connections, but different message processing is required depending on the connection address (or connection type). Chops Net IP provides specific customization points to ease code sharing and code isolation. In particular, a message framing function object might be defined for a TCP stream (and not needed for a UDP entity), but the same message processing code used for both TCP and UDP entities.
 - Make it easy to write correct network code, and hard to write incorrect network code. An example is that message sending cannot be started before a TCP connection is active. A second example is that correctly collecting all of the bytes in a TCP message header is easier with this library (this is a common source of errors in TCP network programming). A third example is that a read is always posted for TCP connections, even if the connection is used only for sending data. This allows timely notification when the connection closes or an error occurs (a common mistake is to forget to post a read, which sometimes results in very slow notification when a connection closes or has an error).
 - Provide customization points so that the application can be notified of interesting events.
-- Make it easy to develop peer-to-peer applications that primarily care about data transfer versus which side is connecting versus accepting connection requests.
+- Make it easy to develop peer-to-peer applications that primarily care about data transfer versus caring about which application connects and which accepts connection requests.
 
 ## Chops Net IP States and Transitions
 
@@ -43,20 +42,46 @@ Pro tip - Chops Net IP follows the implicit state model of the Networking TS and
 
 Chops Net IP works well with the following communication patterns:
 
-- Receive data, process it quickly (which may involve passing data along to another thread), ready for more incoming data.
-- Receive data, process it quickly (as above), send data back through the same connection or endpoint, ready for more incoming data.
+- Receive data, process it quickly (which may involve passing data along to another thread), become ready for more incoming data.
+- Receive data, process it quickly (as above), send data back through the same connection or endpoint, become ready for more incoming data.
 - Send data, go back to other work.
 
 Chops Net IP requires more work with the following communication pattern:
 
 - Send data, wait for reply (request-reply pattern). Everything in Chops Net IP is no-wait from the application perspective, so request-reply must be emulated through application logic (e.g. store some form of message transaction id in an outgoing table and correlate incoming data using the message transaction id, or track outstanding requests by connection address).
 
-Chops Net IP works extremely well in environments where there might be a lot of network connections (e.g. thousands), each with a moderate amount of traffic, and each with different kinds of data or data processing. In environments where each connection is very busy, or a lot of processing is required for each incoming message (and it cannot be passed along to another thread), then more traditional communication patterns or designs might be appropriate (e.g. blocking or synchronous I/O, or "thread per connection" models.
+Chops Net IP works extremely well in environments where there might be a lot of network connections (e.g. thousands), each with a moderate amount of traffic, and each with different kinds of data or data processing. In environments where each connection is very busy, or a lot of processing is required for each incoming message (and it cannot be passed along to another thread), then more traditional communication patterns or designs might be appropriate (e.g. blocking or synchronous I/O, or "thread per connection" models).
 
-Applications that do only one thing and must do it as fast as possible and want the least amount of overhead might not want the abstraction penalties and slight overhead of Chops Net IP. For example, a high performance server application where buffer lifetimes for incoming data are easily managed might not want the queuing and "shared buffer" overhead of Chops Net IP.
+Applications that do only one thing and must do it as fast as possible with the least amount of overhead might not want the abstraction penalties and slight overhead of Chops Net IP. For example, a high performance server application where buffer lifetimes for incoming data are easily managed might not want the queuing and "shared buffer" overhead of Chops Net IP.
 
 Applications that need to perform time consuming operations on incoming data and cannot pass that data off to another thread may encounter throughput issues. Multiple threads or thread pools or strands interacting with the event loop method (executor) may be a solution in those environments.
 
+## Application Customimzation Points
+
+Chops Net IP strives to provide an application customization point (via function object) for every important step in the network processing chain. These include:
+
+- Message framing customization - decoding a header and determining how to read the rest of the message.
+- Message handling customization - processing a message once it arrives.
+- IO state change customization - what to do when:
+  - A connection or network endpoint goes down, whether by error or by graceful close.
+  - A connection or network endpoint becomes available.
+- Output queue customization - the application can provide:
+  - A different queue than the default (e.g. a circular buffer or fixed size ring span).
+  - Behaviors when the queue gets long (which implies that the receiving end or something in-between is not keeping up with the amount of traffic being sent).
+
+## Library Implementation Design Considerations
+
+Reference counting (through `std::shared_ptr` facilities) is an aspect of almost all the internal (`detail` namespace) Chops Net IP classes. This simplifies the lifetime management of all of the objects at the expense of the reference counting overhead.
+
+Future versions of the library may have more move semantics and less reference counting, but will always implement safety over performance.
+
+Most of the Chops Net IP public classes use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have an exception thrown by the Chops Net IP library when trying to access the non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
+
+Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. This does affect the API choices, and results in the `start` method having many callback parameters.
+
+Since data can be sent at any time and at any rate by the application, a sending queue is required.
+
+(Hmm - revisit this design decision.)
 
 ## Future Directions
 
