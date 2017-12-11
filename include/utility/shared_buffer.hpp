@@ -23,7 +23,12 @@
  *  @code
  *    ... fill in example code
  *  @endcode
-
+ *
+ *  @note Everything is declared @c noexcept except for the methods that allocate
+ *  memory and might throw a memory exception. This is tighter than the @c noexcept
+ *  declarations on the underlying @c std::vector methods, since @c std::byte 
+ *  operations will never throw.
+ *
  *  @authors Cliff Green, Chris Kohlhoff
  *  @date 2017
  *  @copyright Cliff Green, MIT License
@@ -88,11 +93,11 @@ private:
 
   friend class const_shared_buffer;
 
-  friend bool operator==(const mutable_shared_buffer&, const mutable_shared_buffer&);
-  friend bool operator<(const mutable_shared_buffer&, const mutable_shared_buffer&);
+  friend bool operator==(const mutable_shared_buffer&, const mutable_shared_buffer&) noexcept;
+  friend bool operator<(const mutable_shared_buffer&, const mutable_shared_buffer&) noexcept;
 
-  friend bool operator==(const mutable_shared_buffer&, const const_shared_buffer&);
-  friend bool operator==(const const_shared_buffer&, const mutable_shared_buffer&);
+  friend bool operator==(const mutable_shared_buffer&, const const_shared_buffer&) noexcept;
+  friend bool operator==(const const_shared_buffer&, const mutable_shared_buffer&) noexcept;
 
 public:
 
@@ -294,7 +299,7 @@ public:
  *  @relates mutable_shared_buffer
  */
 
-inline void swap(mutable_shared_buffer& lhs, mutable_shared_buffer& rhs) {
+inline void swap(mutable_shared_buffer& lhs, mutable_shared_buffer& rhs) noexcept {
   lhs.swap(rhs);
 }
 
@@ -309,7 +314,7 @@ inline void swap(mutable_shared_buffer& lhs, mutable_shared_buffer& rhs) {
  *
  *  @relates mutable_shared_buffer
  */
-inline bool operator== (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) { 
+inline bool operator== (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept { 
   return *(lhs.m_data) == *(rhs.m_data);
 }  
 
@@ -320,7 +325,7 @@ inline bool operator== (const mutable_shared_buffer& lhs, const mutable_shared_b
  *
  *  @relates mutable_shared_buffer
  */
-inline bool operator!= (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) {
+inline bool operator!= (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept {
   return !(lhs == rhs);
 }
 
@@ -335,7 +340,7 @@ inline bool operator!= (const mutable_shared_buffer& lhs, const mutable_shared_b
  *
  *  @relates mutable_shared_buffer
  */
-inline bool operator< (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) { 
+inline bool operator< (const mutable_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept { 
   return *(lhs.m_data) < *(rhs.m_data);
 }  
 
@@ -377,11 +382,11 @@ public:
 
 private:
 
-  friend bool operator==(const const_shared_buffer&, const const_shared_buffer&);
-  friend bool operator<(const const_shared_buffer&, const const_shared_buffer&);
+  friend bool operator==(const const_shared_buffer&, const const_shared_buffer&) noexcept;
+  friend bool operator<(const const_shared_buffer&, const const_shared_buffer&) noexcept;
 
-  friend bool operator==(const mutable_shared_buffer&, const const_shared_buffer&);
-  friend bool operator==(const const_shared_buffer&, const mutable_shared_buffer&);
+  friend bool operator==(const mutable_shared_buffer&, const const_shared_buffer&) noexcept;
+  friend bool operator==(const const_shared_buffer&, const mutable_shared_buffer&) noexcept;
 
 public:
 
@@ -445,7 +450,7 @@ public:
  *  @param rhs @c mutable_shared_buffer to be moved from; after moving the 
  *  @c mutable_shared_buffer will be empty.
  */
-  explicit const_shared_buffer(mutable_shared_buffer&& rhs)
+  explicit const_shared_buffer(mutable_shared_buffer&& rhs) noexcept
     : m_data(std::move(rhs.m_data)), m_cbuf(m_data->data(), m_data->size()) {
           rhs.m_data = std::make_shared<byte_vec>(0); // set rhs back to invariant
         }
@@ -505,7 +510,7 @@ public:
  *
  *  @relates const_shared_buffer
  */
-inline bool operator== (const const_shared_buffer& lhs, const const_shared_buffer& rhs) { 
+inline bool operator== (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept { 
   return *(lhs.m_data) == *(rhs.m_data);
 }  
 
@@ -516,7 +521,7 @@ inline bool operator== (const const_shared_buffer& lhs, const const_shared_buffe
  *
  *  @relates const_shared_buffer
  */
-inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffer& rhs) {
+inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept {
   return !(lhs == rhs);
 }
 
@@ -531,7 +536,7 @@ inline bool operator!= (const const_shared_buffer& lhs, const const_shared_buffe
  *
  *  @relates const_shared_buffer
  */
-inline bool operator< (const const_shared_buffer& lhs, const const_shared_buffer& rhs) { 
+inline bool operator< (const const_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept { 
   return *(lhs.m_data) < *(rhs.m_data);
 }  
 
@@ -541,7 +546,7 @@ inline bool operator< (const const_shared_buffer& lhs, const const_shared_buffer
  *
  *  @return @c true if @c size() same for each, and each byte compares @c true.
  */
-inline bool operator== (const const_shared_buffer& lhs, const mutable_shared_buffer& rhs) { 
+inline bool operator== (const const_shared_buffer& lhs, const mutable_shared_buffer& rhs) noexcept { 
   return *(lhs.m_data) == *(rhs.m_data);
 }  
 
@@ -551,7 +556,7 @@ inline bool operator== (const const_shared_buffer& lhs, const mutable_shared_buf
  *
  *  @return @c true if @c size() same for each, and each byte compares @c true.
  */
-inline bool operator== (const mutable_shared_buffer& lhs, const const_shared_buffer& rhs) { 
+inline bool operator== (const mutable_shared_buffer& lhs, const const_shared_buffer& rhs) noexcept { 
   return *(lhs.m_data) == *(rhs.m_data);
 }  
 
