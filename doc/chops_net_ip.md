@@ -28,7 +28,19 @@ Chops Net IP has the following design goals:
 - Provide customization points so that the application can be notified of interesting events.
 - Make it easy to develop peer-to-peer applications that primarily care about data transfer versus caring about which application connects and which accepts connection requests.
 
-## Chops Net IP States and Transitions
+## FAQ
+
+- Is Chops Net IP a framework?
+  - No. It is a general purpose library. There are no specific network protocols required by the library and no wire protocols added by the library. It can communicate with any TCP or UDP entity as long as the wire protocols and communication semantics are implemented by the application using the Chops Net IP library.
+- Wny is a queue required for outgoing data?
+  - Applications may send data faster than it can be consumed at the remote end or passed through the local network stack. Queueing the outgoing data allows timely processing if this situation occurs. One design possibility for the library is to push the responsibility of knowing when to send data back to the application, but this requires a non-trivial API interaction between the library and the application.
+- What if the outgoing data queue becomes large?
+  - This is an indication that the remote end is not processing data fast enough or that data is being produced too fast. The application can query outgoing queue stats to determine if this scenario is occurring.
+- Why not provide a configuration API for a table-driven network application?
+  - There are many different formats and types of configurations, including dynamically generated configurations. Configuration should be a separate concern from the Chops Net IP library.
+
+
+## States and Transitions
 
 Chops Net IP states and transitions match existing standard network protocol behavior. For example, when a TCP connector is created, an actual TCP data connection does not exist until the connect succeeds. When this happens (connect succeeds), the abstract state transitions from unconnected to connected. In Chops Net IP, when a TCP connector connects, a data connection object is created and an application state transition function object callback is invoked containing the connection object.
 
@@ -56,18 +68,15 @@ Applications that do only one thing and must do it as fast as possible with the 
 
 Applications that need to perform time consuming operations on incoming data and cannot pass that data off to another thread may encounter throughput issues. Multiple threads or thread pools or strands interacting with the event loop method (executor) may be a solution in those environments.
 
-## Application Customimzation Points
+## Application Customization Points
 
 Chops Net IP strives to provide an application customization point (via function object) for every important step in the network processing chain. These include:
 
 - Message framing customization - decoding a header and determining how to read the rest of the message.
 - Message handling customization - processing a message once it arrives.
-- IO state change customization - what to do when:
+- IO state change customization - steps to perform when:
   - A connection or network endpoint goes down, whether by error or by graceful close.
   - A connection or network endpoint becomes available.
-- Output queue customization - the application can provide:
-  - A different queue than the default (e.g. a circular buffer or fixed size ring span).
-  - Behaviors when the queue gets long (which implies that the receiving end or something in-between is not keeping up with the amount of traffic being sent).
 
 ## Library Implementation Design Considerations
 
@@ -75,17 +84,16 @@ Reference counting (through `std::shared_ptr` facilities) is an aspect of almost
 
 Future versions of the library may have more move semantics and less reference counting, but will always implement safety over performance.
 
-Most of the Chops Net IP public classes use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have an exception thrown by the Chops Net IP library when trying to access the non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
+Most of the Chops Net IP public classes use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have an exception thrown by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
 
 Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. This does affect the API choices, and results in the `start` method having many callback parameters.
 
-Since data can be sent at any time and at any rate by the application, a sending queue is required.
-
-(Hmm - revisit this design decision.)
+Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
 
 ## Future Directions
 
 - Older compiler (along with older C++ standard) support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below), depending on availability and collaboration support.
+- The internal queue container may become a template parameter if the flexibility is needed. This would allow circular buffers (ring spans) or other data structures to be used.
 - SSL support may be added, depending on collaborators with expertise being available.
 - Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
 
