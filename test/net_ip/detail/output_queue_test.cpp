@@ -14,14 +14,15 @@
 
 #include "catch.hpp"
 
-void non_threaded_push_test(Q& wq, const T& val, int count) {
+#include "net_ip/detail/output_queue.hpp"
 
-  GIVEN ("A newly constructed wait_queue") {
-    REQUIRE (wq.empty());
-    REQUIRE (wq.size() == 0);
+void non_threaded_push_test(chops::mutable_shared_buffer buf, int num_bufs) {
 
-    WHEN ("Values are pushed on the queue") {
-      chops::repeat(count, [&wq, &val] () { REQUIRE(wq.push(val)); } );
+  GIVEN ("A default constructed output_queue") {
+    chops::net::detail::output_queue outq { };
+
+    WHEN ("bufs are added to the output_queue") {
+      chops::repeat(count, [&outq] () { outq.push(val)); } );
       THEN ("the size is increased") {
         REQUIRE (!wq.empty());
         REQUIRE (wq.size() == count);
