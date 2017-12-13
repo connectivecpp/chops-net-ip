@@ -38,6 +38,7 @@
 #include <string>
 
 namespace chops {
+namespace net {
 
 /**
  *  @brief Utility function to create an Asio @c endpoint from host name strings and port numbers.
@@ -514,7 +515,8 @@ private:
 
 };
 
-}  // namespace chops
+}  // end net namespace
+}  // end chops namespace
 
 #endif
 

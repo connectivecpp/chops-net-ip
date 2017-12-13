@@ -20,6 +20,7 @@
 #include <cstddef> // std::size_t 
 
 namespace chops {
+namespace net {
 
 /**
  *  @brief The @c Embankment class is the primary application interface into the
@@ -308,7 +309,8 @@ inline bool operator<(const Embankment& lhs, const Embankment& rhs) {
   return (plhs && prhs && plhs < prhs) || (!plhs && prhs);
 }
 
-} // end namespace
+} // end net namespace
+} // end chops namespace
 
 #endif
 

@@ -44,6 +44,7 @@
 #include <memory> // std::enable_shared_from_this
 
 namespace chops {
+namespace net {
 namespace detail {
 
 class tcp_io : std::enable_shared_from_this<tcp_io> {
@@ -203,7 +204,8 @@ inline void tcp_io::handleWrite(const boost::system::error_code& err) {
 }
 
 } // end detail namespace
-} // end namespace
+} // end net namespace
+} // end chops namespace
 
 #endif
 

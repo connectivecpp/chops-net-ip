@@ -27,6 +27,7 @@
 #include <limits>  // std::numeric_limits
 
 namespace chops {
+namespace net {
 
 /**
  *  @brief The @c OutputChannel class provides output access through an underlying network
@@ -375,7 +376,8 @@ inline bool operator<(const OutputChannel& lhs, const OutputChannel& rhs) {
   return (plhs && prhs && plhs < prhs) || (!plhs && prhs);
 }
 
-} // end namespace
+} // end net namespace
+} // end chops namespace
 
 #endif
 

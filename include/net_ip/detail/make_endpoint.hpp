@@ -21,6 +21,7 @@
 #include <system_error>
 
 namespace chops {
+namespace net {
 namespace detail {
 
 /**
@@ -79,8 +80,9 @@ std::experimental::net::ip::basic_endpoint<Protocol> make_endpoint(std::experime
   throw std::system_error (
 }
 
-}  // namespace detail
-}  // namespace chops
+}  // end detail namespace
+}  // end net namespace
+}  // end chops namespace
 
 #endif
 
