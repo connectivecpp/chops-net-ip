@@ -1,15 +1,13 @@
 /** @file 
  *
- *  @ingroup netip_module
+ *  @ingroup net_ip_module
  *
  *  @brief Internal handler class for TCP stream input and output.
  *
  *  @note For internal use only.
  *
- *  Output queuing and policy responsibility is now pushed to the application code.
- *
  *  @author Cliff Green
- *  @date 2017
+ *  @date 2017, 2018
  *  @copyright Cliff Green, MIT License
  *
  */

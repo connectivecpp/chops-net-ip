@@ -1,11 +1,11 @@
 /** @file 
  *
- *  @ingroup netip_module
+ *  @ingroup net_ip_module
  *
  *  @brief @c netip networking class and related functions and facilities.
  *
  *  @author Cliff Green
- *  @date 2017
+ *  @date 2017, 2018
  *  @copyright Cliff Green, MIT License
  *
  */

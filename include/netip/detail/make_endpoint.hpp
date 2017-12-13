@@ -1,12 +1,12 @@
 /** @file 
  *
- *  @ingroup netip_module
+ *  @ingroup net_ip_module
  *
  *  @brief Implementation detail code to create an @c ip::basic_endpoint from various
  *  parameters. Name resolving will be performed as needed.
  *
  *  @author Cliff Green
- *  @date 2017
+ *  @date 2017, 2018
  *  @copyright Cliff Green, MIT License
  *
  */
