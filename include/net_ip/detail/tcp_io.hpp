@@ -51,34 +51,29 @@ class tcp_io : std::enable_shared_from_this<tcp_io> {
 private:
 
   std::experimental::net::ip::tcp::socket   m_socket;
+  std::experimental::net::ip::tcp::endpoint m_remote_endp;
+  bool                                      m_started;
+  bool                                      m_write_in_progress;
+  chops::net::detail::output_queue          m_outq;
+
   TcpIoErrorCb                   mErrorCb;
-  bool                           mStarted;
-  bool                           mWriteInProgress;
-  boost::asio::ip::tcp::endpoint mRemoteEndp;
+
 public:
 
-  typedef boost::function<void (const boost::system::error_code&, boost::shared_ptr<tcp_io>)> TcpIoErrorCb;
+  tcp_io(std::experimental::net::io_context& ioc) : 
+    mSocket(ioc), m_remote_endp(), m_started(false), m_write_in_progress(false), m_outq() { }
 
-  tcp_io(std::experimental::net::io_context& ioc, TcpIoErrorCb errCb) : 
-    OutputChannelResource(),
-    mSocket(ios), mErrorCb(errCb), mStarted(false), mWriteInProgress(false), mRemoteEndp() { }
+  bool is_started() const noexcept { return m_started; }
 
-  // started, startRead, getSock only called by protocol handlers, not directly through 
-  // Embankment, meaning they are only called while within a posted handler context
-
-  bool started() const { return mStarted; }
-
-  // this method can be called directly from protocol handlers
-  void stopIo() {
-    mStarted = false;
-    mSocket.close();
+  void stop() {
+    m_started = false;
+    m_socket.close();
   }
 
-  boost::asio::ip::tcp::socket& getSock() { return mSocket; }
+  std::experimental::net::ip::tcp::socket& get_socket() { return m_socket; }
 
-  // startRead called through TcpConnector and TcpAcceptor objects
   template <class MsgFrame>
-  void startRead(const MsgFrame&, const typename IncomingMsgCb<MsgFrame>::Callback&);
+  void start(const MsgFrame&, const typename IncomingMsgCb<MsgFrame>::Callback&);
 
 public:
 
@@ -91,11 +86,6 @@ public:
   // this stop can be called through OutputChannel
   virtual void stop() {
     mSocket.get_io_service().post(boost::bind(&tcp_io::notifyHandler, shared_from_this()));
-  }
-
-  virtual void outputQueueSize(OutputQueueSizeCb qSzCb, std::size_t maxEntries, std::size_t maxBytes) {
-    mSocket.get_io_service().post(boost::bind(&tcp_io::setQueueSize, shared_from_this(),
-                                              qSzCb, maxEntries, maxBytes));
   }
 
   // the TCP remote endpoint is set by the startRead method, which should be called by
@@ -118,10 +108,6 @@ private:
                   boost::shared_ptr<typename IncomingMsgCb<MsgFrame>::Callback>);
 
   void handleWrite(const boost::system::error_code&);
-
-  void setQueueSize(OutputQueueSizeCb qSzCb, std::size_t maxEntries, std::size_t maxBytes) {
-    setOutputQueueSize(qSzCb, maxEntries, maxBytes);
-  }
 
 };
 
