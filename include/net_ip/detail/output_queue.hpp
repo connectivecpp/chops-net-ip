@@ -4,6 +4,9 @@
  *
  *  @brief Utility class to manage output data queueing.
  *
+ *  The @c std::atomic counters allow the IO handler to update
+ *  while the application queries the stats.
+ *
  *  @note For internal use only.
  *
  *  @author Cliff Green
@@ -18,6 +21,7 @@
 #include <experimental/internet> // ip::udp::endpoint
 
 #include <queue>
+#include <atomic>
 #include <cstddef> // std::size_t
 #include <utility> // std::pair
 #include <optional>
@@ -39,7 +43,8 @@ private:
 private:
 
   std::queue<queue_element> m_output_queue;
-  std::size_t               m_current_num_bytes;
+  std::atomic_size_t        m_queue_size;
+  std::atomic_size_t        m_current_num_bytes;
   // std::size_t               m_total_bufs_sent;
   // std::size_t               m_total_bytes_sent;
 
@@ -48,7 +53,7 @@ public:
 
 public:
 
-  output_queue() : m_output_queue(), m_current_num_bytes(0) { }
+  output_queue() : m_output_queue(), m_queue_size(0), m_current_num_bytes(0) { }
 
   // io handlers call this method to get next buffer of data, can be empty
   opt_queue_element get_next_element() {
@@ -57,6 +62,7 @@ public:
     }
     queue_element e = m_output_queue.front();
     m_output_queue.pop();
+    --m_queue_size;
     m_current_num_bytes -= e.first.size();
     return opt_queue_element {e};
   }
@@ -70,9 +76,9 @@ public:
   }
 
   chops::net::output_queue_stats get_queue_stats() const noexcept {
-    return chops::net::output_queue_stats { m_output_queue.size(), m_current_num_bytes };
+    return chops::net::output_queue_stats { m_queue_size, m_current_num_bytes };
     // return chops::net::output_queue_stats {
-    //   m_output_queue.size(), m_current_num_bytes, m_total_bufs_sent, m_total_bytes_sent 
+    //   m_queue_size, m_current_num_bytes, m_total_bufs_sent, m_total_bytes_sent 
     // };
   }
 
@@ -80,6 +86,7 @@ private:
 
   void add_element(const chops::const_shared_buffer& buf, opt_udp_endpoint&& opt_endp) {
     m_output_queue.push(std::pair<chops::const_shared_buffer, opt_udp_endpoint>(buf, opt_endp));
+    ++m_queue_size;
     m_current_num_bytes += buf.size(); // note - possible integer overflow
     // ++m_total_bufs_sent;
     // m_total_bytes_sent += buf.size();

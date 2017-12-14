@@ -80,7 +80,7 @@ Chops Net IP strives to provide an application customization point (via function
 
 ## Library Implementation Design Considerations
 
-Reference counting (through `std::shared_ptr` facilities) is an aspect of almost all the internal (`detail` namespace) Chops Net IP classes. This simplifies the lifetime management of all of the objects at the expense of the reference counting overhead.
+Reference counting (through `std::shared_ptr` facilities) is an aspect of many of the internal (`detail` namespace) Chops Net IP classes. This simplifies the lifetime management of all of the objects at the expense of the reference counting overhead.
 
 Future versions of the library may have more move semantics and less reference counting, but will always implement safety over performance.
 
@@ -90,10 +90,14 @@ Where to provide the customization points in the API is one of the most crucial 
 
 Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
 
+There is not any explicit mutex locking in the library. Instead, most of the internal handler classes take incoming parameters and post the data through the io context. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Networking TS code.
+
+In the areas where data is directly accessed, it is protected by `std::atomic` wraps. For example, outgoing queue statistics and `is_started` flags are all `std::atomic`. While this guarantees that applications will not crash, it does mean that statistics might have temporary inconsistency with each other. For example, an outgoing buffer might be popped exactly between an application querying and accessing two outgoing counters. This potential inconsistency is not considered to be an issuse, since the queue counters are only meant for general congestion queries, not exact statistical gathering.
+
 ## Future Directions
 
 - Older compiler (along with older C++ standard) support is likely to be implemented sooner than later (as discussed in the Language Requirements and Alternatives section below), depending on availability and collaboration support.
-- The internal queue container may become a template parameter if the flexibility is needed. This would allow circular buffers (ring spans) or other data structures to be used.
+- The internal queue container may become a template parameter if the flexibility is needed. This would allow circular buffers (ring spans) or other data structures to be used instead of the default `std::queue` (which is instantiated to use a `std::deque`).
 - SSL support may be added, depending on collaborators with expertise being available.
-- Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
+- Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP unicast, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
 

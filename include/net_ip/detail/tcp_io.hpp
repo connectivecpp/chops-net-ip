@@ -42,6 +42,9 @@
 #include <experimental/internet>
 
 #include <memory> // std::enable_shared_from_this
+#include <atomic>
+
+#include "net_ip/queue_stats.hpp"
 
 namespace chops {
 namespace net {
@@ -52,8 +55,8 @@ private:
 
   std::experimental::net::ip::tcp::socket   m_socket;
   std::experimental::net::ip::tcp::endpoint m_remote_endp;
-  bool                                      m_started;
-  bool                                      m_write_in_progress;
+  std::atomic_bool                          m_started;
+  bool                                      m_write_in_progress; // internal only, doesn't need to be atomic
   chops::net::detail::output_queue          m_outq;
 
   TcpIoErrorCb                   mErrorCb;
@@ -61,39 +64,35 @@ private:
 public:
 
   tcp_io(std::experimental::net::io_context& ioc) : 
-    mSocket(ioc), m_remote_endp(), m_started(false), m_write_in_progress(false), m_outq() { }
+    m_socket(ioc), m_remote_endp(), m_started(false), m_write_in_progress(false), m_outq() { }
+
+  std::experimental::net::ip::tcp::socket& get_socket() noexcept { return m_socket; }
+
+  chops::net::output_queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
 
   bool is_started() const noexcept { return m_started; }
 
+  template <class MsgFrame>
+  void start(const MsgFrame&, const typename IncomingMsgCb<MsgFrame>::Callback&);
+
+// fix this, not correct
   void stop() {
     m_started = false;
     m_socket.close();
   }
 
-  std::experimental::net::ip::tcp::socket& get_socket() { return m_socket; }
-
-  template <class MsgFrame>
-  void start(const MsgFrame&, const typename IncomingMsgCb<MsgFrame>::Callback&);
-
-public:
-
-  // overrides of OutputChannelResource virtuals
-
-  virtual void send(boost_adjunct::shared_const_buffer buf) {
-    mSocket.get_io_service().post(boost::bind(&tcp_io::startWrite, shared_from_this(), buf));
+  void send(boost_adjunct::shared_const_buffer buf) {
+    m_socket.get_io_service().post(boost::bind(&tcp_io::startWrite, shared_from_this(), buf));
   }
 
   // this stop can be called through OutputChannel
   virtual void stop() {
-    mSocket.get_io_service().post(boost::bind(&tcp_io::notifyHandler, shared_from_this()));
+    m_socket.get_io_service().post(boost::bind(&tcp_io::notifyHandler, shared_from_this()));
   }
 
-  // the TCP remote endpoint is set by the startRead method, which should be called by
-  // the protocol handlers before the OutputChannel is made available to the app; this 
-  // accessor method should therefore not need concurrency protection
   // original signature (see notes in OutputChannelResource file):
-  // boost::asio::ip::tcp::endpoint remoteTcpEndpoint() const { return mRemoteEndp; }
-  virtual void remoteTcpEndpoint(boost::asio::ip::tcp::endpoint& endp) const { endp = mRemoteEndp; }
+  // boost::asio::ip::tcp::endpoint remoteTcpEndpoint() const { return m_remote_endp; }
+  virtual void remoteTcpEndpoint(boost::asio::ip::tcp::endpoint& endp) const { endp = m_remote_endp; }
 
 private:
 
@@ -119,14 +118,14 @@ typedef boost::shared_ptr<tcp_io> TcpIoPtr;
 template <class MsgFrame>
 void tcp_io::startRead(const MsgFrame& mf, const typename IncomingMsgCb<MsgFrame>::Callback& inCb) {
   mStarted = true;
-  mRemoteEndp = mSocket.remote_endpoint();
+  m_remote_endp = m_socket.remote_endpoint();
   // create reference counted MsgFrame and IncomingMsgCb objects, so that copies are no longer
   // made of these objects
   boost::shared_ptr<MsgFrame> mfPtr = boost::shared_ptr<MsgFrame>(new MsgFrame(mf));
   boost::shared_ptr<typename IncomingMsgCb<MsgFrame>::Callback> inCbPtr = 
       boost::shared_ptr<typename IncomingMsgCb<MsgFrame>::Callback>(new typename IncomingMsgCb<MsgFrame>::Callback(inCb));
   socklib::MsgFrameReturnType ret = (*mfPtr)();
-  boost::asio::async_read(mSocket, boost::asio::buffer(ret.mBuf),
+  boost::asio::async_read(m_socket, boost::asio::buffer(ret.mBuf),
                           boost::bind(&tcp_io::handleRead<MsgFrame>, shared_from_this(),
                                       boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred,
                                       mfPtr, inCbPtr));
@@ -150,7 +149,7 @@ void tcp_io::handleRead(const boost::system::error_code& err, std::size_t nb,
     }
   }
   // start another read, using the buffer supplied in the MsgFrame return val
-  boost::asio::async_read(mSocket, boost::asio::buffer(ret.mBuf),
+  boost::asio::async_read(m_socket, boost::asio::buffer(ret.mBuf),
                           boost::bind(&tcp_io::handleRead<MsgFrame>, shared_from_this(),
                                       boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred,
                                       mfPtr, inCbPtr));
@@ -160,7 +159,6 @@ void tcp_io::handleRead(const boost::system::error_code& err, std::size_t nb,
 // template member functions
 
 inline void tcp_io::startWrite(boost_adjunct::shared_const_buffer buf) {
-  // checkQueueSize();
   if (!mStarted) {
     return; // shutdown happening, most likely, so don't do anything
   }
@@ -169,7 +167,7 @@ inline void tcp_io::startWrite(boost_adjunct::shared_const_buffer buf) {
     return;
   }
   mWriteInProgress = true;
-  boost::asio::async_write(mSocket, buf, boost::bind(&tcp_io::handleWrite, shared_from_this(),
+  boost::asio::async_write(m_socket, buf, boost::bind(&tcp_io::handleWrite, shared_from_this(),
                                                      boost::asio::placeholders::error));
 }
 
@@ -185,7 +183,7 @@ inline void tcp_io::handleWrite(const boost::system::error_code& err) {
     return;
   }
   mWriteInProgress = true;
-  boost::asio::async_write(mSocket, e->first, boost::bind(&tcp_io::handleWrite, shared_from_this(),
+  boost::asio::async_write(m_socket, e->first, boost::bind(&tcp_io::handleWrite, shared_from_this(),
                                                          boost::asio::placeholders::error));
 }
 
