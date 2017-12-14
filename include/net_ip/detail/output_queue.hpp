@@ -79,7 +79,7 @@ public:
 private:
 
   void add_element(const chops::const_shared_buffer& buf, opt_udp_endpoint&& opt_endp) {
-    m_output_queue.push(std::pair<chops::const_shared_buffer, opt_udp_endpoint>(buf, endp));
+    m_output_queue.push(std::pair<chops::const_shared_buffer, opt_udp_endpoint>(buf, opt_endp));
     m_current_num_bytes += buf.size(); // note - possible integer overflow
     // ++m_total_bufs_sent;
     // m_total_bytes_sent += buf.size();
