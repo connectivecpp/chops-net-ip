@@ -20,6 +20,8 @@
 #include <string_view>
 #include <system_error>
 
+#include "net_ip/net_ip_exception.hpp"
+
 namespace chops {
 namespace net {
 namespace detail {
@@ -28,15 +30,13 @@ namespace detail {
  *  @brief Implementation detail utility function which creates an @c ip::basic_endpoint from host 
  *  name strings and port numbers.
  *
- *  The @c ip::basic_endpoint returned from this function is used within other @c netip layers.
+ *  The @c ip::basic_endpoint returned from this function is used within other @c net_ip layers.
  *
  *  DNS lookup (resolving) will not be performed if the host name is already in dotted numeric 
  *  or hexadecimal (V6) form. The first entry will be used from a DNS lookup if multiple IP 
  *  addresses are returned.
  * 
- *  DNS lookups are blocking, but these are only performed at the very beginning of creating a
- *  @c entity object, so does not affect any IO processing. This is the only area of @c netip 
- *  that blocks (async resolving may be added in the future).
+ *  If a DNS resolve needs to be performed,
  *
  *  @param addr A host name, which can be empty (which means the address field of the endpoint 
  *  is not set, which is usually interpreted as an "any" address), either in dotted numeric form 
@@ -46,9 +46,9 @@ namespace detail {
  *
  *  @param ioc @c std::experimental::net::io_context, for DNS lookup.
  *
- *  @param ipv4_only if @c true, only resolve DNS entries for ipv4
+ *  @param ipv4_only If @c true, only resolve DNS entries for ipv4.
  *
- *  @throw @c std::system_error if address is unable to be resolved.
+ *  @throw @c net_ip_exception if address is unable to be resolved.
  */
 
 template <typename Protocol>
@@ -77,7 +77,7 @@ std::experimental::net::ip::basic_endpoint<Protocol> make_endpoint(std::experime
   for (const auto& entry : res) {
     endp.address((*entry.cbegin()).endpoint().address());
   }
-  throw std::system_error (
+  throw chops::net::net_ip_exception("No DNS match found");
 }
 
 }  // end detail namespace

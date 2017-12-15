@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief @c netip networking class and related functions and facilities.
+ *  @brief Chops @c net_ip networking class and related functions and facilities.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -10,17 +10,13 @@
  *
  */
 
-#ifndef NETIP_HPP_INCLUDED
-#define NETIP_HPP_INCLUDED
+#ifndef NET_IP_HPP_INCLUDED
+#define NET_IP_HPP_INCLUDED
 
-#include "Socket/EmbankmentDecls.h"
-#include "Socket/Embankment.h"
-#include "Socket/OutputChannel.h"
-#include "Socket/SockLibException.h"
-
-#include "Socket/detail/SockLibResource.h"
-#include "Socket/detail/TcpResource.h"
-#include "Socket/detail/UdpResource.h"
+#include <memory> // for std::auto_ptr
+#include <cstddef> // for std::size_t
+#include <list>
+#include <string>
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
@@ -32,66 +28,18 @@
 #include <boost/utility.hpp> // for noncopyable
 #include <boost/bind.hpp>
 
-#include <memory> // for std::auto_ptr
-#include <cstddef> // for std::size_t
-#include <list>
-#include <string>
+#include "net_ip/net_ip_exception.hpp"
+#include "net_ip/net_entity.hpp"
+
+#include "net_ip/detail/make_endpoint.hpp"
+
+#include "Socket/detail/TcpResource.h"
+#include "Socket/detail/UdpResource.h"
+
+
 
 namespace chops {
 namespace net {
-
-/**
- *  @brief Utility function to create an Asio @c endpoint from host name strings and port numbers.
- *
- *  Given a host name and port, create an Asio @c endpoint that the networking code can use.
- *
- *  The host name can already be in "dotted numeric" form, in which case DNS lookup will not
- *  be performed. If a DNS lookup is performed, the first IPv4 entry returned will be used (in
- *  case multiple IP addresses are returned from the lookup). IPv6 addresses are (currently)
- *  ignored. currently DNS lookups are blocking (this may be enhanced in the future).
- *
- *  @param addr Host name, which can be empty (address field of endpoint is not set, which is
- *  usually interpreted as an "any" address), in dotted numeric form (no DNS lookup performed),
- *  or a name (DNS lookup will be performed).
- *
- *  @param portNum Port to be set in the endpoint, 0 means port is not set.
- *
- *  @param ios @c boost::asio::io_service, for DNS lookup.
- *
- *  @throw @c SockLibException is thrown if address is unable to be resolved.
- */
-
-template <typename Protocol>
-boost::asio::ip::basic_endpoint<Protocol> createEndpoint(const std::string& addr, unsigned short portNum, 
-                                                         boost::asio::io_service& ios) {
-
-  boost::asio::ip::basic_endpoint<Protocol> endp;
-  if (portNum != 0) {
-    endp.port(portNum);
-  }
-  if (addr.empty()) { // only care about the port, no resolve needed, portNum better not be 0
-    return endp;
-  }
-  boost::system::error_code ec;
-  endp.address(boost::asio::ip::address::from_string(addr, ec));
-  if (!ec) { // no address translation needed, already an IP address
-    return endp;
-  }
-  // address::from_string returned an error, so try to resolve it
-  boost::asio::ip::basic_resolver<Protocol> resolver(ios);
-  boost::asio::ip::basic_resolver_query<Protocol> qry(addr,"");
-  // Asio should have const_iterator - newer versions might
-  boost::asio::ip::basic_resolver_iterator<Protocol> it = resolver.resolve(qry);
-  boost::asio::ip::basic_resolver_iterator<Protocol> endIt; // singular iterator
-  while (it != endIt) {
-    if ((*it).endpoint().address().is_v4()) {
-      endp.address((*it).endpoint().address());
-      return endp;
-    }
-    ++it;
-  }
-  throw SockLibException(std::string("Unable to resolve address: ") + addr);
-}
 
 /**
  *  @brief @c SockLib class, contains socket networking functionality.
