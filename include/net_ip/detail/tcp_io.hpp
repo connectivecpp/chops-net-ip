@@ -15,36 +15,18 @@
 #ifndef TCP_IO_HPP_INCLUDED
 #define TCP_IO_HPP_INCLUDED
 
-#include <boost/shared_ptr.hpp>
-#include <boost/enable_shared_from_this.hpp>
-
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/read.hpp>
-#include <boost/asio/write.hpp>
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/placeholders.hpp>
-
-#include <boost/bind.hpp>
-
-#include <boost/function.hpp>
-
-#include <boost/system/error_code.hpp>
-
-#include <boost_adjunct/shared_buffer.hpp> // in sandbox
-
-#include <cstddef> // std::size_t
-
-
-
-
-
 #include <experimental/io_context>
 #include <experimental/internet>
 
 #include <memory> // std::shared_ptr, std::enable_shared_from_this
 #include <atomic>
+#include <system_error>
+
+#include <cstddef> // std::size_t
+#include <utility> // std::forward
 
 #include "net_ip/queue_stats.hpp"
+#include "utility/shared_buffer.hpp"
 
 namespace chops {
 namespace net {
@@ -74,15 +56,9 @@ public:
 
   bool is_started() const noexcept { return m_started; }
 
-  template <blah>
-  void start_io(blah) {
-    m_started = true;
-    // set up callback objects
-    std::shared_ptr<blah> mfPtr = std::shared_ptr<MsgFrame>(new MsgFrame(mf));
-    std::shared_ptr<typename IncomingMsgCb<MsgFrame>::Callback> inCbPtr = 
-      std::shared_ptr<typename IncomingMsgCb<MsgFrame>::Callback>(new typename IncomingMsgCb<MsgFrame>::Callback(inCb));
-    socklib::MsgFrameReturnType ret = (*mfPtr)();
-    
+  // an is_started check is performed in the io interface object
+  template <typename MF, typename MH>
+  void start_io(MF && msg_frame, MH&& msg_handler, std::size_t initial_size);
 
   void stop_io();
 // fix this, not correct
@@ -116,32 +92,30 @@ private:
 
 };
 
-typedef std::shared_ptr<tcp_io> TcpIoPtr;
+// method implementations, just to make the header a little more readable
 
-// method implementations - could move to an ipp file
-// #include TcpIo.ipp
-
-template <blah>
-void tcp_io::startRead(blah) {
-  boost::asio::async_read(m_socket, boost::asio::buffer(ret.mBuf),
-                          boost::bind(&tcp_io::handleRead<MsgFrame>, shared_from_this(),
-                                      boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred,
-                                      mfPtr, inCbPtr));
+template <typename MF, typename MH>
+void start_io(MF&& msg_frame, MH&& msg_hdlr, std::size_t initial_size) {
+  m_started = true;
+  chops::utility::mutable_shared_buffer buf(initial_size);
+  boost::asio::async_read(m_socket, buf, 
+    [this, buf, mf = std::forward(msg_frame), mh = std::forward(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
+      handle_read(mf, mh, buf, err, nb);
+    }
+  );
 }
 
-template <class MsgFrame>
-void tcp_io::handleRead(const boost::system::error_code& err, std::size_t nb,
-                       std::shared_ptr<MsgFrame> mfPtr, 
-                       std::shared_ptr<typename IncomingMsgCb<MsgFrame>::Callback> inCbPtr) {
-  if (err) { // can get here from socket cancel
-    if (err.value() != boost::asio::error::operation_aborted) {
-      mErrorCb(err, shared_from_this()); // notify protocol handler
-    }
-    return;
+template <typename MF, typename MH>
+void handle_read(MF&& msg_frame, MH&& msg_hdlr, chops::utility::mutable_shared_buffer buf, 
+                 const std::error_code& err, std::size_t num_bytes) {
+  if (err) { // socket cancels as well as other errors
+    m_entity_ptr->io_handler_notification(err, std::shared_from_this());
+    return; // done, no more reads hanging
   }
-  MsgFrameReturnType ret = (*mfPtr)();
-  if (ret.mDone) { // message ready, invoke user supplied incoming msg cb
-    if (!(*inCbPtr)(*mfPtr, OutputChannel(shared_from_this()))) { // IncomingMsgCb not happy, tear connection down
+  // assert nb == buf.size()
+  std::size_t next_num_bytes = (*mf_ptr)(buf);
+  if (next_num_bytes == 0) { // msg fully received, now invoke message handler
+    if (!(*mh_tr)(*mfPtr, OutputChannel(shared_from_this()))) { // IncomingMsgCb not happy, tear connection down
       mErrorCb(boost::system::errc::make_error_code(boost::system::errc::operation_canceled), shared_from_this());
       return;
     }
