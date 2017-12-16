@@ -3,10 +3,10 @@
 ## Motivation
 
 Chops Net IP is motivated by the need for a networking library that:
-- is easy to use and integrates relatively quickly into an application or library
+- is asynchronous and integrates relatively quickly into an application or library
 - scales well
 - is easy to use correctly and hard to use incorrectly
-- abstracts common TCP design usages into application supplied callback functions
+- abstracts common TCP design usages into application supplied callback function objects
 - performs well in many environments
 - allows independent bi-directional data flow
 
@@ -33,11 +33,13 @@ Chops Net IP has the following design goals:
 - Is Chops Net IP a framework?
   - No. It is a general purpose library. There are no specific network protocols required by the library and no wire protocols added by the library. It can communicate with any TCP or UDP entity as long as the wire protocols and communication semantics are implemented by the application using the Chops Net IP library.
 - Wny is a queue required for outgoing data?
-  - Applications may send data faster than it can be consumed at the remote end or passed through the local network stack. Queueing the outgoing data allows timely processing if this situation occurs. One design possibility for the library is to push the responsibility of knowing when to send data back to the application, but this requires a non-trivial API interaction between the library and the application.
+  - Applications may send data faster than it can be consumed at the remote end (or passed through the local network stack). Queueing the outgoing data allows timely processing if this situation occurs. One design possibility for the library is to push the responsibility of knowing when to send data back to the application, but this requires a non-trivial API interaction between the library and the application.
 - What if the outgoing data queue becomes large?
-  - This is an indication that the remote end is not processing data fast enough or that data is being produced too fast. The application can query outgoing queue stats to determine if this scenario is occurring.
+  - This is an indication that the remote end is not processing data fast enough (or that data is being produced too fast). The application can query outgoing queue stats to determine if this scenario is occurring.
 - Why not provide a configuration API for a table-driven network application?
   - There are many different formats and types of configurations, including dynamically generated configurations. Configuration should be a separate concern from the Chops Net IP library.
+- Is Chops Net IP a complete wrapper over the C++ Networking TS?
+  - No. There are access points that expose Networking TS internals. In particular, some socket options are commonly set (or interrogated), and Chops Net IP provides an interface to directly set (or query) these socket options (versus wrapping and exactly duplicating the functionality).
 
 
 ## States and Transitions
@@ -77,6 +79,34 @@ Chops Net IP strives to provide an application customization point (via function
 - IO state change customization - steps to perform when:
   - A connection or network endpoint goes down, whether by error or by graceful close.
   - A connection or network endpoint becomes available.
+
+### State Change Customization Point
+
+The state change callback interface is consistent across all protocol types and provides:
+
+- IO object
+  - If initially created, application then stores and uses this object (to start processing, then sending data)
+  - If already created, an error has typically occurred and this identifies which IO object had the error
+  - May be an empty reference (i.e. empty `std::weak_ptr`) to signify IO object can gone away (count will be zero)
+- Error code
+  - An initial creation of an IO object implies a non-error (i.e. "success") code
+- Count of active IO objects
+  - This provides an easy way to change a "connected" state, as well as additional information for TCP acceptors (i.e. number of active connections)
+
+### TCP Message Frame Customization Point
+
+A message frame customization point provides logic that determines when a message beings and ends. Typically a header is decoded which then determines the following message body len. This may be a complicated process with nested levels of header and body decoding.
+
+Not all TCP applications need message framing logic. For example, many Internet protocols define a message delimeter at the end of a stream of bytes (e.g. a `newline` or similar sequence of bytes). Chops Net IP allows this alternative for message framing.
+
+A non-trivial amount of decoding may be needed for message framing. For this reason the message frame function object is passed along as part of the message handling callback (as well as the incoming byte buffer). This gives the application flexibility so that it can use either the incoming byte buffer or the message frame object (or parts of both).
+
+### Message Handling Customization Point
+
+A message handling callback interface is consistent across all protocol types. There are are two varieties, since a TCP message frame may or may not be present.
+
+The incoming byte buffer is always provided.
+
 
 ## Library Implementation Design Considerations
 
