@@ -53,7 +53,7 @@ public:
 
 public:
 
-  output_queue() : m_output_queue(), m_queue_size(0), m_current_num_bytes(0) { }
+  output_queue() noexcept : m_output_queue(), m_queue_size(0), m_current_num_bytes(0) { }
 
   // io handlers call this method to get next buffer of data, can be empty
   opt_queue_element get_next_element() {
