@@ -125,7 +125,6 @@ Specific dependencies:
 - All test scenarios: Catch 2.0
 - Chops Net IP (production): `networking-ts-impl`
   - Boost.Endian (test)
-  - Ring Span Lite (test)
 - Wait Queue (production): none
   - Ring Span Lite (test)
   - Boost.Circular (test)
@@ -144,7 +143,9 @@ Specific dependencies:
 
 - Martin Moene is a C++ expert and member and former editor of accu-org. His Github site is https://github.com/martinmoene. Martin provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards. These include `std::optional`, `std::variant`, `std::any`, and `std::byte` (from C++ 17) as well as `ring_span` (C++ 20, most likely). He also has multiple other useful repositories including an implementation of the C++ Guideline Support Library (GSL). 
 
-- Andrzej Krzemieński is a C++ expert and proficient blog author. His very well written blog is https://akrzemi1.wordpress.com/ and much of the Chops code is directly influenced by it.
+- Andrzej Krzemieński is a C++ expert and proficient blog author. His very well written blog is https://akrzemi1.wordpress.com/ and a significant portion of the Chops code is directly influenced by it.
+
+- Bjørn Reese writes about many topics in C++ at the expert level and is active with the Boost organization. His blog is http://breese.github.io/blog/.
 
 - Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple times at CppCon. His Github site is https://github.com/kirkshoop.
 
