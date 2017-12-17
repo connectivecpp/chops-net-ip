@@ -17,6 +17,7 @@
 
 #include <experimental/io_context>
 #include <experimental/internet>
+#include <experimental/buffer>
 
 #include <memory> // std::shared_ptr, std::enable_shared_from_this
 #include <atomic>
@@ -92,6 +93,12 @@ private:
 
   bool start_io_setup();
 
+  template <typename MH, typename MF>
+  void handle_read(MH&&, MF&&, chops::utility::mutable_shared_buffer, std::size_t, const std::error_code& err, std::size_t);
+
+  template <typename MH>
+  void handle_read(MH&&, chops::utility::mutable_shared_buffer, std::string_view, const std::error_code& err, std::size_t);
+
   void startWrite(boost_adjunct::shared_const_buffer);
 
   template <class MsgFrame>
@@ -104,7 +111,8 @@ private:
 
 // method implementations, just to make the class declaration a little more readable
 
-inline bool start_io_setup() {
+template <typename ET>
+bool tcp_io<ET>::start_io_setup() {
   m_started = true;
   std::error_code ec;
   m_remote_endp = m_socket.remote_endpoint(ec);
@@ -115,12 +123,14 @@ inline bool start_io_setup() {
   return true;
 }
 
+template <typename ET>
 template <typename MH, typename MF>
-void start_io(MH&& msg_hdlr, MF&& msg_frame, std::size_t header_read_size) {
+void tcp_io<ET>::start_io(MH&& msg_hdlr, MF&& msg_frame, std::size_t header_read_size) {
   if (!start_io_setup()) {
     return;
   }
-  boost::asio::async_read(m_socket, chops::utility::mutable_shared_buffer(header_read_size),
+  chops::utility::mutable_shared_buffer buf(header_read_size);
+  boost::asio::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
     [this, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_read_size]
           (const std::error_code& err, std::size_t nb) {
       handle_read(mh, mf, buf, hrs, err, nb);
@@ -128,8 +138,9 @@ void start_io(MH&& msg_hdlr, MF&& msg_frame, std::size_t header_read_size) {
   );
 }
 
+template <typename ET>
 template <typename MH, typename MF>
-void handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::utility::mutable_shared_buffer buf, 
+void tcp_io<ET>::handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::utility::mutable_shared_buffer buf, 
                  std::size_t header_read_size, const std::error_code& err, std::size_t num_bytes) {
   if (err) {
     // socket cancel errors as well as other errors
@@ -137,6 +148,7 @@ void handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::utility::mutable_shared_b
     return;
   }
   // assert num_bytes == buf.size()
+  std::experimental::net::mutable_buffer mbuf;
   std::size_t next_read_size = msg_frame(buf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_remote_endp, msg_frame)) {
@@ -145,20 +157,27 @@ void handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::utility::mutable_shared_b
                                             std::shared_from_this());
       return;
     }
+    // buf may be empty if moved from
     buf.resize(header_read_size);
+    mbuf = std::experimental::net::mutable_buffer(buf.data(), buf.size());
   }
-  jdkfljkl figure out buf size and read
+  else {
+    std::size_t old_size = buf.size();
+    buf.resize(buf.size() + next_read_size);
+    mbuf = std::experimental::net::mutable_buffer(buf.data() + old_size, next_read_size);
+  }
   // start another read, using the buffer supplied in the MsgFrame return val
-  boost::asio::async_read(m_socket, buf,
+  boost::asio::async_read(m_socket, mbuf,
     [this, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_read_size]
           (const std::error_code& err, std::size_t nb) {
-      handle_read(mh, mf, buf, hrs, err, nb);
+      handle_read(mh, mf, buf, header_read_size, err, nb);
     }
   );
 }
 
+template <typename ET>
 template <typename MH>
-void start_io(MH&& msg_hdlr, std::string_view delimiter) {
+void tcp_io<ET>::start_io(MH&& msg_hdlr, std::string_view delimiter) {
   if (!start_io_setup()) {
     return;
   }
@@ -169,10 +188,43 @@ void start_io(MH&& msg_hdlr, std::string_view delimiter) {
   );
 }
 
-// following method implementations must be inline since they are not
-// template member functions
+template <typename ET>
+template <typename MH>
+void tcp_io<ET>::handle_read(MH&& msg_hdlr, chops::utility::mutable_shared_buffer buf, std::string_view delimiter,
+                 const std::error_code& err, std::size_t num_bytes) {
+  if (err) {
+    // socket cancel errors as well as other errors
+    m_entity_ptr->io_handler_notification(err, std::shared_from_this());
+    return;
+  }
+  if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_remote_endp)) {
+    m_entity_ptr->io_handler_notification(std::make_error_code(chops::net::message_handler_terminated)
+                                          std::shared_from_this());
+    return;
+  }
+  // start another read, using the buffer supplied in the MsgFrame return val
+  boost::asio::async_read_until(m_socket, something, delimiter,
+    [this, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
+      handle_read(mh, buf, delimiter, err, nb);
+    }
+  );
+}
 
-inline void tcp_io::startWrite(boost_adjunct::shared_const_buffer buf) {
+template <typename ET>
+void tcp_io<ET>::start_io() {
+  if (!start_io_setup()) {
+    return;
+  }
+  but here
+  boost::asio::async_read(m_socket, std::experimental::net::mutable_buffer(&b, 1),
+    [this, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
+      handle_read(mh, buf, delimiter, err, nb);
+    }
+  );
+}
+
+template <typename ET>
+void tcp_io<ET>::startWrite(boost_adjunct::shared_const_buffer buf) {
   if (!mStarted) {
     return; // shutdown happening, most likely, so don't do anything
   }
@@ -185,7 +237,8 @@ inline void tcp_io::startWrite(boost_adjunct::shared_const_buffer buf) {
                                                      boost::asio::placeholders::error));
 }
 
-inline void tcp_io::handleWrite(const boost::system::error_code& err) {
+template <typename ET>
+void tcp_io<ET>::handleWrite(const boost::system::error_code& err) {
   if (err || !mStarted) { // err or shutting down
     // invoke errorCb only through read errors - a write error should result in a corresponding
     // read error in the handleRead method
