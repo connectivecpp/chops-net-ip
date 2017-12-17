@@ -25,7 +25,10 @@
 #include <cstddef> // std::size_t
 #include <utility> // std::forward
 
+#include <string_view>
+
 #include "net_ip/queue_stats.hpp"
+#include "net_ip/net_ip_error.hpp"
 #include "utility/shared_buffer.hpp"
 
 namespace chops {
@@ -40,6 +43,7 @@ private:
 private:
 
   std::experimental::net::ip::tcp::socket   m_socket;
+  std::experimental::net::ip::tcp::endpoint m_remote_endp;
   entity_ptr                                m_entity_ptr; // back reference ptr for notification to creator
   std::atomic_bool                          m_started;
   bool                                      m_write_in_progress; // internal only, doesn't need to be atomic
@@ -48,7 +52,8 @@ private:
 public:
 
   tcp_io(std::experimental::net::io_context& ioc, entity_ptr ep) noexcept : 
-    m_socket(ioc), m_entity_ptr(ep), m_started(false), m_write_in_progress(false), m_outq() { }
+    m_socket(ioc), m_remote_endp(), m_entity_ptr(ep), 
+    m_started(false), m_write_in_progress(false), m_outq() { }
 
   std::experimental::net::ip::tcp::socket& get_socket() noexcept { return m_socket; }
 
@@ -56,11 +61,18 @@ public:
 
   bool is_started() const noexcept { return m_started; }
 
-  // an is_started check is performed in the io interface object
-  template <typename MF, typename MH>
-  void start_io(MF && msg_frame, MH&& msg_handler, std::size_t initial_size);
+  // an is_started check is performed in the @c io_interface object
+  template <typename MH, typename MF>
+  void start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_read_size);
 
+  template <typename MH>
+  void start_io(MH&& msg_handler, std::string_view delimiter);
+
+  void start_io();
+
+  // this method can be called through the @c io_interface object
   void stop_io();
+
 // fix this, not correct
   void stop() {
     m_started = false;
@@ -78,9 +90,7 @@ public:
 
 private:
 
-  void notifyHandler() {
-    mErrorCb(boost::system::errc::make_error_code(boost::system::errc::operation_canceled), shared_from_this());
-  }
+  bool start_io_setup();
 
   void startWrite(boost_adjunct::shared_const_buffer);
 
@@ -92,39 +102,71 @@ private:
 
 };
 
-// method implementations, just to make the header a little more readable
+// method implementations, just to make the class declaration a little more readable
 
-template <typename MF, typename MH>
-void start_io(MF&& msg_frame, MH&& msg_hdlr, std::size_t initial_size) {
+inline bool start_io_setup() {
   m_started = true;
-  chops::utility::mutable_shared_buffer buf(initial_size);
-  boost::asio::async_read(m_socket, buf, 
-    [this, buf, mf = std::forward(msg_frame), mh = std::forward(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
-      handle_read(mf, mh, buf, err, nb);
+  std::error_code ec;
+  m_remote_endp = m_socket.remote_endpoint(ec);
+  if (ec) {
+    m_entity_ptr->io_handler_notification(ec, std::shared_from_this());
+    return false;
+  }
+  return true;
+}
+
+template <typename MH, typename MF>
+void start_io(MH&& msg_hdlr, MF&& msg_frame, std::size_t header_read_size) {
+  if (!start_io_setup()) {
+    return;
+  }
+  boost::asio::async_read(m_socket, chops::utility::mutable_shared_buffer(header_read_size),
+    [this, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_read_size]
+          (const std::error_code& err, std::size_t nb) {
+      handle_read(mh, mf, buf, hrs, err, nb);
     }
   );
 }
 
-template <typename MF, typename MH>
-void handle_read(MF&& msg_frame, MH&& msg_hdlr, chops::utility::mutable_shared_buffer buf, 
-                 const std::error_code& err, std::size_t num_bytes) {
-  if (err) { // socket cancels as well as other errors
+template <typename MH, typename MF>
+void handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::utility::mutable_shared_buffer buf, 
+                 std::size_t header_read_size, const std::error_code& err, std::size_t num_bytes) {
+  if (err) {
+    // socket cancel errors as well as other errors
     m_entity_ptr->io_handler_notification(err, std::shared_from_this());
-    return; // done, no more reads hanging
+    return;
   }
-  // assert nb == buf.size()
-  std::size_t next_num_bytes = (*mf_ptr)(buf);
-  if (next_num_bytes == 0) { // msg fully received, now invoke message handler
-    if (!(*mh_tr)(*mfPtr, OutputChannel(shared_from_this()))) { // IncomingMsgCb not happy, tear connection down
-      mErrorCb(boost::system::errc::make_error_code(boost::system::errc::operation_canceled), shared_from_this());
+  // assert num_bytes == buf.size()
+  std::size_t next_read_size = msg_frame(buf);
+  if (next_read_size == 0) { // msg fully received, now invoke message handler
+    if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_remote_endp, msg_frame)) {
+      // message handler not happy, tear everything down
+      m_entity_ptr->io_handler_notification(std::make_error_code(chops::net::message_handler_terminated)
+                                            std::shared_from_this());
       return;
     }
+    buf.resize(header_read_size);
   }
+  jdkfljkl figure out buf size and read
   // start another read, using the buffer supplied in the MsgFrame return val
-  boost::asio::async_read(m_socket, boost::asio::buffer(ret.mBuf),
-                          boost::bind(&tcp_io::handleRead<MsgFrame>, shared_from_this(),
-                                      boost::asio::placeholders::error, boost::asio::placeholders::bytes_transferred,
-                                      mfPtr, inCbPtr));
+  boost::asio::async_read(m_socket, buf,
+    [this, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_read_size]
+          (const std::error_code& err, std::size_t nb) {
+      handle_read(mh, mf, buf, hrs, err, nb);
+    }
+  );
+}
+
+template <typename MH>
+void start_io(MH&& msg_hdlr, std::string_view delimiter) {
+  if (!start_io_setup()) {
+    return;
+  }
+  boost::asio::async_read_until(m_socket, chops::utility::mutable_shared_buffer(), delimiter,
+    [this, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
+      handle_read(mh, buf, delimiter, err, nb);
+    }
+  );
 }
 
 // following method implementations must be inline since they are not
