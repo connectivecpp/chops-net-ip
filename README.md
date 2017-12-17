@@ -129,7 +129,7 @@ Specific dependencies:
   - Ring Span Lite (test)
   - Boost.Circular (test)
 - Periodic Timer (production): `networking-ts-impl`
-- Shared Buffer (production): `networking-ts-impl`
+- Shared Buffer (production): none
 
 # References
 
