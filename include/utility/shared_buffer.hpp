@@ -17,12 +17,8 @@
  *  adding convenience methods to the @c shared_const_buffer class.
  *
  *  It is likely that this shared buffer design and code will change as the C++ 
- *  Networking TS buffer features are expanded, changed, or better understood.
- *
- *  Example code:
- *  @code
- *    ... fill in example code
- *  @endcode
+ *  Networking TS buffer features are expanded, changed, or better understood. Currently
+ *  there are no direct ties to Networking TS buffer features.
  *
  *  @note Everything is declared @c noexcept except for the methods that allocate
  *  memory and might throw a memory exception. This is tighter than the @c noexcept
@@ -37,8 +33,6 @@
 
 #ifndef SHARED_BUFFER_HPP_INCLUDED
 #define SHARED_BUFFER_HPP_INCLUDED
-
-#include <experimental/buffer> // Networking TS include
 
 #include <cstddef> // std::byte
 #include <vector>
@@ -67,9 +61,6 @@ class const_shared_buffer;
  *  on @c std::vector iterator invalidation).
  *
  *  This class is similar to @c const_shared_buffer, but with mutable characteristics.
- *  While the mutable version can be used with the C++ Networking TS facilities, the 
- *  @c const_shared_buffer class is specifically designed to be used with 
- *  C++ Networking TS buffers.
  *
  *  @invariant There will always be an internal buffer of data, even if the size is zero.
  *
@@ -354,9 +345,6 @@ inline bool operator< (const mutable_shared_buffer& lhs, const mutable_shared_bu
  *  same (i.e. the internal pointer to the data and the size) for the full lifetime of the 
  *  asynchronous operations.
  *
- *  There are declarations and methods to make it compatible with the C++ Networking TS
- *  library (and possibly with Chris' Asio library).
- *
  *  @invariant There will always be an internal buffer of data, even if the size is zero.
  *
  *  @ingroup utility_module
@@ -370,15 +358,6 @@ public:
 
 private:
   std::shared_ptr<byte_vec> m_data;
-  std::experimental::net::const_buffer m_cbuf;
-
-public:
-  // Implement the Asio ConstBufferSequence requirements, allowing easy
-  // use by Asio code for writing output buffers (which won't be modified)
-//  typedef boost::asio::const_buffer value_type;
-//  typedef const boost::asio::const_buffer* const_iterator;
-//  const_iterator begin() const { return &ac_buf; }
-//  const_iterator end() const { return &ac_buf + 1; }
 
 private:
 
@@ -410,7 +389,7 @@ public:
  *  @param sz Size of buffer.
  */
   const_shared_buffer(const std::byte* buf, size_type sz)
-    : m_data(std::make_shared<byte_vec>(buf, buf+sz)), m_cbuf(m_data->data(), m_data->size()) { }
+    : m_data(std::make_shared<byte_vec>(buf, buf+sz)) { }
 
 /**
  *  @brief Construct by copying bytes from an arbitrary pointer.
@@ -451,7 +430,7 @@ public:
  *  @c mutable_shared_buffer will be empty.
  */
   explicit const_shared_buffer(mutable_shared_buffer&& rhs) noexcept
-    : m_data(std::move(rhs.m_data)), m_cbuf(m_data->data(), m_data->size()) {
+    : m_data(std::move(rhs.m_data)) {
           rhs.m_data = std::make_shared<byte_vec>(0); // set rhs back to invariant
         }
 
@@ -466,7 +445,7 @@ public:
  */
   template <typename InIt>
   const_shared_buffer(InIt beg, InIt end)
-    : m_data(std::make_shared<byte_vec>(beg, end)), m_cbuf(m_data->data(), m_data->size()) { }
+    : m_data(std::make_shared<byte_vec>(beg, end)) { }
 
 /**
  *  @brief Return @c const @c std::byte pointer to beginning of buffer.
