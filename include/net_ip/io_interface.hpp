@@ -13,18 +13,9 @@
 #ifndef IO_INTERFACE_HPP_INCLUDED
 #define IO_INTERFACE_HPP_INCLUDED
 
-#include "Socket/SockLibException.h"
-#include "Socket/OutputChannelDecls.h"
-#include "Socket/detail/OutputChannelResource.h"
+#include <memory> // std::weak_ptr
 
-#include <boost_adjunct/shared_buffer.hpp> // in sandbox
-
-#include <boost/asio/ip/udp.hpp> // udp::endpoint
-#include <boost/asio/ip/tcp.hpp> // tcp::endpoint
-
-#include <cstddef> // std::size_t
-#include <string>
-#include <limits>  // std::numeric_limits
+#include "utility/shared_buffer.hpp"
 
 namespace chops {
 namespace net {
@@ -87,30 +78,35 @@ namespace net {
  *  implicit (compiler generated).
  */
 
-class OutputChannel {
+template <typename IOH>
+class io_interface {
+private:
+  std::weak_ptr<IOH> m_ioh_ptr;
+
 public:
 
 /**
- *  @brief Default construct a @c OutputChannel object.
+ *  @brief Default construct an @c io_interface.
  *
- *  A default constructed @c OutputChannel object is provided for application convenience.
- *  If default constructed, @c OutputChannel methods will throw an exception until 
- *  a valid @c OutputChannel is copied into the default constructed object.
+ *  An @c io_interface is not useful until an active @c io_interface object is assigned
+ *  into it.
  *  
  */
-  OutputChannel () : mResourcePtr() { }
+  io_interface() = default;
 
+  io_interface(const io_interface&) = default;
+  io_interface(io_interface&&) = default;
+
+  io_interface& (const io_interface&) = default;
+  io_interface& (io_interface&&) = default;
+  
 /**
- *  @brief Construct a @c OutputChannel object with an internal network resource.
+ *  @brief Construct with a shared weak pointer to an internal io handler.
  *
- *  This constructor is used by @c SockLib internal facilities. It is not meant to be
- *  used by application code.
- *
- *  @note At some point this constructor will be declared @c private, with @c friend
- *  access to appropriate facilities.
+ *  This is an internal library constructor, and is not meant to be used by application code.
  *
  */
-  OutputChannel(detail::OutputChannelResourceWeakPtr p) : mResourcePtr(p) { }
+  io_interface(std::weak_ptr p) noexcept : m_ioh_ptr(p) { }
 
 /**
  *  @brief Query whether this object is valid (associated with a network resource).
@@ -122,10 +118,10 @@ public:
  *
  *  @return @c true if associated network resource is still valid.
  */
-  bool valid() const { return !mResourcePtr.expired(); }
+  bool is_valid() const noexcept { return !mResourcePtr.expired(); }
 
 /**
- *  @brief Send a message through this @c OutputChannel object.
+ *  @brief Send a message through the associated @c io_interface object.
  *
  *  Send a message or buffer of data. The data is copied once into internal buffers 
  *  and ownership taken by @c SockLib facilities. @c send is a non-blocking call.
@@ -144,12 +140,12 @@ public:
   void send(const char* buf, std::size_t sz) const { send(boost_adjunct::shared_const_buffer(buf, sz)); }
 
 /**
- *  @brief Send a message through this @c OutputChannel object with a 
+ *  @brief Send a message through this @c io_interface object with a 
  *  reference-counted const buffer.
  *
  *  Send a message with a reference-counted const buffer of data. This allows
  *  @c send to proceed without needing to first copy the send
- *  buffer into a @c OutputChannel internal buffer. @c send is a non-blocking call.
+ *  buffer into a @c io_interface internal buffer. @c send is a non-blocking call.
  *
  *  See corresponding docs on @c send about UDP IO handler.
  *
@@ -171,7 +167,7 @@ public:
  *
  *  Send a message or buffer of data to the specified endpoint. A copy
  *  is made of the data into internal buffers. The remote endpoint of a previous
- *  incoming datagram can be obtained with the @c OutputChannel @c remoteUdpEndpoint 
+ *  incoming datagram can be obtained with the @c io_interface @c remoteUdpEndpoint 
  *  method. Alternatively, a specific endpoint can be constructed using @c Boost
  *  facilities.
  *
@@ -218,7 +214,7 @@ public:
  *  such as @c ChannelChangeCb callbacks being invoked.
  *
  *  The @c Embankment stop is preferred to this method, or returning @c false from
- *  an @c IncomingMsgCb. The @c OutputChannel @c stop method is specifically intended for 
+ *  an @c IncomingMsgCb. The @c io_interface @c stop method is specifically intended for 
  *  TCP Acceptor connections, where a single connection needs to be brought down outside 
  *  of incoming message callback processing. 
  *
@@ -326,8 +322,6 @@ public:
   friend bool operator==(const OutputChannel&, const OutputChannel&);
   friend bool operator<(const OutputChannel&, const OutputChannel&);
 
-private:
-  detail::OutputChannelResourceWeakPtr mResourcePtr;
 };
 
 /**
