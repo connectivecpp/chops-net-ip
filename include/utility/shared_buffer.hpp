@@ -6,11 +6,15 @@
  *
  *  The @c mutable_shared_buffer and @c const_shared_buffer classes provide byte
  *  buffer classes with internal reference counting. These classes are used within 
- *  the Chops Net library to manage data buffer lifetimes. The @c mutable_shared_buffer 
+ *  the Chops Net IP library to manage data buffer lifetimes. The @c mutable_shared_buffer 
  *  class can be used to construct a data buffer, and then a @c const_shared_buffer can 
  *  be move constructed from the @c mutable_shared_buffer for use with the asynchronous 
- *  library functions (whether Chops Net or C++ Networking TS or Asio). Besides the 
- *  data buffer lifetime management, these utility classes eliminate data buffer copies.
+ *  library functions (whether Chops Net IP or C++ Networking TS or Asio). A 
+ *  @c mutable_shared_buffer can also be constructed by moving a @c std::vector of 
+ *  @c std:;bytes into it.
+ *
+ *  Besides the data buffer lifetime management, these utility classes eliminate data 
+ *  buffer copies.
  *
  *  This code is based on and modified from Chris Kohlhoff's Asio example code. It has
  *  been significantly modified by adding a @c mutable_shared_buffer class as well as 
@@ -105,6 +109,17 @@ public:
   mutable_shared_buffer() noexcept : mutable_shared_buffer(size_type(0)) { }
 
 /**
+ *  @brief Move construct, if possible, from an existing @c std::vector of
+ *  @c std::bytes.
+ *
+ *  Efficiently 
+ *
+ */
+  explicit mutable_shared_buffer(byte_vec&& bv) noexcept : 
+      mutable_shared_buffer(size_type(0)) {
+    *m_data = std::move(bv);
+  }
+/**
  *  @brief Construct a @c mutable_shared_buffer with an initial size, contents
  *  set to zero.
  *
@@ -114,8 +129,8 @@ public:
  *
  *  @param sz Size for internal @c std::byte buffer.
  */
-  explicit mutable_shared_buffer(size_type sz)
-    : m_data(std::make_shared<byte_vec>(sz)) { }
+  explicit mutable_shared_buffer(size_type sz) : 
+    m_data(std::make_shared<byte_vec>(sz)) { }
 
 /**
  *  @brief Construct by copying from a @c std::byte array.
@@ -127,8 +142,8 @@ public:
  *
  *  @param sz Size of buffer.
  */
-  mutable_shared_buffer(const std::byte* buf, size_type sz)
-    : m_data(std::make_shared<byte_vec>(buf, buf+sz)) { }
+  mutable_shared_buffer(const std::byte* buf, size_type sz) : 
+    m_data(std::make_shared<byte_vec>(buf, buf+sz)) { }
 
 /**
  *  @brief Construct by copying bytes from an arbitrary pointer.
@@ -143,8 +158,8 @@ public:
  *  @param sz Size of buffer, in bytes.
  */
   template <typename T>
-  mutable_shared_buffer(const T* buf, size_type sz)
-    : mutable_shared_buffer(static_cast<const std::byte*>(static_cast<const void*>(buf)), sz) { }
+  mutable_shared_buffer(const T* buf, size_type sz) : 
+    mutable_shared_buffer(static_cast<const std::byte*>(static_cast<const void*>(buf)), sz) { }
 
 /**
  *  @brief Construct from input iterators.
@@ -156,8 +171,8 @@ public:
  *
  */
   template <typename InIt>
-  mutable_shared_buffer(InIt beg, InIt end)
-    : m_data(std::make_shared<byte_vec>(beg, end)) { }
+  mutable_shared_buffer(InIt beg, InIt end) : 
+    m_data(std::make_shared<byte_vec>(beg, end)) { }
 
 /**
  *  @brief Return @c std::byte pointer to beginning of buffer.
@@ -388,8 +403,8 @@ public:
  *
  *  @param sz Size of buffer.
  */
-  const_shared_buffer(const std::byte* buf, size_type sz)
-    : m_data(std::make_shared<byte_vec>(buf, buf+sz)) { }
+  const_shared_buffer(const std::byte* buf, size_type sz) : 
+    m_data(std::make_shared<byte_vec>(buf, buf+sz)) { }
 
 /**
  *  @brief Construct by copying bytes from an arbitrary pointer.
@@ -404,8 +419,8 @@ public:
  *  @param sz Size of buffer, in bytes.
  */
   template <typename T>
-  const_shared_buffer(const T* buf, size_type sz)
-    : const_shared_buffer(static_cast<const std::byte*>(static_cast<const void*>(buf)), sz) { }
+  const_shared_buffer(const T* buf, size_type sz) : 
+    const_shared_buffer(static_cast<const std::byte*>(static_cast<const void*>(buf)), sz) { }
 
 /**
  *  @brief Construct by copying from a @c mutable_shared_buffer object.
@@ -415,8 +430,8 @@ public:
  *  
  *  @param rhs @c mutable_shared_buffer containing bytes to be copied.
  */
-  explicit const_shared_buffer(const mutable_shared_buffer& rhs)
-    : const_shared_buffer(rhs.data(), rhs.size()) { }
+  explicit const_shared_buffer(const mutable_shared_buffer& rhs) : 
+    const_shared_buffer(rhs.data(), rhs.size()) { }
 
 /**
  *  @brief Construct by moving from a @c mutable_shared_buffer object.
@@ -429,10 +444,10 @@ public:
  *  @param rhs @c mutable_shared_buffer to be moved from; after moving the 
  *  @c mutable_shared_buffer will be empty.
  */
-  explicit const_shared_buffer(mutable_shared_buffer&& rhs) noexcept
-    : m_data(std::move(rhs.m_data)) {
-          rhs.m_data = std::make_shared<byte_vec>(0); // set rhs back to invariant
-        }
+  explicit const_shared_buffer(mutable_shared_buffer&& rhs) noexcept : 
+      m_data(std::move(rhs.m_data)) {
+    rhs.m_data = std::make_shared<byte_vec>(0); // set rhs back to invariant
+  }
 
 /**
  *  @brief Construct from input iterators.
@@ -444,8 +459,7 @@ public:
  *
  */
   template <typename InIt>
-  const_shared_buffer(InIt beg, InIt end)
-    : m_data(std::make_shared<byte_vec>(beg, end)) { }
+  const_shared_buffer(InIt beg, InIt end) : m_data(std::make_shared<byte_vec>(beg, end)) { }
 
 /**
  *  @brief Return @c const @c std::byte pointer to beginning of buffer.
