@@ -101,12 +101,12 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
   } // end given
 }
 
-SCENARIO ( "Const shared buffer common test", "[const_shared_buffer_common]" ) {
+SCENARIO ( "Const shared buffer common test", "[const_shared_common]" ) {
   auto arr = chops::make_byte_array( 40, 41, 42, 43, 44, 60, 59, 58, 57, 56, 42, 42 );
   shared_buffer_common<chops::const_shared_buffer>(arr.data(), arr.size());
 }
 
-SCENARIO ( "Mutable shared buffer common test", "[mutable_shared_buffer_common]" ) {
+SCENARIO ( "Mutable shared buffer common test", "[mutable_shared_common]" ) {
   auto arr = chops::make_byte_array ( 80, 81, 82, 83, 84, 90, 91, 92 );
   shared_buffer_common<chops::const_shared_buffer>(arr.data(), arr.size());
 }
@@ -236,7 +236,7 @@ SCENARIO ( "Mutable shared buffer append", "[mutable_shared_append]" ) {
   } // end given
 }
 
-SCENARIO ( "Compare a mutable shared_buffer with a const shared buffer", "[shared_buffer_compare]" ) {
+SCENARIO ( "Compare a mutable shared_buffer with a const shared buffer", "[shared_compare]" ) {
 
   GIVEN ("An array of bytes") {
     auto arr = chops::make_byte_array (0xaa, 0xbb, 0xcc);
@@ -272,3 +272,18 @@ SCENARIO ( "Mutable shared buffer move into const shared buffer", "[mutable_shar
   } // end given
 }
 
+SCENARIO ( "Move a vector of bytes into a mutable shared buffer", "[move_byte_vec_to_mutable_shared]" ) {
+
+  auto arr = chops::make_byte_array (0x01, 0x02, 0x03, 0x04, 0x05);
+
+  GIVEN ("A vector of bytes") {
+    std::vector<std::byte> bv { arr.cbegin(), arr.cend() };
+    WHEN ("A mutable shared buffer is constructed by moving from the byte vector") {
+      chops::mutable_shared_buffer msb(std::move(bv));
+      THEN ("the mutable shared buffer will contain the data and the byte vector will not") {
+        REQUIRE (msb == chops::mutable_shared_buffer(arr.cbegin(), arr.cend()));
+        REQUIRE (bv.size() != msb.size());
+      }
+    }
+  } // end given
+}
