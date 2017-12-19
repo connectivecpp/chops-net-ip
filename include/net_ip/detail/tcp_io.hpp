@@ -15,6 +15,7 @@
 #ifndef TCP_IO_HPP_INCLUDED
 #define TCP_IO_HPP_INCLUDED
 
+#include <experimental/excecutor>
 #include <experimental/io_context>
 #include <experimental/internet>
 #include <experimental/buffer>
@@ -72,19 +73,16 @@ public:
   // this method can be called through the @c io_interface object
   void stop_io();
 
-// fix this, not correct
-  void stop() {
+  void send(chops::shared_const_buffer buf) {
+    auto self { std::shared_from_this() };
+    std::experimental::net::post(m_socket.get_executor(), [this, self, buf] { start_write(buf); } );
+  }
+
+  // this method can only be called through a net entity, assumes all error codes have already
+  // been reported back to the net entity
+  void close() {
     m_started = false;
     m_socket.close();
-  }
-
-  void send(chops::shared_const_buffer buf) {
-    m_socket.get_io_service().post(boost::bind(&tcp_io::start_write, shared_from_this(), buf));
-  }
-
-  // this stop can be called through OutputChannel
-  virtual void stop() {
-    m_socket.get_io_service().post(boost::bind(&tcp_io::notifyHandler, shared_from_this()));
   }
 
 private:
@@ -103,7 +101,7 @@ private:
 
   void start_write(chops::shared_const_buffer);
 
-  void handleWrite(const std::error_code&);
+  void handle_write(const std::error_code&);
 
 };
 
@@ -112,7 +110,6 @@ private:
 template <typename ET>
 bool tcp_io<ET>::process_err_code(const std::error_code& err) {
   if (err) {
-    m_started = false;
     m_entity_ptr->io_handler_notification(err, std::shared_from_this());
     return false;
   }
@@ -233,9 +230,6 @@ void tcp_io<ET>::handle_read(chops::mutable_shared_buffer buf, const std::error_
   }
   std::experimental::net::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
     [this, buf] (const std::error_code& err, std::size_t nb) {
-      if (!process_err_code(err)) {
-        return;
-      }
       handle_read(buf, err, nb);
     }
   );
@@ -244,32 +238,35 @@ void tcp_io<ET>::handle_read(chops::mutable_shared_buffer buf, const std::error_
 template <typename ET>
 void tcp_io<ET>::start_write(chops::shared_const_buffer buf) {
   if (!mStarted) {
-    return; // shutdown happening, most likely, so don't do anything
+    return; // close happening, don't start a write
   }
-  if (mWriteInProgress) { // queue buffer
-    queueEntry(buf);
+  if (m_write_in_progress) { // queue buffer
+    m_outq.add_element(buf);
     return;
   }
-  mWriteInProgress = true;
-  std::experimental::net::async_write(m_socket, buf, boost::bind(&tcp_io::handleWrite, shared_from_this(),
-                                                     boost::asio::placeholders::error));
+  auto self { std::shared_from_this() };
+  m_write_in_progress = true;
+  std::experimental::net::async_write(m_socket, buf, [this, self] 
+      (const std::system::error_code& err, std::size_t nb) { handle_write(err, nb); }
+  );
 }
 
 template <typename ET>
-void tcp_io<ET>::handleWrite(const std::system::error_code& err) {
+void tcp_io<ET>::handle_write(const std::system::error_code& err, std::size_t /* num_bytes */) {
   if (err || !mStarted) { // err or shutting down
-    // invoke errorCb only through read errors - a write error should result in a corresponding
-    // read error in the handleRead method
+    // error notification happens only through read errors
     return;
   }
-  OutputChannelResource::OptEntry e = nextEntry();
-  if (!e) { // queue empty, no more writes needed for now
-    mWriteInProgress = false;
+  auto elem = m_outq.get_next_element();
+  if (!elem) {
+    // queue empty, no more writes needed for now
+    m_write_in_progress = false;
     return;
   }
-  mWriteInProgress = true;
-  std::experimental::net::async_write(m_socket, e->first, boost::bind(&tcp_io::handleWrite, shared_from_this(),
-                                                         boost::asio::placeholders::error));
+  auto self { std::shared_from_this() };
+  m_write_in_progress = true;
+  std::experimental::net::async_write(m_socket, elem->first, [this, self]
+      (const std::system::error_code& err, std::size_t nb) { handle_write(err, nb); }
 }
 
 } // end detail namespace
