@@ -109,10 +109,10 @@ public:
   mutable_shared_buffer() noexcept : mutable_shared_buffer(size_type(0)) { }
 
 /**
- *  @brief Move construct, if possible, from an existing @c std::vector of
- *  @c std::bytes.
+ *  @brief Move construct from a @c std::vector of @c std::bytes.
  *
- *  Efficiently 
+ *  Efficiently construct from a @c std::vector of @c std::bytes by moving
+ *  into a @c mutable_shared_buffer.
  *
  */
   explicit mutable_shared_buffer(byte_vec&& bv) noexcept : 
@@ -447,6 +447,18 @@ public:
   explicit const_shared_buffer(mutable_shared_buffer&& rhs) noexcept : 
       m_data(std::move(rhs.m_data)) {
     rhs.m_data = std::make_shared<byte_vec>(0); // set rhs back to invariant
+  }
+
+/**
+ *  @brief Move construct from a @c std::vector of @c std::bytes.
+ *
+ *  Efficiently construct from a @c std::vector of @c std::bytes by moving
+ *  into a @c const_shared_buffer.
+ *
+ */
+  explicit const_shared_buffer(byte_vec&& bv) noexcept :
+      m_data(std::make_shared<byte_vec>()) { 
+    *m_data = std::move(bv);
   }
 
 /**
