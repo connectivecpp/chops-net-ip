@@ -116,7 +116,7 @@ The libraries and API's have minimal (as possible) library dependencies (there a
 - Version 1.11 (or later) of Chris Kohlhoff's `networking-ts-impl` (Networking TS) repository is required for some components. Note that the version number is from the Asio version and may not exactly match the Networking TS version.
 - Version 2.01 (or later) of Phil Nash's Catch 2.0 is required for all test scenarios.
 - Version 0.00 (or later) of Martin's Ring Span Lite is required for some test scenarios.
-- Version 1.65.1 of the Boost library (specific usages below).
+- Version 1.65.1 or 1.66.0 of the Boost library (specific usages below).
 
 See [Reference Section](#references)) for additional details on the above libraries.
 
