@@ -27,7 +27,6 @@ constexpr std::byte Harhar { 42 };
 constexpr int N = 11;
 
 
-
 template <typename SB, typename T>
 void pointer_check(const T* bp, typename SB::size_type sz) {
 
@@ -101,6 +100,23 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
   } // end given
 }
 
+template <typename SB>
+void shared_buffer_byte_vector_move() {
+
+  auto arr = chops::make_byte_array (0x01, 0x02, 0x03, 0x04, 0x05);
+
+  GIVEN ("A vector of bytes") {
+    std::vector<std::byte> bv { arr.cbegin(), arr.cend() };
+    WHEN ("A shared buffer is constructed by moving from the byte vector") {
+      SB sb(std::move(bv));
+      THEN ("the shared buffer will contain the data and the byte vector will not") {
+        REQUIRE (sb == SB(arr.cbegin(), arr.cend()));
+        REQUIRE (bv.size() != sb.size());
+      }
+    }
+  } // end given
+}
+ 
 SCENARIO ( "Const shared buffer common test", "[const_shared_common]" ) {
   auto arr = chops::make_byte_array( 40, 41, 42, 43, 44, 60, 59, 58, 57, 56, 42, 42 );
   shared_buffer_common<chops::const_shared_buffer>(arr.data(), arr.size());
@@ -274,16 +290,12 @@ SCENARIO ( "Mutable shared buffer move into const shared buffer", "[mutable_shar
 
 SCENARIO ( "Move a vector of bytes into a mutable shared buffer", "[move_byte_vec_to_mutable_shared]" ) {
 
-  auto arr = chops::make_byte_array (0x01, 0x02, 0x03, 0x04, 0x05);
+  shared_buffer_byte_vector_move<chops::mutable_shared_buffer>();
 
-  GIVEN ("A vector of bytes") {
-    std::vector<std::byte> bv { arr.cbegin(), arr.cend() };
-    WHEN ("A mutable shared buffer is constructed by moving from the byte vector") {
-      chops::mutable_shared_buffer msb(std::move(bv));
-      THEN ("the mutable shared buffer will contain the data and the byte vector will not") {
-        REQUIRE (msb == chops::mutable_shared_buffer(arr.cbegin(), arr.cend()));
-        REQUIRE (bv.size() != msb.size());
-      }
-    }
-  } // end given
+}
+
+SCENARIO ( "Move a vector of bytes into a const shared buffer", "[move_byte_vec_to_const_shared]" ) {
+
+  shared_buffer_byte_vector_move<chops::const_shared_buffer>();
+
 }
