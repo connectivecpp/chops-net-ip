@@ -28,6 +28,7 @@
 #include <utility> // std::forward
 #include <string>
 
+#include "net_ip/detail/output_queue.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
 #include "utility/shared_buffer.hpp"
@@ -80,12 +81,11 @@ public:
 
   // this method can only be called through a net entity, assumes all error codes have already
   // been reported back to the net entity
-  void close() {
-    m_started = false;
-    m_socket.close();
-  }
+  void close();
 
 private:
+
+  void close_socket() { m_socket.close(); }
 
   bool process_err_code(const std::error_code&);
 
@@ -101,11 +101,19 @@ private:
 
   void start_write(chops::shared_const_buffer);
 
-  void handle_write(const std::error_code&);
+  void handle_write(const std::error_code&, std::size_t);
 
 };
 
 // method implementations, just to make the class declaration a little more readable
+
+template <typename ET>
+void tcp_io<ET>::close() {
+  m_started = false;
+  m_socket.shutdown(); // attempt graceful shutdown
+  auto self { std::shared_from_this() };
+  std::experimental::net::post(m_socket.get_executor(), [this, self] { close_socket(); } );
+}
 
 template <typename ET>
 bool tcp_io<ET>::process_err_code(const std::error_code& err) {
