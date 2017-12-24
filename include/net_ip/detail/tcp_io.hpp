@@ -74,6 +74,7 @@ public:
   // this method can be called through the @c io_interface object
   void stop_io();
 
+  // use post for thread safety, multiple threads can call this method
   void send(chops::shared_const_buffer buf) {
     auto self { std::shared_from_this() };
     std::experimental::net::post(m_socket.get_executor(), [this, self, buf] { start_write(buf); } );

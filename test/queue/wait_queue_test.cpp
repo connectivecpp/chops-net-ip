@@ -49,7 +49,7 @@ void non_threaded_push_test(Q& wq, const T& val, int count) {
       }
     }
 
-    WHEN ("Values are popped from the queue") {
+    AND_WHEN ("Values are popped from the queue") {
       chops::repeat(count, [&wq, &val] () { wq.push(val); } );
       chops::repeat(count, [&wq, &val] () { auto ret = wq.try_pop(); REQUIRE(*ret == val); } );
       THEN ("the size decreases to zero") {
@@ -75,7 +75,7 @@ void non_threaded_arithmetic_test(Q& wq, const T& base_val, int count, const T& 
       }
     }
 
-    WHEN ("Try_pop is called") {
+    AND_WHEN ("Try_pop is called") {
       chops::repeat(count, [&wq, &base_val] (const int& i) { wq.push(base_val+i); } );
       THEN ("elements should be popped in FIFO order") {
         chops::repeat(count, [&wq, &base_val] (const int& i) { REQUIRE(*(wq.try_pop()) == (base_val+i)); } );
@@ -103,7 +103,7 @@ void non_threaded_open_close_test(Q& wq, const T& val, int count) {
         REQUIRE (wq.empty());
       }
     }
-    WHEN ("Open is called") {
+    AND_WHEN ("Open is called") {
       wq.close();
       REQUIRE (wq.is_closed());
       wq.open();
@@ -114,7 +114,7 @@ void non_threaded_open_close_test(Q& wq, const T& val, int count) {
         REQUIRE (wq.size() == count);
       }
     }
-    WHEN ("Close is called") {
+    AND_WHEN ("Close is called") {
       chops::repeat(count, [&wq, &val] () { wq.push(val); } );
       REQUIRE (!wq.empty());
       wq.close();
@@ -369,7 +369,7 @@ SCENARIO ( "Non-threaded wait_queue test, testing complex constructor and emplac
       }
     }
 
-    WHEN ("Values are popped from the queue") {
+    AND_WHEN ("Values are popped from the queue") {
       std::optional<Band> val1 { wq.try_pop() };
       std::optional<Band> val2 { wq.try_pop() };
       THEN ("the values are correct and the wait_queue is empty") {
@@ -401,7 +401,7 @@ SCENARIO ( "Fixed size ring_span, testing wrap around with int type",
         wq.apply([Answer] (const int& i) { REQUIRE(i == Answer); } );
       }
     }
-    WHEN ("The wait_queue is loaded completely with answer, then answer plus is added") {
+    AND_WHEN ("The wait_queue is loaded completely with answer, then answer plus is added") {
       chops::repeat(N, [&wq, Answer] { wq.push(Answer); } );
       chops::repeat(N / 2, [&wq, AnswerPlus] { wq.push(AnswerPlus); } );
       THEN ("the size is full but half match answer and half answer plus, since there's been wrap") {
@@ -426,13 +426,13 @@ SCENARIO ( "Threaded wait queue, deque int", "[wait_queue_threaded_deque_int]" )
       }
     }
 
-    WHEN ("Parameters are 5 reader, 3 writer threads, 1000 slice") {
+    AND_WHEN ("Parameters are 5 reader, 3 writer threads, 1000 slice") {
       THEN ("threads will be created and joined") {
         REQUIRE ( threaded_test(wq, 5, 3, 1000, 1212) );
       }
     }
 
-    WHEN ("Parameters are 60 reader, 40 writer threads, 5000 slice") {
+    AND_WHEN ("Parameters are 60 reader, 40 writer threads, 5000 slice") {
       THEN ("threads will be created and joined") {
         REQUIRE ( threaded_test(wq, 60, 40, 5000, 5656) );
       }

@@ -39,35 +39,35 @@ SCENARIO( "Vittorio Romeo's repeat utility is a function template to repeat code
       REQUIRE (gSum == N);
     }
   }
-  WHEN ("A function that does care about the passed in index is invoked") {
+  AND_WHEN ("A function that does care about the passed in index is invoked") {
     gSum = 0;
     chops::repeat(N, myfunc_b);
     THEN ("the global counter should now equal N") {
       REQUIRE (gSum == N);
     }
   }
-  WHEN ("A lambda func that doesn't care about the passed in index is invoked") {
+  AND_WHEN ("A lambda func that doesn't care about the passed in index is invoked") {
     gSum = 0;
     chops::repeat(N, [] { myfunc_a(); } );
     THEN ("the global counter should now equal N") {
       REQUIRE (gSum == N);
     }
   }
-  WHEN ("A lambda func that does care about the passed in index is invoked") {
+  AND_WHEN ("A lambda func that does care about the passed in index is invoked") {
     gSum = 0;
     chops::repeat(N, [] (int i) { myfunc_b(i); } );
     THEN ("the global counter should now equal N") {
       REQUIRE (gSum == N);
     }
   }
-  WHEN ("A lambda func that doesn't care about the index but has a local var is invoked") {
+  AND_WHEN ("A lambda func that doesn't care about the index but has a local var is invoked") {
     int lSum = 0;
     chops::repeat(N, [&lSum] { lSum += 1; } );
     THEN ("the local counter should now equal N") {
       REQUIRE (lSum == N);
     }
   }
-  WHEN ("A lambda func that does care about the index and has a local var is invoked") {
+  AND_WHEN ("A lambda func that does care about the index and has a local var is invoked") {
     int lSum = 0;
     chops::repeat(N, [&lSum] (int i) { REQUIRE (lSum == i); lSum += 1; } );
     THEN ("the local counter should now equal N") {

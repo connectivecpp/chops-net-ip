@@ -65,14 +65,14 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
         REQUIRE (sb == sb2);
       }
     }
-    WHEN ("A second shared buffer is copy constructed") {
+    AND_WHEN ("A second shared buffer is copy constructed") {
       SB sb2(sb);
       REQUIRE (!sb2.empty());
       THEN ("the two shared buffers compare equal") {
         REQUIRE (sb == sb2);
       }
     }
-    WHEN ("A shared buffer is constructed from another container") {
+    AND_WHEN ("A shared buffer is constructed from another container") {
       std::list<std::byte> lst (buf, buf+sz);
       SB sb2(lst.cbegin(), lst.cend());
       REQUIRE (!sb2.empty());
@@ -80,7 +80,7 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
         REQUIRE (sb == sb2);
       }
     }
-    WHEN ("A separate shared buffer is constructed shorter than the first") {
+    AND_WHEN ("A separate shared buffer is constructed shorter than the first") {
       auto ba = chops::make_byte_array(buf[0], buf[1]);
       SB sb2(ba.cbegin(), ba.cend());
       REQUIRE (!sb2.empty());
@@ -89,7 +89,7 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
         REQUIRE (sb2 != sb);
       }
     }
-    WHEN ("A separate shared buffer is constructed with values less than the first") {
+    AND_WHEN ("A separate shared buffer is constructed with values less than the first") {
       auto ba = chops::make_byte_array(0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
       SB sb2(ba.cbegin(), ba.cend());
       REQUIRE (!sb2.empty());
@@ -144,7 +144,7 @@ SCENARIO ( "Mutable shared buffer copy construction and assignment", "[mutable_s
         REQUIRE (sb == sb2);
       }
     }
-    WHEN ("Another mutable shared buffer is copy constructed") {
+    AND_WHEN ("Another mutable shared buffer is copy constructed") {
       sb = chops::mutable_shared_buffer(arr.cbegin(), arr.cend());
       chops::mutable_shared_buffer sb2(sb);
       THEN ("the two shared buffers compare equal and a change to the first shows in the second") {
@@ -168,7 +168,7 @@ SCENARIO ( "Mutable shared buffer resize and clear", "[mutable_shared_resize_cle
         chops::repeat(N, [&sb] (const int& i) { REQUIRE (*(sb.data() + i) == std::byte{0} ); } );
       }
     }
-    WHEN ("Another mutable shared buffer with a size is constructed") {
+    AND_WHEN ("Another mutable shared buffer with a size is constructed") {
       sb.resize(N);
       chops::mutable_shared_buffer sb2(N);
       THEN ("the two shared buffers compare equal, with all zeros in the buffer") {
@@ -179,7 +179,7 @@ SCENARIO ( "Mutable shared buffer resize and clear", "[mutable_shared_resize_cle
         } );
       }
     }
-    WHEN ("The mutable shared buffer is cleared") {
+    AND_WHEN ("The mutable shared buffer is cleared") {
       sb.resize(N);
       sb.clear();
       THEN ("the size will be zero and the buffer is empty") {
@@ -228,20 +228,20 @@ SCENARIO ( "Mutable shared buffer append", "[mutable_shared_append]" ) {
         REQUIRE (sb == ta);
       }
     }
-    WHEN ("Append with a mutable shared buffer is called") {
+    AND_WHEN ("Append with a mutable shared buffer is called") {
       sb.append(ta);
       THEN ("the internal buffer will contain the appended data") {
         REQUIRE (sb == ta);
       }
     }
-    WHEN ("Append is called twice") {
+    AND_WHEN ("Append is called twice") {
       sb.append(ta);
       sb.append(ta);
       THEN ("the internal buffer will contain twice the appended data") {
         REQUIRE (sb == ta2);
       }
     }
-    WHEN ("Appending with single bytes") {
+    AND_WHEN ("Appending with single bytes") {
       sb.append(std::byte(0xaa));
       sb.append(std::byte(0xbb));
       sb += std::byte(0xcc);

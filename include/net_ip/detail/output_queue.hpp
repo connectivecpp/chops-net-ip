@@ -18,7 +18,7 @@
 #ifndef OUTPUT_QUEUE_HPP_INCLUDED
 #define OUTPUT_QUEUE_HPP_INCLUDED
 
-#include <experimental/internet> // ip::udp::endpoint
+#include <experimental/internet> // std::experimental::net::ip::basic_endpoint
 
 #include <queue>
 #include <atomic>
@@ -33,12 +33,12 @@ namespace chops {
 namespace net {
 namespace detail {
 
+template <typename Protocol>
 class output_queue {
 private:
 
-  using queue_element = std::pair<chops::const_shared_buffer,
-                        std::optional<std::experimental::net::ip::udp::endpoint>>;
-  using opt_udp_endpoint = std::optional<std::experimental::net::ip::udp::endpoint>;
+  using opt_endpoint = std::optional<std::experimental::net::ip::basic_endpoint<Protocol> >;
+  using queue_element = std::pair<chops::const_shared_buffer, opt_endpoint>;
 
 private:
 
@@ -68,11 +68,12 @@ public:
   }
 
   void add_element(const chops::const_shared_buffer& buf) {
-    add_element(buf, opt_udp_endpoint());
+    add_element(buf, opt_endpoint());
   }
 
-  void add_element(const chops::const_shared_buffer& buf, const std::experimental::net::ip::udp::endpoint& endp) {
-    add_element(buf, opt_udp_endpoint(endp));
+  void add_element(const chops::const_shared_buffer& buf, 
+                   const std::experimental::net::ip::basic_endpoint<Protocol>& endp) {
+    add_element(buf, opt_endpoint(endp));
   }
 
   chops::net::output_queue_stats get_queue_stats() const noexcept {
@@ -84,8 +85,8 @@ public:
 
 private:
 
-  void add_element(const chops::const_shared_buffer& buf, opt_udp_endpoint&& opt_endp) {
-    m_output_queue.push(std::pair<chops::const_shared_buffer, opt_udp_endpoint>(buf, opt_endp));
+  void add_element(const chops::const_shared_buffer& buf, opt_endpoint&& opt_endp) {
+    m_output_queue.push(queue_element(buf, opt_endp));
     ++m_queue_size;
     m_current_num_bytes += buf.size(); // note - possible integer overflow
     // ++m_total_bufs_sent;

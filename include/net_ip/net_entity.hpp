@@ -13,8 +13,6 @@
 #ifndef NET_ENTITY_HPP_INCLUDED
 #define NET_ENTITY_HPP_INCLUDED
 
-#include "Socket/detail/SockLibResource.h"
-#include "Socket/EmbankmentDecls.h"
 #include "Socket/SockLibException.h"
 
 #include <cstddef> // std::size_t 
@@ -23,17 +21,17 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief The @c Embankment class is the primary application interface into the
+ *  @brief The @c net_entity class is the primary application interface into the
  *  @c SockLib facilities, including callback object interfaces and start / stop 
  *  processing.
  *
- *  The @c Embankment class provides callback object interfaces for a 
+ *  The @c net_entity class provides callback object interfaces for a 
  *  @c SockLib facility, as well as ways to control processing (start, stop,
- *  validity querying). An @c Embankment object is the primary way that an
+ *  validity querying). An @c net_entity object is the primary way that an
  *  application interfaces to @c SockLib, outside of the @c OutputChannel class,
  *  which is used for message sending.
  *
- *  The @c Embankment class is a lightweight, value-based class, designed
+ *  The @c net_entity class is a lightweight, value-based class, designed
  *  to be easy and efficient to copy and store as a member object. It 
  *  abstracts multiple network protocols into a consistent interface.
  *  It does not contain any network resources itself, but instead provides a 
@@ -46,25 +44,25 @@ namespace net {
  *  are created through a corresponding @c SockLib @c create method (see
  *  @c SockLib class for additional details).
  *
- *  An @c Embankment can either point to a valid network resource (i.e.
+ *  An @c net_entity can either point to a valid network resource (i.e.
  *  the "weak pointer" is good), or can point to a non-existent or invalid
  *  network resource (i.e. the "weak pointer" is invalid). A non-existent
  *  or invalid network resource might occur if the network resource has
  *  been destroyed (through the @c SockLib interface), or the @c SockLib
- *  object itself has been stopped or destroyed. If an @c Embankment method 
+ *  object itself has been stopped or destroyed. If an @c net_entity method 
  *  is called while the "weak pointer" is invalid, an exception will be thrown.
  *
- *  If an @c Embankment is default constructed, it is in an invalid state
- *  until another @c Embankment object is copied into it. The @c create
- *  methods of the @c SockLib class (factory functions) provide an @c Embankment 
+ *  If an @c net_entity is default constructed, it is in an invalid state
+ *  until another @c net_entity object is copied into it. The @c create
+ *  methods of the @c SockLib class (factory functions) provide an @c net_entity 
  *  that is fully valid and ready to use.
  *
- *  Equivalence and ordering operators are provided to allow @c Embankment objects
+ *  Equivalence and ordering operators are provided to allow @c net_entity objects
  *  to be conveniently used in associative or sequence containers, such as @c std::map or
  *  @c std::list.
  *
- *  All @c Embankment methods are safe to call concurrently from multiple
- *  threads. However, care must be taken when calling @c Embankment
+ *  All @c net_entity methods are safe to call concurrently from multiple
+ *  threads. However, care must be taken when calling @c net_entity
  *  methods from within a callback, such as a @c ChannelChangeCb or
  *  an @c IncomingMsgCb.
  *
@@ -74,25 +72,25 @@ namespace net {
  *  implicit (compiler generated).
  */
 
-class Embankment {
+class net_entity {
 public:
 
-  // Embankment (Embankment const&); // implicit - compiler generated
-  // Embankment& operator= (Embankment const&); // implicit - compiler generated
-  // ~Embankment(); // implicit - compiler generated
+  // net_entity (net_entity const&); // implicit - compiler generated
+  // net_entity& operator= (net_entity const&); // implicit - compiler generated
+  // ~net_entity(); // implicit - compiler generated
 
 /**
- *  @brief Default construct an @c Embankment object.
+ *  @brief Default construct an @c net_entity object.
  *
- *  A default constructed @c Embankment object is provided for application convenience.
- *  If default constructed, most @c Embankment methods will throw an exception until 
- *  a valid @c Embankment is copied into the default constructed object.
+ *  A default constructed @c net_entity object is provided for application convenience.
+ *  If default constructed, most @c net_entity methods will throw an exception until 
+ *  a valid @c net_entity is copied into the default constructed object.
  *  
  */
-  Embankment () : mResourcePtr() { }
+  net_entity () : mResourcePtr() { }
 
 /**
- *  @brief Construct an @c Embankment object with a @c SockLib resource.
+ *  @brief Construct an @c net_entity object with a @c SockLib resource.
  *
  *  This constructor is used by @c SockLib internal facilities. It is not meant
  *  to be used by application code.
@@ -101,16 +99,16 @@ public:
  *  access to appropriate facilities.
  *  
  */
-  Embankment (detail::SockLibResourceWeakPtr p) : mResourcePtr(p) { }
+  net_entity (detail::SockLibResourceWeakPtr p) : mResourcePtr(p) { }
 
 /**
  *  @brief Query whether this object is valid (associated with a network resource).
  *
- *  An @c Embankment object is associated with a @c SockLib network resource
- *  through the @c SockLib @c create methods. If an @c Embankment is default constructed,
+ *  An @c net_entity object is associated with a @c SockLib network resource
+ *  through the @c SockLib @c create methods. If an @c net_entity is default constructed,
  *  it is not in a valid state, and this method will return @c false. If the 
- *  network resource associated with an @c Embankment is destroyed (e.g. the 
- *  creating @c SockLib object is destroyed, for example by calling the @c Embankment @c stop 
+ *  network resource associated with an @c net_entity is destroyed (e.g. the 
+ *  creating @c SockLib object is destroyed, for example by calling the @c net_entity @c stop 
  *  method), this method will return @c false.
  *
  *  @return @c true if associated network resource is still valid.
@@ -121,7 +119,7 @@ public:
  *  @brief Query whether the associated network resource is started or not.
  *
  *  The associated network resource is started if the @c start method from an associated
- *  @c Embankment has been called. 
+ *  @c net_entity has been called. 
  *
  *  @return @c true if the network resource has been started, @c false otherwise.
  *
@@ -131,7 +129,7 @@ public:
     if (detail::SockLibResourcePtr p = mResourcePtr.lock()) {
       return p->started();
     }
-    throw SockLibResourceException("Embankment.started");
+    throw SockLibResourceException("net_entity.started");
   }
 
 /**
@@ -177,7 +175,7 @@ public:
  *  following values:
  *  1) empty @c OutputChannel (default constructed, @c valid() == @c false); 
  *  2) zero (non-error) boost::system::error_code; 
- *  3) 0 (count of valid connections or resources for this @c Embankment).
+ *  3) 0 (count of valid connections or resources for this @c net_entity).
  *
  *  @param msgFrame Function object or function pointer that provides "message
  *  framing" callback handling. See @c MsgFrame class documentation for more info.
@@ -215,7 +213,7 @@ public:
     if (detail::SockLibResourcePtr p = mResourcePtr.lock()) {
       return p->start(ccCb, msgFrame, incMsgCb);
     }
-    throw SockLibResourceException("Embankment.start");
+    throw SockLibResourceException("net_entity.start");
   }
 
 /**
@@ -231,7 +229,7 @@ public:
     if (detail::SockLibResourcePtr p = mResourcePtr.lock()) {
       return p->start(ccCb, SimpleMsgFrame(), simpleIncomingMsgCb);
     }
-    throw SockLibResourceException("Embankment.start");
+    throw SockLibResourceException("net_entity.start");
   }
 
 /**
@@ -239,14 +237,14 @@ public:
  *  resources.
  *
  *  Stopping network processing may involve closing connections, deallocating
- *  resources, and unbinding from ports. It will affect other @c Embankment objects
+ *  resources, and unbinding from ports. It will affect other @c net_entity objects
  *  associated with the same network resource.
  *
  *  A @c ChannelChangeCb will be invoked for each associated TCP connection or UDP resource 
  *  when @c stop is called, with the following values:
  *  1) valid @c OutputChannel corresponding to the connection / resource
  *  2) boost::system::error_code with the value boost::system::errc::operation_canceled
- *  3) 0 / N (count of valid connections or resources for this @c Embankment).
+ *  3) 0 / N (count of valid connections or resources for this @c net_entity).
  *
  *  Specifically, a TCP connector and UDP resource will have one @c ChannelChangeCb invocation
  *  with a channel count of 0, while a TCP acceptor will have a @c ChannelChangeCb invocation
@@ -265,11 +263,11 @@ public:
       p->stop();
       return;
     }
-    throw SockLibResourceException("Embankment.stop");
+    throw SockLibResourceException("net_entity.stop");
   }
 
-  friend bool operator==(const Embankment&, const Embankment&);
-  friend bool operator<(const Embankment&, const Embankment&);
+  friend bool operator==(const net_entity&, const net_entity&);
+  friend bool operator<(const net_entity&, const net_entity&);
 private:
 
   detail::SockLibResourceWeakPtr mResourcePtr;
@@ -277,33 +275,33 @@ private:
 };
 
 /**
- *  @brief Compare two @c Embankment objects for equality.
+ *  @brief Compare two @c net_entity objects for equality.
  *
  *  See @c OutputChannel notes for equivalence logic (same logic applies here).
  *
- *  @return @c true if two @c Embankment objects are pointing to the same internal resource.
+ *  @return @c true if two @c net_entity objects are pointing to the same internal resource.
  *
- *  @relates Embankment
+ *  @relates net_entity
  */
 
-inline bool operator==(const Embankment& lhs, const Embankment& rhs) {
+inline bool operator==(const net_entity& lhs, const net_entity& rhs) {
   detail::SockLibResourcePtr plhs = lhs.mResourcePtr.lock();
   detail::SockLibResourcePtr prhs = rhs.mResourcePtr.lock();
   return (plhs && prhs && plhs == prhs) || (!plhs && !prhs);
 }
 
 /**
- *  @brief Compare two @c Embankment objects for ordering purposes, allowing @c Embankment objects
+ *  @brief Compare two @c net_entity objects for ordering purposes, allowing @c net_entity objects
  *  to be stored in a @c std::map (or other associative container).
  *
  *  See @c OutputChannel notes for ordering logic (same logic applies here).
  *
- *  @return @c true if left @c Embankment less than right @c Embankment according to internal
+ *  @return @c true if left @c net_entity less than right @c net_entity according to internal
  *  resource pointer ordering and invalid object ordering as defined in the comments.
  *
- *  @relates Embankment
+ *  @relates net_entity
  */
-inline bool operator<(const Embankment& lhs, const Embankment& rhs) {
+inline bool operator<(const net_entity& lhs, const net_entity& rhs) {
   detail::SockLibResourcePtr plhs = lhs.mResourcePtr.lock();
   detail::SockLibResourcePtr prhs = rhs.mResourcePtr.lock();
   return (plhs && prhs && plhs < prhs) || (!plhs && prhs);

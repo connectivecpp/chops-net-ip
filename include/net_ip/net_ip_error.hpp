@@ -2,10 +2,11 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief Exception class and error category within Chops @c net_ip library.
+ *  @brief Error codes, exception class, and error category within 
+ *  Chops @c net_ip library.
  *
- *  The @c error_code customization is inspired by code from Andrzej Krzemienski's and 
- *  Bjorn Reese's blogs.
+ *  The @c error_code customization is inspired by blog code from Andrzej Krzemienski and 
+ *  Bjorn Reese.
  *
  *  @author Cliff Green
  *  @date 2017, 2018

@@ -16,6 +16,7 @@
 #include "catch.hpp"
 
 #include <experimental/io_context>
+#include <experimental/executor>
 
 #include <chrono>
 #include <thread>
@@ -32,7 +33,6 @@ template <typename D>
 bool lambda_util (const std::error_code& err, const D& elap) {
   ++count;
   INFO ("count = " << count << ", err code = " << err.value() << ", " << err.message());
-//  INFO ("elapsed = " << elap);
   return count < Expected;
 }
 
@@ -42,7 +42,6 @@ void wait_util (std::chrono::milliseconds ms, wk_guard& wg, std::thread& thr) {
   std::this_thread::sleep_for(ms);
   wg.reset();
   thr.join();
-  INFO ("Thread joined");
 }
 
 

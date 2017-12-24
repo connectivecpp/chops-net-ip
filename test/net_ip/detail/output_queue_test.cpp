@@ -15,17 +15,20 @@
 
 #include <utility> // std::move
 
+#include <experimental/internet> // endpoint declarations
+
 #include "net_ip/detail/output_queue.hpp"
 
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 
+template <typename Protocol>
 void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
 
   GIVEN ("A default constructed output_queue") {
-    chops::net::detail::output_queue outq { };
+    chops::net::detail::output_queue<Protocol> outq { };
 
-    WHEN ("bufs are added to the output_queue") {
+    WHEN ("Bufs are added to the output_queue") {
       chops::repeat(num_bufs, [&outq, &buf] () { outq.add_element(buf); } );
       THEN ("the queue_stats match") {
         auto qs = outq.get_queue_stats();
@@ -33,7 +36,7 @@ void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
         REQUIRE (qs.bytes_in_output_queue == (num_bufs * buf.size()));
       }
     }
-    WHEN ("A value is removed from the queue") {
+    AND_WHEN ("A value is removed from the queue") {
       chops::repeat(num_bufs, [&outq, &buf] () { outq.add_element(buf); } );
       auto e = outq.get_next_element();
       THEN ("it is not empty and values match") {
@@ -42,7 +45,7 @@ void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
         REQUIRE (e->first == buf);
       }
     }
-    WHEN ("All values are removed from the queue") {
+    AND_WHEN ("All values are removed from the queue") {
       chops::repeat(num_bufs, [&outq, &buf] () { outq.add_element(buf); } );
       chops::repeat(num_bufs, [&outq] () { outq.get_next_element(); } );
       THEN ("an empty element will be returned next") {
@@ -53,9 +56,47 @@ void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
   } // end given
 }
 
-SCENARIO ( "Output_queue test, buf only", "[output_queue_buf_only]" ) {
-  auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
-  chops::mutable_shared_buffer mb(ba.data(), ba.size());
-  add_element_test(chops::const_shared_buffer(std::move(mb)), 10);
+template <typename Protocol>
+void get_next_element_test(chops::const_shared_buffer buf, int num_bufs,
+                           const std::experimental::net::ip::basic_endpoint<Protocol>& endp) {
+
+  GIVEN ("A default constructed output_queue") {
+    chops::net::detail::output_queue<Protocol> outq { };
+
+    WHEN ("Bufs and endpoints are added to the output_queue") {
+      chops::repeat(num_bufs, [&outq, &buf, &endp] () { outq.add_element(buf, endp); } );
+      THEN ("a matching number of bufs and endpoints can be removed") {
+        auto qs = outq.get_queue_stats();
+        REQUIRE (qs.output_queue_size == num_bufs);
+        chops::repeat(num_bufs, [&outq, &buf, &endp] () {
+            auto e = outq.get_next_element();
+            REQUIRE (e);
+            REQUIRE (e->first == buf);
+            REQUIRE (e->second);
+            REQUIRE (e->second == endp);
+          }
+        );
+      }
+    } // end when
+  } // end given
 }
 
+SCENARIO ( "Output_queue test, udp endpoint", "[output_queue_udp_endpoint]" ) {
+  using namespace std::experimental::net;
+
+  auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
+  chops::mutable_shared_buffer mb(ba.data(), ba.size());
+  add_element_test<ip::udp>(chops::const_shared_buffer(std::move(mb)), 10);
+  get_next_element_test<ip::udp>(chops::const_shared_buffer(std::move(mb)), 20,
+                        ip::udp::endpoint(ip::udp::v4(), 1234));
+}
+
+SCENARIO ( "Output_queue test, tcp endpoint", "[output_queue_tcp_endpoint]" ) {
+  using namespace std::experimental::net;
+
+  auto ba = chops::make_byte_array(0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46);
+  chops::mutable_shared_buffer mb(ba.data(), ba.size());
+  add_element_test<ip::udp>(chops::const_shared_buffer(std::move(mb)), 30);
+  get_next_element_test<ip::tcp>(chops::const_shared_buffer(std::move(mb)), 40,
+                        ip::tcp::endpoint(ip::tcp::v6(), 9876));
+}

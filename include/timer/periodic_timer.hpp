@@ -37,7 +37,6 @@
 
 #include <experimental/timer> // Networking TS include
 #include <experimental/io_context>
-#include <experimental/executor>
 
 #include <chrono>
 #include <system_error>

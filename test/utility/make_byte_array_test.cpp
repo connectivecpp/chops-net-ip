@@ -31,7 +31,7 @@ SCENARIO( "Blitz Rakete's utility function conveniently creates a std::array of 
         REQUIRE (arr[4] == std::byte{0xef});
       }
     }
-    WHEN ("The function is called with eleven arguments") {
+    AND_WHEN ("The function is called with eleven arguments") {
       constexpr int N = 11;
       auto arr = chops::make_byte_array(
         0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11
