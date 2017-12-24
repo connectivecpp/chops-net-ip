@@ -21,7 +21,6 @@
 #include <experimental/buffer>
 
 #include <memory> // std::shared_ptr, std::enable_shared_from_this
-#include <atomic>
 #include <system_error>
 
 #include <cstddef> // std::size_t
@@ -44,24 +43,22 @@ private:
 
 private:
 
-  std::experimental::net::ip::tcp::socket   m_socket;
-  std::experimental::net::ip::tcp::endpoint m_remote_endp;
-  entity_ptr                                m_entity_ptr; // back reference ptr for notification to creator
-  std::atomic_bool                          m_started;
-  bool                                      m_write_in_progress; // internal only, doesn't need to be atomic
-  chops::net::detail::output_queue          m_outq;
+  std::experimental::net::ip::tcp::socket     m_socket;
+  entity_ptr                                  m_entity_ptr; // back reference ptr for notification to creator
+  io_common<std::experimental::net::ip::tcp>  m_io_common;
 
 public:
 
   tcp_io(std::experimental::net::io_context& ioc, entity_ptr ep) noexcept : 
-    m_socket(ioc), m_remote_endp(), m_entity_ptr(ep), 
-    m_started(false), m_write_in_progress(false), m_outq() { }
+    m_socket(ioc), m_entity_ptr(ep), m_io_common() { }
 
   std::experimental::net::ip::tcp::socket& get_socket() noexcept { return m_socket; }
 
-  chops::net::output_queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
+  chops::net::output_queue_stats get_output_queue_stats() const noexcept {
+    return m_io_common.get_output_queue_stats();
+  }
 
-  bool is_started() const noexcept { return m_started; }
+  bool is_started() const noexcept { return m_io_common.is_started(); }
 
   template <typename MH, typename MF>
   void start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size);
@@ -90,8 +87,6 @@ private:
 
   bool process_err_code(const std::error_code&);
 
-  bool start_io_setup();
-
   template <typename MH, typename MF>
   void handle_read(MH&&, MF&&, chops::mutable_shared_buffer, std::size_t, const std::error_code& err, std::size_t);
 
@@ -110,7 +105,7 @@ private:
 
 template <typename ET>
 void tcp_io<ET>::close() {
-  m_started = false;
+  m_io_common.stop();
   m_socket.shutdown(); // attempt graceful shutdown
   auto self { std::shared_from_this() };
   std::experimental::net::post(m_socket.get_executor(), [this, self] { close_socket(); } );
@@ -126,25 +121,15 @@ bool tcp_io<ET>::process_err_code(const std::error_code& err) {
 }
 
 template <typename ET>
-bool tcp_io<ET>::start_io_setup() {
-  if (m_started) {
-    return false;
-  }
-  m_started = true;
-  std::error_code ec;
-  m_remote_endp = m_socket.remote_endpoint(ec);
-  return process_err_code(ec);
-}
-
-template <typename ET>
 template <typename MH, typename MF>
 void tcp_io<ET>::start_io(MH&& msg_hdlr, MF&& msg_frame, std::size_t header_size) {
-  if (!start_io_setup()) {
+  if (!m_io_common.start_io_setup()) {
     return;
   }
   chops::mutable_shared_buffer buf(header_size);
+  auto self { std::shared_from_this() };
   std::experimental::net::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
-    [this, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
+    [this, self, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
           (const std::error_code& err, std::size_t nb) {
       handle_read(mh, mf, buf, header_size, err, nb);
     }
@@ -162,7 +147,7 @@ void tcp_io<ET>::handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::mutable_share
   std::experimental::net::mutable_buffer mbuf;
   std::size_t next_read_size = msg_frame(buf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
-    if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_remote_endp, msg_frame)) {
+    if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_io_common.get_remote_endp(), msg_frame)) {
       // message handler not happy, tear everything down
       process_err_code(std::make_error_code(chops::net::message_handler_terminated));
       return;
@@ -176,9 +161,10 @@ void tcp_io<ET>::handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::mutable_share
     buf.resize(buf.size() + next_read_size);
     mbuf = std::experimental::net::mutable_buffer(buf.data() + old_size, next_read_size);
   }
-  // start another read, using the buffer supplied in the MsgFrame return val
+  // start another read
+  auto self { std::shared_from_this() };
   std::experimental::net:async_read(m_socket, mbuf,
-    [this, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
+    [this, self, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
           (const std::error_code& err, std::size_t nb) {
       handle_read(mh, mf, buf, header_size, err, nb);
     }
@@ -188,11 +174,13 @@ void tcp_io<ET>::handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::mutable_share
 template <typename ET>
 template <typename MH>
 void tcp_io<ET>::start_io(MH&& msg_hdlr, const std::string& delimiter) {
-  if (!start_io_setup()) {
+  if (!m_io_common.start_io_setup()) {
     return;
   }
+  lsjdflkj use vector of bytes as dynamic buffer
+  auto self { std::shared_from_this() };
   std::experimental::net::async_read_until(m_socket, chops::mutable_shared_buffer(), delimiter,
-    [this, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
+    [this, self, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
       handle_read(mh, buf, delimiter, err, nb);
     }
   );
@@ -205,15 +193,13 @@ void tcp_io<ET>::handle_read(MH&& msg_hdlr, chops::mutable_shared_buffer buf, st
   if (!process_err_code(err)) {
     return;
   }
-  if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_remote_endp)) {
+  if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_io_common.get_remote_endp())) {
       process_err_code(std::make_error_code(chops::net::message_handler_terminated));
-    m_entity_ptr->io_handler_notification(std::make_error_code(chops::net::message_handler_terminated)
-                                          std::shared_from_this());
     return;
   }
-  // start another read, using the buffer supplied in the MsgFrame return val
+  auto self { std::shared_from_this() };
   std::experimental::net::async_read_until(m_socket, something, delimiter,
-    [this, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
+    [this, self, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
       handle_read(mh, buf, delimiter, err, nb);
     }
   );
@@ -221,12 +207,13 @@ void tcp_io<ET>::handle_read(MH&& msg_hdlr, chops::mutable_shared_buffer buf, st
 
 template <typename ET>
 void tcp_io<ET>::start_io() {
-  if (!start_io_setup()) {
+  if (!m_io_common.start_io_setup()) {
     return;
   }
   chops::mutable_shared_buffer buf(1);
+  auto self { std::shared_from_this() };
   std::experimental::net::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
-    [this, buf] (const std::error_code& err, std::size_t nb) {
+    [this, self, buf] (const std::error_code& err, std::size_t nb) {
       handle_read(buf, err, nb);
     }
   );
@@ -237,8 +224,9 @@ void tcp_io<ET>::handle_read(chops::mutable_shared_buffer buf, const std::error_
   if (!process_err_code(err)) {
     return;
   }
+  auto self { std::shared_from_this() };
   std::experimental::net::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
-    [this, buf] (const std::error_code& err, std::size_t nb) {
+    [this, self, buf] (const std::error_code& err, std::size_t nb) {
       handle_read(buf, err, nb);
     }
   );
@@ -246,15 +234,10 @@ void tcp_io<ET>::handle_read(chops::mutable_shared_buffer buf, const std::error_
 
 template <typename ET>
 void tcp_io<ET>::start_write(chops::shared_const_buffer buf) {
-  if (!mStarted) {
-    return; // close happening, don't start a write
-  }
-  if (m_write_in_progress) { // queue buffer
-    m_outq.add_element(buf);
-    return;
+  if (!m_io_common.start_write_setup(buf)) {
+    return; // buf queued or shutdown happening
   }
   auto self { std::shared_from_this() };
-  m_write_in_progress = true;
   std::experimental::net::async_write(m_socket, buf, [this, self] 
       (const std::system::error_code& err, std::size_t nb) { handle_write(err, nb); }
   );
@@ -262,18 +245,14 @@ void tcp_io<ET>::start_write(chops::shared_const_buffer buf) {
 
 template <typename ET>
 void tcp_io<ET>::handle_write(const std::system::error_code& err, std::size_t /* num_bytes */) {
-  if (err || !mStarted) { // err or shutting down
-    // error notification happens only through read errors
+  if (err) {
     return;
   }
-  auto elem = m_outq.get_next_element();
+  auto elem = m_io_common.get_next_element();
   if (!elem) {
-    // queue empty, no more writes needed for now
-    m_write_in_progress = false;
     return;
   }
   auto self { std::shared_from_this() };
-  m_write_in_progress = true;
   std::experimental::net::async_write(m_socket, elem->first, [this, self]
       (const std::system::error_code& err, std::size_t nb) { handle_write(err, nb); }
 }
