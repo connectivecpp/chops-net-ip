@@ -62,7 +62,7 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
       }
     }
 
-    WHEN ("Start_io_setup is called twice") {
+    AND_WHEN ("Start_io_setup is called twice") {
       bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
       REQUIRE (ret);
       ret = call_start_io_setup<Protocol, Sock>(iocommon);
@@ -71,14 +71,14 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
       }
     }
 
-    WHEN ("Start_write_setup is called before start_io_setup") {
+    AND_WHEN ("Start_write_setup is called before start_io_setup") {
       bool ret = iocommon.start_write_setup(buf);
       THEN ("the call returns false") {
         REQUIRE (!ret);
       }
     }
 
-    WHEN ("Start_write_setup is called after start_io_setup") {
+    AND_WHEN ("Start_write_setup is called after start_io_setup") {
       bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
       ret = iocommon.start_write_setup(buf);
       THEN ("the call returns true and write_in_progress flag is true and queue size is zero") {
@@ -88,58 +88,63 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
       }
     }
 
-    WHEN ("Start_write_setup is called twice") {
+    AND_WHEN ("Start_write_setup is called twice") {
       bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
       ret = iocommon.start_write_setup(buf);
       ret = iocommon.start_write_setup(buf);
-      THEN ("the call returns true and write_in_progress flag is true and queue size is one") {
-        REQUIRE (ret);
+      THEN ("the call returns false and write_in_progress flag is true and queue size is one") {
+        REQUIRE (!ret);
         REQUIRE (iocommon.is_write_in_progress());
         REQUIRE (iocommon.get_output_queue_stats().output_queue_size == 1);
       }
     }
 
-    WHEN ("Start_write_setup is called many times") {
+    AND_WHEN ("Start_write_setup is called many times") {
       bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
       REQUIRE (ret);
       chops::repeat(num_bufs, [&iocommon, &buf, &ret, &endp] () { 
           ret = iocommon.start_write_setup(buf, endp);
         }
       );
-      THEN ("the call returns true and all bufs but the first one are queued") {
-        REQUIRE (ret);
+      THEN ("all bufs but the first one are queued") {
         REQUIRE (iocommon.is_write_in_progress());
         REQUIRE (iocommon.get_output_queue_stats().output_queue_size == (num_bufs-1));
       }
     }
 
-    WHEN ("Start_write_setup is called many times and get_next_element is called 2 less times") {
+    AND_WHEN ("Start_write_setup is called many times and get_next_element is called 2 less times") {
       bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
       REQUIRE (ret);
       chops::repeat(num_bufs, [&iocommon, &buf, &ret, &endp] () { 
-          ret = iocommon.start_write_setup(buf, endp);
+          iocommon.start_write_setup(buf, endp);
         }
       );
-      REQUIRE (ret);
       chops::repeat((num_bufs - 2), [&iocommon] () { 
           iocommon.get_next_element();
         }
       );
-      THEN ("get_next_element returns a val, then next call doesn't and write_in_progress is false") {
-        auto e = iocommon.get_next_element();
-        REQUIRE (iocommon.is_write_in_progress());
-        REQUIRE (e);
-        REQUIRE (e->first == buf);
-        REQUIRE (e->second == endp);
+      THEN ("next get_next_element call returns a val, call after doesn't and write_in_progress is false") {
+
         auto qs = iocommon.get_output_queue_stats();
         REQUIRE (qs.output_queue_size == 1);
         REQUIRE (qs.bytes_in_output_queue == buf.size());
-        auto e2 = iocommon.get_next_element();
-        REQUIRE (!iocommon.is_write_in_progress());
-        REQUIRE (!e2);
+
+        auto e = iocommon.get_next_element();
+
         qs = iocommon.get_output_queue_stats();
         REQUIRE (qs.output_queue_size == 0);
         REQUIRE (qs.bytes_in_output_queue == 0);
+
+        REQUIRE (iocommon.is_write_in_progress());
+
+        REQUIRE (e);
+        REQUIRE (e->first == buf);
+        REQUIRE (e->second == endp);
+
+        auto e2 = iocommon.get_next_element();
+        REQUIRE (!iocommon.is_write_in_progress());
+        REQUIRE (!e2);
+
       }
     }
 
