@@ -2,8 +2,8 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief Implementation detail code to create an @c ip::basic_endpoint from various
- *  parameters. Name resolving will be performed as needed.
+ *  @brief Function to convert network names and ports into C++ Networking TS
+ *  endpoint objects, with DNS name resolving performed as needed.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -20,14 +20,13 @@
 #include <string_view>
 #include <system_error>
 
-#include "net_ip/net_ip_exception.hpp"
+#include "net_ip/net_ip_error.hpp"
 
 namespace chops {
 namespace net {
-namespace detail {
 
 /**
- *  @brief Implementation detail utility function which creates an @c ip::basic_endpoint from host 
+ *  @brief Convenience function which creates an @c ip::basic_endpoint from host 
  *  name strings and port numbers.
  *
  *  The @c ip::basic_endpoint returned from this function is used within other @c net_ip layers.
@@ -80,7 +79,6 @@ std::experimental::net::ip::basic_endpoint<Protocol> make_endpoint(std::experime
   throw chops::net::net_ip_exception("No DNS match found");
 }
 
-}  // end detail namespace
 }  // end net namespace
 }  // end chops namespace
 
