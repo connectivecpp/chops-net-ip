@@ -72,12 +72,12 @@ namespace net {
  *  implicit (compiler generated).
  */
 
+template <typename ET>
 class net_entity {
-public:
+private:
+  std::weak_ptr<ET> m_eh_ptr;
 
-  // net_entity (net_entity const&); // implicit - compiler generated
-  // net_entity& operator= (net_entity const&); // implicit - compiler generated
-  // ~net_entity(); // implicit - compiler generated
+public:
 
 /**
  *  @brief Default construct an @c net_entity object.
@@ -268,10 +268,6 @@ public:
 
   friend bool operator==(const net_entity&, const net_entity&);
   friend bool operator<(const net_entity&, const net_entity&);
-private:
-
-  detail::SockLibResourceWeakPtr mResourcePtr;
-
 };
 
 /**

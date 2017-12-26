@@ -29,6 +29,10 @@ namespace chops {
 namespace net {
 namespace detail {
 
+inline std::size_t null_msg_frame (chops::mutable_shared_buffer /* buf */ ) {
+  return 0;
+}
+
 template <typename Protocol>
 class io_common {
 private:

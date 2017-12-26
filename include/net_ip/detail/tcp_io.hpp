@@ -30,6 +30,7 @@
 #include "net_ip/detail/output_queue.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
+#include "net_ip/io_interface.hpp"
 #include "utility/shared_buffer.hpp"
 
 namespace chops {
@@ -38,20 +39,27 @@ namespace detail {
 
 template <typename ET>
 class tcp_io : std::enable_shared_from_this<tcp_io> {
+public:
+  using socket_type = std::experimental::net::ip::tcp::socket;
+  using protocol_type = std::experimental::net::ip::tcp;
+
 private:
   using entity_ptr = std::shared_ptr<ET>;
 
 private:
 
-  std::experimental::net::ip::tcp::socket     m_socket;
-  entity_ptr                                  m_entity_ptr; // back reference ptr for notification to creator
-  io_common<std::experimental::net::ip::tcp>  m_io_common;
+  socket_type               m_socket;
+  entity_ptr                m_entity_ptr; // back reference ptr for notification to creator
+  io_common<protocol_type>  m_io_common;
+
 
 public:
 
   tcp_io(std::experimental::net::io_context& ioc, entity_ptr ep) noexcept : 
     m_socket(ioc), m_entity_ptr(ep), m_io_common() { }
 
+public:
+  // all of the methods in this public section can be called through an io_interface
   std::experimental::net::ip::tcp::socket& get_socket() noexcept { return m_socket; }
 
   chops::net::output_queue_stats get_output_queue_stats() const noexcept {
@@ -66,9 +74,11 @@ public:
   template <typename MH>
   void start_io(MH&& msg_handler, const std::string& delimiter);
 
+  template <typename MH>
+  void start_io(MH&& msg_handler, std::size_t read_size);
+
   void start_io();
 
-  // this method can be called through the @c io_interface object
   void stop_io();
 
   // use post for thread safety, multiple threads can call this method
@@ -77,6 +87,7 @@ public:
     std::experimental::net::post(m_socket.get_executor(), [this, self, buf] { start_write(buf); } );
   }
 
+public:
   // this method can only be called through a net entity, assumes all error codes have already
   // been reported back to the net entity
   void close();
@@ -140,6 +151,9 @@ template <typename ET>
 template <typename MH, typename MF>
 void tcp_io<ET>::handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::mutable_shared_buffer buf, 
                  std::size_t header_size, const std::error_code& err, std::size_t num_bytes) {
+
+  using chops::net::io_interface;
+
   if (!process_err_code(err)) {
     return;
   }
@@ -147,7 +161,7 @@ void tcp_io<ET>::handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::mutable_share
   std::experimental::net::mutable_buffer mbuf;
   std::size_t next_read_size = msg_frame(buf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
-    if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_io_common.get_remote_endp(), msg_frame)) {
+    if (!msg_hdlr(buf, io_interface(std::weak_from_this()), m_io_common.get_remote_endp(), msg_frame)) {
       // message handler not happy, tear everything down
       process_err_code(std::make_error_code(chops::net::message_handler_terminated));
       return;
@@ -190,10 +204,13 @@ template <typename ET>
 template <typename MH>
 void tcp_io<ET>::handle_read(MH&& msg_hdlr, chops::mutable_shared_buffer buf, std::string_view delimiter,
                  const std::error_code& err, std::size_t num_bytes) {
+
+  using chops::net::io_interface;
+
   if (!process_err_code(err)) {
     return;
   }
-  if (!msg_hdlr(buf, OutputChannel(std::weak_from_this()), m_io_common.get_remote_endp())) {
+  if (!msg_hdlr(buf, io_interface(std::weak_from_this()), m_io_common.get_remote_endp())) {
       process_err_code(std::make_error_code(chops::net::message_handler_terminated));
     return;
   }
@@ -206,30 +223,27 @@ void tcp_io<ET>::handle_read(MH&& msg_hdlr, chops::mutable_shared_buffer buf, st
 }
 
 template <typename ET>
-void tcp_io<ET>::start_io() {
-  if (!m_io_common.start_io_setup()) {
-    return;
-  }
-  chops::mutable_shared_buffer buf(1);
-  auto self { std::shared_from_this() };
-  std::experimental::net::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
-    [this, self, buf] (const std::error_code& err, std::size_t nb) {
-      handle_read(buf, err, nb);
-    }
-  );
+template <typename MH>
+void tcp_io<ET>::start_io(MH&& msg_handler, std::size_t read_size) {
+  using chops::net::io_interface;
+  using std::experimental::net::ip::tcp::endpoint;
+
+  auto wrapped_mh = [mh = std::forward(msg_handler)] 
+               (chops::mutable_shared_buffer buf, io_interface io, endpoint endp, null_msg_frame) {
+    return mh(buf, io, endp);
+  };
+  start_io(wrapped_mh, null_msg_frame, read_size);
 }
 
 template <typename ET>
-void tcp_io<ET>::handle_read(chops::mutable_shared_buffer buf, const std::error_code& err, std::size_t nb) {
-  if (!process_err_code(err)) {
-    return;
-  }
-  auto self { std::shared_from_this() };
-  std::experimental::net::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
-    [this, self, buf] (const std::error_code& err, std::size_t nb) {
-      handle_read(buf, err, nb);
-    }
-  );
+void tcp_io<ET>::start_io() {
+  using chops::net::io_interface;
+  using std::experimental::net::ip::tcp::endpoint;
+
+  auto msg_hdlr = [] (chops::mutable_shared_buffer, io_interface, endpoint, null_msg_frame) {
+    return true;
+  };
+  start_io(msg_hdlr, null_msg_frame, 1);
 }
 
 template <typename ET>

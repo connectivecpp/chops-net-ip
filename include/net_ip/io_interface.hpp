@@ -21,10 +21,10 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief The @c OutputChannel class provides output access through an underlying network
+ *  @brief The @c io_interface class provides output access through an underlying network
  *  IO resource, such as a TCP or UDP IO handler.
  *
- *  The @c OutputChannel class provides message sending facilities through an underlying
+ *  The @c io_interface class provides message sending facilities through an underlying
  *  network IO handler, such as a TCP or UDP IO handler. Output message queue sizes can
  *  also be managed through this class, and remote host information can be queried.
  *
@@ -32,14 +32,14 @@ namespace net {
  *  UDP port, although the specific intended use case is to close a TCP Acceptor connection 
  *  that needs to be closed outside of an incoming message callback return.
  *
- *  The @c OutputChannel class is a lightweight, value-based class, allowing @c OutputChannel 
+ *  The @c io_interface class is a lightweight, value-based class, allowing @c io_interface 
  *  objects to be copied and used in multiple places in an application, all of them 
  *  accessing the same network resource. Internally, a "weak pointer" is used 
- *  to link the @c OutputChannel object with a network resource IO handler.
+ *  to link the @c io_interface object with a network resource IO handler.
  *
- *  An @c OutputChannel object is either pointing to a valid network resource (i.e. the
+ *  An @c io_interface object is either pointing to a valid network resource (i.e. the
  *  "weak pointer" is good), or not. The @c valid method queries this state. Note that
- *  even if the @c OutputChannel is pointing to a valid network resource, the network
+ *  even if the @c io_interface is pointing to a valid network resource, the network
  *  resource might be in the process of shutting down or being destroyed. Calling
  *  methods such as @c send when the network resource is shutting down results in 
  *  undefined behavior.
@@ -50,23 +50,23 @@ namespace net {
  *  Examples of a network resource becoming non-existent include when the underlying
  *  TCP connection has gone away and the IO handler destroyed, or the owning
  *  network resource (e.g. TCP Acceptor or TCP Connector or UDP Sender) has been stopped 
- *  or destroyed and the associated IO handler(s) destroyed. If a @c OutputChannel method 
+ *  or destroyed and the associated IO handler(s) destroyed. If a @c io_interface method 
  *  is called while the "weak pointer" is invalid, an exception will be thrown.
  *
  *  Note that except for the output queue size management callback, callback functor 
  *  registration is only provided at the @c Embankment level, not the individual 
- *  @c OutputChannel level.
+ *  @c io_interface level.
  *
- *  An @c OutputChannel object is always created for application use by @c SockLib in a 
+ *  An @c io_interface object is always created for application use by @c SockLib in a 
  *  @c ChannelChangeCb callback. Similar to the @c Embankment class, if a
- *  @c OutputChannel object is default constructed, it must first have a valid
- *  @c OutputChannel object copied into it before it can be used.
+ *  @c io_interface object is default constructed, it must first have a valid
+ *  @c io_interface object copied into it before it can be used.
  *
- *  Equivalence and ordering operators are provided to allow @c OutputChannel objects
+ *  Equivalence and ordering operators are provided to allow @c io_interface objects
  *  to be conveniently used in associative or sequence containers, such as @c std::map or
  *  @c std::list.
  *
- *  All @c OutputChannel methods can be called concurrently from multiple threads, with
+ *  All @c io_interface methods can be called concurrently from multiple threads, with
  *  the following considerations: Modifications are always performed within the context
  *  of the event loop thread. Methods that involve modifications post handlers to the
  *  event loop thread to perform the modifications. This includes queueing buffers for
@@ -88,7 +88,7 @@ public:
 /**
  *  @brief Default construct an @c io_interface.
  *
- *  An @c io_interface is not useful until an active @c io_interface object is assigned
+ *  An @c io_interface is not useful until an active io handler object is assigned
  *  into it.
  *  
  */
@@ -106,19 +106,27 @@ public:
  *  This is an internal library constructor, and is not meant to be used by application code.
  *
  */
-  io_interface(std::weak_ptr p) noexcept : m_ioh_ptr(p) { }
+  io_interface(std::weak_ptr<IOH> p) noexcept : m_ioh_ptr(p) { }
 
 /**
- *  @brief Query whether this object is valid (associated with a network resource).
+ *  @brief Query whether an io handler is associated with this object.
  *
- *  Even though a network association is valid, the network resource may not be in
- *  a good state for further operations. Performing sends (or other operations) on
- *  a network resource that is being shutdown or closed may result in undefined
- *  behavior.
+ *  If @c true, an io handler (e.g. TCP or UDP io handler) is associated. However, 
+ *  the io handler may not be in a good state for further operations. Calling send or some other 
+ *  method on an io handler that is being closed may result in undefined behavior.
  *
- *  @return @c true if associated network resource is still valid.
+ *  @return @c true if associated io handler is still valid.
  */
-  bool is_valid() const noexcept { return !mResourcePtr.expired(); }
+  bool is_valid() const noexcept { return !m_ioh_ptr.expired(); }
+
+
+/**
+ *  @brief Access the underlying socket, allowing socket options to be queried or set.
+ *
+ *  @return @c ip::tcp::socket or @c ip::udp::socket, depending on io handler type.
+ */
+  typename IOH::socket_type& get_socket() noexcept { return m_
+  std::experimental::net::ip
 
 /**
  *  @brief Send a message through the associated @c io_interface object.
@@ -155,7 +163,7 @@ public:
  *  @throw @c SockLibException is thrown if the underlying resource is invalid.
  */
   void send(boost_adjunct::shared_const_buffer buf) const {
-    if (detail::OutputChannelResourcePtr p = mResourcePtr.lock()) {
+    if (detail::OutputChannelResourcePtr p = m_ioh_ptr.lock()) {
       p->send(buf);
       return;
     }
@@ -198,7 +206,7 @@ public:
  *  @throw @c SockLibException is thrown if the underlying resource is invalid.
  */
   void send(boost_adjunct::shared_const_buffer buf, const boost::asio::ip::udp::endpoint& endp) const {
-    if (detail::OutputChannelResourcePtr p = mResourcePtr.lock()) {
+    if (detail::OutputChannelResourcePtr p = m_ioh_ptr.lock()) {
       p->send(buf, endp);
       return;
     }
@@ -221,7 +229,7 @@ public:
  *  @throw @c SockLibException is thrown if the underlying resource is invalid.
  */
   void stop() const {
-    if (detail::OutputChannelResourcePtr p = mResourcePtr.lock()) {
+    if (detail::OutputChannelResourcePtr p = m_ioh_ptr.lock()) {
       p->stop();
       return;
     }
@@ -242,7 +250,7 @@ public:
  *  @throw @c SockLibException is thrown if the underlying resource is invalid.
  */
   boost::asio::ip::tcp::endpoint remoteTcpEndpoint() const {
-    if (detail::OutputChannelResourcePtr p = mResourcePtr.lock()) {
+    if (detail::OutputChannelResourcePtr p = m_ioh_ptr.lock()) {
       boost::asio::ip::tcp::endpoint endp;
       p->remoteTcpEndpoint(endp);
       return endp;
@@ -269,54 +277,13 @@ public:
  *  @throw @c SockLibException is thrown if the underlying resource is invalid.
  */
   boost::asio::ip::udp::endpoint remoteUdpEndpoint() const {
-    if (detail::OutputChannelResourcePtr p = mResourcePtr.lock()) {
+    if (detail::OutputChannelResourcePtr p = m_ioh_ptr.lock()) {
       boost::asio::ip::udp::endpoint endp;
       p->remoteUdpEndpoint(endp);
       return endp;
       // return p->remoteUdpEndpoint();
     }
     throw SockLibResourceException("OutputChannel.remoteUdpEndpoint");
-  }
-
-/**
- *  @brief Provide a callback that will be invoked if the maximum output queue
- *  size is exceeded.
- *
- *  There are two values for output queue size: 1) the number of entries
- *  on the output queue (each @c OutputChannel @c send method call may result 
- *  in a queue entry, if the message cannot be immediately sent); 2) the number 
- *  of bytes in the output queue (i.e. the sum of the sizes of all output queue 
- *  entries). Each of these have a maximum that can be specified through this 
- *  method. A zero value is a "don't care" value, allowing the value to be as 
- *  big as system resources allow.
- *
- *  Invocation of the callback allows application code to do whatever is 
- *  appropriate, including reporting of the queue sizes or turning off
- *  output buffer sending. Note that an output queue size being exceeded does
- *  <b><i>not</i></b> disable output processing with the @c SockLib
- *  network resources.
- *
- *  @param outQueueSzCb @c OutputQueueSizeCb that will be invoked when either
- *  of the two maximum values are exceeded. If the callback is invoked, both
- *  of the current queue values (number of entries and number of bytes) will 
- *  be provided in the callback.
- *
- *  @param maxEntries Maximum number of entries allowed on the output queue
- *  before the @c OutputQueueSizeCb is invoked (0 means unlimited).
- *
- *  @param maxBytes Maximum number of bytes allowed on the output queue
- *  before the @c OutputQueueSizeCb is invoked (0 means unlimited).
- *
- *  @throw @c SockLibException is thrown if the underlying resource is invalid.
- */
-  void outputQueueSize(OutputQueueSizeCb outQueueSzCb, std::size_t maxEntries = 0, std::size_t maxBytes = 0) {
-    maxEntries = maxEntries == 0 ? std::numeric_limits<std::size_t>::max() : maxEntries;
-    maxBytes = maxBytes == 0 ? std::numeric_limits<std::size_t>::max() : maxBytes;
-    if (detail::OutputChannelResourcePtr p = mResourcePtr.lock()) {
-      p->outputQueueSize(outQueueSzCb, maxEntries, maxBytes);
-      return;
-    }
-    throw SockLibResourceException("OutputChannel.outputQueueSizeCb");
   }
 
   friend bool operator==(const OutputChannel&, const OutputChannel&);
@@ -340,8 +307,8 @@ public:
  */
 
 inline bool operator==(const OutputChannel& lhs, const OutputChannel& rhs) {
-  detail::OutputChannelResourcePtr plhs = lhs.mResourcePtr.lock();
-  detail::OutputChannelResourcePtr prhs = rhs.mResourcePtr.lock();
+  detail::OutputChannelResourcePtr plhs = lhs.m_ioh_ptr.lock();
+  detail::OutputChannelResourcePtr prhs = rhs.m_ioh_ptr.lock();
   return (plhs && prhs && plhs == prhs) || (!plhs && !prhs);
 }
 
@@ -365,10 +332,11 @@ inline bool operator==(const OutputChannel& lhs, const OutputChannel& rhs) {
  *  @relates OutputChannel
  */
 inline bool operator<(const OutputChannel& lhs, const OutputChannel& rhs) {
-  detail::OutputChannelResourcePtr plhs = lhs.mResourcePtr.lock();
-  detail::OutputChannelResourcePtr prhs = rhs.mResourcePtr.lock();
+  detail::OutputChannelResourcePtr plhs = lhs.m_ioh_ptr.lock();
+  detail::OutputChannelResourcePtr prhs = rhs.m_ioh_ptr.lock();
   return (plhs && prhs && plhs < prhs) || (!plhs && prhs);
 }
+
 
 } // end net namespace
 } // end chops namespace
