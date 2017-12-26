@@ -21,61 +21,41 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief The @c io_interface class provides output access through an underlying network
- *  IO resource, such as a TCP or UDP IO handler.
+ *  @brief The @c io_interface class provides access to an underlying network
+ *  IO handler (TCP or UDP IO handler).
  *
- *  The @c io_interface class provides message sending facilities through an underlying
- *  network IO handler, such as a TCP or UDP IO handler. Output message queue sizes can
- *  also be managed through this class, and remote host information can be queried.
+ *  The @c io_interface class provides the primary application interface for
+ *  network IO, whether TCP or UDP. This class provides methods to start IO
+ *  processing, which means to start read processing and enable write processing,
+ *  stop IO processing, and to send data.
  *
- *  One additional capability is the ability to stop and close a TCP connection or a
- *  UDP port, although the specific intended use case is to close a TCP Acceptor connection 
- *  that needs to be closed outside of an incoming message callback return.
- *
- *  The @c io_interface class is a lightweight, value-based class, allowing @c io_interface 
+ *  This class is a lightweight, value-based class, allowing @c io_interface 
  *  objects to be copied and used in multiple places in an application, all of them 
- *  accessing the same network resource. Internally, a "weak pointer" is used 
- *  to link the @c io_interface object with a network resource IO handler.
+ *  accessing the same network resource. Internally, a @c std::weak pointer is used 
+ *  to link the @c io_interface object with a network IO handler.
  *
- *  An @c io_interface object is either pointing to a valid network resource (i.e. the
- *  "weak pointer" is good), or not. The @c valid method queries this state. Note that
- *  even if the @c io_interface is pointing to a valid network resource, the network
- *  resource might be in the process of shutting down or being destroyed. Calling
- *  methods such as @c send when the network resource is shutting down results in 
- *  undefined behavior.
+ *  An @c io_interface object is either associated with a network IO handler
+ *  (i.e. the @c std::weak pointer is good), or not. The @c is_valid method queries 
+ *  if the association is present. Note that even if the @c std::weak_pointer is 
+ *  valid, the network IO handler might be in the process of closing or being 
+ *  destroyed. Calling the @c send method if the network IO handler is being closed 
+ *  may result in loss of data.
  *
- *  Notification of a network resource shutting down or being destroyed is provided through
- *  the @c ChannelChangeCb facilities in the @c Embankment class.
+ *  Notification of a network IO handler closing down or being destroyed is provided
+ *  by callback function objects in the @c net_entity class.
  *
- *  Examples of a network resource becoming non-existent include when the underlying
- *  TCP connection has gone away and the IO handler destroyed, or the owning
- *  network resource (e.g. TCP Acceptor or TCP Connector or UDP Sender) has been stopped 
- *  or destroyed and the associated IO handler(s) destroyed. If a @c io_interface method 
- *  is called while the "weak pointer" is invalid, an exception will be thrown.
+ *  Applications can default construct an @c io_interface object, but it is not useful 
+ *  until another @c io_interface object associated to a network IO handler (which is 
+ *  always created internally by the @c net_ip library) is assigned into it.
  *
- *  Note that except for the output queue size management callback, callback functor 
- *  registration is only provided at the @c Embankment level, not the individual 
- *  @c io_interface level.
+ *  Appropriate comparison operators are provided to allow @c io_interface objects
+ *  to be used in associative or sequence containers.
  *
- *  An @c io_interface object is always created for application use by @c SockLib in a 
- *  @c ChannelChangeCb callback. Similar to the @c Embankment class, if a
- *  @c io_interface object is default constructed, it must first have a valid
- *  @c io_interface object copied into it before it can be used.
+ *  All @c io_interface methods can be called concurrently from multiple threads.
+ *  In particular, @c send methods are allowed to be called from multiple threads.
+ *  Calling other methods concurrently (such as @c stop_io or @c start_io) will not 
+ *  result in a crash, but could result in undesired application behavior.
  *
- *  Equivalence and ordering operators are provided to allow @c io_interface objects
- *  to be conveniently used in associative or sequence containers, such as @c std::map or
- *  @c std::list.
- *
- *  All @c io_interface methods can be called concurrently from multiple threads, with
- *  the following considerations: Modifications are always performed within the context
- *  of the event loop thread. Methods that involve modifications post handlers to the
- *  event loop thread to perform the modifications. This includes queueing buffers for
- *  sending, and modifying output queue policies.
- *
- *  @ingroup SockLibModule
- *
- *  @note Copy constructor, copy assignment operator, and destructor are all
- *  implicit (compiler generated).
  */
 
 template <typename IOH>
@@ -115,7 +95,7 @@ public:
  *  the io handler may not be in a good state for further operations. Calling send or some other 
  *  method on an io handler that is being closed may result in undefined behavior.
  *
- *  @return @c true if associated io handler is still valid.
+ *  @return @c true if associated with an io handler.
  */
   bool is_valid() const noexcept { return !m_ioh_ptr.expired(); }
 

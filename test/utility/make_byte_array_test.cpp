@@ -10,8 +10,6 @@
  *
  */
 
-#define CATCH_CONFIG_MAIN
-
 #include "catch.hpp"
 
 #include "utility/make_byte_array.hpp"

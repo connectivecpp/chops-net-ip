@@ -1,5 +1,7 @@
 /** @file 
  *
+ *  @defgroup net_ip_module Classes and functions for the Chops Net IP library.
+ *
  *  @ingroup net_ip_module
  *
  *  @brief Chops @c net_ip networking class and related functions and facilities.
