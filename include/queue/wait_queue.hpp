@@ -1,5 +1,7 @@
 /** @file
  *
+ *  @defgroup queue_module Class and functions for Chops thread queue functionality.
+ *
  *  @ingroup queue_module
  *
  *  @brief Multi-reader multi-writer wait queue class for transferring
@@ -128,7 +130,7 @@ public:
   wait_queue() = default;
 
   /**
-   * Construct a @c wait_queue with an iterator range for the container.
+   * @brief Construct a @c wait_queue with an iterator range for the container.
    *
    * Construct the container (or container view) with an iterator range. Whether
    * element copies are performed depends on the container type. Most container
@@ -149,7 +151,7 @@ public:
       m_mut(), m_data_queue(beg, end), m_data_cond(), m_closed(false) { }
 
   /**
-   * Construct a @c wait_queue with an initial size or capacity.
+   * @brief Construct a @c wait_queue with an initial size or capacity.
    *
    * Construct the container (or container view) with an initial size of default
    * inserted elements or with an initial capacity, depending on the container type.
@@ -180,7 +182,7 @@ public:
   // modifying methods
 
   /**
-   * Open a previously closed @c wait_queue for processing.
+   * @brief Open a previously closed @c wait_queue for processing.
    *
    * @note The initial state of a @c wait_queue is open.
    */
@@ -190,8 +192,10 @@ public:
   }
 
   /**
-   * Close a @c wait_queue for processing. All waiting reader threaders will be 
-   * notified. Subsequent @c push operations will return @c false.
+   * @brief Close a @c wait_queue for processing.
+   *
+   * When this method is called, all waiting reader threaders will be notified. 
+   * Subsequent @c push operations will return @c false.
    */
   void close() noexcept {
     lock_guard lk{m_mut};
@@ -200,8 +204,10 @@ public:
   }
 
   /**
-   * Push a value, by copying, to the @c wait_queue. A waiting reader thread (if any) 
-   * will be notified that a value has been added.
+   * @brief Push a value, by copying, to the @c wait_queue.
+   *
+   * When a value is pushed, one waiting reader thread (if any) will be 
+   * notified that a value has been added.
    *
    * @param val Val to copy into the queue.
    *
@@ -218,6 +224,8 @@ public:
   }
 
   /**
+   * @brief Push a value, either by moving or copying, to the @c wait_queue.
+   *
    * This method has the same semantics as the other @c push, except that the value will 
    * be moved (if possible) instead of copied.
    */
@@ -232,14 +240,14 @@ public:
   }
 
   /**
-   * Directly construct an object in the underlying container (using the container's
+   * @brief Directly construct an object in the underlying container (using the container's
    * @c emplace_back method) by forwarding the supplied arguments (can be more than one).
    *
    * @param args Arguments to be used in constructing an element at the end of the queue.
    *
    * @note The @c std containers return a reference to the newly constructed element from 
-   * @c emplace method calls. @c emplace_push does not follow this convention, and instead 
-   * has the same return as the @c push methods.
+   * @c emplace method calls. @c emplace_push for a @c wait_queue does not follow this 
+   * convention and instead has the same return as the @c push methods.
    *
    * @return @c true if successful, @c false if the @c wait_queue is closed.
    */
@@ -255,8 +263,8 @@ public:
   }
 
   /**
-   * Pop and return a value from the @c wait_queue, blocking and waiting for a writer thread to 
-   * push a value if one is not immediately available.
+   * @brief Pop and return a value from the @c wait_queue, blocking and waiting for a writer 
+   * thread to push a value if one is not immediately available.
    *
    * If this method is called after a @c wait_queue has been closed, an empty @c std::optional 
    * is returned. If a @c wait_queue needs to be flushed after it is closed, @c try_pop should 
@@ -280,7 +288,7 @@ public:
   }
 
   /**
-   * Pop and return a value from the @c wait_queue if an element is immediately 
+   * @brief Pop and return a value from the @c wait_queue if an element is immediately 
    * available, otherwise return an empty @c std::optional.
    *
    * @return A value from the @c wait_queue or an empty @c std::optional if no values are 
@@ -299,7 +307,7 @@ public:
   // non-modifying methods
 
   /**
-   * Apply a non-modifying function object to all elements of the queue.
+   * @brief Apply a non-modifying function object to all elements of the queue.
    *
    * The function object is not allowed to modify any of the elements. 
    * The supplied function object is passed a const reference to the element 
