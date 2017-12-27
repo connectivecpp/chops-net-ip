@@ -7,22 +7,22 @@
  *  @brief Multi-reader multi-writer wait queue class for transferring
  *  data between threads.
  *
- *  This utility class allows transferring data between threads with queue 
- *  semantics, using C++ std library general facilities (mutex, condition 
- *  variable). An internal container with queue semantics is managed within 
- *  this object. One of the template parameters is the container type, 
- *  allowing customization for specific use cases (see below for additional
- *  details).
+ *  This class allows transferring data between threads with queue semantics
+ *  (push, pop), using C++ std library general facilities (mutex, condition 
+ *  variable). An internal container is managed within this class. 
  *
  *  Multiple writer and reader threads can access this object, although when 
  *  a value is pushed, only one reader thread will be notified to consume a 
  *  value.
  *
- *  If the @c close method is called, any reader threads calling @c wait_and_pop 
+ *  One of the template parameters is the container type, allowing customization 
+ *  for specific use cases (see below for additional details).
+ *
+ *  If the @c close method is called, all reader threads calling @c wait_and_pop 
  *  are notified, and an empty value returned to those threads. Subsequent calls 
  *  to @c push will return a @c false value.
  *
- *  Example usage, defaulted container:
+ *  Example usage, default container:
  *
  *  @code
  *    chops::wait_queue<int> wq;
@@ -34,8 +34,8 @@
  *    wq.close();
  *
  *    // inside reader thread, assume wq passed in by reference
- *    std::optional<int> rtn_val = wq.wait_and_pop();
- *    if (!rtn_val) { // empty optional, close has been called
+ *    auto rtn_val = wq.wait_and_pop(); // return type is std::optional<int>
+ *    if (!rtn_val) { // empty value, close has been called
  *      // time to end reader thread
  *    }
  *    if (*rtn_val == 42) ...
@@ -51,11 +51,11 @@
  *  @endcode
  *
  *  The container type must support the following (depending on which 
- *  ones are instantiated): default construction, construction from a 
+ *  methods are instantiated): default construction, construction from a 
  *  begin and end iterator, construction with an initial size, 
  *  @c push_back (preferably overloaded for both copy and move), 
  *  @c emplace_back (with a template parameter pack), @c front, @c pop_front, 
- *  @c empty, and @c size. The container type must also have a @c size_type
+ *  @c empty, and @c size. The container must also have a @c size_type
  *  defined.
  *
  *  This class is based on code from the book Concurrency in Action by Anthony 
@@ -71,7 +71,7 @@
  *  a container view type, which means that the @c wait_queue owns and manages 
  *  a view rather than the underlying container buffer.
  *
- *  @note The @c boost @c circular_buffer container type can be used. Memory is
+ *  @note The @c boost @c circular_buffer can be used for the container type. Memory is
  *  allocated only once, at container construction time. This may be useful for
  *  environments where construction can be dynamic, but a @c push or @c pop must
  *  not allocate or deallocate memory. 
@@ -127,7 +127,7 @@ public:
 
 public:
 
-  wait_queue() = default;
+  wait_queue() = default; // noexcept if container default ctor is noexcept
 
   /**
    * @brief Construct a @c wait_queue with an iterator range for the container.
