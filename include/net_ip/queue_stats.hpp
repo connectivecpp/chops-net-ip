@@ -25,8 +25,8 @@ namespace net {
 
 struct output_queue_stats {
 
-  std::size_t output_queue_size;
-  std::size_t bytes_in_output_queue;
+  std::size_t output_queue_size = 0;
+  std::size_t bytes_in_output_queue = 0;
   // std::size_t total_bufs_sent;
   // std::size_t total_bytes_sent;
 };

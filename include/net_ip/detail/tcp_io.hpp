@@ -62,7 +62,7 @@ public:
   // all of the methods in this public section can be called through an io_interface
   std::experimental::net::ip::tcp::socket& get_socket() noexcept { return m_socket; }
 
-  chops::net::output_queue_stats get_output_queue_stats() const noexcept {
+  chops::net::queue_stats get_output_queue_stats() const noexcept {
     return m_io_common.get_output_queue_stats();
   }
 
