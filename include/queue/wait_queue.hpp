@@ -93,6 +93,9 @@
  *  be used or individual @c push and @c pop methods called, even if not as efficient 
  *  as an internal copy or move.
  *
+ *  @note Very few methods are declared as @c noexcept since very few of the @c std::mutex,
+ *  @c std::condition_variable, and @c std::lock_guard methods are @c noexcept.
+ *
  *  @authors Cliff Green, Anthony Williams
  *  @date 2017
  *  @copyright Cliff Green, MIT License
@@ -105,6 +108,7 @@
 #include <deque>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 #include <optional>
 #include <utility> // std::move, std::move_if_noexcept
 #include <type_traits> // for noexcept specs
@@ -116,7 +120,7 @@ class wait_queue {
 private:
   mutable std::mutex m_mut;
   std::condition_variable m_data_cond;
-  bool m_closed = false;
+  std::atomic_bool m_closed;
   Container m_data_queue;
 
   using lock_guard = std::lock_guard<std::mutex>;
@@ -127,7 +131,17 @@ public:
 
 public:
 
-  wait_queue() = default; // noexcept if container default ctor is noexcept
+  /**
+   * @brief Default construct a @c wait_queue.
+   *
+   * @note A default constructed @c boost @c circular_buffer cannot do
+   * anything, so a different @c wait_queue constructor must be used if
+   * instantiated with a @c boost @c circular_buffer.
+   *
+   */
+  wait_queue()
+    // noexcept(std::is_nothrow_constructible<Container>::value)
+      : m_mut(), m_data_cond(), m_closed(false), m_data_queue() { }
 
   /**
    * @brief Construct a @c wait_queue with an iterator range for the container.
@@ -147,8 +161,8 @@ public:
    */
   template <typename Iter>
   wait_queue(Iter beg, Iter end)
-    noexcept(std::is_nothrow_constructible<Container, Iter, Iter>::value) :
-      m_mut(), m_data_queue(beg, end), m_data_cond(), m_closed(false) { }
+    // noexcept(std::is_nothrow_constructible<Container, Iter, Iter>::value)
+      : m_mut(), m_data_cond(), m_closed(false), m_data_queue(beg, end) { }
 
   /**
    * @brief Construct a @c wait_queue with an initial size or capacity.
@@ -168,8 +182,8 @@ public:
    *
    */
   wait_queue(size_type sz)
-    noexcept(std::is_nothrow_constructible<Container, size_type>::value) :
-      m_mut(), m_data_queue(sz), m_data_cond(), m_closed(false) { }
+    // noexcept(std::is_nothrow_constructible<Container, size_type>::value)
+      : m_mut(), m_data_cond(), m_closed(false), m_data_queue(sz) { }
 
   // disallow copy or move construction of the entire object
   wait_queue(const wait_queue&) = delete;
@@ -187,7 +201,6 @@ public:
    * @note The initial state of a @c wait_queue is open.
    */
   void open() noexcept {
-    lock_guard lk{m_mut};
     m_closed = false;
   }
 
@@ -197,9 +210,9 @@ public:
    * When this method is called, all waiting reader threaders will be notified. 
    * Subsequent @c push operations will return @c false.
    */
-  void close() noexcept {
-    lock_guard lk{m_mut};
+  void close() /* noexcept */ {
     m_closed = true;
+    lock_guard lk{m_mut};
     m_data_cond.notify_all();
   }
 
@@ -213,11 +226,11 @@ public:
    *
    * @return @c true if successful, @c false if the @c wait_queue is closed.
    */
-  bool push(const T& val) noexcept(std::is_nothrow_copy_constructible<T>::value) {
-    lock_guard lk{m_mut};
+  bool push(const T& val) /* noexcept(std::is_nothrow_copy_constructible<T>::value) */ {
     if (m_closed) {
       return false;
     }
+    lock_guard lk{m_mut};
     m_data_queue.push_back(val);
     m_data_cond.notify_one();
     return true;
@@ -229,11 +242,11 @@ public:
    * This method has the same semantics as the other @c push, except that the value will 
    * be moved (if possible) instead of copied.
    */
-  bool push(T&& val) noexcept(std::is_nothrow_move_constructible<T>::value) {
-    lock_guard lk{m_mut};
+  bool push(T&& val) /* noexcept(std::is_nothrow_move_constructible<T>::value) */ {
     if (m_closed) {
       return false;
     }
+    lock_guard lk{m_mut};
     m_data_queue.push_back(std::move(val));
     m_data_cond.notify_one();
     return true;
@@ -252,11 +265,11 @@ public:
    * @return @c true if successful, @c false if the @c wait_queue is closed.
    */
   template <typename ... Args>
-  bool emplace_push(Args &&... args) noexcept(std::is_nothrow_constructible<T, Args...>::value) {
-    lock_guard lk{m_mut};
+  bool emplace_push(Args &&... args) /* noexcept(std::is_nothrow_constructible<T, Args...>::value)*/ {
     if (m_closed) {
       return false;
     }
+    lock_guard lk{m_mut};
     m_data_queue.emplace_back(std::forward<Args>(args)...);
     m_data_cond.notify_one();
     return true;
@@ -273,11 +286,11 @@ public:
    * @return A value from the @c wait_queue (if non-empty). If the @c std::optional is empty, 
    * the @c wait_queue has been closed.
    */
-  std::optional<T> wait_and_pop() noexcept(std::is_nothrow_constructible<T>::value) {
-    std::unique_lock<std::mutex> lk{m_mut};
+  std::optional<T> wait_and_pop() /* noexcept(std::is_nothrow_constructible<T>::value) */ {
     if (m_closed) {
       return std::optional<T> {};
     }
+    std::unique_lock<std::mutex> lk{m_mut};
     m_data_cond.wait ( lk, [this] { return m_closed || !m_data_queue.empty(); } );
     if (m_data_queue.empty()) {
       return std::optional<T> {}; // queue was closed, no data available
@@ -294,7 +307,7 @@ public:
    * @return A value from the @c wait_queue or an empty @c std::optional if no values are 
    * available in the @c wait_queue.
    */
-  std::optional<T> try_pop() noexcept(std::is_nothrow_constructible<T>::value) {
+  std::optional<T> try_pop() /* noexcept(std::is_nothrow_constructible<T>::value) */ {
     lock_guard lk{m_mut};
     if (m_data_queue.empty()) {
       return std::optional<T> {};
@@ -325,7 +338,7 @@ public:
    * same @c wait_queue since it results in recursive mutex locks.
    */
   template <typename F>
-  void apply(F&& f) const noexcept(std::is_nothrow_invocable<F&&, const T&>::value) {
+  void apply(F&& f) const /* noexcept(std::is_nothrow_invocable<F&&, const T&>::value) */ {
     lock_guard lk{m_mut};
     for (const T& elem : m_data_queue) {
       f(elem);
@@ -338,7 +351,6 @@ public:
    * @return @c true if the @c wait_queue has been closed.
    */
   bool is_closed() const noexcept {
-    lock_guard lk{m_mut};
     return m_closed;
   }
 
@@ -347,7 +359,7 @@ public:
    *
    * @return @c true if the @c wait_queue is empty.
    */
-  bool empty() const noexcept {
+  bool empty() const /* noexcept */ {
     lock_guard lk{m_mut};
     return m_data_queue.empty();
   }
@@ -357,7 +369,7 @@ public:
    *
    * @return Number of elements in the @c wait_queue.
    */
-  size_type size() const noexcept {
+  size_type size() const /* noexcept */ {
     lock_guard lk{m_mut};
     return m_data_queue.size();
   }

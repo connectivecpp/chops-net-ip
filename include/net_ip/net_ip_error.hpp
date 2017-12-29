@@ -47,7 +47,10 @@ struct net_ip_err_category : public std::error_category {
 
 } // end detail namespace
 
-const detail::net_ip_err_category net_ip_err_category_global { };
+inline const detail::net_ip_err_category& get_err_category() {
+  static detail::net_ip_err_category e;
+  return e;
+}
 
 } // end net namespace
 } // end chops namespace
@@ -58,7 +61,7 @@ template <>
   struct is_error_code_enum<chops::net::net_ip_errc> : true_type {};
 
 inline error_code make_error_code(chops::net::net_ip_errc e) noexcept {
-  return error_code (static_cast<int>(e), chops::net::net_ip_err_category_global);
+  return error_code (static_cast<int>(e), chops::net::get_err_category());
 }
 
 }

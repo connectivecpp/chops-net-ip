@@ -12,9 +12,9 @@ Wait Queue uses C++ standard library concurrency facilities (mutex, condition va
 
 - Has been tested with Boost Circular Buffer. Boost Circular Buffer (as of Boost 1.65.1) does not support `emplace`, so the `emplace_push` method cannot be used when the Wait Queue is instantiated with a Boost Circular Buffer. 
 
-- Does not throw or catch exceptions anywhere in its code base. Elements passed through the queue may throw exceptions, which must be handled at an application level.
+- Does not throw or catch exceptions anywhere in its code base. Elements passed through the queue may throw exceptions, which must be handled at an application level. Exceptions may be thrown by C++ std library concurrency calls (`std::mutex` locks, etc), although this usually indicates an application design issue or issues at the operating system level.
 
-- Every method is either `noexcept` or is conditionally `noexcept` depending on the type of the data passed through the Wait Queue. This is critical for environments where exceptions are not enabled or used, but allows Wait Queue to be used for types that might throw an exception when copied or moved.
+- If the C++ std library concurrency calls become `noexcept`, every Wait Queue method will become `noexcept` or conditionally `noexcept` (depending on the type of the data passed through the Wait Queue).
 
 The only requirement on the type passed through a Wait Queue is that it supports either copy construction or move construction. In particular, a default constructor is not required (this is enabled by using `std::optional`, which does not require a default constructor).
 
