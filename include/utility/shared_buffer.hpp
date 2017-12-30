@@ -257,6 +257,23 @@ public:
   }
 
 /**
+ *  @brief Append by copying bytes from an arbitrary pointer.
+ *
+ *  The pointer passed into this method is cast into a @c std::byte pointer and bytes 
+ *  are then copied. In particular, this method can be used for @c char pointers, 
+ *  @c void pointers, @ unsigned @c char pointers, etc.
+ *
+ *  @param buf Pointer to a buffer of data. The pointer must be convertible 
+ *  to a @c void pointer and then to a @c std::byte pointer.
+ *
+ *  @param sz Size of buffer, in bytes.
+ */
+  template <typename T>
+  mutable_shared_buffer& append(const T* buf, size_type sz) {
+    return append(static_cast<const std::byte*>(static_cast<const void*>(buf)), sz);
+  }
+
+/**
  *  @brief Append the contents of another @c mutable_shared_buffer to the end.
  *
  *  @param rhs @c mutable_shared_buffer to append from.
