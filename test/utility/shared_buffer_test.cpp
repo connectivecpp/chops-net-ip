@@ -16,6 +16,7 @@
 
 #include <cstddef> // std::byte
 #include <list>
+#include <string_view>
 
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
@@ -245,6 +246,14 @@ SCENARIO ( "Mutable shared buffer append", "[mutable_shared_append]" ) {
       sb += std::byte(0xcc);
       THEN ("the internal buffer will contain the appended data") {
         REQUIRE (sb == ta);
+      }
+    }
+    AND_WHEN ("Appending with a char* to test templated append") {
+      std::string_view sv("Haha, Bro!");
+      chops::mutable_shared_buffer cb(sv.data(), sv.size());
+      sb.append(sv.data(), sv.size());
+      THEN ("the internal buffer will contain the appended data") {
+        REQUIRE (sb == cb);
       }
     }
   } // end given
