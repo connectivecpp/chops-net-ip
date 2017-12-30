@@ -14,6 +14,8 @@
 #define IO_INTERFACE_HPP_INCLUDED
 
 #include <memory> // std::weak_ptr, std::shared_ptr
+#include <string_view>
+#include <cstddef> // std::size_t
 
 #include "utility/shared_buffer.hpp"
 
@@ -167,36 +169,47 @@ public:
 /**
  *  @brief Send a reference counted buffer through the associated network IO handler.
  *
+ *  This is a non-blocking call.
+ *
+ *  @param buf @c chops::const_shared_buffer containing data.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ */
+  bool send(chops::const_shared_buffer buf) const {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->send(buf), true) : false;
+  }
+
+/**
+ *  @brief Move a reference counted buffer and send it through the associated network
+ *  IO handler.
+ *
  *  To save a buffer copy, applications can create a @c chops::mutable_shared_buffer, 
- *  fill it in with data, then move the buffer instead of copying. For example:
+ *  fill it with data, then move it into a @c chops::const_shared_buffer. For example:
  *
  *  @code
  *    chops::mutable_shared_buffer buf;
  *    // ... fill buf with data
- *    my_io_interface.send(std::move(buf));
- *    buf.resize(0); // or whatever desired size
+ *    an_io_interface.send(std::move(buf));
+ *    buf.resize(0); // or whatever new desired size
  *  @endcode
  *
  *  This is a non-blocking call.
  *
- *  @param buf @c const_shared_buffer containing data.
+ *  @param buf @c chops::mutable_shared_buffer containing data.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
-  void send(chops::const_shared_buffer buf) const {
-    if (auto p = m_ioh_wptr.lock()) {
-      p->send(buf);
-      return true;
-    }
-    return false;
-  }
+  bool send(chops::mutable_shared_buffer&& buf) const { return send(chops::const_shared_buffer(buf)); }
 
 /**
  *  @brief Send a buffer to a specific destination endpoint (address and port), implemented
- *  only in UDP IO handlers.
+ *  only for UDP IO handlers.
  *
- *  Buffer data will be copied into an internal reference counted buffer. This method call is 
- *  invalid for TCP IO handlers.
+ *  Buffer data will be copied into an internal reference counted buffer. Calling this method
+ *  is invalid for TCP IO handlers.
+ *
+ *  This is a non-blocking call.
  *
  *  @param buf Pointer to buffer.
  *
@@ -206,28 +219,190 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
-  void send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
+  bool send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
     return send(chops::const_shared_buffer(buf, sz), endp);
   }
 
 /**
  *  @brief Send a reference counted buffer to a specific destination endpoint (address and 
- *  port), implemented only in UDP IO handlers.
+ *  port), implemented only for UDP IO handlers.
  *
- *  A @c mutable_shared_buffer can be moved (see other @c send call for details).
- * 
- *  @param buf @c const_shared_buffer containing data.
+ *  This is a non-blocking call.
+ *
+ *  @param buf @c chops::const_shared_buffer containing data.
+ *
+ *  @param endp Destination @c std::experimental::net::ip::udp::endpoint.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
-  void send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
-    if (auto p = m_ioh_wptr.lock()) {
-      p->send(buf, endp);
-      return true;
-    }
-    return false;
+  bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->send(buf, endp), true) : false;
   }
 
+/**
+ *  @brief Move a reference counted buffer and send it through the associated network
+ *  IO handler, implemented only for UDP IO handlers.
+ *
+ *  See documentation for @c send without endpoint that moves a @c chops::mutable_shared_buffer.
+ *  This is a non-blocking call.
+ *
+ *  @param buf @c chops::mutable_shared_buffer containing data.
+ *
+ *  @param endp Destination @c std::experimental::net::ip::udp::endpoint.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ */
+  bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
+    return send(chops::const_shared_buffer(buf), endp);
+  }
+
+
+/**
+ *  @brief Enable IO processing for the associated network IO handler with message 
+ *  frame logic.
+ *
+ *  This method is not implemented for UDP IO handlers.
+ *
+ *  For TCP IO handlers, this starts read processing using a message handler 
+ *  function object callback and a message frame function object callback. Sends 
+ *  (writes) are enabled after this call.
+ *
+ *  This method is used for message frame based TCP processing. The logic is
+ *  "read header, process data to determine size of rest of message, read rest
+ *  of message". The message frame function object callback implements this
+ *  logic. Once a complete message has been read, the message handler function 
+ *  object callback is invoked.
+ *
+ *  @param msg_handler A message handler function object callback. The signature of
+ *  the callback is:
+ *  @code
+ *    bool (chops::mutable_shared_buffer,
+ *          chops::net::io_interface<chops::net::tcp_io_type>,
+ *          std::experimental::net::ip::tcp::endpoint,
+ *          MF_type)
+ *  @endcode
+ *  @c MF_type is the type of the msg_frame function object callback and is passed
+ *  in to the message handler so it can access the message frame state data. The 
+ *  buffer contains the full message, the @c io_interface can be used for 
+ *  sending a reply, and the endpoint is the remote endpoint that sent the data. 
+ *  Returning @c false from the message handler callback causes the connection to be 
+ *  closed.
+ *
+ *  @param msg_frame A message frame function object callback. The signature of
+ *  the callback is:
+ *  @code
+ *    std::size_t (chops::mutable_shared_buffer)
+ *  @endcode
+ *  The complete incoming buffer is passed in as the parameter. The callback returns 
+ *  the size of the next read, or zero as a notification that the complete message
+ *  has been called and the message handler is to be invoked.
+ *
+ *  @param header_size The initial read size (in bytes) of each incoming message.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ */
+  template <typename MH, typename MF>
+  bool start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) const {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->start_io(msg_handler, msg_frame, header_size), true) : false;
+  }
+
+/**
+ *  @brief Enable IO processing for the associated network IO handler with delimeter 
+ *  logic.
+ *
+ *  This method is not implemented for UDP IO handlers.
+ *
+ *  For TCP IO handlers, this starts read processing using a message handler
+ *  function object callback. Sends (writes) are enabled after this call.
+ *
+ *  This method is used for delimiter based TCP processing (typically text based 
+ *  messages in TCP streams). The logic is "read data until the delimiter characters 
+ *  match" (which are usually "end-of-line" sequences). The message handler function 
+ *  object callback is then invoked.
+ *
+ *  @param msg_handler A message handler function object callback. The signature of
+ *  the callback is:
+ *  @code
+ *    bool (chops::mutable_shared_buffer,
+ *          chops::net::io_interface<chops::net::tcp_io_type>,
+ *          std::experimental::net::ip::tcp::endpoint)
+ *  @endcode
+ *  The buffer is the complete message including the delimiter sequence. The @c io_interface 
+ *  can be used for sending a reply, and the endpoint is the remote endpoint that sent the data. 
+ *  Returning @c false from the message handler callback causes the connection to be 
+ *  closed.
+ *
+ *  @param delimiter Delimiter characters denoting end of each message.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ */
+  template <typename MH>
+  bool start_io(MH&& msg_handler, std::string_view delimiter) const {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->start_io(msg_handler, delimiter), true) : false;
+  }
+
+/**
+ *  @brief Enable IO processing for the associated network IO handler with fixed
+ *  or maximum buffer size logic.
+ *
+ *  This method is implemented for both TCP and UDP IO handlers.
+ *
+ *  For TCP IO handlers, this reads fixed size messages.
+ *
+ *  For UDP IO handlers, this specifies the maximum size of the datagram. For IPv4 this
+ *  value can be up to 65,507, and larger for IPv6. If the incoming datagram contains
+ *  a size larger than the specified size, data will be truncated (lost).
+ *
+ *  @param msg_handler A message handler function object callback. The signature of
+ *  the callback is:
+ *  @code
+ *    bool (chops::mutable_shared_buffer,
+ *          chops::net::io_interface<IO_type>,
+ *          Endpoint_type)
+ *  @endcode
+ *  For UDP the buffer size denotes the incoming datagram size. For TCP the buffer size will 
+ *  always match the "read_size" parameter. The "IO_type" is either @c chops::net::tcp_io_type or
+ *  @c chops::net::udp_io_type. The "Endpoint_type" is either 
+ *  @c std::experimental::net::ip::udp::endpoint or @c std::experimental::net::ip::tcp::endpoint.
+ *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
+ *  be closed.
+ *
+ *  @param read_size Maximum UDP datagram size or fixed TCP read size.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ */
+
+  template <typename MH>
+  bool start_io(MH&& msg_handler, std::size_t read_size) const {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->start_io(msg_handler, read_size), true) : false;
+  }
+
+/**
+ *  @brief Enable IO processing for the associated network IO handler with no incoming
+ *  message handling.
+ *
+ *  This method is implemented for both TCP and UDP IO handlers.
+ *
+ *  This method is used to enable IO processing where only sends are needed (and no 
+ *  incoming message handling).
+ *
+ *  For TCP IO handlers, a read will be started, but no data processed (typically if
+ *  this read completes it is due to an error condition). For UDP IO handlers, no
+ *  reads are started.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ */
+
+  bool start_io() {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->start_io(), true) : false;
+  }
+
+ 
 /**
  *  @brief Stop IO processing and close the associated network IO handler.
  *
@@ -238,12 +413,9 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
-  void stop_io() const {
-    if (auto p = m_ioh_wptr.lock()) {
-      p->stop_io();
-      return true;
-    }
-    return false;
+  bool stop_io() const {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->stop_io(), true) : false;
   }
 
   friend bool operator==(const io_interface<IOH>&, const io_interface<IOH>&);
@@ -254,17 +426,17 @@ public:
 /**
  *  @brief Compare two @c io_interface objects for equality.
  *
- *  If both @io_interface objects are valid, then a comparison is made to the IO handler
- *  pointers. If both @io_interface objects are invalid, @c true is returned (this implies that
+ *  If both @io_interface objects are valid, then a @c std::shared_ptr comparison is made.
+ *  If both @io_interface objects are invalid, @c true is returned (this implies that
  *  all invalid @c io_interface objects are equivalent). If one is valid and the other invalid,
  *  @c false is returned.
  *
- *  @return @c true if both @c io_interface objects are pointing to the same IO handler, or
- *  neither is pointing to an IO handler.
+ *  @return As described in the comments.
  *
  *  @relates io_interface
  */
 
+template <typename IOH>
 inline bool operator==(const io_interface<IOH>& lhs, const io_interface<IOH>& rhs) noexcept {
   auto lp = lhs.m_ioh_wptr.lock();
   auto rp = rhs.m_ioh_wptr.lock();
@@ -274,17 +446,19 @@ inline bool operator==(const io_interface<IOH>& lhs, const io_interface<IOH>& rh
 /**
  *  @brief Compare two @c io_interface objects for ordering purposes.
  *
- *  If both @c io_interface objects are invalid @c false is returned. If both are valid,
- *  the IO handler pointer ordering is returned.
+ *  All invalid @c io_interface objects are less than valid ones. When both are valid,
+ *  the @c std::shared_ptr ordering is returned.
  *
+ *  Specifically, if both @c io_interface objects are invalid @c false is returned. 
  *  If the left @c io_interface object is invalid and the right is not, @c true is
  *  returned. If the right @c io_interface is invalid, but the left is not, @c false is 
- *  returned, implying that all invalid @c io_interface objects are less than valid ones.
+ *  returned.
  *
- *  @return @c true or @false as described.
+ *  @return As described in the comments.
  *
  *  @relates io_interface
  */
+template <typename IOH>
 inline bool operator<(const io_interface<IOH>& lhs, const io_interface<IOH>& rhs) noexcept {
   auto lp = lhs.m_ioh_wptr.lock();
   auto rp = rhs.m_ioh_wptr.lock();

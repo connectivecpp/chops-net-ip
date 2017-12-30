@@ -16,132 +16,149 @@
 #include <experimental/socket>
 #include <experimental/io_context>
 
+#include <memory> // std::shared_ptr
+#include <system_error> // std::error_code
+#include <utility> // std::move
+#include <functional> // std::bind
+
 #include "net_ip/detail/output_queue.hpp"
 #include "net_ip/detail/io_common.hpp"
+#include "net_ip/net_ip_error.hpp"
 
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 
-template <typename Protocol, typename Sock>
-bool call_start_io_setup(chops::net::detail::io_common<Protocol>& comm) {
+template <typename IOH>
+bool call_start_io_setup(chops::net::detail::io_common<IOH>& comm) {
 
-  using namespace std::experimental::net;
-
-  io_context ioc;
-  Sock sock(ioc);
+  std::experimental::net::io_context ioc;
+  typename IOH::socket_type sock(ioc);
   return comm.start_io_setup(sock);
 }
 
-template <typename Protocol, typename Sock>
+template <typename IOH>
 void io_common_test(chops::const_shared_buffer buf, int num_bufs,
-                    const std::experimental::net::ip::basic_endpoint<Protocol>& endp) {
+                    const std::experimental::net::ip::basic_endpoint<typename IOH::protocol_type>& endp) {
 
   using namespace std::experimental::net;
+  using namespace std::placeholders;
+  using notifier_type = typename chops::net::detail::io_common<IOH>::entity_notifier_cb;
 
   REQUIRE (num_bufs > 1);
 
-  GIVEN ("A default constructed io_common and a buf and endpoint") {
+  IOH ioh;
+
+  GIVEN ("An io_common and a buf and endpoint") {
 
     INFO ("Endpoint passed as arg: " << endp);
-    chops::net::detail::io_common<Protocol> iocommon { };
-    INFO("Remote endpoint after default construction: " << iocommon.get_remote_endp());
+    chops::net::detail::io_common<IOH> iocomm ( notifier_type(std::bind(&IOH::notify_me, &ioh, _1, _2)) );
+    INFO("Remote endpoint after default construction: " << iocomm.get_remote_endp());
 
-    auto qs = iocommon.get_output_queue_stats();
+    auto qs = iocomm.get_output_queue_stats();
     REQUIRE (qs.output_queue_size == 0);
     REQUIRE (qs.bytes_in_output_queue == 0);
-    REQUIRE (!iocommon.is_started());
-    REQUIRE (!iocommon.is_write_in_progress());
+    REQUIRE (!iocomm.is_started());
+    REQUIRE (!iocomm.is_write_in_progress());
 
-    WHEN ("Start_io_setup is called") {
-      bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
+    WHEN ("Check_err_code is called") {
+      REQUIRE (!ioh.notify_called);
+      bool ret = iocomm.check_err_code(std::make_error_code(chops::net::net_ip_errc::message_handler_terminated), std::shared_ptr<IOH>());
+      THEN ("the notify_called flag is now true and the return is false") {
+        REQUIRE (ioh.notify_called);
+        REQUIRE (!ret);
+      }
+    }
+
+    AND_WHEN ("Start_io_setup is called") {
+      bool ret = call_start_io_setup(iocomm);
       REQUIRE (ret);
       THEN ("the started flag is true and write_in_progress flag false") {
-        REQUIRE (iocommon.is_started());
-        REQUIRE (!iocommon.is_write_in_progress());
+        REQUIRE (iocomm.is_started());
+        REQUIRE (!iocomm.is_write_in_progress());
       }
     }
 
     AND_WHEN ("Start_io_setup is called twice") {
-      bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
+      bool ret = call_start_io_setup(iocomm);
       REQUIRE (ret);
-      ret = call_start_io_setup<Protocol, Sock>(iocommon);
+      ret = call_start_io_setup(iocomm);
       THEN ("the second call returns false") {
         REQUIRE (!ret);
       }
     }
 
     AND_WHEN ("Start_write_setup is called before start_io_setup") {
-      bool ret = iocommon.start_write_setup(buf);
+      bool ret = iocomm.start_write_setup(buf);
       THEN ("the call returns false") {
         REQUIRE (!ret);
       }
     }
 
     AND_WHEN ("Start_write_setup is called after start_io_setup") {
-      bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
-      ret = iocommon.start_write_setup(buf);
+      bool ret = call_start_io_setup(iocomm);
+      ret = iocomm.start_write_setup(buf);
       THEN ("the call returns true and write_in_progress flag is true and queue size is zero") {
         REQUIRE (ret);
-        REQUIRE (iocommon.is_write_in_progress());
-        REQUIRE (iocommon.get_output_queue_stats().output_queue_size == 0);
+        REQUIRE (iocomm.is_write_in_progress());
+        REQUIRE (iocomm.get_output_queue_stats().output_queue_size == 0);
       }
     }
 
     AND_WHEN ("Start_write_setup is called twice") {
-      bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
-      ret = iocommon.start_write_setup(buf);
-      ret = iocommon.start_write_setup(buf);
+      bool ret = call_start_io_setup(iocomm);
+      ret = iocomm.start_write_setup(buf);
+      ret = iocomm.start_write_setup(buf);
       THEN ("the call returns false and write_in_progress flag is true and queue size is one") {
         REQUIRE (!ret);
-        REQUIRE (iocommon.is_write_in_progress());
-        REQUIRE (iocommon.get_output_queue_stats().output_queue_size == 1);
+        REQUIRE (iocomm.is_write_in_progress());
+        REQUIRE (iocomm.get_output_queue_stats().output_queue_size == 1);
       }
     }
 
     AND_WHEN ("Start_write_setup is called many times") {
-      bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
+      bool ret = call_start_io_setup(iocomm);
       REQUIRE (ret);
-      chops::repeat(num_bufs, [&iocommon, &buf, &ret, &endp] () { 
-          ret = iocommon.start_write_setup(buf, endp);
+      chops::repeat(num_bufs, [&iocomm, &buf, &ret, &endp] () { 
+          ret = iocomm.start_write_setup(buf, endp);
         }
       );
       THEN ("all bufs but the first one are queued") {
-        REQUIRE (iocommon.is_write_in_progress());
-        REQUIRE (iocommon.get_output_queue_stats().output_queue_size == (num_bufs-1));
+        REQUIRE (iocomm.is_write_in_progress());
+        REQUIRE (iocomm.get_output_queue_stats().output_queue_size == (num_bufs-1));
       }
     }
 
     AND_WHEN ("Start_write_setup is called many times and get_next_element is called 2 less times") {
-      bool ret = call_start_io_setup<Protocol, Sock>(iocommon);
+      bool ret = call_start_io_setup(iocomm);
       REQUIRE (ret);
-      chops::repeat(num_bufs, [&iocommon, &buf, &ret, &endp] () { 
-          iocommon.start_write_setup(buf, endp);
+      chops::repeat(num_bufs, [&iocomm, &buf, &ret, &endp] () { 
+          iocomm.start_write_setup(buf, endp);
         }
       );
-      chops::repeat((num_bufs - 2), [&iocommon] () { 
-          iocommon.get_next_element();
+      chops::repeat((num_bufs - 2), [&iocomm] () { 
+          iocomm.get_next_element();
         }
       );
       THEN ("next get_next_element call returns a val, call after doesn't and write_in_progress is false") {
 
-        auto qs = iocommon.get_output_queue_stats();
+        auto qs = iocomm.get_output_queue_stats();
         REQUIRE (qs.output_queue_size == 1);
         REQUIRE (qs.bytes_in_output_queue == buf.size());
 
-        auto e = iocommon.get_next_element();
+        auto e = iocomm.get_next_element();
 
-        qs = iocommon.get_output_queue_stats();
+        qs = iocomm.get_output_queue_stats();
         REQUIRE (qs.output_queue_size == 0);
         REQUIRE (qs.bytes_in_output_queue == 0);
 
-        REQUIRE (iocommon.is_write_in_progress());
+        REQUIRE (iocomm.is_write_in_progress());
 
         REQUIRE (e);
         REQUIRE (e->first == buf);
         REQUIRE (e->second == endp);
 
-        auto e2 = iocommon.get_next_element();
-        REQUIRE (!iocommon.is_write_in_progress());
+        auto e2 = iocomm.get_next_element();
+        REQUIRE (!iocomm.is_write_in_progress());
         REQUIRE (!e2);
 
       }
@@ -150,20 +167,45 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
   } // end given
 }
 
-SCENARIO ( "Io common test, udp endpoint", "[io_common_udp_endpoint]" ) {
+struct tcp_io_mock {
+  bool notify_called = false;
+
+  using socket_type = std::experimental::net::ip::tcp::socket;
+  using protocol_type = std::experimental::net::ip::tcp;
+
+  void notify_me(const std::error_code& err, std::shared_ptr<tcp_io_mock> p) {
+    notify_called = true;
+  }
+
+};
+
+struct udp_io_mock {
+  bool notify_called = false;
+
+  using socket_type = std::experimental::net::ip::udp::socket;
+  using protocol_type = std::experimental::net::ip::udp;
+
+  void notify_me(const std::error_code& err, std::shared_ptr<udp_io_mock> p) {
+    notify_called = true;
+  }
+
+};
+
+SCENARIO ( "Io common test, udp", "[io_common_udp]" ) {
   using namespace std::experimental::net;
 
   auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
-  io_common_test<ip::udp, ip::udp::socket>(chops::const_shared_buffer(std::move(mb)), 20,
+  io_common_test<udp_io_mock>(chops::const_shared_buffer(std::move(mb)), 20,
                           ip::udp::endpoint(ip::udp::v4(), 1234));
 }
 
-SCENARIO ( "Io common test, tcp endpoint", "[io_common_tcp_endpoint]" ) {
+SCENARIO ( "Io common test, tcp", "[io_common_tcp]" ) {
   using namespace std::experimental::net;
 
   auto ba = chops::make_byte_array(0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
-  io_common_test<ip::tcp, ip::tcp::socket>(chops::const_shared_buffer(std::move(mb)), 40,
+  io_common_test<tcp_io_mock>(chops::const_shared_buffer(std::move(mb)), 40,
                           ip::tcp::endpoint(ip::tcp::v6(), 9876));
 }
+

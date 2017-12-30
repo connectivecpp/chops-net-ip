@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief Factored common code for TCP and UDP io handlers.
+ *  @brief Common code, factored out, for TCP and UDP io handlers.
  *
  *  @note For internal use only.
  *
@@ -17,6 +17,8 @@
 
 #include <atomic>
 #include <system_error>
+#include <functional> // std::function, used for type erased notifications to net_entity objects
+#include <memory> // std::shared_ptr
 
 #include <experimental/internet>
 #include <experimental/socket>
@@ -33,23 +35,31 @@ inline std::size_t null_msg_frame (chops::mutable_shared_buffer /* buf */ ) {
   return 0;
 }
 
-template <typename Protocol>
+template <typename IOH>
 class io_common {
+public:
+  using entity_notifier_cb = std::function<void (const std::error_code&, std::shared_ptr<IOH>)>;
+  using endpoint_type = std::experimental::net::ip::basic_endpoint<typename IOH::protocol_type>;
+  using outq_type = output_queue<typename IOH::protocol_type>;
+  using outq_opt_el = typename outq_type::opt_queue_element;
+  using queue_stats = chops::net::output_queue_stats;
+
 private:
 
-  std::atomic_bool                            m_started;
-  bool                                        m_write_in_progress; // internal only, doesn't need to be atomic
-  chops::net::detail::output_queue<Protocol>  m_outq;
-  std::experimental::net::ip::basic_endpoint<Protocol>
-                                              m_remote_endp;
+  std::atomic_bool        m_started; // may be called from multiple threads concurrently
+  bool                    m_write_in_progress; // internal only, doesn't need to be atomic
+  outq_type               m_outq;
+  endpoint_type           m_remote_endp;
+  entity_notifier_cb      m_entity_notifier_cb;
 
 public:
 
-  io_common() noexcept : m_started(false), m_write_in_progress(false), m_outq(), m_remote_endp() { }
+  explicit io_common(entity_notifier_cb cb) noexcept :
+    m_started(false), m_write_in_progress(false), m_outq(), m_remote_endp(), m_entity_notifier_cb(cb) { }
 
-  chops::net::output_queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
+  queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
 
-  std::experimental::net::ip::basic_endpoint<Protocol> get_remote_endp() const noexcept { return m_remote_endp; }
+  endpoint_type get_remote_endp() const noexcept { return m_remote_endp; }
 
   bool is_started() const noexcept { return m_started; }
 
@@ -57,19 +67,29 @@ public:
 
   void stop() noexcept { m_started = false; m_write_in_progress = false; }
 
-  bool start_io_setup(std::experimental::net::basic_socket<Protocol>&) noexcept;
+  bool start_io_setup(typename IOH::socket_type&) noexcept;
+
+  bool check_err_code(const std::error_code&, std::shared_ptr<IOH>);
 
   // assumption - following methods called from single thread only
   bool start_write_setup(const chops::const_shared_buffer&);
-  bool start_write_setup(const chops::const_shared_buffer&, 
-                         const std::experimental::net::ip::basic_endpoint<Protocol>&);
+  bool start_write_setup(const chops::const_shared_buffer&, const endpoint_type&);
 
-  typename output_queue<Protocol>::opt_queue_element get_next_element();
+  outq_opt_el get_next_element();
 
 };
 
-template <typename Protocol>
-bool io_common<Protocol>::start_io_setup(std::experimental::net::basic_socket<Protocol>& sock) noexcept {
+template <typename IOH>
+bool io_common<IOH>::check_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
+  if (err) {
+    m_entity_notifier_cb(err, ioh_ptr);
+    return false;
+  }
+  return true;
+}
+
+template <typename IOH>
+bool io_common<IOH>::start_io_setup(typename IOH::socket_type& sock) noexcept {
   if (m_started) {
     return false;
   }
@@ -79,10 +99,10 @@ bool io_common<Protocol>::start_io_setup(std::experimental::net::basic_socket<Pr
   return true;
 }
 
-template <typename Protocol>
-bool io_common<Protocol>::start_write_setup(const chops::const_shared_buffer& buf) {
+template <typename IOH>
+bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
   if (!m_started) {
-    return false; // shutdown happening, don't start a write
+    return false; // shutdown happening or not started, don't start a write
   }
   if (m_write_in_progress) { // queue buffer
     m_outq.add_element(buf);
@@ -92,11 +112,10 @@ bool io_common<Protocol>::start_write_setup(const chops::const_shared_buffer& bu
   return true;
 }
 
-template <typename Protocol>
-bool io_common<Protocol>::start_write_setup(const chops::const_shared_buffer& buf,
-                                            const std::experimental::net::ip::basic_endpoint<Protocol>& endp) {
+template <typename IOH>
+bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf, const endpoint_type& endp) {
   if (!m_started) {
-    return false; // shutdown happening, don't start a write
+    return false; // shutdown happening or not started, don't start a write
   }
   if (m_write_in_progress) { // queue buffer
     m_outq.add_element(buf, endp);
@@ -106,10 +125,10 @@ bool io_common<Protocol>::start_write_setup(const chops::const_shared_buffer& bu
   return true;
 }
 
-template <typename Protocol>
-typename output_queue<Protocol>::opt_queue_element io_common<Protocol>::get_next_element() {
+template <typename IOH>
+typename io_common<IOH>::outq_opt_el io_common<IOH>::get_next_element() {
   if (!m_started) { // shutting down
-    return typename output_queue<Protocol>::opt_queue_element { };
+    return outq_opt_el { };
   }
   auto elem = m_outq.get_next_element();
   m_write_in_progress = elem.has_value();
