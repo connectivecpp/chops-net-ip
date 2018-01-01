@@ -191,12 +191,23 @@ public:
 /**
  *  @brief Return @c const @c std::byte pointer to beginning of buffer.
  *
- *  This method provides pointer access to the beginning of the buffer, same as 
- *  the non-const method, but providing @c const access.
-
+ *  @c const method providing pointer access to the beginning of the buffer.
+ *
  *  @return @c const @c std::byte pointer to buffer.
  */
   const std::byte* data() const noexcept { return m_data->data(); }
+
+/**
+ *  @brief Return access to underlying @c std::vector.
+ *
+ *  This can be used to instantiate a dynamic_buffer as defined in the Networking TS.
+ *  Changing the @c std::vector from outside this class works because no state
+ *  data is stored within this object that needs to be consistent with the @c std::vector
+ *  contents.
+ *
+ *  @return Reference to @c std::vector<std::byte>.
+ */
+  byte_vec& get_byte_vec() noexcept { return *m_data; }
 
 /**
  *  @brief Return size (number of bytes) of buffer.

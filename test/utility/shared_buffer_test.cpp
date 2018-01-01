@@ -306,3 +306,23 @@ SCENARIO ( "Move a vector of bytes into a const shared buffer", "[move_byte_vec_
   shared_buffer_byte_vector_move<chops::const_shared_buffer>();
 
 }
+
+SCENARIO ( "Use get_byte_vec for external modification of buffer", "[get_byte_vec]" ) {
+
+  auto arr = chops::make_byte_array (0xaa, 0xbb, 0xcc);
+  chops::mutable_shared_buffer::byte_vec bv (arr.cbegin(), arr.cend());
+
+  GIVEN ("A mutable_shared_buffer") {
+    chops::mutable_shared_buffer msb(bv.cbegin(), bv.cend());
+
+    WHEN ("get_byte_vec is called") {
+      auto r = msb.get_byte_vec();
+      THEN ("the refererence can be used to access and modify data") {
+        REQUIRE (r == bv);
+        r[0] = std::byte(0xdd);
+        REQUIRE (r != bv);
+      }
+    }
+  } // end given
+
+}
