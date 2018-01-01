@@ -166,25 +166,13 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
   } // end given
 }
 
-struct tcp_io_mock {
+struct tcp_entity_mock {
   bool notify_called = false;
 
   using socket_type = std::experimental::net::ip::tcp::socket;
   using protocol_type = std::experimental::net::ip::tcp;
 
   void notify_me(const std::error_code& err, std::shared_ptr<tcp_io_mock> p) {
-    notify_called = true;
-  }
-
-};
-
-struct udp_io_mock {
-  bool notify_called = false;
-
-  using socket_type = std::experimental::net::ip::udp::socket;
-  using protocol_type = std::experimental::net::ip::udp;
-
-  void notify_me(const std::error_code& err, std::shared_ptr<udp_io_mock> p) {
     notify_called = true;
   }
 

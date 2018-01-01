@@ -144,7 +144,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
   if (!m_io_common.check_err_code(err, std::shared_from_this())) {
     return;
   }
-  // assert num_bytes == buf.size()
+  // assert num_bytes == m_byte_vec.size()
   mutable_buffer mbuf;
   const_buffer cb(m_byte_vec.data(), m_byte_vec.size());
   std::size_t next_read_size = msg_frame(cb);
@@ -165,7 +165,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
   }
   // start another read
   auto self { std::shared_from_this() };
-  std::experimental::net:async_read(m_socket, mbuf,
+  async_read(m_socket, mbuf,
     [this, self, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
           (const std::error_code& err, std::size_t nb) {
       handle_read(mh, mf, header_size, err, nb);
@@ -195,15 +195,17 @@ void tcp_io::handle_read(MH&& msg_hdlr, const std::error_code& err, std::size_t 
   if (!m_io_common.check_err_code(err, std::shared_from_this())) {
     return;
   }
-  if (!msg_hdlr(bv, chops::net::io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp())) {
+  // m_dyn_buf contains up to delimiter
+  if (!msg_hdlr(m_dyn_buf.data(), chops::net::io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp())) {
       m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  std::shared_from_this());
     return;
   }
+  m_dyn_buf.consume(num_bytes);
 
   auto self { std::shared_from_this() };
-  async_read_until(m_socket, dyn_buf, delimiter, [this, self, mh = std::forward(msg_hdlr), delimiter] 
-          (const std::error_code& err, std::size_t nb) {
+  async_read_until(m_socket, m_dyn_buf, delimiter, 
+          [this, self, mh = std::forward(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
       handle_read(mh, err, nb);
     }
   );
@@ -231,7 +233,7 @@ inline void tcp_io::start_write(chops::shared_const_buffer buf) {
     return; // buf queued or shutdown happening
   }
   auto self { std::shared_from_this() };
-  std::experimental::net::async_write(m_socket, buf, [this, self] 
+  async_write(m_socket, buf, [this, self] 
       (const std::system::error_code& err, std::size_t nb) { handle_write(err, nb); }
   );
 }
@@ -245,7 +247,7 @@ inline void tcp_io::handle_write(const std::system::error_code& err, std::size_t
     return;
   }
   auto self { std::shared_from_this() };
-  std::experimental::net::async_write(m_socket, elem->first, [this, self]
+  async_write(m_socket, elem->first, [this, self]
       (const std::system::error_code& err, std::size_t nb) { handle_write(err, nb); }
 }
 
