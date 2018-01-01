@@ -41,20 +41,26 @@ class tcp_io : std::enable_shared_from_this<tcp_io> {
 public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using protocol_type = std::experimental::net::ip::tcp;
+  using byte_vec = chops::mutable_shared_buffer::byte_vec;
 
 private:
   using entity_notifier_cb = std::function<void (const std::error_code&, std::shared_ptr<tcp_io>)>;
+  using namespace std::experimental::net;
 
 private:
 
-  socket_type          m_socket;
-  io_common<tcp_io>    m_io_common;
-
+  socket_type            m_socket;
+  io_common<tcp_io>      m_io_common;
+  // the following members could be passed through handlers, but are stored here
+  // for simplicity
+  byte_vec               m_byte_vec;
+  dynamic_vector_buffer  m_dyn_buf;
+  std::string            m_delimiter;
 
 public:
 
   tcp_io(socket_type sock, entity_notifier_cb cb) noexcept : 
-    m_socket(std::move(sock)), m_io_common(cb) { }
+    m_socket(std::move(sock)), m_io_common(cb), m_byte_vec(), m_dyn_buf(m_byte_vec), m_delimiter() { }
 
 public:
   // all of the methods in this public section can be called through an io_interface
@@ -82,7 +88,7 @@ public:
   // use post for thread safety, multiple threads can call this method
   void send(chops::shared_const_buffer buf) {
     auto self { std::shared_from_this() };
-    std::experimental::net::post(m_socket.get_executor(), [this, self, buf] { start_write(buf); } );
+    post(m_socket.get_executor(), [this, self, buf] { start_write(buf); } );
   }
 
 public:
@@ -93,12 +99,12 @@ public:
 private:
 
   template <typename MH, typename MF>
-  void handle_read(MH&&, MF&&, chops::mutable_shared_buffer, std::size_t, const std::error_code& err, std::size_t);
+  void handle_read(MH&&, MF&&, std::size_t, const std::error_code& err, std::size_t);
 
   template <typename MH>
-  void handle_read(MH&&, chops::mutable_shared_buffer, const std::string& delimiter, const std::error_code& err, std::size_t);
+  void handle_read(MH&&, const std::error_code& err, std::size_t);
 
-  void handle_read(chops::mutable_shared_buffer, const std::error_code& err, std::size_t);
+  void handle_read(const std::error_code& err, std::size_t);
 
   void start_write(chops::shared_const_buffer);
 
@@ -112,116 +118,109 @@ inline void tcp_io::close() {
   m_io_common.stop();
   m_socket.shutdown(); // attempt graceful shutdown
   auto self { std::shared_from_this() };
-  std::experimental::net::post(m_socket.get_executor(), [this, self] { m_socket.close(); } );
+  post(m_socket.get_executor(), [this, self] { m_socket.close(); } );
 }
 
 template <typename MH, typename MF>
 void tcp_io::start_io(MH&& msg_hdlr, MF&& msg_frame, std::size_t header_size) {
+
   if (!m_io_common.start_io_setup()) {
     return;
   }
-  chops::mutable_shared_buffer buf(header_size);
+  m_byte_vec.resize(header_size);
   auto self { std::shared_from_this() };
-  std::experimental::net::async_read(m_socket, std::experimental::net::mutable_buffer(buf.data(), buf.size()),
-    [this, self, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
+  async_read(m_socket, mutable_buffer(m_byte_vec),
+    [this, self, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
           (const std::error_code& err, std::size_t nb) {
-      handle_read(mh, mf, buf, header_size, err, nb);
+      handle_read(mh, mf, header_size, err, nb);
     }
   );
 }
 
 template <typename MH, typename MF>
-void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, chops::mutable_shared_buffer buf, 
+void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, 
                  std::size_t header_size, const std::error_code& err, std::size_t num_bytes) {
-
-  using chops::net;
 
   if (!m_io_common.check_err_code(err, std::shared_from_this())) {
     return;
   }
   // assert num_bytes == buf.size()
-  std::experimental::net::mutable_buffer mbuf;
-  std::size_t next_read_size = msg_frame(buf);
+  mutable_buffer mbuf;
+  const_buffer cb(m_byte_vec.data(), m_byte_vec.size());
+  std::size_t next_read_size = msg_frame(cb);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
-    if (!msg_hdlr(buf, io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp(), msg_frame)) {
+    if (!msg_hdlr(cb, chops::net::io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp(), msg_frame)) {
       // message handler not happy, tear everything down
       m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  std::shared_from_this());
       return;
     }
-    // buf may be empty if moved from
-    buf.resize(header_size);
-    mbuf = std::experimental::net::mutable_buffer(buf.data(), buf.size());
+    m_byte_vec.resize(header_size);
+    mbuf = mutable_buffer(buf.data(), buf.size());
   }
   else {
-    std::size_t old_size = buf.size();
-    buf.resize(buf.size() + next_read_size);
-    mbuf = std::experimental::net::mutable_buffer(buf.data() + old_size, next_read_size);
+    std::size_t old_size = m_byte_vec.size();
+    m_byte_vec.resize(old_size + next_read_size);
+    mbuf = mutable_buffer(m_byte_vec.data() + old_size, next_read_size);
   }
   // start another read
   auto self { std::shared_from_this() };
   std::experimental::net:async_read(m_socket, mbuf,
-    [this, self, buf, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
+    [this, self, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
           (const std::error_code& err, std::size_t nb) {
-      handle_read(mh, mf, buf, header_size, err, nb);
+      handle_read(mh, mf, header_size, err, nb);
     }
   );
 }
 
 template <typename MH>
 void tcp_io::start_io(MH&& msg_hdlr, std::string_view delim) {
+
   if (!m_io_common.start_io_setup()) {
     return;
   }
-  std::string delimiter (delim); // make sure no dangling references
-  lsjdflkj use vector of bytes as dynamic buffer
+  m_delimiter = delim;
+
   auto self { std::shared_from_this() };
-  std::experimental::net::async_read_until(m_socket, chops::mutable_shared_buffer(), delimiter,
-    [this, self, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
-      handle_read(mh, buf, delimiter, err, nb);
+  async_read_until(m_socket, m_dyn_buf, m_delimiter,
+        [this, self, mh = std::forward(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
+      handle_read(mh, err, nb);
     }
   );
 }
 
 template <typename MH>
-void tcp_io::handle_read(MH&& msg_hdlr, chops::mutable_shared_buffer buf, std::string delimiter,
-                 const std::error_code& err, std::size_t num_bytes) {
-
-  using chops::net;
+void tcp_io::handle_read(MH&& msg_hdlr, const std::error_code& err, std::size_t num_bytes) {
 
   if (!m_io_common.check_err_code(err, std::shared_from_this())) {
     return;
   }
-  if (!msg_hdlr(buf, io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp())) {
+  if (!msg_hdlr(bv, chops::net::io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp())) {
       m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  std::shared_from_this());
     return;
   }
+
   auto self { std::shared_from_this() };
-  std::experimental::net::async_read_until(m_socket, something, delimiter,
-    [this, self, buf, mh = std::forward(msg_hdlr), delimiter] (const std::error_code& err, std::size_t nb) {
-      handle_read(mh, buf, delimiter, err, nb);
+  async_read_until(m_socket, dyn_buf, delimiter, [this, self, mh = std::forward(msg_hdlr), delimiter] 
+          (const std::error_code& err, std::size_t nb) {
+      handle_read(mh, err, nb);
     }
   );
 }
 
 template <typename MH>
 void tcp_io::start_io(MH&& msg_handler, std::size_t read_size) {
-  using chops::net;
-  using std::experimental::net::ip::tcp::endpoint;
-
   auto wrapped_mh = [mh = std::forward(msg_handler)] 
-               (chops::mutable_shared_buffer buf, io_interface<tcp_io> io, endpoint endp, null_msg_frame) {
-    return mh(buf, io, endp);
+               (const_buffer cb, chops::net::io_interface<tcp_io> io, endpoint endp, null_msg_frame) {
+    return mh(cb, io, endp);
   };
   start_io(wrapped_mh, null_msg_frame, read_size);
 }
 
 inline void tcp_io::start_io() {
-  using chops::net;
-  using std::experimental::net::ip::tcp::endpoint;
 
-  auto msg_hdlr = [] (chops::mutable_shared_buffer, io_interface<tcp_io>, endpoint, null_msg_frame) {
+  auto msg_hdlr = [] (const_buffer, chops::net::io_interface<tcp_io>, endpoint, null_msg_frame) {
     return true;
   };
   start_io(msg_hdlr, null_msg_frame, 1);
