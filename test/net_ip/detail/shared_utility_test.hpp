@@ -13,6 +13,8 @@
 #include <string_view>
 #include <cstddef> // std::size_t
 
+#include <experimental/buffer>
+
 #include "utility/shared_buffer.hpp"
 
 #ifndef SHARED_UTILITY_TEST_HPP_INCLUDED
@@ -22,6 +24,8 @@ chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char,
 chops::mutable_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body);
 chops::mutable_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body);
 chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body);
+
+std::size_t variable_len_msg_frame(std::experimental::net::const_buffer);
 
 #endif
 

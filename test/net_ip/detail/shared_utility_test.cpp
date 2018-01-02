@@ -23,7 +23,9 @@
 #include <cstddef> // std::size_t, std::byte
 #include <cstdint> // std::uint16_t
 
-#include <boost/endian/buffers.hpp>
+#include <boost/endian/conversion.hpp>
+
+#include <experimental/buffer>
 
 #include "utility/make_byte_array.hpp"
 #include "utility/shared_buffer.hpp"
@@ -37,9 +39,8 @@ chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char,
 }
 
 chops::mutable_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
-  boost::endian::big_uint16_buf_t hdr; // no constructor that will take the val directly
-  hdr = static_cast<std::uint16_t>(body.size());
-  chops::mutable_shared_buffer msg(hdr.data(), 2);
+  std::uint16_t hdr = boost::endian::native_to_big(static_cast<std::uint16_t>(body.size()));
+  chops::mutable_shared_buffer msg(static_cast<const void*>(&hdr), 2);
   return msg.append(body.data(), body.size());
 }
 
@@ -55,6 +56,16 @@ chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer
   return msg.append(ba.data(), ba.size());
 }
 
+
+std::size_t variable_len_msg_frame(std::experimental::net::const_buffer buf) {
+  // assert buf.size() == 2
+  std::uint16_t hdr;
+  std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
+  const std::byte* buf_ptr = static_cast<const std::byte*>(buf.data());
+  *(hdr_ptr+0) = *(buf_ptr+0);
+  *(hdr_ptr+1) = *(buf_ptr+1);
+  return boost::endian::big_to_native(hdr);
+}
 
 void make_msg_test() {
 
@@ -123,5 +134,19 @@ SCENARIO ( "Shared Net IP test utility, make msg", "[shared_test_utility_make_ms
 
 }
 
+SCENARIO ( "Shared Net IP test utility, variable len msg frame", "[shared_test_utility_msg_frame]" ) {
+
+  GIVEN ("A two byte buffer that is a variable len msg header") {
+
+    auto ba = chops::make_byte_array(0x02, 0x01); // 513 in big endian
+
+    WHEN ("msg frame function is called") {
+      THEN ("the correct length is returned") {
+        REQUIRE(variable_len_msg_frame(std::experimental::net::const_buffer(ba.data(), ba.size())) == 513);
+      }
+    }
+  } // end given
+
+}
 // More test scenarios to be added as additional networking tests are created
 
