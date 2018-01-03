@@ -26,6 +26,7 @@ namespace net {
 enum class net_ip_errc {
   message_handler_terminated = 1,
   weak_ptr_expired = 2,
+  io_handler_stopped = 3,
 };
 
 namespace detail {
@@ -40,6 +41,8 @@ struct net_ip_err_category : public std::error_category {
       return "message handler terminated";
     case net_ip_errc::weak_ptr_expired:
       return "weak pointer expired";
+    case net_ip_errc::io_handler_stopped:
+      return "io handler stopped";
     }
     return "(unknown error)";
   }
