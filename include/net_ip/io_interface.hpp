@@ -15,9 +15,15 @@
 
 #include <memory> // std::weak_ptr, std::shared_ptr
 #include <string_view>
+#include <system_error>
 #include <cstddef> // std::size_t
 
+#include <experimental/internet>
+
 #include "utility/shared_buffer.hpp"
+
+#include "net_ip/net_ip_error.hpp"
+#include "net_ip/queue_stats.hpp"
 
 namespace chops {
 namespace net {
@@ -88,8 +94,8 @@ public:
   io_interface(const io_interface&) = default;
   io_interface(io_interface&&) = default;
 
-  io_interface& (const io_interface&) = default;
-  io_interface& (io_interface&&) = default;
+  io_interface<IOH>& operator=(const io_interface&) = default;
+  io_interface<IOH>& operator=(io_interface&&) = default;
   
 /**
  *  @brief Construct with a shared weak pointer to an internal IO handler, used
@@ -119,7 +125,7 @@ public:
     if (auto p = m_ioh_wptr.lock()) {
       return p->is_started();
     }
-    throw net_ip_exception(weak_ptr_expired);
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -134,7 +140,7 @@ public:
     if (auto p = m_ioh_wptr.lock()) {
       return p->get_socket();
     }
-    throw net_ip_exception(weak_ptr_expired);
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -145,11 +151,11 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  queue_stats get_output_queue_stats() const {
+  output_queue_stats get_output_queue_stats() const {
     if (auto p = m_ioh_wptr.lock()) {
       return p->get_output_queue_stats();
     }
-    throw net_ip_exception(weak_ptr_expired);
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -418,10 +424,6 @@ public:
     return p ? (p->stop_io(), true) : false;
   }
 
-  friend bool operator==(const io_interface<IOH>&, const io_interface<IOH>&);
-  friend bool operator<(const io_interface<IOH>&, const io_interface<IOH>&);
-
-};
 
 /**
  *  @brief Compare two @c io_interface objects for equality.
@@ -432,16 +434,13 @@ public:
  *  @c false is returned.
  *
  *  @return As described in the comments.
- *
- *  @relates io_interface
  */
 
-template <typename IOH>
-inline bool operator==(const io_interface<IOH>& lhs, const io_interface<IOH>& rhs) noexcept {
-  auto lp = lhs.m_ioh_wptr.lock();
-  auto rp = rhs.m_ioh_wptr.lock();
-  return (lp && rp && lp == rp) || (!lp && !rp);
-}
+  bool operator==(const io_interface<IOH>& rhs) const noexcept {
+    auto lp = m_ioh_wptr.lock();
+    auto rp = rhs.m_ioh_wptr.lock();
+    return (lp && rp && lp == rp) || (!lp && !rp);
+  }
 
 /**
  *  @brief Compare two @c io_interface objects for ordering purposes.
@@ -455,16 +454,14 @@ inline bool operator==(const io_interface<IOH>& lhs, const io_interface<IOH>& rh
  *  returned.
  *
  *  @return As described in the comments.
- *
- *  @relates io_interface
  */
-template <typename IOH>
-inline bool operator<(const io_interface<IOH>& lhs, const io_interface<IOH>& rhs) noexcept {
-  auto lp = lhs.m_ioh_wptr.lock();
-  auto rp = rhs.m_ioh_wptr.lock();
-  return (lp && rp && lp < rp) || (!lp && rp);
-}
+  bool operator<(const io_interface<IOH>& rhs) const noexcept {
+    auto lp = m_ioh_wptr.lock();
+    auto rp = rhs.m_ioh_wptr.lock();
+    return (lp && rp && lp < rp) || (!lp && rp);
+  }
 
+};
 
 } // end net namespace
 } // end chops namespace
