@@ -83,7 +83,10 @@ public:
 
   void start_io();
 
-  void stop_io();
+  void stop_io() {
+    m_io_common.check_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
+                               std::shared_from_this());
+  }
 
   // use post for thread safety, multiple threads can call this method
   void send(chops::shared_const_buffer buf) {
