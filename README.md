@@ -149,6 +149,8 @@ Specific dependencies:
 
 - Bjørn Reese writes about many topics in C++ at the expert level and is active with the Boost organization. His blog is http://breese.github.io/blog/.
 
+- Richard Hodges is a prolific C++ expert with over 1,900 answers on StackOverflow as well as numerous discussions relating to C++ standardization. His Github site is https://github.com/madmongo1.
+
 - Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple times at CppCon. His Github site is https://github.com/kirkshoop.
 
 - Vittorio Romeo is a blog author and C++ expert. His web site is https://vittorioromeo.info/ and his Github site is https://github.com/SuperV1234. Vittorio's blog is excellent and well worth reading.
