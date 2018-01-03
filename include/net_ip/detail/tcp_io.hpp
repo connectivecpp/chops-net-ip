@@ -52,7 +52,7 @@ private:
   socket_type            m_socket;
   io_common<tcp_io>      m_io_common;
   // the following members could be passed through handlers, but are stored here
-  // for simplicity
+  // for simplicity and to reduce copying
   byte_vec               m_byte_vec;
   dynamic_vector_buffer  m_dyn_buf;
   std::string            m_delimiter;
@@ -66,7 +66,7 @@ public:
   // all of the methods in this public section can be called through an io_interface
   socket_type& get_socket() noexcept { return m_socket; }
 
-  chops::net::queue_stats get_output_queue_stats() const noexcept {
+  queue_stats get_output_queue_stats() const noexcept {
     return m_io_common.get_output_queue_stats();
   }
 
@@ -148,11 +148,13 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
     return;
   }
   // assert num_bytes == m_byte_vec.size()
-  mutable_buffer mbuf;
-  const_buffer cb(m_byte_vec.data(), m_byte_vec.size());
-  std::size_t next_read_size = msg_frame(cb);
+  mutable_buffer mbuf(m_byte_vec.data(), m_byte_vec.size());
+  std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
-    if (!msg_hdlr(cb, chops::net::io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp(), msg_frame)) {
+    if (!msg_hdlr(const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
+                  io_interface<tcp_io>(std::weak_from_this()),
+                  m_io_common.get_remote_endp(),
+                  msg_frame)) {
       // message handler not happy, tear everything down
       m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  std::shared_from_this());
@@ -199,7 +201,9 @@ void tcp_io::handle_read(MH&& msg_hdlr, const std::error_code& err, std::size_t 
     return;
   }
   // m_dyn_buf contains up to delimiter
-  if (!msg_hdlr(m_dyn_buf.data(), chops::net::io_interface<tcp_io>(std::weak_from_this()), m_io_common.get_remote_endp())) {
+  if (!msg_hdlr(m_dyn_buf.data(),
+                io_interface<tcp_io>(std::weak_from_this()),
+                m_io_common.get_remote_endp())) {
       m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  std::shared_from_this());
     return;
@@ -217,7 +221,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, const std::error_code& err, std::size_t 
 template <typename MH>
 void tcp_io::start_io(MH&& msg_handler, std::size_t read_size) {
   auto wrapped_mh = [mh = std::forward(msg_handler)] 
-               (const_buffer cb, chops::net::io_interface<tcp_io> io, endpoint endp, null_msg_frame) {
+               (const_buffer cb, io_interface<tcp_io> io, endpoint endp, null_msg_frame) {
     return mh(cb, io, endp);
   };
   start_io(wrapped_mh, null_msg_frame, read_size);
@@ -225,7 +229,7 @@ void tcp_io::start_io(MH&& msg_handler, std::size_t read_size) {
 
 inline void tcp_io::start_io() {
 
-  auto msg_hdlr = [] (const_buffer, chops::net::io_interface<tcp_io>, endpoint, null_msg_frame) {
+  auto msg_hdlr = [] (const_buffer, io_interface<tcp_io>, endpoint, null_msg_frame) {
     return true;
   };
   start_io(msg_hdlr, null_msg_frame, 1);
