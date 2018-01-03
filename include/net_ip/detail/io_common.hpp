@@ -32,7 +32,7 @@ namespace chops {
 namespace net {
 namespace detail {
 
-inline std::size_t null_msg_frame (std::experimental::net::const_buffer /* buf */ ) {
+inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer /* buf */ ) {
   return 0;
 }
 
