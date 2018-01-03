@@ -87,17 +87,21 @@ A detailed overview is [available here](doc/queue.md).
 
 ## Utilities
 
+### Shared Buffer
+
+Reference counted byte buffer classes are used within Chops Net IP, but can be useful in other contexts. These classes are based on example code inside Chris Kohlhoff's Asio library (see [References Section](#references)).
+
 ### Repeat
 
 Repeat is a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see [References Section](#references)). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
 
+### Erase Where
+
+A common mistake in C++ is to forget to call `std::erase` after calling `std::remove`. This utility wraps the two together allowing either a value to be directly removed from a container, or a set of values to be removed using a predicate. This utility code is copied from a StackOverflow post by Richard Hodges (see [References Section](#references)).
+
 ### Make Byte Array
 
 Since `std::byte` pointers are used as a general buffer interface, a small utility function from Blitz Rakete as posted on Stackoverflow (see [References Section](#references)) is useful to simplify creation of byte buffers, specially for testing purposes.
-
-### Shared Buffer
-
-Reference counted byte buffer classes are used within Chops Net IP, but can be useful in other contexts. These classes are based on example code inside Chris Kohlhoff's Asio library (see [References Section](#references)).
 
 A detailed overview of the utility classes is [available here](doc/utility.md).
 
