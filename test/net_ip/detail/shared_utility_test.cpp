@@ -22,6 +22,8 @@
 #include <string>
 #include <cstddef> // std::size_t, std::byte
 #include <cstdint> // std::uint16_t
+#include <vector>
+#include <algorithm>
 
 #include <boost/endian/conversion.hpp>
 
@@ -57,7 +59,7 @@ chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer
 }
 
 
-std::size_t variable_len_msg_frame(std::experimental::net::const_buffer buf) {
+std::size_t variable_len_msg_frame(std::experimental::net::mutable_buffer buf) {
   // assert buf.size() == 2
   std::uint16_t hdr;
   std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
@@ -65,6 +67,13 @@ std::size_t variable_len_msg_frame(std::experimental::net::const_buffer buf) {
   *(hdr_ptr+0) = *(buf_ptr+0);
   *(hdr_ptr+1) = *(buf_ptr+1);
   return boost::endian::big_to_native(hdr);
+}
+
+bool compare_msg_sets(const vec_buf& lhs, const vec_buf& rhs) {
+  return (lhs.size() == rhs.size()) && 
+          std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin(), 
+              [] (const chops::mutable_shared_buffer& lhs, const chops::mutable_shared_buffer& rhs) {
+                     return *lhs == *rhs; } );
 }
 
 void make_msg_test() {
@@ -142,7 +151,7 @@ SCENARIO ( "Shared Net IP test utility, variable len msg frame", "[shared_test_u
 
     WHEN ("msg frame function is called") {
       THEN ("the correct length is returned") {
-        REQUIRE(variable_len_msg_frame(std::experimental::net::const_buffer(ba.data(), ba.size())) == 513);
+        REQUIRE(variable_len_msg_frame(std::experimental::net::mutable_buffer(ba.data(), ba.size())) == 513);
       }
     }
   } // end given
