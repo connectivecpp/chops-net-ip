@@ -44,8 +44,12 @@ public:
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
 
 private:
-  using entity_notifier_cb = std::function<void (const std::error_code&, std::shared_ptr<tcp_io>)>;
-  using namespace std::experimental::net;
+  using entity_cb = typename io_common<tcp_io>::entity_notifier_cb;
+  using std::experimental::net::const_buffer;
+  using std::experimental::net::mutable_buffer;
+  using std::experimental::net::async_read;
+  using std::experimental::net::async_read_until;
+  using std::experimental::net::async_write;
 
 private:
 
@@ -59,8 +63,9 @@ private:
 
 public:
 
-  tcp_io(socket_type sock, entity_notifier_cb cb) noexcept : 
-    m_socket(std::move(sock)), m_io_common(cb), m_byte_vec(), m_dyn_buf(m_byte_vec), m_delimiter() { }
+  tcp_io(socket_type sock, entity_cb cb) noexcept : 
+    m_socket(std::move(sock)), m_io_common(cb), m_byte_vec(), 
+    m_dyn_buf(m_byte_vec), m_delimiter() { }
 
 public:
   // all of the methods in this public section can be called through an io_interface
@@ -133,7 +138,7 @@ void tcp_io::start_io(MH&& msg_hdlr, MF&& msg_frame, std::size_t header_size) {
   m_byte_vec.resize(header_size);
   auto self { std::shared_from_this() };
   async_read(m_socket, mutable_buffer(m_byte_vec),
-    [this, self, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
+    [this, self, mh = std::forward<MH>(msg_hdlr), mf = std::forward<MF>(msg_frame), header_size]
           (const std::error_code& err, std::size_t nb) {
       handle_read(mh, mf, header_size, err, nb);
     }
@@ -153,8 +158,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
                   io_interface<tcp_io>(std::weak_from_this()),
-                  m_io_common.get_remote_endp(),
-                  msg_frame)) {
+                  m_io_common.get_remote_endp())) {
       // message handler not happy, tear everything down
       m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  std::shared_from_this());
@@ -171,7 +175,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
   // start another read
   auto self { std::shared_from_this() };
   async_read(m_socket, mbuf,
-    [this, self, mh = std::forward(msg_hdlr), mf = std::forward(msg_frame), header_size]
+    [this, self, mh = std::forward<MH>(msg_hdlr), mf = std::forward<MF>(msg_frame), header_size]
           (const std::error_code& err, std::size_t nb) {
       handle_read(mh, mf, header_size, err, nb);
     }
@@ -188,7 +192,7 @@ void tcp_io::start_io(MH&& msg_hdlr, std::string_view delim) {
 
   auto self { std::shared_from_this() };
   async_read_until(m_socket, m_dyn_buf, m_delimiter,
-        [this, self, mh = std::forward(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
+        [this, self, mh = std::forward<MH>(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
       handle_read(mh, err, nb);
     }
   );
@@ -212,7 +216,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, const std::error_code& err, std::size_t 
 
   auto self { std::shared_from_this() };
   async_read_until(m_socket, m_dyn_buf, delimiter, 
-          [this, self, mh = std::forward(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
+          [this, self, mh = std::forward<MH>(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
       handle_read(mh, err, nb);
     }
   );
@@ -220,8 +224,8 @@ void tcp_io::handle_read(MH&& msg_hdlr, const std::error_code& err, std::size_t 
 
 template <typename MH>
 void tcp_io::start_io(MH&& msg_handler, std::size_t read_size) {
-  auto wrapped_mh = [mh = std::forward(msg_handler)] 
-               (const_buffer cb, io_interface<tcp_io> io, endpoint endp, null_msg_frame) {
+  auto wrapped_mh = [mh = std::forward<MH>(msg_handler)] 
+               (const_buffer cb, io_interface<tcp_io> io, endpoint endp) {
     return mh(cb, io, endp);
   };
   start_io(wrapped_mh, null_msg_frame, read_size);
@@ -229,7 +233,7 @@ void tcp_io::start_io(MH&& msg_handler, std::size_t read_size) {
 
 inline void tcp_io::start_io() {
 
-  auto msg_hdlr = [] (const_buffer, io_interface<tcp_io>, endpoint, null_msg_frame) {
+  auto msg_hdlr = [] (const_buffer, io_interface<tcp_io>, endpoint) {
     return true;
   };
   start_io(msg_hdlr, null_msg_frame, 1);

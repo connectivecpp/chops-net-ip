@@ -278,31 +278,40 @@ public:
  *  "read header, process data to determine size of rest of message, read rest
  *  of message". The message frame function object callback implements this
  *  logic. Once a complete message has been read, the message handler function 
- *  object callback is invoked.
+ *  object callback is invoked. There may be multiple iterations of calling
+ *  the message frame function object before the message frame determines the
+ *  complete message has been read.
  *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
  *  @code
- *    bool (chops::mutable_shared_buffer,
+ *    bool (std::experimental::net::const_buffer,
  *          chops::net::io_interface<chops::net::tcp_io_type>,
- *          std::experimental::net::ip::tcp::endpoint,
- *          MF_type)
+ *          std::experimental::net::ip::tcp::endpoint);
  *  @endcode
- *  @c MF_type is the type of the msg_frame function object callback and is passed
- *  in to the message handler so it can access the message frame state data. The 
- *  buffer contains the full message, the @c io_interface can be used for 
- *  sending a reply, and the endpoint is the remote endpoint that sent the data. 
+ *  The buffer always references from the beginning of the full message. The 
+ *  @c io_interface can be used for sending a reply. The endpoint is the remote 
+ *  endpoint that sent the data. 
+
  *  Returning @c false from the message handler callback causes the connection to be 
  *  closed.
  *
  *  @param msg_frame A message frame function object callback. The signature of
  *  the callback is:
  *  @code
- *    std::size_t (chops::mutable_shared_buffer)
+ *    std::size_t (std::experimental::net::mutable_buffer);
  *  @endcode
- *  The complete incoming buffer is passed in as the parameter. The callback returns 
- *  the size of the next read, or zero as a notification that the complete message
- *  has been called and the message handler is to be invoked.
+ *  The complete incoming buffer is passed in, no matter how many times the
+ *  message frame object has been called in assembling the complete message. The 
+ *  callback returns the size of the next read, or zero as a notification that the 
+ *  complete message has been called and the message handler is to be invoked.
+ *
+ *  If there is non-trivial processing that is performed in the message frame
+ *  object and the application wishes to keep any resulting state (typically to
+ *  use within the message handler), two options (at least) are available. 
+ *  1) Store a reference to the message frame object from within the message handler 
+ *  object, or 2) Design a single class that provides two function call overloads and
+ *  use the same object for both the message handler and the message frame processing.
  *
  *  @param header_size The initial read size (in bytes) of each incoming message.
  *
@@ -331,14 +340,14 @@ public:
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
  *  @code
- *    bool (chops::mutable_shared_buffer,
+ *    bool (std::experimental::net::const_buffer,
  *          chops::net::io_interface<chops::net::tcp_io_type>,
- *          std::experimental::net::ip::tcp::endpoint)
+ *          std::experimental::net::ip::tcp::endpoint);
  *  @endcode
- *  The buffer is the complete message including the delimiter sequence. The @c io_interface 
- *  can be used for sending a reply, and the endpoint is the remote endpoint that sent the data. 
- *  Returning @c false from the message handler callback causes the connection to be 
- *  closed.
+ *  The buffer points to the complete message including the delimiter sequence. The 
+ *  @c io_interface can be used for sending a reply, and the endpoint is the remote 
+ *  endpoint that sent the data. Returning @c false from the message handler callback 
+ *  causes the connection to be closed.
  *
  *  @param delimiter Delimiter characters denoting end of each message.
  *
@@ -365,7 +374,7 @@ public:
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
  *  @code
- *    bool (chops::mutable_shared_buffer,
+ *    bool (std::experimental::net::const_buffer,
  *          chops::net::io_interface<IO_type>,
  *          Endpoint_type)
  *  @endcode
