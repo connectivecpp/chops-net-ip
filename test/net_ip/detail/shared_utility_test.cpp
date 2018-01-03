@@ -34,6 +34,9 @@
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 
+namespace chops {
+namespace test {
+
 chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char, std::size_t num_body_chars) {
   chops::mutable_shared_buffer buf(pre.data(), pre.size());
   std::string body(num_body_chars, body_char);
@@ -69,14 +72,11 @@ std::size_t variable_len_msg_frame(std::experimental::net::mutable_buffer buf) {
   return boost::endian::big_to_native(hdr);
 }
 
-bool compare_msg_sets(const vec_buf& lhs, const vec_buf& rhs) {
-  return (lhs.size() == rhs.size()) && 
-          std::equal(lhs.cbegin(), lhs.cend(), rhs.cbegin(), 
-              [] (const chops::mutable_shared_buffer& lhs, const chops::mutable_shared_buffer& rhs) {
-                     return *lhs == *rhs; } );
-}
+} // end namespace test
+} // end namespace chops
 
 void make_msg_test() {
+  using namespace chops::test;
 
   GIVEN ("A body consisting of a preamble and a char to repeat") {
 
@@ -137,19 +137,44 @@ void make_msg_test() {
   } // end given
 }
 
+template <typename F>
+void make_msg_set_test(F&& f, int delta) {
+  using namespace chops::test;
+
+  GIVEN ("A preamble and a char to repeat") {
+    WHEN ("make_msg_set is called") {
+      auto vb = make_msg_set(f, "Good tea!", 'Z', 20);
+      THEN ("a vector of buffers is returned") {
+        REQUIRE (vb.size() == 20);
+        chops::repeat(20, [&vb, delta] (const int& i) { REQUIRE (vb[i].size() == (i+10+delta)); } );
+      }
+    }
+  } // end given
+}
+
 SCENARIO ( "Shared Net IP test utility, make msg", "[shared_test_utility_make_msg]" ) {
 
   make_msg_test();
 
 }
 
+SCENARIO ( "Shared Net IP test utility, make msg set", "[shared_test_utility_make_msg_set]" ) {
+  using namespace chops::test;
+
+  make_msg_set_test(make_variable_len_msg, 2);
+  make_msg_set_test(make_cr_lf_text_msg, 2);
+  make_msg_set_test(make_lf_text_msg, 1);
+
+}
+
 SCENARIO ( "Shared Net IP test utility, variable len msg frame", "[shared_test_utility_msg_frame]" ) {
+  using namespace chops::test;
 
   GIVEN ("A two byte buffer that is a variable len msg header") {
 
     auto ba = chops::make_byte_array(0x02, 0x01); // 513 in big endian
 
-    WHEN ("msg frame function is called") {
+    WHEN ("the variable len msg frame function is called") {
       THEN ("the correct length is returned") {
         REQUIRE(variable_len_msg_frame(std::experimental::net::mutable_buffer(ba.data(), ba.size())) == 513);
       }
