@@ -53,17 +53,20 @@ struct msg_hdlr {
   using const_buf = std::experimental::net::const_buffer;
 
   vec_buf msgs;
-  int cnt;
   bool reply;
 
-  msg_hdlr(int max_cnt, bool rep) : msgs(), cnt(max_cnt), reply(rep) { }
+  msg_hdlr(bool rep) : msgs(), reply(rep) { }
 
   bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
-    msgs.push_back(chops::mutable_shared_buffer(buf.data(), buf.size()));
-    if (reply) {
-      io_intf.send(buf);
+    if (buf.size() == 2) { // empty body
+      return false;
     }
-    return --cnt >= 0;
+    chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
+    msgs.push_back(sh_buf);
+    if (reply) {
+      io_intf.send(std::move(sh_buf));
+    }
+    return true;
   }
 };
 

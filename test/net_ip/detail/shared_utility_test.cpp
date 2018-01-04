@@ -24,13 +24,16 @@
 #include <cstdint> // std::uint16_t
 #include <vector>
 #include <algorithm>
+#include <memory> // std::shared_ptr, std::make_shared
 
 #include <boost/endian/conversion.hpp>
 
 #include <experimental/buffer>
+#include <experimental/internet>
 
 #include "utility/make_byte_array.hpp"
 #include "utility/shared_buffer.hpp"
+#include "net_ip/io_interface.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 
@@ -121,7 +124,7 @@ void make_msg_test() {
       }
     }
 
-    WHEN ("a larger buffer is passed to make_variable_len_msg") {
+    AND_WHEN ("a larger buffer is passed to make_variable_len_msg") {
       auto body = make_body_buf("HappyNewYear!", 'Q', 500);
       REQUIRE (body.size() == 513);
 
@@ -169,6 +172,7 @@ SCENARIO ( "Shared Net IP test utility, make msg set", "[shared_test_utility_mak
 
 SCENARIO ( "Shared Net IP test utility, variable len msg frame", "[shared_test_utility_msg_frame]" ) {
   using namespace chops::test;
+  using namespace std::experimental::net;
 
   GIVEN ("A two byte buffer that is a variable len msg header") {
 
@@ -176,11 +180,46 @@ SCENARIO ( "Shared Net IP test utility, variable len msg frame", "[shared_test_u
 
     WHEN ("the variable len msg frame function is called") {
       THEN ("the correct length is returned") {
-        REQUIRE(variable_len_msg_frame(std::experimental::net::mutable_buffer(ba.data(), ba.size())) == 513);
+        REQUIRE(variable_len_msg_frame(mutable_buffer(ba.data(), ba.size())) == 513);
       }
     }
   } // end given
-
 }
-// More test scenarios to be added as additional networking tests are created
+
+SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdlr]" ) {
+  using namespace chops::test;
+  using namespace std::experimental::net;
+
+  struct ioh_mock {
+    using protocol_type = std::experimental::net::ip::tcp;
+    using socket_type = std::experimental::net::ip::tcp::socket;
+
+    bool send_called = false;
+
+    void send(chops::const_shared_buffer) { send_called = true; }
+  };
+
+  GIVEN ("A msg hdlr object and a mock io handler") {
+    msg_hdlr<ioh_mock> mh(true);
+    auto iohp = std::make_shared<ioh_mock>();
+    REQUIRE(!iohp->send_called);
+    ip::tcp::endpoint endp { };
+
+    WHEN ("it is called with a buf and io interface and endp") {
+      auto m = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
+      auto ret = mh(const_buffer(m.data(), m.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
+      THEN ("true is returned and send has been called") {
+        REQUIRE(ret);
+        REQUIRE(iohp->send_called);
+      }
+    }
+    AND_WHEN ("it is called with an empty body msg") {
+      auto m = make_variable_len_msg(chops::mutable_shared_buffer());
+      auto ret = mh(const_buffer(m.data(), m.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
+      THEN ("false is returned") {
+        REQUIRE(!ret);
+      }
+    }
+  } // end given
+}
 
