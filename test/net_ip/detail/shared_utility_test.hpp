@@ -58,7 +58,7 @@ struct msg_hdlr {
   msg_hdlr(bool rep) : msgs(), reply(rep) { }
 
   bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
-    if (buf.size() == 2) { // empty body
+    if (buf.size() <= 2) { // empty body - just msg size header or CR / LF or LF
       return false;
     }
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());

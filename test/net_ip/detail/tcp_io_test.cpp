@@ -8,8 +8,10 @@
  *  and functionality of the @c tcp_io class. In particular, the notification hooks
  *  between the two levels is tricky and needs to be well tested.
  *
- *  The data flow is tested by: ( fill in details )
+ *  The data flow is tested by sending a group of messages (variable len, text). 
+ *  optionally the message handler will send them back to the originator.
  *
+ *  The data flow is terminated by a message with an empty body.
  *  
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -28,7 +30,9 @@
 #include <cstddef> // std::size_t
 #include <memory> // std::make_shared
 #include <utility> // std::move
+#include <tuple>
 #include <thread>
+#include <future>
 #include <chrono>
 #include <functional>
 
@@ -46,53 +50,70 @@ using notifier_cb = typename detail::io_common::entity_notifier_cb;
 
 constexpr int test_port = 3434;
 const char*   test_addr = "127.0.0.1";
-constexpr int num_msgs = 50;
+constexpr int NumMsgs = 50;
+
+
+using notifier_data = std::tuple<std::error_code, std::shared_ptr<detail::tcp_io> >;
 
 struct entity_notifier {
 
-  std::error_code err;
-  std::shared_ptr<detail::tcp_io> ptr;
+  std::promise<notifier_data> prom;
 
   void notify_me()(const std::error_code& e, std::shared_ptr<detail::tcp_io> p) {
-    err = e;
-    ptr = p;
-    wq.close();
+    prom.set_value(notifier_data(e, p));
   }
 
 };
 
-void acceptor_func (io_context& ioc, bool reply) {
+// Catch is not thread-safe, therefore all REQUIRE clauses must be in a single thread; meaning:
+// 1. Error code 2. Does the ioh ptr match? 3. Do the msg sets match?
+using thread_data = std::tuple<std::error_code, bool, bool>; 
+using thread_promise = std::promise<thread_data>;
+
+void acceptor_func (thread_promise&& thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
+                    bool reply) {
+  using namespace std::placeholders;
+
+  entity_notifier en { };
+  auto fut = en.prom.get_future();
+  notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
 
   ip::tcp::acceptor acc(ioc, ip::tcp::endpoint(ip::tcp::v4(), test_port));
-  auto ioh = std::make_shared<tcp_io>(std::move(acc.accept()), notifier);
+  auto iohp = std::make_shared<tcp_io>(std::move(acc.accept()), cb);
+
   msg_hdlr<detail::tcp_io> mh (reply);
 
-  ioh->start_io(mh, variable_len_msg_frame, 2);
+  iohp->start_io(mh, variable_len_msg_frame, 2);
+  auto ret = fut.get(); // wait for termination callback
+
+  thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, in_msg_set == mh.msgs));
 
 }
 
-void connector_func (io_context& ioc, entity_notifier& en, int cnt) {
+void connector_func (thread_promise&& thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
+                     std::chrono::milliseconds interval) {
   using namespace std::placeholders;
+
+  entity_notifier en { };
+  auto fut = en.prom.get_future();
+  notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
 
   ip::tcp::socket sock(ioc);
   sock.connect(ip::tcp::endpoint(ip::address::make_address(test_addr), test_port));
-  chops::wait_queue<int> wq;
-  entity_notifier en(wq);
-  notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
-
   auto iohp = std::make_shared<tcp_io>(std::move(sock), cb);
+
   msg_hdlr<detail::tcp_io> mh (false);
 
-  ioh->start_io(mh, variable_len_msg_frame, 2);
+  iohp->start_io(mh, variable_len_msg_frame, 2);
 
-  auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', cnt);
-
-  for (auto buf : ms) {
+  for (auto buf : in_msg_set) {
     iohp->send(buf);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(interval);
   }
-  ioh->send(make_variable_len_msg(chops::mutable_shared_buffer())); // send empty body, shutdown signal
-  auto a = wq.wait_and_pop();
+  iohp->send(make_variable_len_msg(chops::mutable_shared_buffer())); // send empty body, shutdown signal
+  auto ret = fut.get(); // wait for termination callback
+
+  thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, in_msg_set == mh.msgs));
 
 }
 
@@ -101,10 +122,16 @@ void connector_func (io_context& ioc, entity_notifier& en, int cnt) {
 
 SCENARIO ( "Tcp IO handler test, one-way", "[tcp_io_one_way]" ) {
 
-  GIVEN ("An executor work guard") {
-    io_context ioc;
-    wk_guard wg { make_work_guard(ioc) };
+  auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
 
+  io_context ioc;
+  wk_guard wg { make_work_guard(ioc) };
+
+  GIVEN ("An executor work guard and a message set") {
+    WHEN ("an acceptor and connector are created") {
+      THEN ("dlkjfkl") {
+      }
+    }
   } // end given
 }
 
