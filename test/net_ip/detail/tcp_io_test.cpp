@@ -72,20 +72,45 @@ struct entity_notifier {
 using thread_data = std::tuple<std::error_code, bool, bool>; 
 using thread_promise = std::promise<thread_data>;
 
-void acceptor_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
-                    bool reply) {
+using tcp_ioh_ptr = std::shared_ptr<chops::net::detail::tcp_io>;
+
+auto create_start_iohp(ip::tcp::socket sock, entity_notifier& en, bool reply) {
   using namespace std::placeholders;
 
-  entity_notifier en { };
-  auto en_fut = en.prom.get_future();
   notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
 
-  ip::tcp::acceptor acc(ioc, ip::tcp::endpoint(ip::tcp::v4(), test_port));
-  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
+  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), cb);
 
   msg_hdlr<chops::net::detail::tcp_io> mh (reply);
-
   iohp->start_io(mh, variable_len_msg_frame, 2);
+  
+  return iohp;
+}
+
+struct test_acceptor {
+  ip::tcp::acceptor m_acc;
+  tcp_ioh_ptr       m_ioh_ptr;
+  entity_notifier   m_en;
+  bool              m_reply;
+
+  test_acceptor(io_context& ioc, bool reply) : 
+           m_acc(ioc, ip::tcp::endpoint(ip::address_v4::any(), test_port)), 
+           m_ioh_ptr(), m_en(), m_reply(reply) { }
+
+  void start() {
+    m_acc.async_accept([this] (const std::error_code& err, ip::tcp::socket sock) {
+      auto en_fut = m_en.prom.get_future();
+      auto iohp = create_start_iohp(std::move(sock), m_en, m_reply);
+  }
+
+};
+
+void acceptor_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
+                    bool reply) {
+
+  test_acceptor acc(ioc);
+  acc.start();
+
   auto ret = en_fut.get(); // wait for termination callback
 
   thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, in_msg_set == mh.msgs));
