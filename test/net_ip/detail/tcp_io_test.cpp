@@ -42,35 +42,36 @@
 
 using namespace std::experimental::net;
 using namespace chops::test;
-using namespace chops::net;
 
 using wk_guard = executor_work_guard<io_context::executor_type>;
 
-using notifier_cb = typename detail::io_common::entity_notifier_cb;
+using notifier_cb = 
+  typename chops::net::detail::io_common<chops::net::detail::tcp_io>::entity_notifier_cb;
 
 constexpr int test_port = 3434;
 const char*   test_addr = "127.0.0.1";
 constexpr int NumMsgs = 50;
+constexpr int Interval = 50;
 
 
-using notifier_data = std::tuple<std::error_code, std::shared_ptr<detail::tcp_io> >;
+using notifier_data = std::tuple<std::error_code, std::shared_ptr<chops::net::detail::tcp_io> >;
 
 struct entity_notifier {
 
   std::promise<notifier_data> prom;
 
-  void notify_me()(const std::error_code& e, std::shared_ptr<detail::tcp_io> p) {
+  void notify_me(const std::error_code& e, std::shared_ptr<chops::net::detail::tcp_io> p) {
     prom.set_value(notifier_data(e, p));
   }
 
 };
 
-// Catch is not thread-safe, therefore all REQUIRE clauses must be in a single thread; meaning:
-// 1. Error code 2. Does the ioh ptr match? 3. Do the msg sets match?
+// Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
+// thread; return data: 1. Error code 2. Does the ioh ptr match? 3. Do the msg sets match?
 using thread_data = std::tuple<std::error_code, bool, bool>; 
 using thread_promise = std::promise<thread_data>;
 
-void acceptor_func (thread_promise&& thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
+void acceptor_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
                     bool reply) {
   using namespace std::placeholders;
 
@@ -79,9 +80,9 @@ void acceptor_func (thread_promise&& thr_prom, const vec_buf& in_msg_set, io_con
   notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
 
   ip::tcp::acceptor acc(ioc, ip::tcp::endpoint(ip::tcp::v4(), test_port));
-  auto iohp = std::make_shared<tcp_io>(std::move(acc.accept()), cb);
+  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
 
-  msg_hdlr<detail::tcp_io> mh (reply);
+  msg_hdlr<chops::net::detail::tcp_io> mh (reply);
 
   iohp->start_io(mh, variable_len_msg_frame, 2);
   auto ret = fut.get(); // wait for termination callback
@@ -90,8 +91,8 @@ void acceptor_func (thread_promise&& thr_prom, const vec_buf& in_msg_set, io_con
 
 }
 
-void connector_func (thread_promise&& thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
-                     std::chrono::milliseconds interval) {
+void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
+                     int interval) {
   using namespace std::placeholders;
 
   entity_notifier en { };
@@ -99,18 +100,19 @@ void connector_func (thread_promise&& thr_prom, const vec_buf& in_msg_set, io_co
   notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
 
   ip::tcp::socket sock(ioc);
-  sock.connect(ip::tcp::endpoint(ip::address::make_address(test_addr), test_port));
-  auto iohp = std::make_shared<tcp_io>(std::move(sock), cb);
+  sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
+  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), cb);
 
-  msg_hdlr<detail::tcp_io> mh (false);
+  msg_hdlr<chops::net::detail::tcp_io> mh (false);
 
   iohp->start_io(mh, variable_len_msg_frame, 2);
 
   for (auto buf : in_msg_set) {
-    iohp->send(buf);
-    std::this_thread::sleep_for(interval);
+    iohp->send(chops::const_shared_buffer(std::move(buf)));
+    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
-  iohp->send(make_variable_len_msg(chops::mutable_shared_buffer())); // send empty body, shutdown signal
+  // send empty body, shutdown signal
+  iohp->send(chops::const_shared_buffer(make_variable_len_msg(chops::mutable_shared_buffer())));
   auto ret = fut.get(); // wait for termination callback
 
   thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, in_msg_set == mh.msgs));
@@ -124,12 +126,29 @@ SCENARIO ( "Tcp IO handler test, one-way", "[tcp_io_one_way]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
 
-  io_context ioc;
-  wk_guard wg { make_work_guard(ioc) };
-
   GIVEN ("An executor work guard and a message set") {
+    io_context ioc;
+    wk_guard wg { make_work_guard(ioc) };
     WHEN ("an acceptor and connector are created") {
-      THEN ("dlkjfkl") {
+      thread_promise acc_prom { };
+      auto acc_fut = acc_prom.get_future();
+      std::thread acc_thr(acceptor_func, std::move(acc_prom), std::cref(ms), std::ref(ioc), 
+                          false);
+      thread_promise conn_prom { };
+      auto conn_fut = conn_prom.get_future();
+      std::thread conn_thr(connector_func, std::move(conn_prom), std::cref(ms), std::ref(ioc), 
+                          Interval);
+      THEN ("the futures provide synchronization and data returns") {
+        auto acc_data = acc_fut.get();
+        acc_thr.join();
+        auto conn_data = conn_fut.get();
+        conn_thr.join();
+        INFO ("Acceptor error code: " << std::get<0>(acc_data));
+        INFO ("Connector error code: " << std::get<0>(acc_data));
+        REQUIRE (std::get<1>(acc_data));
+        REQUIRE (std::get<1>(conn_data));
+        REQUIRE (std::get<2>(acc_data));
+        REQUIRE (std::get<2>(conn_data));
       }
     }
   } // end given

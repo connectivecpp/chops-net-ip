@@ -59,7 +59,7 @@ struct io_handler_base_mock {
 struct tcp_io_handler_mock : public io_handler_base_mock {
 
   using socket_type = ip::tcp::socket;
-  using protocol_type = ip::tcp;
+  using endpoint_type = ip::tcp::endpoint;
 
   socket_type sock;
 
@@ -75,7 +75,7 @@ struct tcp_io_handler_mock : public io_handler_base_mock {
 struct udp_io_handler_mock : public io_handler_base_mock {
 
   using socket_type = ip::udp::socket;
-  using protocol_type = ip::udp;
+  using endpoint_type = ip::udp::endpoint;
 
   socket_type sock;
 
@@ -110,7 +110,7 @@ void io_interface_test_default_constructed() {
       THEN ("false is returned") {
 
         chops::const_shared_buffer buf(nullptr, 0);
-        ip::basic_endpoint<typename IOH::protocol_type> endp;
+        typename IOH::endpoint_type endp;
 
         REQUIRE (!io_intf.send(nullptr, 0));
         REQUIRE (!io_intf.send(buf));
@@ -158,7 +158,7 @@ void io_interface_test_two() {
       THEN ("true is returned") {
 
         chops::const_shared_buffer buf(nullptr, 0);
-        ip::basic_endpoint<typename IOH::protocol_type> endp;
+        typename IOH::endpoint_type endp;
 
         REQUIRE (io_intf.send(nullptr, 0));
         REQUIRE (io_intf.send(buf));

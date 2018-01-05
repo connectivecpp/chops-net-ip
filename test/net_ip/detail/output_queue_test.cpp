@@ -21,11 +21,11 @@
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 
-template <typename Protocol>
+template <typename E>
 void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
 
   GIVEN ("A default constructed output_queue") {
-    chops::net::detail::output_queue<Protocol> outq { };
+    chops::net::detail::output_queue<E> outq { };
 
     WHEN ("Bufs are added to the output_queue") {
       chops::repeat(num_bufs, [&outq, &buf] () { outq.add_element(buf); } );
@@ -55,12 +55,12 @@ void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
   } // end given
 }
 
-template <typename Protocol>
+template <typename E>
 void get_next_element_test(chops::const_shared_buffer buf, int num_bufs,
-                           const std::experimental::net::ip::basic_endpoint<Protocol>& endp) {
+                           const E& endp) {
 
   GIVEN ("A default constructed output_queue") {
-    chops::net::detail::output_queue<Protocol> outq { };
+    chops::net::detail::output_queue<E> outq { };
 
     WHEN ("Bufs and endpoints are added to the output_queue") {
       chops::repeat(num_bufs, [&outq, &buf, &endp] () { outq.add_element(buf, endp); } );
@@ -85,8 +85,8 @@ SCENARIO ( "Output_queue test, udp endpoint", "[output_queue_udp_endpoint]" ) {
 
   auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
-  add_element_test<ip::udp>(chops::const_shared_buffer(std::move(mb)), 10);
-  get_next_element_test<ip::udp>(chops::const_shared_buffer(std::move(mb)), 20,
+  add_element_test<ip::udp::endpoint>(chops::const_shared_buffer(std::move(mb)), 10);
+  get_next_element_test<ip::udp::endpoint>(chops::const_shared_buffer(std::move(mb)), 20,
                         ip::udp::endpoint(ip::udp::v4(), 1234));
 }
 
@@ -95,7 +95,7 @@ SCENARIO ( "Output_queue test, tcp endpoint", "[output_queue_tcp_endpoint]" ) {
 
   auto ba = chops::make_byte_array(0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
-  add_element_test<ip::udp>(chops::const_shared_buffer(std::move(mb)), 30);
-  get_next_element_test<ip::tcp>(chops::const_shared_buffer(std::move(mb)), 40,
+  add_element_test<ip::tcp::endpoint>(chops::const_shared_buffer(std::move(mb)), 30);
+  get_next_element_test<ip::tcp::endpoint>(chops::const_shared_buffer(std::move(mb)), 40,
                         ip::tcp::endpoint(ip::tcp::v6(), 9876));
 }

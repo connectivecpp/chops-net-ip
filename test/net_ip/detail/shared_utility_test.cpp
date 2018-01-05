@@ -191,7 +191,7 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
   using namespace std::experimental::net;
 
   struct ioh_mock {
-    using protocol_type = std::experimental::net::ip::tcp;
+    using endpoint_type = std::experimental::net::ip::tcp::endpoint;
     using socket_type = std::experimental::net::ip::tcp::socket;
 
     bool send_called = false;

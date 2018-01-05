@@ -16,7 +16,6 @@
 #include <utility> // std::forward
 
 #include <experimental/buffer>
-#include <experimental/internet>
 
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
@@ -49,15 +48,15 @@ vec_buf make_msg_set(F&& func, std::string_view pre, char body_char, int num_msg
 
 template <typename IOH>
 struct msg_hdlr {
-  using endp_type = std::experimental::net::ip::basic_endpoint<typename IOH::protocol_type>;
+  using endp_type = typename IOH::endpoint_type;
   using const_buf = std::experimental::net::const_buffer;
 
-  vec_buf msgs;
+  mutable vec_buf msgs;
   bool reply;
 
   msg_hdlr(bool rep) : msgs(), reply(rep) { }
 
-  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
+  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) const {
     if (buf.size() <= 2) { // empty body - just msg size header or CR / LF or LF
       return false;
     }

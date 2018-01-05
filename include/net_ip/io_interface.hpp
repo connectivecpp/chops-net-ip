@@ -18,8 +18,6 @@
 #include <system_error>
 #include <cstddef> // std::size_t
 
-#include <experimental/internet>
-
 #include "utility/shared_buffer.hpp"
 
 #include "net_ip/net_ip_error.hpp"
@@ -78,7 +76,7 @@ private:
   std::weak_ptr<IOH> m_ioh_wptr;
 
 public:
-  using endpoint_type = std::experimental::net::ip::basic_endpoint<typename IOH::protocol_type>;
+  using endpoint_type = typename IOH::endpoint_type;
 
 public:
 

@@ -18,8 +18,6 @@
 #ifndef OUTPUT_QUEUE_HPP_INCLUDED
 #define OUTPUT_QUEUE_HPP_INCLUDED
 
-#include <experimental/internet> // std::experimental::net::ip::basic_endpoint
-
 #include <queue>
 #include <atomic>
 #include <cstddef> // std::size_t
@@ -33,11 +31,11 @@ namespace chops {
 namespace net {
 namespace detail {
 
-template <typename Protocol>
+template <typename E>
 class output_queue {
 private:
 
-  using opt_endpoint = std::optional<std::experimental::net::ip::basic_endpoint<Protocol> >;
+  using opt_endpoint = std::optional<E>;
   using queue_element = std::pair<chops::const_shared_buffer, opt_endpoint>;
 
 private:
@@ -71,8 +69,7 @@ public:
     add_element(buf, opt_endpoint());
   }
 
-  void add_element(const chops::const_shared_buffer& buf, 
-                   const std::experimental::net::ip::basic_endpoint<Protocol>& endp) {
+  void add_element(const chops::const_shared_buffer& buf, const E& endp) {
     add_element(buf, opt_endpoint(endp));
   }
 

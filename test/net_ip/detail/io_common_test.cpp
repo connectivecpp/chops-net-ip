@@ -38,7 +38,7 @@ bool call_start_io_setup(chops::net::detail::io_common<IOH>& comm) {
 
 template <typename IOH>
 void io_common_test(chops::const_shared_buffer buf, int num_bufs,
-                    const std::experimental::net::ip::basic_endpoint<typename IOH::protocol_type>& endp) {
+                    typename IOH::endpoint_type endp) {
 
   using namespace std::experimental::net;
   using namespace std::placeholders;
@@ -171,7 +171,7 @@ struct tcp_io_mock {
   bool notify_called = false;
 
   using socket_type = std::experimental::net::ip::tcp::socket;
-  using protocol_type = std::experimental::net::ip::tcp;
+  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
 
   void notify_me(const std::error_code& err, std::shared_ptr<tcp_io_mock> p) {
     notify_called = true;
@@ -183,7 +183,7 @@ struct udp_io_mock {
   bool notify_called = false;
 
   using socket_type = std::experimental::net::ip::udp::socket;
-  using protocol_type = std::experimental::net::ip::udp;
+  using endpoint_type = std::experimental::net::ip::udp::endpoint;
 
   void notify_me(const std::error_code& err, std::shared_ptr<udp_io_mock> p) {
     notify_called = true;
