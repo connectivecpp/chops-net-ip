@@ -316,7 +316,7 @@ public:
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
   template <typename MH, typename MF>
-  bool start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) const {
+  bool start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) {
     auto p = m_ioh_wptr.lock();
     return p ? (p->start_io(msg_handler, msg_frame, header_size), true) : false;
   }
@@ -352,7 +352,7 @@ public:
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
   template <typename MH>
-  bool start_io(MH&& msg_handler, std::string_view delimiter) const {
+  bool start_io(MH&& msg_handler, std::string_view delimiter) {
     auto p = m_ioh_wptr.lock();
     return p ? (p->start_io(msg_handler, delimiter), true) : false;
   }
@@ -389,7 +389,7 @@ public:
  */
 
   template <typename MH>
-  bool start_io(MH&& msg_handler, std::size_t read_size) const {
+  bool start_io(MH&& msg_handler, std::size_t read_size) {
     auto p = m_ioh_wptr.lock();
     return p ? (p->start_io(msg_handler, read_size), true) : false;
   }
@@ -426,7 +426,7 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
-  bool stop_io() const {
+  bool stop_io() {
     auto p = m_ioh_wptr.lock();
     return p ? (p->stop_io(), true) : false;
   }
