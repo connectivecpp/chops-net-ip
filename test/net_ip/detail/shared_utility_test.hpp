@@ -43,6 +43,8 @@ vec_buf make_msg_set(F&& func, std::string_view pre, char body_char, int num_msg
       vec.push_back (f(make_body_buf(pre, body_char, i+1)));
     }
   );
+  // add empty body message to signify end of set
+  vec.push_back (func( chops::mutable_shared_buffer{ } ));
   return vec;
 }
 
@@ -57,15 +59,10 @@ struct msg_hdlr {
   msg_hdlr(bool rep) : msgs(), reply(rep) { }
 
   bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) const {
-    if (buf.size() <= 2) { // empty body - just msg size header or CR / LF or LF
-      return false;
-    }
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
     msgs.push_back(sh_buf);
-    if (reply) {
-      io_intf.send(std::move(sh_buf));
-    }
-    return true;
+    // if last message and not replying, time to shut down
+    return reply ? io_intf.send(std::move(sh_buf)) : (sh_buf.size() > 2);
   }
 };
 
