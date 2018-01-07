@@ -63,6 +63,13 @@ public:
     m_socket(std::move(sock)), m_io_common(cb), 
     m_byte_vec(), m_read_size(0), m_delimiter() { }
 
+private:
+  // no copy or assignment semantics for this class
+  tcp_io(const tcp_io&) = delete;
+  tcp_io(tcp_io&&) = delete;
+  tcp_io& operator=(const tcp_io&) = delete;
+  tcp_io& operator=(tcp_io&&) = delete;
+
 public:
   // all of the methods in this public section can be called through an io_interface
   socket_type& get_socket() noexcept { return m_socket; }

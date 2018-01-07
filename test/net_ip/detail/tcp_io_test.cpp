@@ -74,6 +74,7 @@ using thread_promise = std::promise<thread_data>;
 
 using tcp_ioh_ptr = std::shared_ptr<chops::net::detail::tcp_io>;
 
+/*
 void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
                      int interval) {
   using namespace std::placeholders;
@@ -84,6 +85,7 @@ void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_cont
 
   ip::tcp::socket sock(ioc);
   sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
+
   auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), cb);
   msg_hdlr<chops::net::detail::tcp_io> mh (false);
   iohp->start_io(mh, variable_len_msg_frame, 2);
@@ -96,7 +98,22 @@ void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_cont
   thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, mh.msgs.empty()));
 
 }
+*/
 
+void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
+                     int interval) {
+
+  ip::tcp::socket sock(ioc);
+  sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
+
+  std::error_code ec;
+  for (auto buf : in_msg_set) {
+    write(sock, const_buffer(buf.data(), buf.size()), ec);
+    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  }
+  thr_prom.set_value(thread_data(ec, true, true));
+
+}
 void acc_conn_func (const vec_buf& in_msg_set, io_context& ioc, 
                     bool reply, int interval) {
 
@@ -115,12 +132,15 @@ void acc_conn_func (const vec_buf& in_msg_set, io_context& ioc,
   std::thread conn_thr(connector_func, std::move(conn_prom), std::cref(in_msg_set), std::ref(ioc), 
                        interval);
 
-  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
+  // auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
+  auto iohp = std::shared_ptr<chops::net::detail::tcp_io>(
+       new chops::net::detail::tcp_io(std::move(acc.accept()), cb));
   msg_hdlr<chops::net::detail::tcp_io> mh (reply);
   iohp->start_io(mh, variable_len_msg_frame, 2);
 
   auto en_ret = en_fut.get(); // wait for termination callback
   INFO ("Entity future popped");
+
   auto conn_data = conn_fut.get();
   INFO ("Connector thread future popped, joining thread");
   conn_thr.join();
@@ -151,6 +171,7 @@ SCENARIO ( "Tcp IO handler test, one-way", "[tcp_io_one_way]" ) {
     }
   } // end given
   wg.reset();
+  run_thr.join();
 }
 
 /*
