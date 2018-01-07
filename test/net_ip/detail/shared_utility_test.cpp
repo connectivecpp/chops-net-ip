@@ -141,14 +141,16 @@ void make_msg_test() {
 }
 
 template <typename F>
-void make_msg_set_test(F&& f, int delta) {
+void make_msg_set_test(F&& f) {
   using namespace chops::test;
 
   GIVEN ("A preamble and a char to repeat") {
     WHEN ("make_msg_set is called") {
       auto vb = make_msg_set(f, "Good tea!", 'Z', 20);
       THEN ("a vector of buffers is returned") {
-        REQUIRE (vb.size() == 20);
+        REQUIRE (vb.size() == 21); // account for empty body message at end
+        int delta = vb[20].size();
+        REQUIRE (delta <= 2);
         chops::repeat(20, [&vb, delta] (const int& i) { REQUIRE (vb[i].size() == (i+10+delta)); } );
       }
     }
@@ -164,9 +166,9 @@ SCENARIO ( "Shared Net IP test utility, make msg", "[shared_test_utility_make_ms
 SCENARIO ( "Shared Net IP test utility, make msg set", "[shared_test_utility_make_msg_set]" ) {
   using namespace chops::test;
 
-  make_msg_set_test(make_variable_len_msg, 2);
-  make_msg_set_test(make_cr_lf_text_msg, 2);
-  make_msg_set_test(make_lf_text_msg, 1);
+  make_msg_set_test(make_variable_len_msg);
+  make_msg_set_test(make_cr_lf_text_msg);
+  make_msg_set_test(make_lf_text_msg);
 
 }
 
@@ -199,25 +201,28 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
     void send(chops::const_shared_buffer) { send_called = true; }
   };
 
-  GIVEN ("A msg hdlr object and a mock io handler") {
-    msg_hdlr<ioh_mock> mh(true);
-    auto iohp = std::make_shared<ioh_mock>();
-    REQUIRE(!iohp->send_called);
-    ip::tcp::endpoint endp { };
+  auto iohp = std::make_shared<ioh_mock>();
+  REQUIRE(!iohp->send_called);
+  ip::tcp::endpoint endp { };
 
-    WHEN ("it is called with a buf and io interface and endp") {
-      auto m = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
-      auto ret = mh(const_buffer(m.data(), m.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
-      THEN ("true is returned and send has been called") {
-        REQUIRE(ret);
+  auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
+  auto empty = make_variable_len_msg(chops::mutable_shared_buffer());
+
+  GIVEN ("A mock io handler, a msg with a body, and an empty body msg") {
+
+    WHEN ("a msg hdlr is created with reply true and the messages passed in") {
+      msg_hdlr<ioh_mock> mh(true);
+      THEN ("true is always returned and send has been called") {
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
+        REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
       }
     }
-    AND_WHEN ("it is called with an empty body msg") {
-      auto m = make_variable_len_msg(chops::mutable_shared_buffer());
-      auto ret = mh(const_buffer(m.data(), m.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
-      THEN ("false is returned") {
-        REQUIRE(!ret);
+    AND_WHEN ("a msg hdlr is created with reply false and the messages passed in") {
+      msg_hdlr<ioh_mock> mh(false);
+      THEN ("true is returned, then false is returned") {
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(!mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
       }
     }
   } // end given
