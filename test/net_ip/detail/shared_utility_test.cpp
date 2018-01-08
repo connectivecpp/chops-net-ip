@@ -203,7 +203,7 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
   };
 
   auto iohp = std::make_shared<ioh_mock>();
-  REQUIRE(!iohp->send_called);
+  REQUIRE_FALSE(iohp->send_called);
   ip::tcp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
@@ -218,7 +218,7 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(!mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(vb.size() == 1);
       }
     }
@@ -228,7 +228,7 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
       THEN ("shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(!mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(vb.size() == 1);
       }
     }

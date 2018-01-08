@@ -40,7 +40,7 @@ void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
       auto e = outq.get_next_element();
       THEN ("it is not empty and values match") {
         REQUIRE (e);
-        REQUIRE (!e->second);
+        REQUIRE_FALSE (e->second);
         REQUIRE (e->first == buf);
       }
     }
@@ -49,7 +49,7 @@ void add_element_test(chops::const_shared_buffer buf, int num_bufs) {
       chops::repeat(num_bufs, [&outq] () { outq.get_next_element(); } );
       THEN ("an empty element will be returned next") {
         auto e = outq.get_next_element();
-        REQUIRE (!e);
+        REQUIRE_FALSE (e);
       }
     }
   } // end given

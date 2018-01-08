@@ -57,15 +57,15 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
     auto qs = iocomm.get_output_queue_stats();
     REQUIRE (qs.output_queue_size == 0);
     REQUIRE (qs.bytes_in_output_queue == 0);
-    REQUIRE (!iocomm.is_started());
-    REQUIRE (!iocomm.is_write_in_progress());
+    REQUIRE_FALSE (iocomm.is_started());
+    REQUIRE_FALSE (iocomm.is_write_in_progress());
 
     WHEN ("Check_err_code is called") {
-      REQUIRE (!ioh.notify_called);
+      REQUIRE_FALSE (ioh.notify_called);
       bool ret = iocomm.check_err_code(std::make_error_code(chops::net::net_ip_errc::message_handler_terminated), std::shared_ptr<IOH>());
       THEN ("the notify_called flag is now true and the return is false") {
         REQUIRE (ioh.notify_called);
-        REQUIRE (!ret);
+        REQUIRE_FALSE (ret);
       }
     }
 
@@ -74,7 +74,7 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
       REQUIRE (ret);
       THEN ("the started flag is true and write_in_progress flag false") {
         REQUIRE (iocomm.is_started());
-        REQUIRE (!iocomm.is_write_in_progress());
+        REQUIRE_FALSE (iocomm.is_write_in_progress());
       }
     }
 
@@ -83,14 +83,14 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
       REQUIRE (ret);
       ret = call_start_io_setup(iocomm);
       THEN ("the second call returns false") {
-        REQUIRE (!ret);
+        REQUIRE_FALSE (ret);
       }
     }
 
     AND_WHEN ("Start_write_setup is called before start_io_setup") {
       bool ret = iocomm.start_write_setup(buf);
       THEN ("the call returns false") {
-        REQUIRE (!ret);
+        REQUIRE_FALSE (ret);
       }
     }
 
@@ -109,7 +109,7 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
       ret = iocomm.start_write_setup(buf);
       ret = iocomm.start_write_setup(buf);
       THEN ("the call returns false and write_in_progress flag is true and queue size is one") {
-        REQUIRE (!ret);
+        REQUIRE_FALSE (ret);
         REQUIRE (iocomm.is_write_in_progress());
         REQUIRE (iocomm.get_output_queue_stats().output_queue_size == 1);
       }
@@ -158,8 +158,8 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
         REQUIRE (e->second == endp);
 
         auto e2 = iocomm.get_next_element();
-        REQUIRE (!iocomm.is_write_in_progress());
-        REQUIRE (!e2);
+        REQUIRE_FALSE (iocomm.is_write_in_progress());
+        REQUIRE_FALSE (e2);
 
       }
     }

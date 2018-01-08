@@ -33,7 +33,7 @@ void pointer_check(const T* bp, typename SB::size_type sz) {
     WHEN ("A shared buffer is constructed with the buf and size") {
       SB sb(bp, sz);
       THEN ("the shared buffer is not empty, the size matches and the contents match") {
-        REQUIRE (!sb.empty());
+        REQUIRE_FALSE (sb.empty());
         REQUIRE (sb.size() == sz);
         const std::byte* buf = static_cast<const std::byte*>(static_cast<const void*>(bp));
         chops::repeat(sz, [&sb, buf] (const int& i) { REQUIRE(*(sb.data()+i) == *(buf+i)); } );
@@ -56,17 +56,17 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
 
   GIVEN ("A shared buffer") {
     SB sb(buf, sz);
-    REQUIRE (!sb.empty());
+    REQUIRE_FALSE (sb.empty());
     WHEN ("A separate shared buffer is constructed with the buf and size") {
       SB sb2(buf, sz);
-      REQUIRE (!sb2.empty());
+      REQUIRE_FALSE (sb2.empty());
       THEN ("the two shared buffers compare equal") {
         REQUIRE (sb == sb2);
       }
     }
     AND_WHEN ("A second shared buffer is copy constructed") {
       SB sb2(sb);
-      REQUIRE (!sb2.empty());
+      REQUIRE_FALSE (sb2.empty());
       THEN ("the two shared buffers compare equal") {
         REQUIRE (sb == sb2);
       }
@@ -74,7 +74,7 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
     AND_WHEN ("A shared buffer is constructed from another container") {
       std::list<std::byte> lst (buf, buf+sz);
       SB sb2(lst.cbegin(), lst.cend());
-      REQUIRE (!sb2.empty());
+      REQUIRE_FALSE (sb2.empty());
       THEN ("the two shared buffers compare equal") {
         REQUIRE (sb == sb2);
       }
@@ -82,7 +82,7 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
     AND_WHEN ("A separate shared buffer is constructed shorter than the first") {
       auto ba = chops::make_byte_array(buf[0], buf[1]);
       SB sb2(ba.cbegin(), ba.cend());
-      REQUIRE (!sb2.empty());
+      REQUIRE_FALSE (sb2.empty());
       THEN ("the separate shared buffer compares less than the first") {
         REQUIRE (sb2 < sb);
         REQUIRE (sb2 != sb);
@@ -91,7 +91,7 @@ void shared_buffer_common(const std::byte* buf, typename SB::size_type sz) {
     AND_WHEN ("A separate shared buffer is constructed with values less than the first") {
       auto ba = chops::make_byte_array(0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
       SB sb2(ba.cbegin(), ba.cend());
-      REQUIRE (!sb2.empty());
+      REQUIRE_FALSE (sb2.empty());
       THEN ("the separate shared buffer compares less than the first") {
         REQUIRE (sb2 != sb);
       }
@@ -110,7 +110,7 @@ void shared_buffer_byte_vector_move() {
       SB sb(std::move(bv));
       THEN ("the shared buffer will contain the data and the byte vector will not") {
         REQUIRE (sb == SB(arr.cbegin(), arr.cend()));
-        REQUIRE (bv.size() != sb.size());
+        REQUIRE_FALSE (bv.size() == sb.size());
       }
     }
   } // end given
@@ -285,11 +285,11 @@ SCENARIO ( "Mutable shared buffer move into const shared buffer", "[mutable_shar
       chops::const_shared_buffer csb(std::move(msb));
       THEN ("the const_shared_buffer will contain the data and the mutable_shared_buffer will not") {
         REQUIRE (csb == chops::const_shared_buffer(arr1.cbegin(), arr1.cend()));
-        REQUIRE (!(msb == csb));
+        REQUIRE_FALSE (msb == csb);
         msb.clear();
         msb.resize(arr2.size());
         msb.append(arr2.cbegin(), arr2.size());
-        REQUIRE (!(msb == csb));
+        REQUIRE_FALSE (msb == csb);
       }
     }
   } // end given
@@ -320,9 +320,10 @@ SCENARIO ( "Use get_byte_vec for external modification of buffer", "[get_byte_ve
       THEN ("the refererence can be used to access and modify data") {
         REQUIRE (r == bv);
         r[0] = std::byte(0xdd);
-        REQUIRE (r != bv);
+        REQUIRE_FALSE (r == bv);
       }
     }
   } // end given
 
 }
+

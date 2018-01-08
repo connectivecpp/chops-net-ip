@@ -42,7 +42,7 @@ void non_threaded_push_test(Q& wq, const T& val, int count) {
     WHEN ("Values are pushed on the queue") {
       chops::repeat(count, [&wq, &val] () { REQUIRE(wq.push(val)); } );
       THEN ("the size is increased") {
-        REQUIRE (!wq.empty());
+        REQUIRE_FALSE (wq.empty());
         REQUIRE (wq.size() == count);
       }
     }
@@ -91,13 +91,13 @@ void non_threaded_open_close_test(Q& wq, const T& val, int count) {
 
   GIVEN ("A newly constructed wait_queue") {
 
-    REQUIRE (!wq.is_closed());
+    REQUIRE_FALSE (wq.is_closed());
 
     WHEN ("Close is called") {
       wq.close();
       THEN ("the state is now closed, and pushes fail") {
         REQUIRE (wq.is_closed());
-        REQUIRE (!wq.push(val));
+        REQUIRE_FALSE (wq.push(val));
         REQUIRE (wq.empty());
       }
     }
@@ -106,7 +106,7 @@ void non_threaded_open_close_test(Q& wq, const T& val, int count) {
       REQUIRE (wq.is_closed());
       wq.open();
       THEN ("the state is now open, and pushes will succeed") {
-        REQUIRE (!wq.is_closed());
+        REQUIRE_FALSE (wq.is_closed());
         REQUIRE (wq.empty());
         chops::repeat(count, [&wq, &val] () { wq.push(val); } );
         REQUIRE (wq.size() == count);
@@ -114,17 +114,17 @@ void non_threaded_open_close_test(Q& wq, const T& val, int count) {
     }
     AND_WHEN ("Close is called") {
       chops::repeat(count, [&wq, &val] () { wq.push(val); } );
-      REQUIRE (!wq.empty());
+      REQUIRE_FALSE (wq.empty());
       wq.close();
       THEN ("wait_and_pops will not return data, but try_pops will") {
         auto ret = wq.wait_and_pop();
-        REQUIRE (!ret);
+        REQUIRE_FALSE (ret);
         ret = wq.wait_and_pop();
-        REQUIRE (!ret);
+        REQUIRE_FALSE (ret);
         chops::repeat(count, [&wq, &ret] () { ret = wq.try_pop(); REQUIRE(ret); } );
         REQUIRE (wq.empty());
         ret = wq.try_pop();
-        REQUIRE (!ret);
+        REQUIRE_FALSE (ret);
       }
     }
 
@@ -362,7 +362,7 @@ SCENARIO ( "Non-threaded wait_queue test, testing complex constructor and emplac
 
     WHEN ("Values are emplace pushed on the queue") {
       THEN ("the size is increased") {
-        REQUIRE (!wq.empty());
+        REQUIRE_FALSE (wq.empty());
         REQUIRE (wq.size() == 2);
       }
     }
