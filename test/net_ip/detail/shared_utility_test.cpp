@@ -145,12 +145,13 @@ void make_msg_set_test(F&& f) {
   using namespace chops::test;
 
   GIVEN ("A preamble and a char to repeat") {
+    auto empty = make_empty_body_msg(f);
+    int delta = empty.size();
+    REQUIRE (delta <= 2);
     WHEN ("make_msg_set is called") {
       auto vb = make_msg_set(f, "Good tea!", 'Z', 20);
       THEN ("a vector of buffers is returned") {
-        REQUIRE (vb.size() == 21); // account for empty body message at end
-        int delta = vb[20].size();
-        REQUIRE (delta <= 2);
+        REQUIRE (vb.size() == 20);
         chops::repeat(20, [&vb, delta] (const int& i) { REQUIRE (vb[i].size() == (i+10+delta)); } );
       }
     }
@@ -211,18 +212,24 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
   GIVEN ("A mock io handler, a msg with a body, and an empty body msg") {
 
     WHEN ("a msg hdlr is created with reply true and the messages passed in") {
-      msg_hdlr<ioh_mock> mh(true);
-      THEN ("true is always returned and send has been called") {
+      vec_buf vb;
+      msg_hdlr<ioh_mock> mh(vb, true);
+      THEN ("send has been called, shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(!mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(vb.size() == 1);
       }
     }
     AND_WHEN ("a msg hdlr is created with reply false and the messages passed in") {
-      msg_hdlr<ioh_mock> mh(false);
-      THEN ("true is returned, then false is returned") {
+      vec_buf vb;
+      msg_hdlr<ioh_mock> mh(vb, false);
+      THEN ("shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(!mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(vb.size() == 1);
       }
     }
   } // end given
