@@ -38,7 +38,7 @@ namespace chops {
 namespace net {
 namespace detail {
 
-class tcp_io : std::enable_shared_from_this<tcp_io> {
+class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
