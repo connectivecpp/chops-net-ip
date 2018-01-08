@@ -130,8 +130,7 @@ void acc_conn_func (const vec_buf& in_msg_set, io_context& ioc,
 
   auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
   vec_buf vb;
-  msg_hdlr<chops::net::detail::tcp_io> mh (vb, reply);
-  iohp->start_io(mh, variable_len_msg_frame, 2);
+  iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, reply), variable_len_msg_frame, 2);
 
   auto en_ret = en_fut.get(); // wait for termination callback
   INFO ("Entity future popped");

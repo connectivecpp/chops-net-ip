@@ -70,11 +70,11 @@ struct msg_hdlr {
 
   vec_buf& msgs;
   bool reply;
-  mutable bool shutdown_recvd;
+  bool shutdown_recvd;
 
   msg_hdlr(vec_buf& m, bool rep) : msgs(m), reply(rep), shutdown_recvd(false) { }
 
-  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) const {
+  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       msgs.push_back(sh_buf);
