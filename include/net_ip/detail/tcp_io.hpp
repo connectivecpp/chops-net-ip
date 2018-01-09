@@ -217,14 +217,14 @@ void tcp_io::handle_read_until(MH&& msg_hdlr, const std::error_code& err, std::s
     m_io_common.process_err_code(err, shared_from_this());
     return;
   }
-  auto dyn_buf = std::experimental::net::dynamic_buffer(m_byte_vec);
-  if (!msg_hdlr(dyn_buf.data(), // includes delimiter bytes
+  // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
+  if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes),
                 io_interface<tcp_io>(weak_from_this()), m_io_common.get_remote_endp())) {
       m_io_common.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                    shared_from_this());
     return;
   }
-  dyn_buf.consume(num_bytes);
+  m_byte_vec.erase(m_byte_vec.begin(), m_byte_vec.begin() + num_bytes);
   start_read_until(msg_hdlr);
 }
 
