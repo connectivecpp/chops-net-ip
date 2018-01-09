@@ -45,7 +45,7 @@ using hdr_decoder_func = std::size_t (*)(const std::byte*);
  *
  *  @relates io_interface
  */
-auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
+inline auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
   bool hdr_processed = false;
   return [hdr_processed, func] 
       (std::experimental::net::mutable_buffer buf) mutable -> std::size_t {
