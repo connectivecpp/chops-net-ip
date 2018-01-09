@@ -60,12 +60,11 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
     REQUIRE_FALSE (iocomm.is_started());
     REQUIRE_FALSE (iocomm.is_write_in_progress());
 
-    WHEN ("Check_err_code is called") {
+    WHEN ("Process_err_code is called") {
       REQUIRE_FALSE (ioh.notify_called);
-      bool ret = iocomm.check_err_code(std::make_error_code(chops::net::net_ip_errc::message_handler_terminated), std::shared_ptr<IOH>());
-      THEN ("the notify_called flag is now true and the return is false") {
+      iocomm.process_err_code(std::make_error_code(chops::net::net_ip_errc::message_handler_terminated), std::shared_ptr<IOH>());
+      THEN ("the notify_called flag is now true") {
         REQUIRE (ioh.notify_called);
-        REQUIRE_FALSE (ret);
       }
     }
 
