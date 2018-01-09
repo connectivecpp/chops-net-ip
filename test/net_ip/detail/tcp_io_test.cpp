@@ -53,6 +53,7 @@ struct entity_notifier {
   std::promise<notifier_data> prom;
 
   void notify_me(const std::error_code& e, std::shared_ptr<chops::net::detail::tcp_io> p) {
+    p->close();
     prom.set_value(notifier_data(e, p));
   }
 
@@ -65,7 +66,6 @@ using thread_promise = std::promise<thread_data>;
 
 using tcp_ioh_ptr = std::shared_ptr<chops::net::detail::tcp_io>;
 
-/*
 void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
                      int interval) {
   using namespace std::placeholders;
@@ -78,40 +78,21 @@ void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_cont
   sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
 
   auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), cb);
-  msg_hdlr<chops::net::detail::tcp_io> mh (false);
-  iohp->start_io(mh, variable_len_msg_frame, 2);
+  vec_buf vb;
+  iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, false), 
+                 chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
 
   for (auto buf : in_msg_set) {
     iohp->send(chops::const_shared_buffer(std::move(buf)));
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
+  iohp->send(chops::const_shared_buffer(std::move(make_empty_body_msg(make_variable_len_msg))));
+
   auto ret = en_fut.get(); // wait for termination callback
-  thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, mh.msgs.empty()));
+  thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, vb.empty()));
 
 }
-*/
 
-void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
-                     int interval) {
-
-  ip::tcp::socket sock(ioc);
-  sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
-
-  std::error_code ec;
-  for (auto buf : in_msg_set) {
-    write(sock, const_buffer(buf.data(), buf.size()), ec);
-    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-  }
-  auto empty = make_empty_body_msg(make_variable_len_msg);
-  write(sock, const_buffer(empty.data(), empty.size()), ec);
-
-  read(sock, mutable_buffer(empty.data(), empty.size()), ec);
-  sock.shutdown(ip::tcp::socket::shutdown_both, ec);
-  sock.close();
-
-  thr_prom.set_value(thread_data(ec, true, true));
-
-}
 void acc_conn_func (const vec_buf& in_msg_set, io_context& ioc, 
                     bool reply, int interval) {
 
@@ -133,7 +114,7 @@ void acc_conn_func (const vec_buf& in_msg_set, io_context& ioc,
   auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
   vec_buf vb;
   iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, reply), 
-                 chops::net::simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
+                 chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
 
   auto en_ret = en_fut.get(); // wait for termination callback
   INFO ("Entity future popped");

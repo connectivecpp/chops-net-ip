@@ -114,8 +114,8 @@ public:
   }
 
   void stop_io() {
-    m_io_common.check_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
-                               shared_from_this());
+    m_io_common.process_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
+                                 shared_from_this());
   }
 
   // use post for thread safety, multiple threads can call this method
@@ -182,7 +182,8 @@ template <typename MH, typename MF>
 void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf, 
                          const std::error_code& err, std::size_t num_bytes) {
 
-  if (!m_io_common.check_err_code(err, shared_from_this())) {
+  if (err) {
+    m_io_common.process_err_code(err, shared_from_this());
     return;
   }
   // assert num_bytes == mbuf.size()
@@ -191,8 +192,8 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::
     if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
                   io_interface<tcp_io>(weak_from_this()), m_io_common.get_remote_endp())) {
       // message handler not happy, tear everything down
-      m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                                 shared_from_this());
+      m_io_common.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
+                                   shared_from_this());
       return;
     }
     m_byte_vec.resize(m_read_size);
@@ -210,13 +211,14 @@ template <typename MH, typename DB>
 void tcp_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf, 
                                const std::error_code& err, std::size_t num_bytes) {
 
-  if (!m_io_common.check_err_code(err, shared_from_this())) {
+  if (err) {
+    m_io_common.process_err_code(err, shared_from_this());
     return;
   }
   if (!msg_hdlr(dyn_buf.data(), // includes delimiter bytes
                 io_interface<tcp_io>(weak_from_this()), m_io_common.get_remote_endp())) {
-      m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                                 shared_from_this());
+      m_io_common.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
+                                   shared_from_this());
     return;
   }
   dyn_buf.consume(num_bytes);
@@ -238,7 +240,8 @@ inline void tcp_io::start_write(chops::const_shared_buffer buf) {
 }
 
 inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
-  if (!m_io_common.check_err_code(err, shared_from_this())) {
+  if (err) {
+    m_io_common.process_err_code(err, shared_from_this());
     return;
   }
   auto elem = m_io_common.get_next_element();
