@@ -51,8 +51,10 @@ private:
 
   socket_type            m_socket;
   io_common<tcp_io>      m_io_common;
-  // the following members could be passed through handlers, but are stored here
-  // for simplicity and to reduce copying
+
+  // the following members are only used for read processing; they could be 
+  // passed through handlers, but are members for simplicity and to reduce 
+  // copying
   byte_vec               m_byte_vec;
   std::size_t            m_read_size;
   std::string            m_delimiter;
@@ -148,18 +150,19 @@ private:
 
   template <typename MH>
   void start_read_until(MH&& msg_hdlr) {
-    auto dyn_buf = std::experimental::net::dynamic_buffer(m_byte_vec);
     auto self { shared_from_this() };
-    std::experimental::net::async_read_until(m_socket, dyn_buf, m_delimiter,
-          [this, self, mh = std::forward<MH>(msg_hdlr), db = std::move(dyn_buf)] 
+    std::experimental::net::async_read_until(m_socket, 
+                                             std::experimental::net::dynamic_buffer(m_byte_vec), 
+                                             m_delimiter,
+          [this, self, mh = std::forward<MH>(msg_hdlr)] 
             (const std::error_code& err, std::size_t nb) mutable {
-        handle_read_until(mh, db, err, nb);
+        handle_read_until(mh, err, nb);
       }
     );
   }
 
-  template <typename MH, typename DB>
-  void handle_read_until(MH&&, DB&&, const std::error_code&, std::size_t);
+  template <typename MH>
+  void handle_read_until(MH&&, const std::error_code&, std::size_t);
 
   void start_write(chops::const_shared_buffer);
 
@@ -207,14 +210,14 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::
   start_read(msg_hdlr, msg_frame, mbuf);
 }
 
-template <typename MH, typename DB>
-void tcp_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf, 
-                               const std::error_code& err, std::size_t num_bytes) {
+template <typename MH>
+void tcp_io::handle_read_until(MH&& msg_hdlr, const std::error_code& err, std::size_t num_bytes) {
 
   if (err) {
     m_io_common.process_err_code(err, shared_from_this());
     return;
   }
+  auto dyn_buf = std::experimental::net::dynamic_buffer(m_byte_vec);
   if (!msg_hdlr(dyn_buf.data(), // includes delimiter bytes
                 io_interface<tcp_io>(weak_from_this()), m_io_common.get_remote_endp())) {
       m_io_common.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
