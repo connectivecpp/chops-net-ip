@@ -185,7 +185,7 @@ SCENARIO ( "Shared Net IP test utility, decode variable len msg header", "[share
     }
     AND_WHEN ("a simple variable len msg frame is constructed") {
       mutable_buffer buf(ba.data(), ba.size());
-      chops::net::simple_variable_len_msg_frame mf(decode_variable_len_msg_hdr);
+      auto mf = chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr);
       THEN ("the returned length toggles between the decoded length and zero") {
         REQUIRE(mf(buf) == 513);
         REQUIRE(mf(buf) == 0);
