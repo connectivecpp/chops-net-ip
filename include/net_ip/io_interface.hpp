@@ -18,6 +18,8 @@
 #include <system_error>
 #include <cstddef> // std::size_t
 
+#include <experimental/buffer>
+
 #include "utility/shared_buffer.hpp"
 
 #include "net_ip/net_ip_error.hpp"
@@ -25,6 +27,45 @@
 
 namespace chops {
 namespace net {
+
+/**
+ *  @brief A message frame function object class for the common use case of variable len 
+ *  message composed of a header and a single body, where the header decoding function is 
+ *  supplied by the application.
+ *
+ *  @relates io_interface
+ */
+
+class simple_variable_len_msg_frame {
+public:
+  using hdr_decoder_func = std::size_t (*)(const std::byte*);
+
+private:
+  bool m_hdr_processed;
+  hdr_decoder_func m_func;
+
+public:
+  simple_variable_len_msg_frame() = delete;
+  simple_variable_len_msg_frame(const simple_variable_len_msg_frame&) = default;
+  simple_variable_len_msg_frame(simple_variable_len_msg_frame&&) = default;
+  simple_variable_len_msg_frame& operator=(const simple_variable_len_msg_frame&) = default;
+  simple_variable_len_msg_frame& operator=(simple_variable_len_msg_frame&&) = default;
+
+/**
+ *  @brief Construct a @c simple_variable_len_msg_frame with an application supplied
+ *  header decoder function.
+ *
+ *  @param func A pointer to a function that takes a @c const @c std::byte 
+ *  pointer (which points to the beginning of the header) and returns a @c std::size_t (which
+ *  corresponds to the size of the body to be read).
+ */
+  simple_variable_len_msg_frame(hdr_decoder_func func) : m_hdr_processed(false), m_func(func) { }
+
+  std::size_t operator()(std::experimental::net::mutable_buffer buf) {
+    return m_hdr_processed ? (m_hdr_processed = false, 0) :
+                             (m_hdr_processed = true, m_func(static_cast<const std::byte*>(buf.data())));
+  }
+};
 
 /**
  *  @brief The @c io_interface class provides access to an underlying network
@@ -299,9 +340,11 @@ public:
  *  @code
  *    std::size_t (std::experimental::net::mutable_buffer);
  *  @endcode
- *  The complete incoming buffer is passed in, no matter how many times the
- *  message frame object has been called in assembling the complete message. The 
- *  callback returns the size of the next read, or zero as a notification that the 
+ *
+ *  Each time the message frame callback is called by the Chops Net IP IO handler, the 
+ *  next chunk of incoming bytes is passed through the buffer parameter.
+ *
+ *  The callback returns the size of the next read, or zero as a notification that the 
  *  complete message has been called and the message handler is to be invoked.
  *
  *  If there is non-trivial processing that is performed in the message frame

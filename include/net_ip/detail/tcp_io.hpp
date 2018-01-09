@@ -135,15 +135,16 @@ private:
   void start_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf) {
     auto self { shared_from_this() };
     std::experimental::net::async_read(m_socket, mbuf,
-      [this, self, mh = std::forward<MH>(msg_hdlr), mf = std::forward<MF>(msg_frame)]
-            (const std::error_code& err, std::size_t nb) {
-        handle_read(mh, mf, err, nb);
+      [this, self, mh = std::forward<MH>(msg_hdlr), mf = std::forward<MF>(msg_frame), mbuf]
+            (const std::error_code& err, std::size_t nb) mutable {
+        handle_read(mh, mf, mbuf, err, nb);
       }
     );
   }
 
   template <typename MH, typename MF>
-  void handle_read(MH&&, MF&&, const std::error_code&, std::size_t);
+  void handle_read(MH&&, MF&&, std::experimental::net::mutable_buffer, 
+                   const std::error_code&, std::size_t);
 
   template <typename MH>
   void start_read_until(MH&& msg_hdlr) {
@@ -151,7 +152,7 @@ private:
     auto self { shared_from_this() };
     std::experimental::net::async_read_until(m_socket, dyn_buf, m_delimiter,
           [this, self, mh = std::forward<MH>(msg_hdlr), db = std::move(dyn_buf)] 
-            (const std::error_code& err, std::size_t nb) {
+            (const std::error_code& err, std::size_t nb) mutable {
         handle_read_until(mh, db, err, nb);
       }
     );
@@ -178,14 +179,13 @@ inline void tcp_io::close() {
 }
 
 template <typename MH, typename MF>
-void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, 
+void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf, 
                          const std::error_code& err, std::size_t num_bytes) {
 
   if (!m_io_common.check_err_code(err, shared_from_this())) {
     return;
   }
-  // assert num_bytes == m_byte_vec.size()
-  std::experimental::net::mutable_buffer mbuf(m_byte_vec.data(), m_byte_vec.size());
+  // assert num_bytes == mbuf.size()
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 

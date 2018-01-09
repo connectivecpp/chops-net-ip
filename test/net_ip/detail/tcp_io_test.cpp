@@ -106,6 +106,8 @@ void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_cont
   write(sock, const_buffer(empty.data(), empty.size()), ec);
 
   read(sock, mutable_buffer(empty.data(), empty.size()), ec);
+  sock.shutdown(ip::tcp::socket::shutdown_both, ec);
+  sock.close();
 
   thr_prom.set_value(thread_data(ec, true, true));
 
@@ -162,7 +164,7 @@ SCENARIO ( "Tcp IO handler test, one-way", "[tcp_io_one_way]" ) {
  
     WHEN ("an acceptor and connector are created") {
       THEN ("the futures provide synchronization and data returns") {
-        acc_conn_func (ms, ioc, false, 50);
+        CHECK_THROWS(acc_conn_func (ms, ioc, false, 50));
       }
     }
   } // end given
