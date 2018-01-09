@@ -243,13 +243,19 @@ void io_interface_test_compare() {
 SCENARIO ( "Io interface test, simple variable len message frame", "[io_interface_msg_frame]" ) {
   mutable_buffer buf;
   GIVEN ("A simple message frame object constructed with a decoder func") {
-    chops::net::simple_variable_len_msg_frame mf(decoder_func);
+    // chops::net::simple_variable_len_msg_frame mf(decoder_func);
+    auto a = chops::net::make_simple_variable_len_msg_frame(decoder_func);
+    auto mf = a; // verify copying the lambda does the right thing
     WHEN ("it is called multiple times") {
       THEN ("the return value toggles between the decoder supplied number and zero") {
         REQUIRE (mf(buf) == magic);
         REQUIRE (mf(buf) == 0);
         REQUIRE (mf(buf) == magic);
         REQUIRE (mf(buf) == 0);
+        auto b = mf;
+        REQUIRE (b(buf) == magic);
+        REQUIRE (b(buf) == 0);
+
       }
     }
   } // end given

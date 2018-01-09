@@ -16,7 +16,7 @@
 #include <memory> // std::weak_ptr, std::shared_ptr
 #include <string_view>
 #include <system_error>
-#include <cstddef> // std::size_t
+#include <cstddef> // std::size_t, std::byte
 
 #include <experimental/buffer>
 
@@ -29,43 +29,31 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief A message frame function object class for the common use case of variable len 
+ *  @brief Signature for header decoder function.
+ *
+ *  Given a buffer of @c std::bytes corresponding to the header, decode the header and 
+ *  return the length of the message body.
+ *
+ *  @relates io_interface
+ */
+using hdr_decoder_func = std::size_t (*)(const std::byte*);
+
+/**
+ *  @brief Create a message frame function object for the common use case of variable len 
  *  message composed of a header and a single body, where the header decoding function is 
  *  supplied by the application.
  *
  *  @relates io_interface
  */
-
-class simple_variable_len_msg_frame {
-public:
-  using hdr_decoder_func = std::size_t (*)(const std::byte*);
-
-private:
-  bool m_hdr_processed;
-  hdr_decoder_func m_func;
-
-public:
-  simple_variable_len_msg_frame() = delete;
-  simple_variable_len_msg_frame(const simple_variable_len_msg_frame&) = default;
-  simple_variable_len_msg_frame(simple_variable_len_msg_frame&&) = default;
-  simple_variable_len_msg_frame& operator=(const simple_variable_len_msg_frame&) = default;
-  simple_variable_len_msg_frame& operator=(simple_variable_len_msg_frame&&) = default;
-
-/**
- *  @brief Construct a @c simple_variable_len_msg_frame with an application supplied
- *  header decoder function.
- *
- *  @param func A pointer to a function that takes a @c const @c std::byte 
- *  pointer (which points to the beginning of the header) and returns a @c std::size_t (which
- *  corresponds to the size of the body to be read).
- */
-  simple_variable_len_msg_frame(hdr_decoder_func func) : m_hdr_processed(false), m_func(func) { }
-
-  std::size_t operator()(std::experimental::net::mutable_buffer buf) {
-    return m_hdr_processed ? (m_hdr_processed = false, 0) :
-                             (m_hdr_processed = true, m_func(static_cast<const std::byte*>(buf.data())));
-  }
-};
+auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
+  bool hdr_processed = false;
+  return [hdr_processed, func] 
+      (std::experimental::net::mutable_buffer buf) mutable -> std::size_t {
+    return hdr_processed ? 
+        (hdr_processed = false, 0) :
+        (hdr_processed = true, func(static_cast<const std::byte*>(buf.data())));
+  };
+}
 
 /**
  *  @brief The @c io_interface class provides access to an underlying network
