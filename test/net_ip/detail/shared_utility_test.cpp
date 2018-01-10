@@ -65,11 +65,9 @@ chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer
 }
 
 
-std::size_t variable_len_msg_frame(std::experimental::net::mutable_buffer buf) {
-  // assert buf.size() == 2
+std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr) {
   std::uint16_t hdr;
   std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
-  const std::byte* buf_ptr = static_cast<const std::byte*>(buf.data());
   *(hdr_ptr+0) = *(buf_ptr+0);
   *(hdr_ptr+1) = *(buf_ptr+1);
   return boost::endian::big_to_native(hdr);
@@ -173,17 +171,26 @@ SCENARIO ( "Shared Net IP test utility, make msg set", "[shared_test_utility_mak
 
 }
 
-SCENARIO ( "Shared Net IP test utility, variable len msg frame", "[shared_test_utility_msg_frame]" ) {
+SCENARIO ( "Shared Net IP test utility, decode variable len msg header", "[shared_test_utility_decode_hdr]" ) {
   using namespace chops::test;
   using namespace std::experimental::net;
 
+  auto ba = chops::make_byte_array(0x02, 0x01); // 513 in big endian
+
   GIVEN ("A two byte buffer that is a variable len msg header") {
-
-    auto ba = chops::make_byte_array(0x02, 0x01); // 513 in big endian
-
-    WHEN ("the variable len msg frame function is called") {
+    WHEN ("the decode variable len msg hdr function is called") {
       THEN ("the correct length is returned") {
-        REQUIRE(variable_len_msg_frame(mutable_buffer(ba.data(), ba.size())) == 513);
+        REQUIRE(decode_variable_len_msg_hdr(ba.data()) == 513);
+      }
+    }
+    AND_WHEN ("a simple variable len msg frame is constructed") {
+      mutable_buffer buf(ba.data(), ba.size());
+      auto mf = chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr);
+      THEN ("the returned length toggles between the decoded length and zero") {
+        REQUIRE(mf(buf) == 513);
+        REQUIRE(mf(buf) == 0);
+        REQUIRE(mf(buf) == 513);
+        REQUIRE(mf(buf) == 0);
       }
     }
   } // end given
@@ -203,7 +210,7 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
   };
 
   auto iohp = std::make_shared<ioh_mock>();
-  REQUIRE(!iohp->send_called);
+  REQUIRE_FALSE(iohp->send_called);
   ip::tcp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
@@ -218,7 +225,7 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(!mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(vb.size() == 1);
       }
     }
@@ -228,7 +235,7 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdl
       THEN ("shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(!mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(vb.size() == 1);
       }
     }

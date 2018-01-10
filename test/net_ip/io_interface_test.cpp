@@ -30,7 +30,10 @@
 
 using namespace std::experimental::net;
 
-constexpr std::size_t qs_base = 42;
+constexpr std::size_t magic = 42;
+constexpr std::size_t qs_base = magic + 1;
+
+std::size_t decoder_func (const std::byte*) { return magic; }
 
 struct io_handler_base_mock {
   bool started = false;
@@ -96,7 +99,7 @@ void io_interface_test_default_constructed() {
   GIVEN ("A default constructed io_interface") {
     WHEN ("is_valid is called") {
       THEN ("the return is false") {
-        REQUIRE (!io_intf.is_valid());
+        REQUIRE_FALSE (io_intf.is_valid());
       }
     }
     AND_WHEN ("is_started or get_socket or get_output_queue_stats is called on an invalid io_interface") {
@@ -112,19 +115,19 @@ void io_interface_test_default_constructed() {
         chops::const_shared_buffer buf(nullptr, 0);
         typename IOH::endpoint_type endp;
 
-        REQUIRE (!io_intf.send(nullptr, 0));
-        REQUIRE (!io_intf.send(buf));
-        REQUIRE (!io_intf.send(chops::mutable_shared_buffer()));
-        REQUIRE (!io_intf.send(nullptr, 0, endp));
-        REQUIRE (!io_intf.send(buf, endp));
-        REQUIRE (!io_intf.send(chops::mutable_shared_buffer(), endp));
+        REQUIRE_FALSE (io_intf.send(nullptr, 0));
+        REQUIRE_FALSE (io_intf.send(buf));
+        REQUIRE_FALSE (io_intf.send(chops::mutable_shared_buffer()));
+        REQUIRE_FALSE (io_intf.send(nullptr, 0, endp));
+        REQUIRE_FALSE (io_intf.send(buf, endp));
+        REQUIRE_FALSE (io_intf.send(chops::mutable_shared_buffer(), endp));
 
-        REQUIRE (!io_intf.start_io([] { }, [] { }, 0));
-        REQUIRE (!io_intf.start_io([] { }, "testing, hah!"));
-        REQUIRE (!io_intf.start_io([] { }, 0));
-        REQUIRE (!io_intf.start_io());
+        REQUIRE_FALSE (io_intf.start_io([] { }, [] { }, 0));
+        REQUIRE_FALSE (io_intf.start_io([] { }, "testing, hah!"));
+        REQUIRE_FALSE (io_intf.start_io([] { }, 0));
+        REQUIRE_FALSE (io_intf.start_io());
 
-        REQUIRE (!io_intf.stop_io());
+        REQUIRE_FALSE (io_intf.stop_io());
       }
     }
   } // end given
@@ -148,7 +151,7 @@ void io_interface_test_two() {
     }
     AND_WHEN ("is_started or get_output_queue_stats is called") {
       THEN ("values are returned") {
-        REQUIRE (!io_intf.is_started());
+        REQUIRE_FALSE (io_intf.is_started());
         chops::net::output_queue_stats s = io_intf.get_output_queue_stats();
         REQUIRE (s.output_queue_size == qs_base);
         REQUIRE (s.bytes_in_output_queue == (qs_base + 1));
@@ -175,7 +178,7 @@ void io_interface_test_two() {
         REQUIRE (io_intf.is_started());
 
         REQUIRE (io_intf.stop_io());
-        REQUIRE (!io_intf.is_started());
+        REQUIRE_FALSE (io_intf.is_started());
       }
     }
   } // end given
@@ -204,11 +207,11 @@ void io_interface_test_compare() {
       THEN ("the invalid io_interfaces are first in the set") {
         REQUIRE (a_set.size() == 5);
         auto i = a_set.cbegin();
-        REQUIRE (!(i->is_valid()));
+        REQUIRE_FALSE (i->is_valid());
         ++i;
-        REQUIRE (!(i->is_valid()));
+        REQUIRE_FALSE (i->is_valid());
         ++i;
-        REQUIRE (!(i->is_valid()));
+        REQUIRE_FALSE (i->is_valid());
         ++i;
         REQUIRE (i->is_valid());
         ++i;
@@ -223,7 +226,7 @@ void io_interface_test_compare() {
     }
     AND_WHEN ("two valid io_interfaces are compared for equality") {
       THEN ("they compare equal if both point to the same io handler") {
-        REQUIRE (!(io_intf2 == io_intf4));
+        REQUIRE_FALSE (io_intf2 == io_intf4);
         io_intf2 = io_intf4;
         REQUIRE (io_intf2 == io_intf4);
       }
@@ -235,6 +238,27 @@ void io_interface_test_compare() {
     }
   } // end given
 
+}
+
+SCENARIO ( "Io interface test, simple variable len message frame", "[io_interface_msg_frame]" ) {
+  mutable_buffer buf;
+  GIVEN ("A simple message frame object constructed with a decoder func") {
+    // chops::net::simple_variable_len_msg_frame mf(decoder_func);
+    auto a = chops::net::make_simple_variable_len_msg_frame(decoder_func);
+    auto mf = a; // verify copying the lambda does the right thing
+    WHEN ("it is called multiple times") {
+      THEN ("the return value toggles between the decoder supplied number and zero") {
+        REQUIRE (mf(buf) == magic);
+        REQUIRE (mf(buf) == 0);
+        REQUIRE (mf(buf) == magic);
+        REQUIRE (mf(buf) == 0);
+        auto b = mf;
+        REQUIRE (b(buf) == magic);
+        REQUIRE (b(buf) == 0);
+
+      }
+    }
+  } // end given
 }
 
 SCENARIO ( "Io interface test, udp", "[io_interface_udp]" ) {

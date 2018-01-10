@@ -24,9 +24,9 @@
  */
 
 #include <string_view>
-#include <cstddef> // std::size_t
+#include <cstddef> // std::size_t, std::byte
 #include <vector>
-#include <utility> // std::forward
+#include <utility> // std::forward, std::move
 
 #include <experimental/buffer>
 
@@ -45,7 +45,6 @@ chops::mutable_shared_buffer make_variable_len_msg(const chops::mutable_shared_b
 chops::mutable_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body);
 chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body);
 
-std::size_t variable_len_msg_frame(std::experimental::net::mutable_buffer);
 
 using vec_buf = std::vector<chops::mutable_shared_buffer>;
 
@@ -63,6 +62,8 @@ chops::mutable_shared_buffer make_empty_body_msg(F&& func) {
   return func( chops::mutable_shared_buffer{ } );
 }
 
+std::size_t decode_variable_len_msg_hdr(const std::byte*);
+
 template <typename IOH>
 struct msg_hdlr {
   using endp_type = typename IOH::endpoint_type;
@@ -70,11 +71,11 @@ struct msg_hdlr {
 
   vec_buf& msgs;
   bool reply;
-  mutable bool shutdown_recvd;
+  bool shutdown_recvd;
 
   msg_hdlr(vec_buf& m, bool rep) : msgs(m), reply(rep), shutdown_recvd(false) { }
 
-  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) const {
+  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       msgs.push_back(sh_buf);

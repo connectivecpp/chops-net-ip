@@ -69,7 +69,7 @@ public:
 
   bool start_io_setup(typename IOH::socket_type&) noexcept;
 
-  bool check_err_code(const std::error_code&, std::shared_ptr<IOH>);
+  void process_err_code(const std::error_code&, std::shared_ptr<IOH>);
 
   // assumption - following methods called from single thread only
   bool start_write_setup(const chops::const_shared_buffer&);
@@ -80,12 +80,10 @@ public:
 };
 
 template <typename IOH>
-bool io_common<IOH>::check_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
+void io_common<IOH>::process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
   if (err) {
     m_entity_notifier_cb(err, ioh_ptr);
-    return false;
   }
-  return true;
 }
 
 template <typename IOH>
