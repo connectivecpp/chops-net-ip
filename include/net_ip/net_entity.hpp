@@ -19,6 +19,8 @@
 #include <utility> // std::forward
 #include <system_error> // std::make_error
 
+#include "net_ip/net_ip_error.hpp"
+
 namespace chops {
 namespace net {
 
@@ -194,7 +196,7 @@ public:
  *  @return @c true if valid net entity association.
  *
  */
-  void stop() {
+  bool stop() {
     auto p = m_eh_wptr.lock();
     return p ? (p->stop(), true) : false;
   }
@@ -209,7 +211,7 @@ public:
  *  @return As described in the comments.
  */
 
-  bool operator==(const net_entity<EH>& rhs) const noexcept {
+  bool operator==(const net_entity<ET>& rhs) const noexcept {
     auto lp = m_eh_wptr.lock();
     auto rp = rhs.m_eh_wptr.lock();
     return (lp && rp && lp == rp) || (!lp && !rp);
@@ -228,7 +230,7 @@ public:
  *
  *  @return As described in the comments.
  */
-  bool operator<(const net_entity<EH>& rhs) const noexcept {
+  bool operator<(const net_entity<ET>& rhs) const noexcept {
     auto lp = m_eh_wptr.lock();
     auto rp = rhs.m_eh_wptr.lock();
     return (lp && rp && lp < rp) || (!lp && rp);
