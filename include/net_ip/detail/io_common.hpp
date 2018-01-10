@@ -59,7 +59,7 @@ public:
 
   queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
 
-  typename IOH::endpoint_type get_remote_endp() const noexcept { return m_remote_endp; }
+  typename IOH::endpoint_type& get_remote_endp() noexcept { return m_remote_endp; }
 
   bool is_started() const noexcept { return m_started; }
 
