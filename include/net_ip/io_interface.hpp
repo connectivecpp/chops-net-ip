@@ -112,7 +112,7 @@ public:
 /**
  *  @brief Default construct an @c io_interface.
  *
- *  An @c io_interface is not useful until an active IO handler object is assigned
+ *  An @c io_interface is not useful until an active @c io_interface is assigned
  *  into it.
  *  
  */

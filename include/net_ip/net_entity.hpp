@@ -13,7 +13,6 @@
 #ifndef NET_ENTITY_HPP_INCLUDED
 #define NET_ENTITY_HPP_INCLUDED
 
-#include "Socket/SockLibException.h"
 
 #include <cstddef> // std::size_t 
 
@@ -21,73 +20,56 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief The @c net_entity class is the primary application interface into the
- *  @c SockLib facilities, including callback object interfaces and start / stop 
- *  processing.
+ *  @brief The @c net_entity class provides the application interface 
+ *  into the TCP acceptor, TCP connector, and UDP entity functionality.
  *
- *  The @c net_entity class provides callback object interfaces for a 
- *  @c SockLib facility, as well as ways to control processing (start, stop,
- *  validity querying). An @c net_entity object is the primary way that an
- *  application interfaces to @c SockLib, outside of the @c OutputChannel class,
- *  which is used for message sending.
+ *  The @c net_entity class provides methods to start and stop processing on
+ *  an underlying network entity, such as a TCP acceptor or TCP connector or
+ *  UDP entity (which may be a UDP unicast sender or receiver, or a UDP
+ *  multicast receiver).
  *
- *  The @c net_entity class is a lightweight, value-based class, designed
- *  to be easy and efficient to copy and store as a member object. It 
- *  abstracts multiple network protocols into a consistent interface.
- *  It does not contain any network resources itself, but instead provides a 
- *  "weak pointer" to the actual network resource that is managed inside
- *  a @c SockLib object.
+ *  The @c net_entity class is a lightweight value class, designed
+ *  to be easy and efficient to copy and store. Internally it uses a 
+ *  @c std::weak_ptr to refer to the actual network entity. 
+ * 
+ *  A @c net_entity object is either associated with a network entity 
+ *  (i.e. the @c std::weak pointer is good), or not. The @c is_valid method queries 
+ *  if the association is present. Note that even if the @c std::weak_pointer is 
+ *  valid, the network entity might be in the process of closing or being 
+ *  destructed. 
  *
- *  A "network resource" is a @c SockLib internal object that is a TCP
- *  acceptor or connector, or a UDP sender or receiver, or a multicast
- *  sender or receiver, or a broadcast sender or receiver. Each of these
- *  are created through a corresponding @c SockLib @c create method (see
- *  @c SockLib class for additional details).
+ *  Applications can default construct a @c net_entity object, but it is not useful 
+ *  until a valid @c net_entity object is assigned to it (as provided in the make
+ *  methods of the @c net_ip class).
  *
- *  An @c net_entity can either point to a valid network resource (i.e.
- *  the "weak pointer" is good), or can point to a non-existent or invalid
- *  network resource (i.e. the "weak pointer" is invalid). A non-existent
- *  or invalid network resource might occur if the network resource has
- *  been destroyed (through the @c SockLib interface), or the @c SockLib
- *  object itself has been stopped or destroyed. If an @c net_entity method 
- *  is called while the "weak pointer" is invalid, an exception will be thrown.
- *
- *  If an @c net_entity is default constructed, it is in an invalid state
- *  until another @c net_entity object is copied into it. The @c create
- *  methods of the @c SockLib class (factory functions) provide an @c net_entity 
- *  that is fully valid and ready to use.
- *
- *  Equivalence and ordering operators are provided to allow @c net_entity objects
- *  to be conveniently used in associative or sequence containers, such as @c std::map or
- *  @c std::list.
+ *  Appropriate comparison operators are provided to allow @c net_entity objects
+ *  to be used in associative or sequence containers.
  *
  *  All @c net_entity methods are safe to call concurrently from multiple
- *  threads. However, care must be taken when calling @c net_entity
- *  methods from within a callback, such as a @c ChannelChangeCb or
- *  an @c IncomingMsgCb.
+ *  threads.
  *
- *  @ingroup SockLibModule
- *
- *  @note Copy constructor, copy assignment operator, and destructor are all
- *  implicit (compiler generated).
  */
 
 template <typename ET>
 class net_entity {
 private:
-  std::weak_ptr<ET> m_eh_ptr;
+  std::weak_ptr<ET> m_eh_wptr;
 
 public:
 
 /**
- *  @brief Default construct an @c net_entity object.
+ *  @brief Default construct a @c net_entity object.
  *
- *  A default constructed @c net_entity object is provided for application convenience.
- *  If default constructed, most @c net_entity methods will throw an exception until 
- *  a valid @c net_entity is copied into the default constructed object.
+ *  A @c net_entity object is not useful until an active @c net_entity is assigned into it.
  *  
  */
-  net_entity () : mResourcePtr() { }
+  net_entity () = default;
+
+  net_entity(const net_entity&) = default;
+  net_entity(net_entity&&) = default;
+
+  net_entity<ET>& operator=(const net_entity&) = default;
+  net_entity<ET>& operator=(net_entity&&) = default;
 
 /**
  *  @brief Construct an @c net_entity object with a @c SockLib resource.
@@ -99,7 +81,21 @@ public:
  *  access to appropriate facilities.
  *  
  */
-  net_entity (detail::SockLibResourceWeakPtr p) : mResourcePtr(p) { }
+  net_entity (std::weak_ptr<ET> p) noexcept : m_eh_wptr(p) { }
+
+/**
+ *  @brief Query whether @c start has been called or not.
+ *
+ *  @return @c true if @c start has been called, @c false otherwise.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ */
+  bool is_started() const {
+    if (auto p = m_eh_wptr.lock()) {
+      return p->is_started();
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  }
 
 /**
  *  @brief Query whether this object is valid (associated with a network resource).
