@@ -17,6 +17,7 @@
 #include <string_view>
 #include <system_error>
 #include <cstddef> // std::size_t, std::byte
+#include <utility> // std::forward
 
 #include <experimental/buffer>
 
@@ -125,8 +126,8 @@ public:
   io_interface<IOH>& operator=(io_interface&&) = default;
   
 /**
- *  @brief Construct with a shared weak pointer to an internal IO handler, used
- *  internally and not by application code.
+ *  @brief Construct with a shared weak pointer to an internal IO handler, this is an
+ *  internal constructor only and not to be used by application code.
  *
  */
   explicit io_interface(std::weak_ptr<IOH> p) noexcept : m_ioh_wptr(p) { }
@@ -311,11 +312,13 @@ public:
  *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
+ *
  *  @code
  *    bool (std::experimental::net::const_buffer,
- *          chops::net::io_interface<chops::net::tcp_io_type>,
+ *          chops::net::tcp_io_interface,
  *          std::experimental::net::ip::tcp::endpoint);
  *  @endcode
+ *
  *  The buffer always references from the beginning of the full message. The 
  *  @c io_interface can be used for sending a reply. The endpoint is the remote 
  *  endpoint that sent the data. 
@@ -325,6 +328,7 @@ public:
  *
  *  @param msg_frame A message frame function object callback. The signature of
  *  the callback is:
+ *
  *  @code
  *    std::size_t (std::experimental::net::mutable_buffer);
  *  @endcode
@@ -339,8 +343,10 @@ public:
  *  object and the application wishes to keep any resulting state (typically to
  *  use within the message handler), two options (at least) are available. 
  *  1) Store a reference to the message frame object from within the message handler 
- *  object, or 2) Design a single class that provides two function call overloads and
- *  use the same object for both the message handler and the message frame processing.
+ *  object, or 2) Design a single class that provides two operator function call overloads 
+ *  and use the same object for both the message handler and the message frame processing.
+ *
+ *  @note If @c is_started is @c true, this method call is ignored.
  *
  *  @param header_size The initial read size (in bytes) of each incoming message.
  *
@@ -349,7 +355,8 @@ public:
   template <typename MH, typename MF>
   bool start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(msg_handler, msg_frame, header_size), true) : false;
+    return p ? (p->start_io(std::forward<MH>(msg_handler), 
+                            std::forward<MF>(msg_frame), header_size), true) : false;
   }
 
 /**
@@ -368,15 +375,19 @@ public:
  *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
+ *
  *  @code
  *    bool (std::experimental::net::const_buffer,
- *          chops::net::io_interface<chops::net::tcp_io_type>,
+ *          chops::net::tcp_io_interface,
  *          std::experimental::net::ip::tcp::endpoint);
  *  @endcode
+ *
  *  The buffer points to the complete message including the delimiter sequence. The 
  *  @c io_interface can be used for sending a reply, and the endpoint is the remote 
  *  endpoint that sent the data. Returning @c false from the message handler callback 
  *  causes the connection to be closed.
+ *
+ *  @note If @c is_started is @c true, this method call is ignored.
  *
  *  @param delimiter Delimiter characters denoting end of each message.
  *
@@ -385,7 +396,7 @@ public:
   template <typename MH>
   bool start_io(MH&& msg_handler, std::string_view delimiter) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(msg_handler, delimiter), true) : false;
+    return p ? (p->start_io(std::forward<MH>(msg_handler), delimiter), true) : false;
   }
 
 /**
@@ -397,22 +408,32 @@ public:
  *  For TCP IO handlers, this reads fixed size messages.
  *
  *  For UDP IO handlers, this specifies the maximum size of the datagram. For IPv4 this
- *  value can be up to 65,507, and larger for IPv6. If the incoming datagram contains
+ *  value can be up to 65,507, larger for IPv6. If the incoming datagram contains
  *  a size larger than the specified size, data will be truncated (lost).
+ *
+ *  Sends (writes) are enabled after this call.
  *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
+ *
  *  @code
+ *    // TCP io:
  *    bool (std::experimental::net::const_buffer,
- *          chops::net::io_interface<IO_type>,
- *          Endpoint_type)
+ *          chops::net::tcp_io_interface,
+ *          std::experimental::net::ip::tcp::endpoint);
+ *    // UDP io:
+ *    bool (std::experimental::net::const_buffer,
+ *          chops::net::udp_io_interface,
+ *          std::experimental::net::ip::udp::endpoint);
  *  @endcode
+ *
  *  For UDP the buffer size denotes the incoming datagram size. For TCP the buffer size will 
- *  always match the "read_size" parameter. The "IO_type" is either @c chops::net::tcp_io_type or
- *  @c chops::net::udp_io_type. The "Endpoint_type" is either 
- *  @c std::experimental::net::ip::udp::endpoint or @c std::experimental::net::ip::tcp::endpoint.
+ *  always match the "read_size" parameter. 
+ *
  *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
  *  be closed.
+ *
+ *  @note If @c is_started is @c true, this method call is ignored.
  *
  *  @param read_size Maximum UDP datagram size or fixed TCP read size.
  *
@@ -422,7 +443,7 @@ public:
   template <typename MH>
   bool start_io(MH&& msg_handler, std::size_t read_size) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(msg_handler, read_size), true) : false;
+    return p ? (p->start_io(std::forward<MH>(msg_handler), read_size), true) : false;
   }
 
 /**
@@ -435,8 +456,10 @@ public:
  *  incoming message handling).
  *
  *  For TCP IO handlers, a read will be started, but no data processed (typically if
- *  this read completes it is due to an error condition). For UDP IO handlers, no
+ *  the read completes it is due to an error condition). For UDP IO handlers, no
  *  reads are started.
+ *
+ *  @note If @c is_started is @c true, this method call is ignored.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
@@ -500,6 +523,25 @@ public:
   }
 
 };
+
+namespace detail {
+class tcp_io;
+class udp_entity_io;
+}
+
+/**
+ *  @brief Using declaration for a TCP based @c io_interface type.
+ *
+ *  @relates io_interface
+ */
+using tcp_io_interface = io_interface<detail::tcp_io>;
+
+/**
+ *  @brief Using declaration for a UDP based @c io_interface type.
+ *
+ *  @relates io_interface
+ */
+using udp_io_interface = io_interface<detail::udp_entity_io>;
 
 } // end net namespace
 } // end chops namespace

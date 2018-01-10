@@ -118,7 +118,7 @@ While the main production branch of Chops will always be developed and tested wi
 The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code. The external dependencies:
 
 - Version 1.11 (or later) of Chris Kohlhoff's `networking-ts-impl` (Networking TS) repository is required for some components. Note that the version number is from the Asio version and may not exactly match the Networking TS version.
-- Version 2.01 (or later) of Phil Nash's Catch 2.0 is required for all test scenarios.
+- Version 2.1.0 (or later) of Phil Nash's Catch 2 is required for all test scenarios.
 - Version 0.00 (or later) of Martin's Ring Span Lite is required for some test scenarios.
 - Version 1.65.1 or 1.66.0 of the Boost library (specific usages below).
 
