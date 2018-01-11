@@ -27,12 +27,13 @@ namespace net {
  */
 class worker {
 private:
-  std::experimental::net::io_context m_ioc;
-  std::experimental::net::wk_guard   m_wg;
-  std::thread                        m_run_thr;
+  std::experimental::net::io_context  m_ioc;
+  std::experimental::net::executor_work_guard<typename std::experimental::net::io_context::executor_type> 
+                                      m_wg;
+  std::thread                         m_run_thr;
 
 public:
-  worker() : m_ioc(), m_wg(make_work_guard(ioc)), m_run_thr() { }
+  worker() : m_ioc(), m_wg(make_work_guard(m_ioc)), m_run_thr() { }
 
 /**
  *  @brief Provide access to the @c io_context.
@@ -46,7 +47,7 @@ public:
  *  operations.
  */
   void start() {
-    m_run_thr = std::thread([&m_ioc] () { ioc.run(); } );
+    m_run_thr = std::thread([this] () { m_ioc.run(); } );
   }
 
 /**
