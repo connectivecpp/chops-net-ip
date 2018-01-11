@@ -17,9 +17,10 @@
 
 #include <memory> // for std::shared_ptr
 #include <cstddef> // for std::size_t
-#include <string>
+#include <string_view>
 
 #include <experimental/io_context>
+#include <experimental/executor>
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
@@ -55,41 +56,18 @@ namespace net {
  *  The general application usage pattern for the @ net_ip, @ net_entity, and
  *  @c io_interface classes is:
  *
- *  1. Create a @c net_ip object.
+ *  1. Instantiate a @c net_ip object.
  *
- *  2. Create @c net_entity objects, through one of the @c net_ip @c create 
- *  methods. These will be one of either TCP acceptor, TCP connector, UDP 
- *  receiver or sender, UDP multicast receiver or sender, or UDP broadcast 
- *  receiver or sender. 
+ *  2. Create a @c net_entity object, through one of the @c net_ip @c make 
+ *  methods. A @c net_entity interfaces to one of a TCP acceptor, TCP 
+ *  connector, UDP unicast receiver or sender, or UDP multicast receiver (a
+ *  UDP multicast sender is the same as a UDP unicast sender).
  *
- *  3. Start processing on the @c net_entity objects, through the @c start method. 
- *  The @c start method is where a @c MsgFrame function object and an 
- *  @c IncomingMsgCb callback are supplied by the application to the @c net_ip 
- *  facilities. A @c ChannelChangeCb callback is also provided by the application 
- *  in the @c start method call for channel change events.
- *
- *  Internally the @c net_entity @c start will cause operations such as socket port 
- *  binding, TCP connect attempts, TCP listens, etc. Part of the @c start method call 
- *  interface is providing a @c ChannelChangeCb callback that will be invoked when a 
- *  TCP connection happens, or the UDP bind completes, or whatever is appropriate for 
- *  the underlying network resource of the @c net_entity object. The callback provides 
- *  a @c io_interface object to the application for data sending, at the
- *  appropriate time (e.g. when a connection succeeds).
- *
- *  4. When a @c io_interface object is provided to the application, data transfer
- *  can be initiated through @c send method calls for outgoing data, and @c IncomingMsgCb 
- *  callback invocations for incoming data.
- *
- *  5. Call the @c runEventLoop method on the @c net_ip object to enable
- *  event processing on all network resources to occur.
- *
- *  6. Call the @c stop method on the @c net_ip object, which will call the
- *  @c net_entity @c stop for each network resource.
- *
- *  7. Call the @c endEventLoop method on the @c net_ip object.
- *
- *  Network processing for a particular network resource can be started or stopped 
- *  multiple times through the @c net_entity object as needed.
+ *  3. Call the @c start method on the @c net_entity object. This performs
+ *  a local bind (if needed) and if TCP then a connect (for a connector) or
+ *  listen (for an acceptor). The @c start method takes a state change function
+ *  object, and this will be called when the @c net_entity becomes ready for
+ *  network input and output.
  *
  *  A Boost @c thread object can be easily created to run the @c net_ip event
  *  loop. Example:
@@ -118,8 +96,6 @@ namespace net {
  *  Central to the @c net_ip library is the concept of an application-supplied
  *  @c MsgFrame object. For more information, see documentation associated with the
  *  @c SockLibCallbackDecls.h file.
- *
- *  Internally, the @c Boost @c Asio library is used.
  *
  *  The @c net_ip class does not internally use a Singleton, so multiple @c net_ip
  *  objects can be created as needed or desired. @c net_ip objects cannot
@@ -157,41 +133,27 @@ public:
     m_ioc(ioc), m_acceptors(), m_connectors(), m_udp_entities() { }
 
 /**
- *  @brief Make a TCP acceptor @c net_entity, which will listen on a port for incoming
- *  connections (once it is started).
+ *  @brief Create a TCP acceptor @c net_entity, which will listen on a port for incoming
+ *  connections (once started).
  *
- *  @param localPort Port number to bind to for incoming TCP connects.
+ *  @param local_port Port number to bind to for incoming TCP connects.
  *
- *  @param listenIntf If this parameter is supplied, the bind will be performed on a
+ *  @param listen_intf If this parameter is supplied, the bind will be performed on a
  *  specific IP interface. Otherwise, the bind is for "any" IP interface (which is the
  *  typical usage).
  *
- *  @return @c net_entity object.
- *
- *  @throw @c SockLibException is thrown if host name cannot be resolved.
+ *  @return @c tcp_acceptor_net_entity object.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (
-
-    return tcp_acceptor_net_entity(std::make_shared_ptr<detail::tcp_acceptor>(lkdsfjlkdjf));
-
-
-  Embankment createTcpAcceptor(unsigned short localPort, const std::string& listenIntf = "", bool noDelay = false) {
-    boost::asio::ip::tcp::endpoint endp = createEndpoint<boost::asio::ip::tcp>(listenIntf, localPort, mService);
-    detail::SockLibResourcePtr rp(new detail::TcpAcceptor(mService, endp, noDelay));
-    mService.post(boost::bind(&SockLib::addResource, this, rp));
-    return Embankment(rp);
+  tcp_acceptor_net_entity make_tcp_acceptor (unsigned short local_port, std::string_view listen_intf = "") {
+    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(local_port, listen_intf);
+    std::experimental::net::post(ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
+    return tcp_acceptor_net_entity(p);
   }
 
 /**
- *  @brief Create a TCP connector, which will perform an active TCP
- *  connect to the specified address, once started.
- *
- *  A TCP connector performs connects to a remote host on a port with an active listener.
- *  A TCP connector is sometimes called a "client" or "the client side".
- *  This method creates an @c net_entity object, where further processing is to be
- *  performed. When the application is ready to perform the connect to the
- *  remote host, the @c start method on the @c net_entity is called.
+ *  @brief Create a TCP connector @c net_entity, which will perform an active TCP
+ *  connect to the specified address (once started).
  *
  *  A reconnect timeout can be provided, which will result in another connect
  *  attempt (after the timeout period). Reconnect attempts will continue until
@@ -200,25 +162,23 @@ public:
  *  not be attempted, so it is the application's responsibility to call @c start again 
  *  on the @c net_entity. 
  *
- *  @param remotePort Port number of remote host.
+ *  @param remote_port Port number of remote host.
  *
- *  @param remoteHost Remote host name.
+ *  @param remote_host Remote host name.
  *
- *  @param reconnTimeMillis Time period in milliseconds between connect attempts. If 0, no
+ *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
  *
- *  @param noDelay If @c true, set TCP_NODELAY socket option. Defaults to @c false.
+ *  @return @c tcp_connector_net_entity object.
  *
- *  @return @c net_entity object.
- *
- *  @throw @c SockLibException is thrown if host name cannot be resolved.
  */
-  Embankment createTcpConnector(unsigned short remotePort, const std::string& remoteHost,
-                                std::size_t reconnTimeMillis = 0, bool noDelay = false) {
-    boost::asio::ip::tcp::endpoint endp = createEndpoint<boost::asio::ip::tcp>(remoteHost, remotePort, mService);
-    detail::SockLibResourcePtr rp(new detail::TcpConnector(mService, endp, reconnTimeMillis, noDelay));
-    mService.post(boost::bind(&SockLib::addResource, this, rp));
-    return Embankment(rp);
+  tcp_connector_net_entity make_tco_connector (unsigned short remote_port,
+                                               std::string_view remote_host,
+                                               std::size_t reconn_time_millis) {
+    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(remote_port, 
+                                                                  remote_host, reconn_time_millis);
+    std::experimental::net::post(ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+    return tcp_connector_net_entity(p);
   }
 
 /**
@@ -336,54 +296,6 @@ public:
   }
 
 /**
- *  @brief Perform event multiplexing (connection management, socket input, socket output), 
- *  and callback processing.
- *
- *  This method performs connection management, callback processing, input and output network 
- *  processing, and must be invoked for any of it to occur. This method blocks until 
- *  @c endEventLoop is invoked (e.g. by an @c IncomingMsgCb callback, or by a separate thread).
- *
- *  This method can be ignored if the @c io_service object's @c run method is called from
- *  elsewhere.
- *
- *  This method creates an @c asio::io_service::work object, so that it can be called at any
- *  time, even if there are no event handlers (from network resources) created or started
- *  (through an @c net_entity @c start). When @c endEventLoop is called, the 
- *  @c asio::io_service::work object will be destroyed, and
- *  the event loop will exit when all event handlers are finished running (all reads, writes,
- *  and timers are completed or cancelled).
- *
- *  @note For now, only a single thread can call @c runEventLoop or the @c io_service @c run 
- *  method. Future enhancements may allow multiple threads to call these methods, protecting 
- *  concurrent access through Asio @c strand objects. The granularity of the concurrency will 
- *  be for each network resource, as created through a @c create method on @c SockLib. In 
- *  other words, a given network resource will be serialized on its asynchronous operations, 
- *  to eliminate chances of handlers for a given network resource being invoked in separate threads.
- *
- *  See the concurrency notes in the Boost Asio documentation, in the overview section and
- *  on the documentation of the @c asio::io_service::run method.
- *
- */
-  void runEventLoop () {
-    mWorker = WorkerPtr(new boost::asio::io_service::work(mService));
-    mService.run();
-  }
-
-/**
- *  @brief Destroy the internal worker object and allow the event loop to end.
- *
- *  This method will destroy the internal work object, and when there are no
- *  additional network resource event handlers in progress, allows the @c runEventLoop
- *  method to exit.
- *
- *  The @c stop method should be called before this method is invoked, to allow
- *  the network resources to gracefully shutdown.
- */
-  void endEventLoop() {
-    mWorker.reset();
-  }
-
-/**
  *  @brief Stop network processing on all network resources.
  *
  *  Stop all @c net_entity objects in a graceful manner. This allows the event loop to
@@ -396,40 +308,12 @@ public:
 
 private:
 
-  Embankment utilityCreateUdpResource(unsigned short locPort, const std::string& locHost,
-                                      unsigned short defRemPort, const std::string& defRemHost,
-                                      bool startRead, bool mcast, const std::string& mcastAddr,
-                                      bool bcast, unsigned short ttl) {
-    boost::asio::ip::udp::endpoint locEndp = createEndpoint<boost::asio::ip::udp>(locHost, locPort, mService);
-    boost::asio::ip::udp::endpoint defRemEndp = createEndpoint<boost::asio::ip::udp>(defRemHost, defRemPort, mService);
-    boost::asio::ip::udp::endpoint mcastEndp = mcast ? createEndpoint<boost::asio::ip::udp>(mcastAddr, 0, mService) :
-                                               boost::asio::ip::udp::endpoint();
-    detail::SockLibResourcePtr rp(new detail::UdpResource(mService, locEndp, defRemEndp,
-                                                          startRead, mcast, mcastEndp, bcast, ttl));
-    mService.post(boost::bind(&SockLib::addResource, this, rp));
-    return Embankment(rp);
-  }
-
-  // following methods invoked inside event loop thread
-  void addResource(detail::SockLibResourcePtr rp) {
-    mResources.push_back(rp);
-  }
 
   void stopResources() {
     for (ResourcesIter iter = mResources.begin(); iter != mResources.end(); ++iter) {
       (*iter)->stop();
     }
   }
-
-private:
-
-  std::auto_ptr<boost::asio::io_service>      mServicePtr;
-  boost::asio::io_service&                    mService;
-  typedef std::list<detail::SockLibResourcePtr>   Resources;
-  typedef Resources::iterator                     ResourcesIter;
-  Resources                                   mResources;
-  typedef std::auto_ptr<boost::asio::io_service::work> WorkerPtr;
-  WorkerPtr                                   mWorker;
 
 };
 
