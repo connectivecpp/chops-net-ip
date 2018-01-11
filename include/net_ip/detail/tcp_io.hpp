@@ -54,7 +54,7 @@ private:
 
   // the following members are only used for read processing; they could be 
   // passed through handlers, but are members for simplicity and to reduce 
-  // copying
+  // copying or moving
   byte_vec               m_byte_vec;
   std::size_t            m_read_size;
   std::string            m_delimiter;
