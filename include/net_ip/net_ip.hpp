@@ -15,76 +15,61 @@
 #ifndef NET_IP_HPP_INCLUDED
 #define NET_IP_HPP_INCLUDED
 
-#include <memory> // for std::auto_ptr
+#include <memory> // for std::shared_ptr
 #include <cstddef> // for std::size_t
-#include <list>
 #include <string>
 
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/ip/udp.hpp>
-#include <boost/asio/ip/address.hpp>
-#include <boost/asio/ip/basic_resolver.hpp>
-#include <boost/asio/ip/basic_resolver_query.hpp>
-#include <boost/asio/ip/basic_resolver_iterator.hpp>
-#include <boost/asio/io_service.hpp>
-#include <boost/utility.hpp> // for noncopyable
-#include <boost/bind.hpp>
+#include <experimental/io_context>
 
-#include "net_ip/net_ip_exception.hpp"
+#include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
-
-#include "net_ip/detail/make_endpoint.hpp"
-
-#include "Socket/detail/TcpResource.h"
-#include "Socket/detail/UdpResource.h"
-
-
 
 namespace chops {
 namespace net {
 
 /**
- *  @brief @c SockLib class, contains socket networking functionality.
+ *  @brief Primary class for the Chops Net IP library, initial API point 
+ *  for providing TCP acceptor, TCP connector, UDP unicast, and UDP 
+ *  multicast capabilities.
  *
- *  A @c SockLib object contains and manages internal resources for
- *  socket related networking. These resources include socket resources
- *  (for TCP, UDP, UDP multicast, or broadcast), application defined 
- *  callbacks, and implementation objects (mostly objects interacting
- *  with @c Asio facilities).
+ *  A @c net_ip object creates and manages network related objects. It is
+ *  the initial API point for creating a TCP acceptor, TCP connector,
+ *  UDP unicast, or UDP multicast network entity. Once one of these
+ *  network entity objects is created internally, a @c net_entity
+ *  object is returned to the application, allowing further operations
+ *  to occur.
  *
- *  The @c SockLib class is safe for concurrent use from multiple threads. 
- *  This safety is enabled by posting modification operations to the 
- *  internal @c boost::asio::io_service. The @c io_service is thread-safe,
- *  with internal queueing of handlers to perform the requested operations.
+ *  The @c net_ip class is safe for multiple threads to use concurrently.
+ *  Internally operations are posted to a @c std::experimental::net::io_context
+ *  for handling within a single thread.
  *
- *  However, there are race conditions possible if multiple threads
- *  are invoking @c SockLib and @c Embankment operations concurrently.
- *  For example, an @c Embankment @c start and @c SockLib @c stop could
- *  be invoked concurrently by multiple threads. Either operation may be
- *  queued for @c io_service execution first, and undefined behavior may 
- *  result.
+ *  It should be noted, however, that race conditions are possible,
+ *  specially for some operations invoked between @c net_entity and
+ *  @c net_ip and @c io_interface objects. For example, starting and 
+ *  stopping network entities concurrently between separate objects 
+ *  or threads could cause unexpected or undefined behavior.
  *
- *  Applications rarely interact directly with a @c SockLib object for
- *  network resource operations. Instead, @c SockLib creates facade-like 
+ *  Applications typically  need to interact directly with a @c net_ip object for
+ *  network resource operations. Instead, @c net_ip creates facade-like 
  *  objects of type @c Embankment and @c OutputChannel, and application 
  *  functionality uses these to perform networking related operations. 
  *  These operations include sending data, providing various callback and 
  *  message protocol objects, and starting and stopping network processing
  *  on a particular network resource. 
  *
- *  The general application usage pattern for the @ SockLib, @ Embankment, and
+ *  The general application usage pattern for the @ net_ip, @ Embankment, and
  *  @c OutputChannel classes is:
  *
- *  1. Create a @c SockLib object.
+ *  1. Create a @c net_ip object.
  *
- *  2. Create @c Embankment objects, through one of the @c SockLib @c create 
+ *  2. Create @c Embankment objects, through one of the @c net_ip @c create 
  *  methods. These will be one of either TCP acceptor, TCP connector, UDP 
  *  receiver or sender, UDP multicast receiver or sender, or UDP broadcast 
  *  receiver or sender. 
  *
  *  3. Start processing on the @c Embankment objects, through the @c start method. 
  *  The @c start method is where a @c MsgFrame function object and an 
- *  @c IncomingMsgCb callback are supplied by the application to the @c SockLib 
+ *  @c IncomingMsgCb callback are supplied by the application to the @c net_ip 
  *  facilities. A @c ChannelChangeCb callback is also provided by the application 
  *  in the @c start method call for channel change events.
  *
@@ -100,18 +85,18 @@ namespace net {
  *  can be initiated through @c send method calls for outgoing data, and @c IncomingMsgCb 
  *  callback invocations for incoming data.
  *
- *  5. Call the @c runEventLoop method on the @c SockLib object to enable
+ *  5. Call the @c runEventLoop method on the @c net_ip object to enable
  *  event processing on all network resources to occur.
  *
- *  6. Call the @c stop method on the @c SockLib object, which will call the
+ *  6. Call the @c stop method on the @c net_ip object, which will call the
  *  @c Embankment @c stop for each network resource.
  *
- *  7. Call the @c endEventLoop method on the @c SockLib object.
+ *  7. Call the @c endEventLoop method on the @c net_ip object.
  *
  *  Network processing for a particular network resource can be started or stopped 
  *  multiple times through the @c Embankment object as needed.
  *
- *  A Boost @c thread object can be easily created to run the @c SockLib event
+ *  A Boost @c thread object can be easily created to run the @c net_ip event
  *  loop. Example:
  *
  *  @code
@@ -132,68 +117,53 @@ namespace net {
  *
  *  Currently there is not a way to explicitly destroy the internal network 
  *  resource objects associated with @c Embankment objects. They are implicitly 
- *  destroyed once the @c SockLib object goes out of scope. Future enhancements 
+ *  destroyed once the @c net_ip object goes out of scope. Future enhancements 
  *  may provide this functionality.
  *  
- *  Central to the @c SockLib library is the concept of an application-supplied
+ *  Central to the @c net_ip library is the concept of an application-supplied
  *  @c MsgFrame object. For more information, see documentation associated with the
  *  @c SockLibCallbackDecls.h file.
  *
  *  Internally, the @c Boost @c Asio library is used.
  *
- *  The @c SockLib class does not internally use a Singleton, so multiple @c SockLib
- *  objects can be created as needed or desired. @c SockLib objects cannot
+ *  The @c net_ip class does not internally use a Singleton, so multiple @c net_ip
+ *  objects can be created as needed or desired. @c net_ip objects cannot
  *  be copied.
  *
- *  @ingroup SockLibModule
- *
  */
-class SockLib : boost::noncopyable {
+class net_ip {
+private:
+  using tcp_acceptor_ptr = std::shared_ptr<detail::tcp_acceptor>;
+  using tcp_connector_ptr = std::shared_ptr<detail::tcp_connector>;
+  using udp_entity_ptr = std::shared_ptr<detail::udp_entity_io>;
+
+private:
+
+  std::experimental::net::io_context m_ioc;
+  std::vector<tcp_acceptor_ptr> m_acceptors;
+  std::vector<tcp_connector_ptr> m_connectors;
+  std::vector<udp_entity_ptr> m_udp_entities;
+
 public:
 
+  net_ip() = delete;
+  net_ip(const net_ip&) = delete;
+  net_ip(net_ip&&) = delete;
+  net_ip& operator=(const net_ip&) = delete;
+  net_ip& operator=(net_ip&&) = delete;
+
 /**
- *  @brief Default construct a @c SockLib object, creating an internal
+ *  @brief Construct a @c net_ip object, creating an internal
  *  service object, but not starting any specific network processing.
  *
+ *  @param ioc IO context for asynchronous operations.
  */
-  SockLib() :
-    mServicePtr(new boost::asio::io_service()), 
-    mService(*mServicePtr), mResources(), mWorker() { }
+  explicit net_ip(std::experimental::net::io_context& ioc) :
+    m_ioc(ioc), m_acceptors(), m_connectors(), m_udp_entities() { }
 
 /**
- *  @brief Construct a @c SockLib object using an @c Asio @c io_service from
- *  elsewhere (allowing sharing of @c io_service objects and threads).
- *
- *  @param ios @c Asio @c io_service object to be used for event handler
- *  processing.
- */
-  explicit SockLib(boost::asio::io_service& ios) :
-    mServicePtr(), mService(ios), mResources(), mWorker() { }
-
-/**
- *  @brief Destruct a @c SockLib, destroying internal network resource objects and
- *  allocated resources.
- */
-  ~SockLib() {
-    // stop();
-  }
-
-/**
- *  @brief Get the internal @c Asio @c io_service, so that a @c io_service object
- *  and associated thread can be shared.
- *
- */
-  boost::asio::io_service& service() { return mService; }
-
-/**
- *  @brief Create a TCP acceptor, which will listen on the specified
- *  port for incoming connections (accepts), once started.
- *
- *  A TCP acceptor internally performs listens and accepts on incoming connect attempts.
- *  A TCP acceptor is sometimes called a "server" or "the server side".
- *  This method creates an @c Embankment object, where further processing on the acceptor
- *  is to be performed. When the application is ready for the port binding and the listen to
- *  be posted, the @c start method on the @c Embankment is called.
+ *  @brief Make a TCP acceptor @c net_entity, which will listen on a port for incoming
+ *  connections (once it is started).
  *
  *  @param localPort Port number to bind to for incoming TCP connects.
  *
@@ -201,13 +171,16 @@ public:
  *  specific IP interface. Otherwise, the bind is for "any" IP interface (which is the
  *  typical usage).
  *
- *  @param noDelay If @c true, set TCP_NODELAY socket option. Defaults to @c false.
- *
  *  @return @c Embankment object.
  *
  *  @throw @c SockLibException is thrown if host name cannot be resolved.
  *
  */
+  tcp_acceptor_net_entity make_tcp_acceptor (
+
+    return tcp_acceptor_net_entity(std::make_shared_ptr<detail::tcp_acceptor>(lkdsfjlkdjf));
+
+
   Embankment createTcpAcceptor(unsigned short localPort, const std::string& listenIntf = "", bool noDelay = false) {
     boost::asio::ip::tcp::endpoint endp = createEndpoint<boost::asio::ip::tcp>(listenIntf, localPort, mService);
     detail::SockLibResourcePtr rp(new detail::TcpAcceptor(mService, endp, noDelay));
