@@ -33,9 +33,13 @@ namespace net {
  *  UDP entity (which may be a UDP unicast sender or receiver, or a UDP
  *  multicast receiver).
  *
- *  The @c net_entity class is a lightweight value class, designed
- *  to be easy and efficient to copy and store. Internally it uses a 
- *  @c std::weak_ptr to refer to the actual network entity. 
+ *  Calling the @c stop method on an @c net_entity object will shutdown the 
+ *  associated network resource. At this point, other @c net_entity objects 
+ *  copied from the original will be affected.
+ *
+ *  The @c net_entity class is a lightweight value class, designed to be easy 
+ *  and efficient to copy and store. Internally it uses a @c std::weak_ptr to 
+ *  refer to the actual network entity. 
  * 
  *  A @c net_entity object is either associated with a network entity 
  *  (i.e. the @c std::weak pointer is good), or not. The @c is_valid method queries 
