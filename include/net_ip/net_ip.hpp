@@ -39,16 +39,6 @@ namespace net {
  *  network objects is created internal to the @c net_ip object, a @c net_entity 
  *  object is returned to the application, allowing further operations to occur.
  *
- *  The @c net_ip class is safe for multiple threads to use concurrently.
- *  Internally function objects are posted to a @c std::experimental::net::io_context
- *  for handling within a single thread or strand context.
- *
- *  It should be noted, however, that race conditions are possible,
- *  specially for some operations invoked between @c net_entity and
- *  @c net_ip and @c io_interface objects. For example, starting and 
- *  stopping network entities concurrently between separate objects 
- *  or threads could cause unexpected or undefined behavior.
- *
  *  Applications typically do not interact directly with a @c net_ip object. 
  *  Instead, @c net_ip creates facade-like objects of type @c net_entity,
  *  which allow further operations.
@@ -65,41 +55,47 @@ namespace net {
  *
  *  3. Call the @c start method on the @c net_entity object. This performs
  *  a local bind (if needed) and if TCP then a connect (for a connector) or
- *  listen (for an acceptor). The @c start method takes a state change function
- *  object, and this will be called when the @c net_entity becomes ready for
- *  network input and output.
+ *  listen (for an acceptor). 
  *
- *  A Boost @c thread object can be easily created to run the @c net_ip event
- *  loop. Example:
+ *  If name resolution (i.e. DNS lookup) is required on a host name, the 
+ *  lookup may still be in progress when the @c start method is called on
+ *  the @c net_entity. In this case the start processing (bind, connect, 
+ *  etc) will start when the name resolution finishes.
  *
- *  @code
+ *  The @c start method takes a state change function object, and this will 
+ *  be called when the @c net_entity becomes ready for network input and 
+ *  output. The state change callback will be invoked if an error occurs.
  *
- *  socklib::SockLib slib;
- *  boost::thread thr(boost::bind(&socklib::SockLib::runEventLoop, boost::ref(slib)));
- *  // create embankments, start them
- *  slib.stop(); // gracefully stop all network resources
- *  slib.endEventLoop();
- *  thr.join(); // wait for event loop thread to exit
+ *  4. When an @c io_interface object is supplied to the application through
+ *  the state change callback, input processing is started through a @c start_io
+ *  call, and outbound data is sent through @c send methods.
  *
+ *  There are no executor operations available through the @c net_ip class. In 
+ *  other words, no event loop or @c run methods are available. Instead, the
+ *  @c net_ip class takes an @c io_context as a constructor parameter and 
+ *  application code will use the Networking TS executor methods for invoking
+ *  the underlying asynchronous operations.
+ *
+ *  For convenience, a class named @c worker combines an executor with a work
+ *  guard and creates a thread to invoke the asynchronous operations. Example
+ *  usage:
+ *
+ *  @startcode
+ *    chops::net::worker wk;
+ *    wk.start();
+ *    chops::net::net_ip nip(wk.get_io_context());
+ *    // ...
+ *    wk.stop();
  *  @endcode
  *
- *  Calling the @c stop method on an @c net_entity object will shutdown the 
- *  associated network resource. At this point, other @c net_entity objects 
- *  copied from the original will be affected, and exceptions may be thrown on 
- *  most methods called.
+ *  The @c net_ip class is safe for multiple threads to use concurrently.
+ *  Internally function objects are posted to a @c std::experimental::net::io_context
+ *  for handling within a single thread or strand context.
  *
- *  Currently there is not a way to explicitly destroy the internal network 
- *  resource objects associated with @c net_entity objects. They are implicitly 
- *  destroyed once the @c net_ip object goes out of scope. Future enhancements 
- *  may provide this functionality.
- *  
- *  Central to the @c net_ip library is the concept of an application-supplied
- *  @c MsgFrame object. For more information, see documentation associated with the
- *  @c SockLibCallbackDecls.h file.
- *
- *  The @c net_ip class does not internally use a Singleton, so multiple @c net_ip
- *  objects can be created as needed or desired. @c net_ip objects cannot
- *  be copied.
+ *  It should be noted, however, that race conditions are possible, specially for 
+ *  similar operations invoked between @c net_entity and @c net_ip and @c io_interface 
+ *  objects. For example, starting and stopping network entities concurrently between 
+ *  separate objects or threads could cause unexpected or undefined behavior.
  *
  */
 class net_ip {
