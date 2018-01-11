@@ -15,7 +15,6 @@
 #include <experimental/internet>
 #include <experimental/socket>
 #include <experimental/io_context>
-#include <experimental/executor>
 
 #include <system_error> // std::error_code
 #include <cstddef> // std::size_t
@@ -30,13 +29,14 @@
 
 #include "net_ip/detail/tcp_io.hpp"
 
+#include "net_ip/worker.hpp"
+
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
 
+
 using namespace std::experimental::net;
 using namespace chops::test;
-
-using wk_guard = executor_work_guard<io_context::executor_type>;
 
 using notifier_cb = 
   typename chops::net::detail::io_common<chops::net::detail::tcp_io>::entity_notifier_cb;
@@ -104,16 +104,15 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
 
   using namespace std::placeholders;
 
-  io_context ioc;
-  wk_guard wg { make_work_guard(ioc) };
-  std::thread run_thr([&ioc] () { ioc.run(); } );
+  chops::net::worker wk;
+  wk.start();
 
   GIVEN ("An executor work guard and a message set") {
  
     WHEN ("an acceptor and connector are created") {
       THEN ("the futures provide synchronization and data returns") {
 
-        ip::tcp::acceptor acc(ioc, ip::tcp::endpoint(ip::address_v4::any(), test_port));
+        ip::tcp::acceptor acc(wk.get_io_context(), ip::tcp::endpoint(ip::address_v4::any(), test_port));
 
         entity_notifier en { };
         auto en_fut = en.prom.get_future();
@@ -123,8 +122,8 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
 
         thread_promise conn_prom;
         auto conn_fut = conn_prom.get_future();
-        std::thread conn_thr(connector_func, std::move(conn_prom), std::cref(in_msg_set), std::ref(ioc), 
-                             interval, delim, empty_msg);
+        std::thread conn_thr(connector_func, std::move(conn_prom), std::cref(in_msg_set), 
+                             std::ref(wk.get_io_context()), interval, delim, empty_msg);
 
         auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
         vec_buf vb;
@@ -158,9 +157,7 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
       }
     }
   } // end given
-  // wg.reset();
-  ioc.stop();
-  run_thr.join();
+  wk.stop();
 
 }
 
