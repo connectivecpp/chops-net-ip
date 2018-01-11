@@ -28,20 +28,19 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief Primary class for the Chops Net IP library, initial API point 
- *  for providing TCP acceptor, TCP connector, UDP unicast, and UDP 
+ *  @brief Primary class for the Chops Net IP library and the initial API 
+ *  point for providing TCP acceptor, TCP connector, UDP unicast, and UDP 
  *  multicast capabilities.
  *
  *  A @c net_ip object creates and manages network related objects. It is
  *  the initial API point for creating a TCP acceptor, TCP connector,
  *  UDP unicast, or UDP multicast network entity. Once one of these
- *  network entity objects is created internally, a @c net_entity
- *  object is returned to the application, allowing further operations
- *  to occur.
+ *  network objects is created internal to the @c net_ip object, a @c net_entity 
+ *  object is returned to the application, allowing further operations to occur.
  *
  *  The @c net_ip class is safe for multiple threads to use concurrently.
- *  Internally operations are posted to a @c std::experimental::net::io_context
- *  for handling within a single thread.
+ *  Internally function objects are posted to a @c std::experimental::net::io_context
+ *  for handling within a single thread or strand context.
  *
  *  It should be noted, however, that race conditions are possible,
  *  specially for some operations invoked between @c net_entity and
@@ -49,39 +48,35 @@ namespace net {
  *  stopping network entities concurrently between separate objects 
  *  or threads could cause unexpected or undefined behavior.
  *
- *  Applications typically  need to interact directly with a @c net_ip object for
- *  network resource operations. Instead, @c net_ip creates facade-like 
- *  objects of type @c Embankment and @c OutputChannel, and application 
- *  functionality uses these to perform networking related operations. 
- *  These operations include sending data, providing various callback and 
- *  message protocol objects, and starting and stopping network processing
- *  on a particular network resource. 
+ *  Applications typically do not interact directly with a @c net_ip object. 
+ *  Instead, @c net_ip creates facade-like objects of type @c net_entity,
+ *  which allow further operations.
  *
- *  The general application usage pattern for the @ net_ip, @ Embankment, and
- *  @c OutputChannel classes is:
+ *  The general application usage pattern for the @ net_ip, @ net_entity, and
+ *  @c io_interface classes is:
  *
  *  1. Create a @c net_ip object.
  *
- *  2. Create @c Embankment objects, through one of the @c net_ip @c create 
+ *  2. Create @c net_entity objects, through one of the @c net_ip @c create 
  *  methods. These will be one of either TCP acceptor, TCP connector, UDP 
  *  receiver or sender, UDP multicast receiver or sender, or UDP broadcast 
  *  receiver or sender. 
  *
- *  3. Start processing on the @c Embankment objects, through the @c start method. 
+ *  3. Start processing on the @c net_entity objects, through the @c start method. 
  *  The @c start method is where a @c MsgFrame function object and an 
  *  @c IncomingMsgCb callback are supplied by the application to the @c net_ip 
  *  facilities. A @c ChannelChangeCb callback is also provided by the application 
  *  in the @c start method call for channel change events.
  *
- *  Internally the @c Embankment @c start will cause operations such as socket port 
+ *  Internally the @c net_entity @c start will cause operations such as socket port 
  *  binding, TCP connect attempts, TCP listens, etc. Part of the @c start method call 
  *  interface is providing a @c ChannelChangeCb callback that will be invoked when a 
  *  TCP connection happens, or the UDP bind completes, or whatever is appropriate for 
- *  the underlying network resource of the @c Embankment object. The callback provides 
- *  a @c OutputChannel object to the application for data sending, at the
+ *  the underlying network resource of the @c net_entity object. The callback provides 
+ *  a @c io_interface object to the application for data sending, at the
  *  appropriate time (e.g. when a connection succeeds).
  *
- *  4. When a @c OutputChannel object is provided to the application, data transfer
+ *  4. When a @c io_interface object is provided to the application, data transfer
  *  can be initiated through @c send method calls for outgoing data, and @c IncomingMsgCb 
  *  callback invocations for incoming data.
  *
@@ -89,12 +84,12 @@ namespace net {
  *  event processing on all network resources to occur.
  *
  *  6. Call the @c stop method on the @c net_ip object, which will call the
- *  @c Embankment @c stop for each network resource.
+ *  @c net_entity @c stop for each network resource.
  *
  *  7. Call the @c endEventLoop method on the @c net_ip object.
  *
  *  Network processing for a particular network resource can be started or stopped 
- *  multiple times through the @c Embankment object as needed.
+ *  multiple times through the @c net_entity object as needed.
  *
  *  A Boost @c thread object can be easily created to run the @c net_ip event
  *  loop. Example:
@@ -110,13 +105,13 @@ namespace net {
  *
  *  @endcode
  *
- *  Calling the @c stop method on an @c Embankment object will shutdown the 
- *  associated network resource. At this point, other @c Embankment objects 
+ *  Calling the @c stop method on an @c net_entity object will shutdown the 
+ *  associated network resource. At this point, other @c net_entity objects 
  *  copied from the original will be affected, and exceptions may be thrown on 
  *  most methods called.
  *
  *  Currently there is not a way to explicitly destroy the internal network 
- *  resource objects associated with @c Embankment objects. They are implicitly 
+ *  resource objects associated with @c net_entity objects. They are implicitly 
  *  destroyed once the @c net_ip object goes out of scope. Future enhancements 
  *  may provide this functionality.
  *  
@@ -171,7 +166,7 @@ public:
  *  specific IP interface. Otherwise, the bind is for "any" IP interface (which is the
  *  typical usage).
  *
- *  @return @c Embankment object.
+ *  @return @c net_entity object.
  *
  *  @throw @c SockLibException is thrown if host name cannot be resolved.
  *
@@ -194,16 +189,16 @@ public:
  *
  *  A TCP connector performs connects to a remote host on a port with an active listener.
  *  A TCP connector is sometimes called a "client" or "the client side".
- *  This method creates an @c Embankment object, where further processing is to be
+ *  This method creates an @c net_entity object, where further processing is to be
  *  performed. When the application is ready to perform the connect to the
- *  remote host, the @c start method on the @c Embankment is called.
+ *  remote host, the @c start method on the @c net_entity is called.
  *
  *  A reconnect timeout can be provided, which will result in another connect
  *  attempt (after the timeout period). Reconnect attempts will continue until
- *  a connect is successful or the resource is stopped (through the @c Embankment @c stop 
+ *  a connect is successful or the resource is stopped (through the @c net_entity @c stop 
  *  method). If a connection is broken or the TCP connector is stopped, reconnects will 
  *  not be attempted, so it is the application's responsibility to call @c start again 
- *  on the @c Embankment. 
+ *  on the @c net_entity. 
  *
  *  @param remotePort Port number of remote host.
  *
@@ -214,7 +209,7 @@ public:
  *
  *  @param noDelay If @c true, set TCP_NODELAY socket option. Defaults to @c false.
  *
- *  @return @c Embankment object.
+ *  @return @c net_entity object.
  *
  *  @throw @c SockLibException is thrown if host name cannot be resolved.
  */
@@ -238,18 +233,18 @@ public:
  *
  *  Determining whether an incoming UDP datagram was originally sent as unicast, multicast, or 
  *  broadcast is up to the application (by inspecting the remote address through the
- *  @c OutputChannel object, possibly from within the @c IncomingMsgCb).
+ *  @c io_interface object, possibly from within the @c IncomingMsgCb).
  *
  *  Note that sending broadcast UDP is not supported through this network resource. Instead, use
  *  the UDP sender create method with the broadcast flag set to @c true.
  *
- *  Binds and reads will not be started until the @c Embankment @c start method is called.
+ *  Binds and reads will not be started until the @c net_entity @c start method is called.
  *
  *  @param localPort Port number for local binding.
  *
  *  @param defRemotePort Port number of default remote host. If left out, the remote port
- *  can be specified as an @c OutputChannel @c send method parameter. Specifying this and
- *  the default remote host allows @c OutputChannel @c send methods to be called without
+ *  can be specified as an @c io_interface @c send method parameter. Specifying this and
+ *  the default remote host allows @c io_interface @c send methods to be called without
  *  a destination port and address.
  *
  *  @param defRemoteHost Name of default remote host. Similar to
@@ -306,13 +301,13 @@ public:
  *
  *  Note that destination addresses and ports can either be specified at @c create time (through
  *  this method), or can be specified at each individual @c send method call in the 
- *  @c OutputChannel object.
+ *  @c io_interface object.
  *
- *  The @c MsgFrame and @c IncomingMsgCb parameters of the @c Embankment @c start method
+ *  The @c MsgFrame and @c IncomingMsgCb parameters of the @c net_entity @c start method
  *  are ignored for a UDP sender resource.
  *
  *  @param defRemotePort Port number of default remote host. If left out, the remote port
- *  can be specified as an @c OutputChannel @c send method parameter.
+ *  can be specified as an @c io_interface @c send method parameter.
  *
  *  @param defRemoteHost Name of default remote host. Similar to
  *  the default remote port, it can also be specified in a @c send method parameter. Note that for
@@ -326,7 +321,7 @@ public:
  *  @param localHost If this parameter is supplied, the local bind will be performed on a
  *  specific local host interface. This can be useful in a dual NIC environment where 
  *  datagrams must only be sent out through a specific interface. Note that there is not a 
- *  facility for specifying a port, since this @c Embankment will only be used for sending and not
+ *  facility for specifying a port, since this @c net_entity will only be used for sending and not
  *  receiving.
  *
  *  @param mcast If @c true, this flag allows an outbound interface to be bound, using the localHost
@@ -353,7 +348,7 @@ public:
  *
  *  This method creates an @c asio::io_service::work object, so that it can be called at any
  *  time, even if there are no event handlers (from network resources) created or started
- *  (through an @c Embankment @c start). When @c endEventLoop is called, the 
+ *  (through an @c net_entity @c start). When @c endEventLoop is called, the 
  *  @c asio::io_service::work object will be destroyed, and
  *  the event loop will exit when all event handlers are finished running (all reads, writes,
  *  and timers are completed or cancelled).
@@ -391,7 +386,7 @@ public:
 /**
  *  @brief Stop network processing on all network resources.
  *
- *  Stop all @c Embankment objects in a graceful manner. This allows the event loop to
+ *  Stop all @c net_entity objects in a graceful manner. This allows the event loop to
  *  be cleanly exited, and the @c SockLib object to be destroyed.
  *
  */
