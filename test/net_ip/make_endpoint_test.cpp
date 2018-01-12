@@ -38,45 +38,6 @@ const char*   test_addr = "127.0.0.1";
 constexpr int NumMsgs = 50;
 
 
-// Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
-// thread; return data: 1. error code 2. Does the ioh ptr match? 3. msg set size
-using thread_data = std::tuple<std::error_code, bool, std::size_t>; 
-using thread_promise = std::promise<thread_data>;
-
-using tcp_ioh_ptr = std::shared_ptr<chops::net::detail::tcp_io>;
-
-void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
-                     int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {
-  using namespace std::placeholders;
-
-  entity_notifier en { };
-  auto en_fut = en.prom.get_future();
-  notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
-
-  ip::tcp::socket sock(ioc);
-  sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
-
-  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), cb);
-  vec_buf vb;
-  if (delim.empty()) {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, false), 
-                   chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
-  }
-  else {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, false), delim);
-  }
-
-  for (auto buf : in_msg_set) {
-    iohp->send(chops::const_shared_buffer(std::move(buf)));
-    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-  }
-  iohp->send(empty_msg);
-
-  auto ret = en_fut.get(); // wait for termination callback
-  thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, vb.size()));
-
-}
-
 void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::string_view delim,
                     chops::const_shared_buffer empty_msg) {
 
