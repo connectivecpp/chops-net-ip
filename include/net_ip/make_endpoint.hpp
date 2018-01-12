@@ -19,24 +19,59 @@
 
 #include <string_view>
 #include <system_error>
+#include <optional>
 
 #include "net_ip/net_ip_error.hpp"
 
 namespace chops {
 namespace net {
 
+using opt_endpoint = std::optional< std::experimental::net::ip::basic_endpoint<Protocol> >;
+
 /**
- *  @brief Convenience function which creates an @c ip::basic_endpoint from host 
- *  name strings and port numbers.
+ *  @brief If possible, create an @c ip::basic_endpoint from a host name string and port number.
  *
- *  The @c ip::basic_endpoint returned from this function is used within other @c net_ip layers.
+ *  Return an endpoint if name resolution is not needed. If name resolving is needed (i.e. a 
+ *  DNS lookup), the endpoint is not returned, and the @c resolve_endpoint function will need to 
+ *  be called.
  *
- *  DNS lookup (resolving) will not be performed if the host name is already in dotted numeric 
- *  or hexadecimal (V6) form. The first entry will be used from a DNS lookup if multiple IP 
+ *  Name resolving will not be performed if the host name is already in dotted numeric 
+ *  or hexadecimal (ipV6) form. 
+ *
+ *  @param addr A host name, which can be empty (which means the address field of the endpoint 
+ *  is not set, which is usually interpreted as an "any" address), either in dotted numeric form 
+ *  in which case no DNS lookup performed, or a string name where a DNS lookup will be performed.
+ *
+ *  @param port_num The port number to be set in the endpoint, where zero means the port is not 
+ *  set.
+ *
+ *  @return If a value is present (in the @c std::optional), a valid endpoint is ready for use,
+ *  otherwise a name resolution is needed.
+ *
+ */
+template <typename Protocol>
+opt_endpoint make_endpoint(std::string_view addr, unsigned short port_num) {
+
+  std::experimental::net::ip::basic_endpoint<Protocol> endp;
+  if (port_num != 0) {
+    endp.port(port_num);
+  }
+  if (addr.empty()) { // port is only important info (should not be 0), no resolve needed
+    return opt_endpoint { endp };
+  }
+  std::error_code ec;
+  endp.address(std::experimental::ip::address::make_address(addr, ec));
+  return ec ? opt_endpoint { } : opt_endpoint { endp };
+}
+
+/**
+ *  @brief Perform name resolving and return an endpoint in a function object callback.
+ *
+ *  The first entry will be used from a DNS lookup if multiple IP 
  *  addresses are returned.
  * 
  *  If a DNS resolve needs to be performed,
- *
+ *  
  *  @param addr A host name, which can be empty (which means the address field of the endpoint 
  *  is not set, which is usually interpreted as an "any" address), either in dotted numeric form 
  *  in which case no DNS lookup performed, or a string name where a DNS lookup will be performed.
@@ -47,25 +82,10 @@ namespace net {
  *
  *  @param ipv4_only If @c true, only resolve DNS entries for ipv4.
  *
- *  @throw @c net_ip_exception if address is unable to be resolved.
  */
-
-template <typename Protocol>
-std::experimental::net::ip::basic_endpoint<Protocol> make_endpoint(std::experimental::net::io_context& ioc,
+template <typename Protocol, typename F>
+void resolve_endpoint(std::experimental::net::io_context& ioc, F&& func,
       std::string_view addr, unsigned short port_num, bool ipv4_only = false) {
-
-  std::experimental::net::ip::basic_endpoint<Protocol> endp;
-  if (portNum != 0) {
-    endp.port(portNum);
-  }
-  if (addr.empty()) { // port is only important info (should not be 0), no resolve needed
-    return endp;
-  }
-  std::error_code ec;
-  endp.address(std::experimental::ip::address::make_address(addr, ec));
-  if (!ec) { // no lookup needed, already an address
-    return endp;
-  }
   // need to resolve, since make_address returned an error
   std::experimental::net::ip::basic_resolver<Protocol> resolver(ioc);
   auto res = resolver.query(addr,""); // throw an exception if not found
@@ -76,7 +96,6 @@ std::experimental::net::ip::basic_endpoint<Protocol> make_endpoint(std::experime
   for (const auto& entry : res) {
     endp.address((*entry.cbegin()).endpoint().address());
   }
-  throw chops::net::net_ip_exception("No DNS match found");
 }
 
 }  // end net namespace
