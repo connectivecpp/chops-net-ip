@@ -16,60 +16,42 @@
 
 #include <experimental/internet>
 #include <experimental/io_context>
+#include <experimental/executor>
 
 #include <string_view>
 #include <system_error>
-#include <optional>
+#include <utility> // std::forward
 
 #include "net_ip/net_ip_error.hpp"
 
 namespace chops {
 namespace net {
 
-template <typename Protocol>
-using opt_endpoint = std::optional< std::experimental::net::ip::basic_endpoint<Protocol> >;
-
 /**
- *  @brief If possible, create an @c ip::basic_endpoint from a host name string and port number.
+ *  @brief Create an endpoint and return it in a function object callback, performing
+ *  name resolving (DNS lookup) if needed.
  *
- *  Return an endpoint if name resolution is not needed. Name resolving will not be performed 
- *  if the host name is already in dotted numeric or hexadecimal (ipV6) form. 
+ *  Name resolving will not be performed if the host name is already in dotted numeric or 
+ *  hexadecimal (ipV6) form, or if the host name is empty (common for when the local
+ *  host IP address is "INADDR_ANY"). 
  *
- *  If name resolving is needed (i.e. a DNS lookup), the endpoint is not returned, and the 
- *  @c resolve_endpoint function will need to be called.
+ *  If name resolving is performed, the first endpoint entry will be used if multiple IP 
+ *  addresses are found.
  *
- *  @param addr A host name, which can be empty (which means the address field of the endpoint 
- *  is not set, which is usually interpreted as an "any" address).
+ *  This function always returns before the function object callback is invoked, regardless of
+ *  whether the endpoint is immediately ready or not.
  *
- *  @param port_num The port number to be set in the endpoint; zero means the port is not set.
+ *  It is the applications responsibility to ensure that the data is still valid when the
+ *  callback is invoked. A typical idiom is to use @c std::shared_from_this as part of the 
+ *  function object callback data.
  *
- *  @return If a value is present (in the @c std::optional), a valid endpoint is ready for use,
- *  otherwise a name resolution is needed.
+ *  @tparam Protocol Either @c std::experimental::net::ip::tcp or 
+ *  @c std::experimental::net::ip::udp.
  *
- */
-template <typename Protocol>
-opt_endpoint<Protocol> make_endpoint(std::string_view addr, unsigned short port_num) {
-
-  std::experimental::net::ip::basic_endpoint<Protocol> endp;
-  if (port_num != 0) {
-    endp.port(port_num);
-  }
-  if (addr.empty()) { // port is only important info (should not be 0), no resolve needed
-    return opt_endpoint<Protocol> { endp };
-  }
-  std::error_code ec;
-  endp.address(std::experimental::ip::address::make_address(addr, ec));
-  return ec ? opt_endpoint<Protocol> { } : opt_endpoint<Protocol> { endp };
-}
-
-/**
- *  @brief Perform name resolving and return an endpoint in a function object callback.
+ *  @param ioc @c std::experimental::net::io_context, for function object posting and name
+ *  resolving (as needed).
  *
- *  The first entry will be used from a DNS lookup if multiple IP addresses are returned.
- * 
- *  @param ioc @c std::experimental::net::io_context, for DNS lookup.
- *
- *  @param func Function object which will be used when the name resolution completes. The
+ *  @param func Function object which will be invoked when the name resolution completes. The
  *  signature of the callback:
  *  @code
  *    // TCP:
@@ -77,27 +59,51 @@ opt_endpoint<Protocol> make_endpoint(std::string_view addr, unsigned short port_
  *    // UDP:
  *    void (const std::error_code& err, std::experimental::net::ip::udp::endpoint);
  *  @endcode
+ *  If an error has occurred, the error code is set accordingly. 
  *
- *  @param addr A host name used for the name resolution.
+ *  @param addr A host name, which can be empty (which means the address field of the endpoint 
+ *  is not set, interpreted internally as an "INADDR_ANY" address).
  *
  *  @param port_num The port number to be set in the endpoint; zero means the port is not set.
  *
- *  @param ipv4_only If @c true, only resolve DNS entries for ipv4.
- *
  */
 template <typename Protocol, typename F>
-void resolve_endpoint(std::experimental::net::io_context& ioc, F&& func,
-      std::string_view addr, unsigned short port_num, bool ipv4_only = false) {
+void make_endpoint(std::experimental::net::io_context& ioc, F&& func,
+      std::string_view addr, unsigned short port_num) {
+
+  using namespace std::experimental::net;
+  using results_t = typename ip::basic_resolver<Protocol>::results_type;
+
+  ip::basic_endpoint<Protocol> endp;
+  if (port_num != 0) {
+    endp.port(port_num);
+  }
+  if (addr.empty()) { // port is only important info (should not be 0), no resolve needed
+    post(ioc.get_context(), [endp, f = std::forward<F>(func)] () { f(std::error_code(), endp); });
+    return;
+  }
+  std::error_code ec;
+  endp.address(ip::address::make_address(addr, ec));
+  if (!ec) { // was able to make address, addr was in dotted or hex form
+    post(ioc.get_context(), [endp, f = std::forward<F>(func)] () { f(std::error_code(), endp); } );
+    return;
+  }
   // need to resolve, since make_address returned an error
-  std::experimental::net::ip::basic_resolver<Protocol> resolver(ioc);
-  auto res = resolver.query(addr,""); // throw an exception if not found
-  if (!ipv4_only) {
-    endp.address((*res.cbegin()).endpoint().address());
-    return endp;
-  }
-  for (const auto& entry : res) {
-    endp.address((*entry.cbegin()).endpoint().address());
-  }
+  ip::basic_resolver<Protocol> resolver(ioc);
+  resolver.async_resolve(addr, "", [endp, f = std::forward<F>(func)] 
+                                   (const std::error_code& err, results_t results) {
+      if (err) {
+        f(err, endp);
+        return;
+      }
+      if (
+      else {
+        endp.address((*results.cbegin()).endpoint().address());
+        f(std::error_code(), endp);
+      }
+    }
+  );
+  return;
 }
 
 }  // end net namespace
