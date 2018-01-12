@@ -26,59 +26,61 @@
 namespace chops {
 namespace net {
 
+template <typename Protocol>
 using opt_endpoint = std::optional< std::experimental::net::ip::basic_endpoint<Protocol> >;
 
 /**
  *  @brief If possible, create an @c ip::basic_endpoint from a host name string and port number.
  *
- *  Return an endpoint if name resolution is not needed. If name resolving is needed (i.e. a 
- *  DNS lookup), the endpoint is not returned, and the @c resolve_endpoint function will need to 
- *  be called.
+ *  Return an endpoint if name resolution is not needed. Name resolving will not be performed 
+ *  if the host name is already in dotted numeric or hexadecimal (ipV6) form. 
  *
- *  Name resolving will not be performed if the host name is already in dotted numeric 
- *  or hexadecimal (ipV6) form. 
+ *  If name resolving is needed (i.e. a DNS lookup), the endpoint is not returned, and the 
+ *  @c resolve_endpoint function will need to be called.
  *
  *  @param addr A host name, which can be empty (which means the address field of the endpoint 
- *  is not set, which is usually interpreted as an "any" address), either in dotted numeric form 
- *  in which case no DNS lookup performed, or a string name where a DNS lookup will be performed.
+ *  is not set, which is usually interpreted as an "any" address).
  *
- *  @param port_num The port number to be set in the endpoint, where zero means the port is not 
- *  set.
+ *  @param port_num The port number to be set in the endpoint; zero means the port is not set.
  *
  *  @return If a value is present (in the @c std::optional), a valid endpoint is ready for use,
  *  otherwise a name resolution is needed.
  *
  */
 template <typename Protocol>
-opt_endpoint make_endpoint(std::string_view addr, unsigned short port_num) {
+opt_endpoint<Protocol> make_endpoint(std::string_view addr, unsigned short port_num) {
 
   std::experimental::net::ip::basic_endpoint<Protocol> endp;
   if (port_num != 0) {
     endp.port(port_num);
   }
   if (addr.empty()) { // port is only important info (should not be 0), no resolve needed
-    return opt_endpoint { endp };
+    return opt_endpoint<Protocol> { endp };
   }
   std::error_code ec;
   endp.address(std::experimental::ip::address::make_address(addr, ec));
-  return ec ? opt_endpoint { } : opt_endpoint { endp };
+  return ec ? opt_endpoint<Protocol> { } : opt_endpoint<Protocol> { endp };
 }
 
 /**
  *  @brief Perform name resolving and return an endpoint in a function object callback.
  *
- *  The first entry will be used from a DNS lookup if multiple IP 
- *  addresses are returned.
+ *  The first entry will be used from a DNS lookup if multiple IP addresses are returned.
  * 
- *  If a DNS resolve needs to be performed,
- *  
- *  @param addr A host name, which can be empty (which means the address field of the endpoint 
- *  is not set, which is usually interpreted as an "any" address), either in dotted numeric form 
- *  in which case no DNS lookup performed, or a string name where a DNS lookup will be performed.
- *
- *  @param port_num The port number to be set in the endpoint and zero means the port is not set.
- *
  *  @param ioc @c std::experimental::net::io_context, for DNS lookup.
+ *
+ *  @param func Function object which will be used when the name resolution completes. The
+ *  signature of the callback:
+ *  @code
+ *    // TCP:
+ *    void (const std::error_code& err, std::experimental::net::ip::tcp::endpoint);
+ *    // UDP:
+ *    void (const std::error_code& err, std::experimental::net::ip::udp::endpoint);
+ *  @endcode
+ *
+ *  @param addr A host name used for the name resolution.
+ *
+ *  @param port_num The port number to be set in the endpoint; zero means the port is not set.
  *
  *  @param ipv4_only If @c true, only resolve DNS entries for ipv4.
  *

@@ -80,7 +80,7 @@ namespace net {
  *  guard and creates a thread to invoke the asynchronous operations. Example
  *  usage:
  *
- *  @startcode
+ *  @code
  *    chops::net::worker wk;
  *    wk.start();
  *    chops::net::net_ip nip(wk.get_io_context());
