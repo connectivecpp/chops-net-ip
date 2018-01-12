@@ -168,7 +168,7 @@ public:
  *  @return @c tcp_connector_net_entity object.
  *
  */
-  tcp_connector_net_entity make_tco_connector (unsigned short remote_port,
+  tcp_connector_net_entity make_tcp_connector (unsigned short remote_port,
                                                std::string_view remote_host,
                                                std::size_t reconn_time_millis) {
     tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(remote_port, 
