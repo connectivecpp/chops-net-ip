@@ -5,6 +5,11 @@
  *  @brief Functions to convert network host names and ports into C++ Networking TS
  *  endpoint objects.
  *
+ *  @note Chris' Networking TS is not yet recognizing @c string_view on g++ 7.2, so a 
+ *  @c string is constructed for the @c string_view parms.
+ *
+ *  @note As of early January 2018, async_resolve is crashing, on g++ 7.2.
+ *
  *  @author Cliff Green
  *  @date 2017, 2018
  *  @copyright Cliff Green, MIT License
@@ -19,6 +24,7 @@
 
 #include <string_view>
 #include <string>
+#include <vector>
 
 namespace chops {
 namespace net {
@@ -78,7 +84,6 @@ void make_endpoints(std::experimental::net::io_context& ioc, F&& func, bool loca
 
   using namespace std::experimental::net;
 
-// Chris' Networking TS is not yet recognizing string_view, so use string for parms
   ip::basic_resolver<Protocol> res(ioc);
   if (local) {
     ip::resolver_base::flags f (ip::resolver_base::passive | ip::resolver_base::address_configured);
@@ -90,22 +95,31 @@ void make_endpoints(std::experimental::net::io_context& ioc, F&& func, bool loca
   return;
 }
 
+/**
+ *  @brief Create a sequence of endpoints and return them in a container.
+ *
+ *  This function performs synchronous (blocking) name resolution instead of asynchronous
+ *  resolution. The interface is the same except that a container of endpoints is returned 
+ *  instead of a function object callback invocation happening at a later point.
+ *
+ *  @return @c std::experimental::net::ip::basic_resolver_results<Protocol>, where Protocol
+ *  is either @c std::experimental::net::ip::tcp or @c std::experimental::net::ip::udp.
+ *
+ *  @throw @c std::system_error on failure.
+ */
+
 template <typename Protocol>
-void make_endpoints(std::experimental::net::io_context& ioc, F&& func, bool local,
-      std::string_view host_or_intf_name, std::string_view service_or_port) {
+auto make_endpoints(std::experimental::net::io_context& ioc, bool local,
+                    std::string_view host_or_intf_name, std::string_view service_or_port) {
 
   using namespace std::experimental::net;
 
-// Chris' Networking TS is not yet recognizing string_view, so use string for parms
   ip::basic_resolver<Protocol> res(ioc);
   if (local) {
     ip::resolver_base::flags f (ip::resolver_base::passive | ip::resolver_base::address_configured);
-    res.async_resolve(std::string(host_or_intf_name), std::string(service_or_port), f, func);
+    return res.resolve(std::string(host_or_intf_name), std::string(service_or_port), f);
   }
-  else {
-    res.async_resolve(std::string(host_or_intf_name), std::string(service_or_port), func);
-  }
-  return;
+  return res.resolve(std::string(host_or_intf_name), std::string(service_or_port));
 }
 
 }  // end net namespace
