@@ -28,7 +28,7 @@ namespace net {
 class worker {
 private:
   std::experimental::net::io_context  m_ioc;
-  std::experimental::net::executor_work_guard<typename std::experimental::net::io_context::executor_type> 
+  std::experimental::net::executor_work_guard<std::experimental::net::io_context::executor_type> 
                                       m_wg;
   std::thread                         m_run_thr;
 
@@ -51,10 +51,19 @@ public:
   }
 
 /**
- *  @brief Shutdown the executor and join the thread.
+ *  @brief Shutdown the executor and join the thread, abandoning any outstanding operations or handlers.
  */
   void stop() {
     m_ioc.stop();
+    m_run_thr.join();
+  }
+
+/**
+ *  @brief Reset the internal work guard and join the thread, waiting for outstanding operations or 
+ *  handlers to complete.
+ */
+  void reset() {
+    m_wg.reset();
     m_run_thr.join();
   }
 
