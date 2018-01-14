@@ -29,7 +29,6 @@
 
 using namespace std::experimental::net;
 
-/*
 template <typename Protocol>
 void make_endpoints_test (bool local, std::string_view host, std::string_view port) {
 
@@ -41,7 +40,8 @@ void make_endpoints_test (bool local, std::string_view host, std::string_view po
   wk.start();
 
   GIVEN ("An executor work guard, host, and port strings") {
-    WHEN ("make_endpoints is called") {
+/*
+    WHEN ("async overload of make_endpoints is called") {
       THEN ("a sequence of endpoints is returned through a function object callback") {
 
         std::promise<prom_ret> res_prom;
@@ -68,21 +68,8 @@ std::cerr << "In lambda, size of ends: " << ends.size() << std::endl;
         }
       }
     }
-  } // end given
-  wk.stop();
-
-}
-
 */
-
-template <typename Protocol>
-void make_endpoints_test (bool local, std::string_view host, std::string_view port) {
-
-  chops::net::worker wk;
-  wk.start();
-
-  GIVEN ("An executor work guard, host, and port strings") {
-    WHEN ("make_endpoints is called") {
+    AND_WHEN ("sync overload of make_endpoints is called") {
       THEN ("a sequence of endpoints is returned") {
 
         auto res = chops::net::make_endpoints<Protocol>(wk.get_io_context(), local, host, port);
