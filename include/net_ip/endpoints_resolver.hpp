@@ -28,6 +28,16 @@
 namespace chops {
 namespace net {
 
+
+template <typename Protocol>
+class endpoints_resolver {
+private:
+  std::experimental::net::ip::basic_resolver<Protocol>  m_resolver;
+
+public:
+
+  explicit endpoints_resolver(std::experimental::net::io_context& ioc) : m_resolver(ioc) { }
+
 /**
  *  @brief Create a sequence of endpoints and return them in a function object callback, 
  *  performing name resolving (DNS lookup) as needed.
