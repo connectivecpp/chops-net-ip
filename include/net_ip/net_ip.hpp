@@ -24,6 +24,7 @@
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
+#include "net_ip/make_endpoints.hpp"
 
 namespace chops {
 namespace net {
@@ -39,9 +40,9 @@ namespace net {
  *  network objects is created internal to the @c net_ip object, a @c net_entity 
  *  object is returned to the application, allowing further operations to occur.
  *
- *  Applications typically do not interact directly with a @c net_ip object. 
- *  Instead, @c net_ip creates facade-like objects of type @c net_entity,
- *  which allow further operations.
+ *  Applications perform most operations with either a @c net_entity or a 
+ *  @c io_interface object. The @c net_ip object creates facade-like objects of 
+ *  type @c net_entity, which allow further operations.
  *
  *  The general application usage pattern for the @ net_ip, @ net_entity, and
  *  @c io_interface classes is:
@@ -49,12 +50,12 @@ namespace net {
  *  1. Instantiate a @c net_ip object.
  *
  *  2. Create a @c net_entity object, through one of the @c net_ip @c make 
- *  methods. A @c net_entity interfaces to one of a TCP acceptor, TCP 
+ *  methods. A @c net_entity interacts with one of a TCP acceptor, TCP 
  *  connector, UDP unicast receiver or sender, or UDP multicast receiver (a
  *  UDP multicast sender is the same as a UDP unicast sender).
  *
  *  3. Call the @c start method on the @c net_entity object. This performs
- *  a local bind (if needed) and if TCP then a connect (for a connector) or
+ *  a local bind (if needed) and (for TCP) a connect (for a connector) or
  *  listen (for an acceptor). 
  *
  *  If name resolution (i.e. DNS lookup) is required on a host name, the 
@@ -83,14 +84,14 @@ namespace net {
  *  @code
  *    chops::net::worker wk;
  *    wk.start();
- *    chops::net::net_ip nip(wk.get_io_context());
+ *    chops::net::net_ip my_nip(wk.get_io_context());
  *    // ...
  *    wk.stop();
  *  @endcode
  *
- *  The @c net_ip class is safe for multiple threads to use concurrently.
- *  Internally function objects are posted to a @c std::experimental::net::io_context
- *  for handling within a single thread or strand context.
+ *  The @c net_ip class is safe for multiple threads to use concurrently. (Internally 
+ *  function objects are posted to the @c std::experimental::net::io_context for handling 
+ *  within a single thread or strand context.)
  *
  *  It should be noted, however, that race conditions are possible, specially for 
  *  similar operations invoked between @c net_entity and @c net_ip and @c io_interface 
@@ -141,8 +142,24 @@ public:
  *  @return @c tcp_acceptor_net_entity object.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (unsigned short local_port, std::string_view listen_intf = "") {
-    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(local_port, listen_intf);
+  tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port, std::string_view listen_intf = "") {
+    auto res = make_endpoints(m_ioc, true, listen_intf, local_port);
+    return make_tcp_acceptor(res.cbegin()->endpoint());
+  }
+
+/**
+ *  @brief Create a TCP acceptor @c net_entity, using an already created endpoint.
+ *
+ *  This allows flexibility in creating an endpoint for the acceptor to use.
+ *
+ *  @param endp A @c std::experimental::net::ip::tcp::endpoint that the acceptor uses for the local
+ *  bind.
+ *
+ *  @return @c tcp_acceptor_net_entity object.
+ *
+ */
+  tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp) {
+    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(endp);
     std::experimental::net::post(ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     return tcp_acceptor_net_entity(p);
   }
@@ -168,9 +185,24 @@ public:
  *  @return @c tcp_connector_net_entity object.
  *
  */
-  tcp_connector_net_entity make_tcp_connector (unsigned short remote_port,
+  tcp_connector_net_entity make_tcp_connector (std::string_view remote_port,
                                                std::string_view remote_host,
                                                std::size_t reconn_time_millis) {
+    auto res = make_endpoints(m_ioc, false, remote_host, remote_port);
+
+
+/**
+ *  @brief Create a TCP connector @c net_entity, using an already created endpoint.
+ *
+ *  This allows flexibility in creating an endpoint for the acceptor to use.
+ *
+ *  @param endp A @c std::experimental::net::ip::tcp::endpoint that the acceptor uses for the local
+ *  bind.
+ *
+ *  @return @c tcp_acceptor_net_entity object.
+ *
+ */
+
     tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(remote_port, 
                                                                   remote_host, reconn_time_millis);
     std::experimental::net::post(ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
