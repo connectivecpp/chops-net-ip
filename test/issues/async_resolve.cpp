@@ -3,8 +3,9 @@
 //
 // This is test code planned to submitted to Chris' issue tracker on Github.
 //
-// Update 1/14/2018 - cannot reproduce with this code, so must be a problem 
-// in my own. Not submitted as an issue.
+// Update 1/14/2018 - cannot reproduce problem, turned out to be issue with my own code.
+// Synopsis: resolver object must stay in scope while async_resolve handler is alive.
+//
 
 #include <experimental/internet>
 #include <experimental/socket>
