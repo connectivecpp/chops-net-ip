@@ -36,26 +36,29 @@ void make_endpoints_test (bool local, std::string_view host, std::string_view po
   using endpoints = std::vector<ip::basic_endpoint<Protocol> >;
   using prom_ret = std::pair<std::error_code, endpoints>;
 
+  using namespace std::literals::chrono_literals;
+
   chops::net::worker wk;
   wk.start();
 
+  ip::basic_resolver<Protocol> resolver(wk.get_io_context());
+
   GIVEN ("An executor work guard, host, and port strings") {
-/*
     WHEN ("async overload of make_endpoints is called") {
       THEN ("a sequence of endpoints is returned through a function object callback") {
 
         std::promise<prom_ret> res_prom;
         auto fut = res_prom.get_future();
-        chops::net::make_endpoints<Protocol>(wk.get_io_context(),
-          [&res_prom] (const std::error_code& err, res_results res) {
+        chops::net::make_endpoints<Protocol>(resolver,
+          [p = std::move(res_prom)] (const std::error_code& err, res_results res) mutable {
 std::cerr << "In lambda, ready to copy results, results size: " << res.size() << std::endl;
               endpoints ends { };
-              for (auto i : res) {
+              for (const auto& i : res) {
                 ends.push_back(i.endpoint());
               }
 std::cerr << "In lambda, size of ends: " << ends.size() << std::endl;
               // res_prom.set_value(prom_ret(err, res));
-              res_prom.set_value(prom_ret(err, ends));
+              p.set_value(prom_ret(err, ends));
             }, local, host, port);
         auto a = fut.get();
 
@@ -68,21 +71,22 @@ std::cerr << "In lambda, size of ends: " << ends.size() << std::endl;
         }
       }
     }
-*/
     AND_WHEN ("sync overload of make_endpoints is called") {
       THEN ("a sequence of endpoints is returned") {
 
-        auto res = chops::net::make_endpoints<Protocol>(wk.get_io_context(), local, host, port);
+        auto res = chops::net::make_endpoints<Protocol>(resolver, local, host, port);
         REQUIRE_FALSE (res.empty());
 std::cerr << "Results size: " << res.size() << std::endl;
-        for (auto i : res) {
+        for (const auto& i : res) {
 std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
           INFO ("-- Endpoint: " << i.endpoint());
         }
       }
     }
   } // end given
-  wk.stop();
+
+  std::this_thread::sleep_for(5s); // sleep for 5 seconds
+  wk.reset();
 
 }
 

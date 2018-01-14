@@ -2,13 +2,11 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief Functions to convert network host names and ports into C++ Networking TS
+ *  @brief Class to convert network host names and ports into C++ Networking TS
  *  endpoint objects.
  *
  *  @note Chris' Networking TS is not yet recognizing @c string_view on g++ 7.2, so a 
  *  @c string is constructed for the @c string_view parms.
- *
- *  @note As of early January 2018, async_resolve is crashing, on g++ 7.2.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -16,8 +14,8 @@
  *
  */
 
-#ifndef MAKE_ENDPOINTS_HPP_INCLUDED
-#define MAKE_ENDPOINTS_HPP_INCLUDED
+#ifndef ENDPOINTS_RESOLVER_HPP_INCLUDED
+#define ENDPOINTS_RESOLVER_HPP_INCLUDED
 
 #include <experimental/internet>
 #include <experimental/io_context>
@@ -25,6 +23,7 @@
 #include <string_view>
 #include <string>
 #include <vector>
+#include <utility> // std::move, std::forward
 
 namespace chops {
 namespace net {
@@ -79,18 +78,20 @@ namespace net {
  *
  */
 template <typename Protocol, typename F>
-void make_endpoints(std::experimental::net::io_context& ioc, F&& func, bool local,
+void make_endpoints(std::experimental::net::ip::basic_resolver<Protocol>& res, F&& func, bool local,
       std::string_view host_or_intf_name, std::string_view service_or_port) {
 
   using namespace std::experimental::net;
 
-  ip::basic_resolver<Protocol> res(ioc);
   if (local) {
-    ip::resolver_base::flags f (ip::resolver_base::passive | ip::resolver_base::address_configured);
-    res.async_resolve(std::string(host_or_intf_name), std::string(service_or_port), f, func);
+    res.async_resolve(std::string(host_or_intf_name), std::string(service_or_port), 
+                      ip::resolver_base::flags(ip::resolver_base::passive | 
+                                               ip::resolver_base::address_configured),
+                      std::forward<F>(func));
   }
   else {
-    res.async_resolve(std::string(host_or_intf_name), std::string(service_or_port), func);
+    res.async_resolve(std::string(host_or_intf_name), std::string(service_or_port),
+                      std::forward<F>(func));
   }
   return;
 }
@@ -109,12 +110,11 @@ void make_endpoints(std::experimental::net::io_context& ioc, F&& func, bool loca
  */
 
 template <typename Protocol>
-auto make_endpoints(std::experimental::net::io_context& ioc, bool local,
+auto make_endpoints(std::experimental::net::ip::basic_resolver<Protocol>& res, bool local,
                     std::string_view host_or_intf_name, std::string_view service_or_port) {
 
   using namespace std::experimental::net;
 
-  ip::basic_resolver<Protocol> res(ioc);
   if (local) {
     ip::resolver_base::flags f (ip::resolver_base::passive | ip::resolver_base::address_configured);
     return res.resolve(std::string(host_or_intf_name), std::string(service_or_port), f);
