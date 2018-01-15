@@ -33,7 +33,7 @@ private:
   std::thread                         m_run_thr;
 
 public:
-  worker() : m_ioc(), m_wg(make_work_guard(m_ioc)), m_run_thr() { }
+  worker() : m_ioc(), m_wg(std::experimental::net::make_work_guard(m_ioc)), m_run_thr() { }
 
 /**
  *  @brief Provide access to the @c io_context.
