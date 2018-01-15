@@ -13,104 +13,125 @@
 #include "catch.hpp"
 
 #include <experimental/internet>
-#include <experimental/socket>
 #include <experimental/io_context>
 
 #include <system_error> // std::error_code
 #include <utility> // std::pair
 #include <future>
 #include <string_view>
-#include <vector>
 
-#include "net_ip/make_endpoints.hpp"
+#include <iostream> // temporary debugging
+
+#include "net_ip/endpoints_resolver.hpp"
 #include "net_ip/worker.hpp"
-
-#include <iostream>
 
 using namespace std::experimental::net;
 
 template <typename Protocol>
-void make_endpoints_test (bool local, std::string_view host, std::string_view port) {
+void make_endpoints_test (bool local, std::string_view host, std::string_view port, bool expected_good) {
 
-  using res_results = ip::basic_resolver_results<Protocol>;
-  using endpoints = std::vector<ip::basic_endpoint<Protocol> >;
-  using prom_ret = std::pair<std::error_code, endpoints>;
+  using results_t = ip::basic_resolver_results<Protocol>;
+  using prom_ret = std::pair<std::error_code, results_t>;
 
   using namespace std::literals::chrono_literals;
 
   chops::net::worker wk;
   wk.start();
 
-  ip::basic_resolver<Protocol> resolver(wk.get_io_context());
+  chops::net::endpoints_resolver<Protocol> resolver(wk.get_io_context());
 
   GIVEN ("An executor work guard, host, and port strings") {
-    WHEN ("async overload of make_endpoints is called") {
+    WHEN ("sync overload of make_endpoints is called") {
+      THEN ("a sequence of endpoints is returned or an exception thrown") {
+        if (expected_good) {
+          auto results = resolver.make_endpoints(local, host, port);
+std::cerr << "Results size: " << results.size() << std::endl;
+          for (const auto& i : results) {
+            INFO ("-- Endpoint: " << i.endpoint());
+std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
+          }
+          REQUIRE_FALSE (results.empty());
+        }
+        else {
+          REQUIRE_THROWS (resolver.make_endpoints(local, host, port));
+        }
+      }
+    }
+    AND_WHEN ("async overload of make_endpoints is called") {
       THEN ("a sequence of endpoints is returned through a function object callback") {
 
         std::promise<prom_ret> res_prom;
         auto fut = res_prom.get_future();
-        chops::net::make_endpoints<Protocol>(resolver,
-          [p = std::move(res_prom)] (const std::error_code& err, res_results res) mutable {
-std::cerr << "In lambda, ready to copy results, results size: " << res.size() << std::endl;
-              endpoints ends { };
-              for (const auto& i : res) {
-                ends.push_back(i.endpoint());
-              }
-std::cerr << "In lambda, size of ends: " << ends.size() << std::endl;
-              // res_prom.set_value(prom_ret(err, res));
-              p.set_value(prom_ret(err, ends));
+        resolver.make_endpoints(
+          [p = std::move(res_prom)] (const std::error_code& err, results_t res) mutable {
+              p.set_value(prom_ret(err, res));
             }, local, host, port);
         auto a = fut.get();
-
         if (a.first) {
           INFO ("Error val: " << a.first);
+std::cerr << "Error val: " << a.first << std::endl;
         }
-        REQUIRE_FALSE (a.second.empty());
-        for (auto i : a.second) {
-          INFO ("-- Endpoint: " << i);
-        }
-      }
-    }
-    AND_WHEN ("sync overload of make_endpoints is called") {
-      THEN ("a sequence of endpoints is returned") {
-
-        auto res = chops::net::make_endpoints<Protocol>(resolver, local, host, port);
-        REQUIRE_FALSE (res.empty());
-std::cerr << "Results size: " << res.size() << std::endl;
-        for (const auto& i : res) {
+        if (expected_good) {
+std::cerr << "Results size: " << a.second.size() << std::endl;
+          for (const auto& i : a.second) {
+            INFO ("-- Endpoint: " << i.endpoint());
 std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
-          INFO ("-- Endpoint: " << i.endpoint());
+          }
+          REQUIRE_FALSE (a.second.empty());
+        }
+        else {
+          REQUIRE (a.second.empty());
         }
       }
     }
   } // end given
 
-  std::this_thread::sleep_for(5s); // sleep for 5 seconds
+  std::this_thread::sleep_for(3s); // sleep for 3 seconds
   wk.reset();
 
 }
 
 SCENARIO ( "Make endpoints remote test, TCP  1", "[tcp_make_endpoints_1]" ) {
 
-  make_endpoints_test<ip::tcp> (false, "www.cnn.com", "80");
+  make_endpoints_test<ip::tcp> (false, "www.cnn.com", "80", true);
 
 }
 
 SCENARIO ( "Make endpoints remote test, TCP 2", "[tcp_make_endpoints_2]" ) {
 
-  make_endpoints_test<ip::tcp> (false, "www.seattletimes.com", "80");
+  make_endpoints_test<ip::tcp> (false, "www.seattletimes.com", "80", true);
 
 }
 
 SCENARIO ( "Make endpoints local test, TCP 3", "[tcp_make_endpoints_3]" ) {
 
-  make_endpoints_test<ip::tcp> (true, "", "23000");
+  make_endpoints_test<ip::tcp> (true, "", "23000", true);
 
 }
 
 SCENARIO ( "Make endpoints remote test, UDP  1", "[udp_make_endpoints_1]" ) {
 
-  make_endpoints_test<ip::udp> (false, "www.cnn.com", "80");
+  make_endpoints_test<ip::udp> (false, "www.cnn.com", "80", true);
 
 }
+
+SCENARIO ( "Make endpoints remote test, UDP 2", "[udp_make_endpoints_2]" ) {
+
+  make_endpoints_test<ip::udp> (false, "www.seattletimes.com", "80", true);
+
+}
+
+SCENARIO ( "Make endpoints local test, UDP 3", "[udp_make_endpoints_3]" ) {
+
+  make_endpoints_test<ip::udp> (true, "", "23000", true);
+
+}
+
+/*
+SCENARIO ( "Make endpoints remote test, TCP invalid", "[tcp_make_endpoints_invalid]" ) {
+
+  make_endpoints_test<ip::tcp> (false, "frobozz.blaaaarg", "32555", false);
+
+}
+*/
 
