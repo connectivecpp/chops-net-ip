@@ -18,6 +18,7 @@
 #include <memory> // for std::shared_ptr
 #include <cstddef> // for std::size_t
 #include <string_view>
+#include <vector>
 
 #include <experimental/io_context>
 #include <experimental/executor>
@@ -25,6 +26,7 @@
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
 #include "net_ip/make_endpoints.hpp"
+#include "utility/erase_where.hpp"
 
 namespace chops {
 namespace net {
@@ -55,13 +57,13 @@ namespace net {
  *  UDP multicast sender is the same as a UDP unicast sender).
  *
  *  3. Call the @c start method on the @c net_entity object. This performs
- *  a local bind (if needed) and (for TCP) a connect (for a connector) or
- *  listen (for an acceptor). 
+ *  name resolution (if needed), a local bind (if needed) and (for TCP) a 
+ *  connect or a listen. 
  *
  *  If name resolution (i.e. DNS lookup) is required on a host name, the 
- *  lookup may still be in progress when the @c start method is called on
- *  the @c net_entity. In this case the start processing (bind, connect, 
- *  etc) will start when the name resolution finishes.
+ *  name resolution starts when @c start is called. If this is not acceptable,
+ *  the application can perform the lookup and the endpoint (or endpoint 
+ *  sequence) can be passed in through the @c make method.
  *
  *  The @c start method takes a state change function object, and this will 
  *  be called when the @c net_entity becomes ready for network input and 
@@ -86,12 +88,13 @@ namespace net {
  *    wk.start();
  *    chops::net::net_ip my_nip(wk.get_io_context());
  *    // ...
- *    wk.stop();
+ *    wk.stop(); // or wk.reset();
  *  @endcode
  *
- *  The @c net_ip class is safe for multiple threads to use concurrently. (Internally 
- *  function objects are posted to the @c std::experimental::net::io_context for handling 
- *  within a single thread or strand context.)
+ *  The @c net_ip class is safe for multiple threads to use concurrently. 
+ *  (Internally function objects are posted through the 
+ *  @c std::experimental::net::io_context for handling within a single thread 
+ *  or strand context.)
  *
  *  It should be noted, however, that race conditions are possible, specially for 
  *  similar operations invoked between @c net_entity and @c net_ip and @c io_interface 
@@ -121,8 +124,7 @@ public:
   net_ip& operator=(net_ip&&) = delete;
 
 /**
- *  @brief Construct a @c net_ip object, creating an internal
- *  service object, but not starting any specific network processing.
+ *  @brief Construct a @c net_ip object without starting any network processing.
  *
  *  @param ioc IO context for asynchronous operations.
  */
@@ -143,8 +145,9 @@ public:
  *
  */
   tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port, std::string_view listen_intf = "") {
-    auto res = make_endpoints(m_ioc, true, listen_intf, local_port);
-    return make_tcp_acceptor(res.cbegin()->endpoint());
+    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(local_port, listen_intf);
+    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
+    return tcp_acceptor_net_entity(p);
   }
 
 /**
@@ -160,7 +163,7 @@ public:
  */
   tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp) {
     tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(endp);
-    std::experimental::net::post(ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
+    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     return tcp_acceptor_net_entity(p);
   }
 
@@ -168,12 +171,15 @@ public:
  *  @brief Create a TCP connector @c net_entity, which will perform an active TCP
  *  connect to the specified address (once started).
  *
+ *  Internally a sequence of endpoints will be looked up through a name resolver,
+ *  and each endpoint will be tried in succession.
+ *
  *  A reconnect timeout can be provided, which will result in another connect
- *  attempt (after the timeout period). Reconnect attempts will continue until
- *  a connect is successful or the resource is stopped (through the @c net_entity @c stop 
- *  method). If a connection is broken or the TCP connector is stopped, reconnects will 
- *  not be attempted, so it is the application's responsibility to call @c start again 
- *  on the @c net_entity. 
+ *  attempt (per timeout period) if the initial connect fails. Reconnect attempts will 
+ *  continue until a connect is successful or the resource is stopped (through the 
+ *  @c net_entity @c stop method). If a connection is broken or the TCP connector is 
+ *  stopped, reconnects will not be attempted, so it is the application's responsibility 
+ *  to call @c start again on the @c net_entity. 
  *
  *  @param remote_port Port number of remote host.
  *
@@ -187,25 +193,34 @@ public:
  */
   tcp_connector_net_entity make_tcp_connector (std::string_view remote_port,
                                                std::string_view remote_host,
-                                               std::size_t reconn_time_millis) {
-    auto res = make_endpoints(m_ioc, false, remote_host, remote_port);
+                                               std::size_t reconn_time_millis = 0) {
+
+    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(remote_port, remote_host, reconn_time_millis);
+    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+    return tcp_connector_net_entity(p);
 
 
 /**
- *  @brief Create a TCP connector @c net_entity, using an already created endpoint.
+ *  @brief Create a TCP connector @c net_entity, using an already created sequence of 
+ *  endpoints.
  *
- *  This allows flexibility in creating an endpoint for the acceptor to use.
+ *  This allows flexibility in creating the endpoints for the connector to use.
  *
- *  @param endp A @c std::experimental::net::ip::tcp::endpoint that the acceptor uses for the local
- *  bind.
+ *  @param beg A begin iterator to a sequence of @c std::experimental::net::ip::tcp::endpoint
+ *  objects.
  *
- *  @return @c tcp_acceptor_net_entity object.
+ *  @param end An end iterator to a sequence of endpoints.
+ *
+ *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
+ *  reconnects are attempted (default is 0).
+ *
+ *  @return @c tcp_connector_net_entity object.
  *
  */
 
-    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(remote_port, 
-                                                                  remote_host, reconn_time_millis);
-    std::experimental::net::post(ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+  template <typename Iter>
+  tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end, reconn_time_millis = 0);
+    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
   }
 
@@ -324,14 +339,57 @@ public:
   }
 
 /**
- *  @brief Stop network processing on all network resources.
+ *  @brief Call @c stop on a TCP acceptor @c net_entity and remove it from the internal
+ *  list of TCP acceptors.
  *
- *  Stop all @c net_entity objects in a graceful manner. This allows the event loop to
- *  be cleanly exited, and the @c SockLib object to be destroyed.
+ *  @param acc TCP acceptor @c net_entity to be stopped and removed.
  *
  */
-  void stop() {
-    mService.post(boost::bind(&SockLib::stopResources, this));
+  void remove(tcp_acceptor_net_entity acc) {
+    std::experimental::net::post(m_ioc.get_executor(), 
+          [acc, this] () { acc->stop(); chops::erase_where(m_acceptors, acc); } );
+  }
+
+/**
+ *  @brief Call @c stop on a TCP connector @c net_entity and remove it from the internal
+ *  list of TCP connectors.
+ *
+ *  @param conn TCP connector @c net_entity to be stopped and removed.
+ *
+ */
+  void remove(tcp_connector_net_entity conn) {
+    std::experimental::net::post(m_ioc.get_executor(), 
+          [conn, this] () { conn->stop(); chops::erase_where(m_connectors, acc); } );
+  }
+
+/**
+ *  @brief Call @c stop on a UDP @c net_entity and remove it from the internal
+ *  list of UDP entities.
+ *
+ *  @param udp_ent UDP @c net_entity to be stopped and removed.
+ *
+ */
+  void remove(udp_net_entity udp_ent) {
+    std::experimental::net::post(m_ioc.get_executor(), 
+          [udp_ent, this] () { udp_ent->stop(); chops::erase_where(m_udp_entities, udp_ent); } );
+  }
+
+/**
+ *  @brief Call @c stop and remove all acceptors, connectors, and UDP entities.
+ *
+ *  This method allows for a more measured shutdown, if needed.
+ *
+ */
+  void remove_all() {
+    std::experimental::net::post(m_ioc.get_executor(), [this] () {
+        for (auto i : m_acceptors) { i->stop(); }
+        for (auto i : m_connectors) { i->stop(); }
+        for (auto i : m_udp_entities) { i->stop(); }
+        m_acceptors.clear();
+        m_connectors.clear();
+        m_udp_entities.clear();
+      }
+    );
   }
 
 private:
