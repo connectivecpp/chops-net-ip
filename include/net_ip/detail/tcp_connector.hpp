@@ -18,8 +18,6 @@
 #include <experimental/socket>
 
 #include <system_error>
-#include <vector>
-#include <atomic>
 #include <memory>
 
 #include <cstddef> // for std::size_t
@@ -34,11 +32,7 @@ namespace detail {
 
 class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
 private:
-  using endpoints = std::vector<std::experimental::net::ip::tcp::endpoint>;
-
-private:
-
-  net_entity_base                         m_entity_base;
+  net_entity_base<tcp_io>                 m_entity_base;
   std::experiment::net::ip::tcp::socket   m_socket;
   chops::periodic_timer<>                 m_timer;
   std::size_t                             m_reconn_time;
@@ -62,12 +56,6 @@ public:
       m_reconn_time(reconn_time)
     { }
 
-
-public:
-  // overrides of SockLibResource virtuals
-  void stopHandler() {
-    mIoService.post(boost::bind(&tcp_connector::stopProcessing, shared_from_this()));
-  }
 
 public:
   // methods called by SockLibResource variant
@@ -98,16 +86,6 @@ private:
   void handleConnect(const boost::system::error_code&, MsgFrame mf, typename IncomingMsgCb<MsgFrame>::Callback inCb);
   template <class MsgFrame>
   void handleTimeout(const boost::system::error_code&, MsgFrame mf, typename IncomingMsgCb<MsgFrame>::Callback inCb);
-
-private:
-  boost::asio::io_service&       mIoService;
-  boost::asio::ip::tcp::endpoint mEndpoint;
-  boost::asio::deadline_timer    mReconnTimer;
-  std::size_t                    mReconnTimeMillis;
-  TcpIoPtr                       mIoHandler;
-  ChannelChangeCb                mCcCb;
-  bool                           mNoDelay;
-  bool                           mStarted;
 
 };
 

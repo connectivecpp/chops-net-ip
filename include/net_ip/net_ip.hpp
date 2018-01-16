@@ -393,15 +393,6 @@ public:
     );
   }
 
-private:
-
-
-  void stopResources() {
-    for (ResourcesIter iter = mResources.begin(); iter != mResources.end(); ++iter) {
-      (*iter)->stop();
-    }
-  }
-
 };
 
 }  // end net namespace

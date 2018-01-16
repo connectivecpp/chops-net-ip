@@ -21,10 +21,12 @@
 #include <functional> // std::function, used for type erased notifications to net_entity objects
 #include <memory> // std::shared_ptr, std::unique_ptr
 #include <vector>
+#include <string>
+#include <string_view>
 
 #include <experimental/executor>
 
-#include "net_ip/net_entity.hpp"
+#include "net_ip/io_interface.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
 namespace chops {
@@ -34,7 +36,7 @@ namespace detail {
 template <typename IOH>
 class net_entity_base {
 public:
-  using state_change_cb = std::function<void (net_entity<IOH>, std::error_code, std::size_t)>;
+  using state_change_cb = std::function<void (io_interface<IOH>, std::error_code, std::size_t)>;
 
 private:
   using endpoints = std::vector<typename IOH::endpoint_type>;
@@ -66,8 +68,8 @@ public:
         m_host()
     { }
 
-  net_entity_base(std::experimental::net::io_context& ioc, std::string_view port, 
-                                                           std::string_view host) :
+  net_entity_base(std::experimental::net::io_context& ioc, 
+                  std::string_view port, std::string_view host) :
         m_started(false),
         m_state_change_cb(),
         m_resolved(false),
