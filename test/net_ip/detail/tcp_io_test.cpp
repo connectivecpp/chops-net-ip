@@ -39,7 +39,7 @@ using namespace std::experimental::net;
 using namespace chops::test;
 
 using notifier_cb = 
-  typename chops::net::detail::io_common<chops::net::detail::tcp_io>::entity_notifier_cb;
+  typename chops::net::detail::io_base<chops::net::detail::tcp_io>::entity_notifier_cb;
 
 constexpr int test_port = 30434;
 const char*   test_addr = "127.0.0.1";

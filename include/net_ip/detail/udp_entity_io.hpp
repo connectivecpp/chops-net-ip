@@ -28,7 +28,7 @@
 #include <string>
 
 #include "net_ip/detail/output_queue.hpp"
-#include "net_ip/detail/io_common.hpp"
+#include "net_ip/detail/io_base.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/io_interface.hpp"
@@ -45,12 +45,12 @@ public:
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
 
 private:
-  using entity_cb = typename io_common<udp_io>::entity_notifier_cb;
+  using entity_cb = typename io_base<udp_io>::entity_notifier_cb;
 
 private:
 
   socket_type            m_socket;
-  io_common<udp_io>      m_io_common;
+  io_base<udp_io>        m_io_base;
   endpoint_type          m_incoming_endp;
 
   // the following members could be passed through handlers, but are stored here
@@ -61,7 +61,7 @@ private:
 public:
 
   udp_io(socket_type sock, entity_cb cb) noexcept : 
-    m_socket(std::move(sock)), m_io_common(cb), 
+    m_socket(std::move(sock)), m_io_base(cb), 
     m_byte_vec(), m_read_size(0), m_delimiter() { }
 
 private:
@@ -76,15 +76,15 @@ public:
   socket_type& get_socket() noexcept { return m_socket; }
 
   output_queue_stats get_output_queue_stats() const noexcept {
-    return m_io_common.get_output_queue_stats();
+    return m_io_base.get_output_queue_stats();
   }
 
-  bool is_started() const noexcept { return m_io_common.is_started(); }
+  bool is_started() const noexcept { return m_io_base.is_started(); }
 
 
   template <typename MH>
   void start_io(MH&& msg_handler, std::string_view delimiter) {
-    if (!m_io_common.start_io_setup(m_socket)) {
+    if (!m_io_base.start_io_setup(m_socket)) {
       return;
     }
     m_delimiter = delimiter;
@@ -99,7 +99,7 @@ public:
   }
 
   void stop_io() {
-    m_io_common.check_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
+    m_io_base.check_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
                                shared_from_this());
   }
 
@@ -153,7 +153,7 @@ private:
 // method implementations, just to make the class declaration a little more readable
 
 inline void udp_io::close() {
-  m_io_common.stop();
+  m_io_base.stop();
   // attempt graceful shutdown
   std::error_code ec;
   m_socket.shutdown(std::experimental::net::ip::tcp::socket::shutdown_both, ec);
@@ -165,7 +165,7 @@ template <typename MH, typename MF>
 void udp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, 
                          const std::error_code& err, std::size_t num_bytes) {
 
-  if (!m_io_common.check_err_code(err, shared_from_this())) {
+  if (!m_io_base.check_err_code(err, shared_from_this())) {
     return;
   }
   // assert num_bytes == m_byte_vec.size()
@@ -173,9 +173,9 @@ void udp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  io_interface<udp_io>(weak_from_this()), m_io_common.get_remote_endp())) {
+                  io_interface<udp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
       // message handler not happy, tear everything down
-      m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
+      m_io_base.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  shared_from_this());
       return;
     }
@@ -194,12 +194,12 @@ template <typename MH, typename DB>
 void udp_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf, 
                                const std::error_code& err, std::size_t num_bytes) {
 
-  if (!m_io_common.check_err_code(err, shared_from_this())) {
+  if (!m_io_base.check_err_code(err, shared_from_this())) {
     return;
   }
   if (!msg_hdlr(dyn_buf.data(), // includes delimiter bytes
-                io_interface<udp_io>(weak_from_this()), m_io_common.get_remote_endp())) {
-      m_io_common.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
+                io_interface<udp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
+      m_io_base.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  shared_from_this());
     return;
   }
@@ -209,7 +209,7 @@ void udp_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf,
 
 
 inline void udp_io::start_write(chops::const_shared_buffer buf) {
-  if (!m_io_common.start_write_setup(buf)) {
+  if (!m_io_base.start_write_setup(buf)) {
     return; // buf queued or shutdown happening
   }
   auto self { shared_from_this() };
@@ -222,10 +222,10 @@ inline void udp_io::start_write(chops::const_shared_buffer buf) {
 }
 
 inline void udp_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
-  if (!m_io_common.check_err_code(err, shared_from_this())) {
+  if (!m_io_base.check_err_code(err, shared_from_this())) {
     return;
   }
-  auto elem = m_io_common.get_next_element();
+  auto elem = m_io_base.get_next_element();
   if (!elem) {
     return;
   }
