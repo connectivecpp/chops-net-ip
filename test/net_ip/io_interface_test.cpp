@@ -53,9 +53,21 @@ struct io_handler_base_mock {
   template <typename MH>
   void start_io(MH&&, std::size_t) { started = true; }
 
+  template <typename MH>
+  void start_io(MH&&, std::size_t, const ip::tcp::endpoint&) { started = true; }
+
+  template <typename MH>
+  void start_io(MH&&, std::size_t, const ip::udp::endpoint&) { started = true; }
+
   void start_io() { started = true; }
 
+  void start_io(const ip::tcp::endpoint&) { started = true; }
+
+  void start_io(const ip::udp::endpoint&) { started = true; }
+
   void stop_io() { started = false; }
+
+
 
 };
 
@@ -71,7 +83,7 @@ struct tcp_io_handler_mock : public io_handler_base_mock {
   socket_type& get_socket() { return sock; }
 
   void send(chops::const_shared_buffer) { }
-  void send(chops::const_shared_buffer, const ip::tcp::endpoint&) { }
+  void send(chops::const_shared_buffer, const endpoint_type&) { }
 
 };
 
@@ -87,7 +99,7 @@ struct udp_io_handler_mock : public io_handler_base_mock {
   socket_type& get_socket() { return sock; }
 
   void send(chops::const_shared_buffer) { }
-  void send(chops::const_shared_buffer, const ip::udp::endpoint&) { }
+  void send(chops::const_shared_buffer, const endpoint_type&) { }
 
 };
 
@@ -125,7 +137,9 @@ void io_interface_test_default_constructed() {
         REQUIRE_FALSE (io_intf.start_io([] { }, [] { }, 0));
         REQUIRE_FALSE (io_intf.start_io([] { }, "testing, hah!"));
         REQUIRE_FALSE (io_intf.start_io([] { }, 0));
+        REQUIRE_FALSE (io_intf.start_io([] { }, 0, endp));
         REQUIRE_FALSE (io_intf.start_io());
+        REQUIRE_FALSE (io_intf.start_io(endp));
 
         REQUIRE_FALSE (io_intf.stop_io());
       }
@@ -173,6 +187,8 @@ void io_interface_test_two() {
         REQUIRE (io_intf.start_io([] { }, [] { }, 0));
         REQUIRE (io_intf.start_io([] { }, "testing, hah!"));
         REQUIRE (io_intf.start_io([] { }, 0));
+        REQUIRE (io_intf.start_io([] { }, 0, endp));
+        REQUIRE (io_intf.start_io(endp));
         REQUIRE (io_intf.start_io());
 
         REQUIRE (io_intf.is_started());

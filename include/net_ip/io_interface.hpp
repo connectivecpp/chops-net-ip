@@ -249,7 +249,7 @@ public:
  *
  *  @param sz Size of buffer.
  *
- *  @param endp Destination @c std::experimental::net::ip::udp::endpoint.
+ *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
@@ -265,7 +265,7 @@ public:
  *
  *  @param buf @c chops::const_shared_buffer containing data.
  *
- *  @param endp Destination @c std::experimental::net::ip::udp::endpoint.
+ *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
@@ -283,7 +283,7 @@ public:
  *
  *  @param buf @c chops::mutable_shared_buffer containing data.
  *
- *  @param endp Destination @c std::experimental::net::ip::udp::endpoint.
+ *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
@@ -319,9 +319,10 @@ public:
  *          std::experimental::net::ip::tcp::endpoint);
  *  @endcode
  *
- *  The buffer always references from the beginning of the full message. The 
+ *  The buffer (first parameter) always references a full message. The 
  *  @c io_interface can be used for sending a reply. The endpoint is the remote 
- *  endpoint that sent the data. 
+ *  endpoint that sent the data (not used in the @c send method call, but may be
+ *  useful for other purposes). 
 
  *  Returning @c false from the message handler callback causes the connection to be 
  *  closed.
@@ -346,11 +347,12 @@ public:
  *  object, or 2) Design a single class that provides two operator function call overloads 
  *  and use the same object for both the message handler and the message frame processing.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
- *
  *  @param header_size The initial read size (in bytes) of each incoming message.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
+ *
+ *  @note If @c is_started is already @c true, this method call is ignored.
+ *
  */
   template <typename MH, typename MF>
   bool start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) {
@@ -387,11 +389,12 @@ public:
  *  endpoint that sent the data. Returning @c false from the message handler callback 
  *  causes the connection to be closed.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
- *
  *  @param delimiter Delimiter characters denoting end of each message.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
+ *
+ *  @note If @c is_started is already @c true, this method call is ignored.
+ *
  */
   template <typename MH>
   bool start_io(MH&& msg_handler, std::string_view delimiter) {
@@ -408,8 +411,8 @@ public:
  *  For TCP IO handlers, this reads fixed size messages.
  *
  *  For UDP IO handlers, this specifies the maximum size of the datagram. For IPv4 this
- *  value can be up to 65,507, larger for IPv6. If the incoming datagram contains
- *  a size larger than the specified size, data will be truncated (lost).
+ *  value can be up to 65,507 (for IPv6 this maximum is larger). If the incoming datagram 
+ *  contains a size larger than the specified size, data will be truncated or lost.
  *
  *  Sends (writes) are enabled after this call.
  *
@@ -427,23 +430,63 @@ public:
  *          std::experimental::net::ip::udp::endpoint);
  *  @endcode
  *
- *  For UDP the buffer size denotes the incoming datagram size. For TCP the buffer size will 
- *  always match the "read_size" parameter. 
- *
  *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
  *  be closed.
- *
- *  @note If @c is_started is already @c true, this method call is ignored.
  *
  *  @param read_size Maximum UDP datagram size or fixed TCP read size.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
+ *
+ *  @note If @c is_started is already @c true, this method call is ignored.
+ *
  */
 
   template <typename MH>
   bool start_io(MH&& msg_handler, std::size_t read_size) {
     auto p = m_ioh_wptr.lock();
     return p ? (p->start_io(std::forward<MH>(msg_handler), read_size), true) : false;
+  }
+
+/**
+ *  @brief Enable IO processing for the associated network IO handler with a maximum 
+ *  buffer size and a default destination endpoint.
+ *
+ *  This method is not implemented for TCP IO handlers (only for UDP IO handlers).
+ *
+ *  This allows the @c send method without an endpoint to be called for UDP datagrams.
+ *  The buffer will be sent to this destination endpoint.
+ *
+ *  The maximum size parameter is the same as the corresponding (without default 
+ *  destination endpoint) @c start_io method.
+ *
+ *  Sends (writes) are enabled after this call.
+ *
+ *  @param msg_handler A message handler function object callback. The signature of
+ *  the callback is:
+ *
+ *  @code
+ *    bool (std::experimental::net::const_buffer,
+ *          chops::net::udp_io_interface,
+ *          std::experimental::net::ip::udp::endpoint);
+ *  @endcode
+ *
+ *  Returning @c false from the message handler callback causes the UDP socket to 
+ *  be closed.
+ *
+ *  @param max_size Maximum UDP datagram size.
+ *
+ *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ *
+ *  @note If @c is_started is already @c true, this method call is ignored.
+ *
+ */
+
+  template <typename MH>
+  bool start_io(MH&& msg_handler, std::size_t max_size, const endpoint_type& endp) {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->start_io(std::forward<MH>(msg_handler), max_size, endp), true) : false;
   }
 
 /**
@@ -459,9 +502,10 @@ public:
  *  the read completes it is due to an error condition). For UDP IO handlers, no
  *  reads are started.
  *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ *
  *  @note If @c is_started is already @c true, this method call is ignored.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
  */
 
   bool start_io() {
@@ -469,6 +513,29 @@ public:
     return p ? (p->start_io(), true) : false;
   }
 
+/**
+ *  @brief Enable IO processing for the associated network IO handler with no incoming
+ *  message handling, but with a default destination endpoint.
+ *
+ *  This method is not implemented for TCP IO handlers (only for UDP IO handlers).
+ *
+ *  This allows the @c send method without an endpoint to be called for UDP datagrams.
+ *
+ *  This method is used to enable IO processing where only sends are needed (and no 
+ *  incoming message handling).
+ *
+ *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *
+ *  @return @c true if IO handler association is valid, otherwise @c false.
+ *
+ *  @note If @c is_started is already @c true, this method call is ignored.
+ *
+ */
+
+  bool start_io(const endpoint_type& endp) {
+    auto p = m_ioh_wptr.lock();
+    return p ? (p->start_io(endp), true) : false;
+  }
  
 /**
  *  @brief Stop IO processing and close the associated network IO handler.
