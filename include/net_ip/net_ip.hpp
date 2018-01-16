@@ -145,7 +145,7 @@ public:
  *
  */
   tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port, std::string_view listen_intf = "") {
-    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(local_port, listen_intf);
+    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, local_port, listen_intf);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     return tcp_acceptor_net_entity(p);
   }
@@ -162,7 +162,7 @@ public:
  *
  */
   tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp) {
-    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(endp);
+    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     return tcp_acceptor_net_entity(p);
   }
@@ -174,14 +174,13 @@ public:
  *  Internally a sequence of endpoints will be looked up through a name resolver,
  *  and each endpoint will be tried in succession.
  *
- *  A reconnect timeout can be provided, which will result in another connect
- *  attempt (per timeout period) if the initial connect fails. Reconnect attempts will 
- *  continue until a connect is successful or the resource is stopped (through the 
- *  @c net_entity @c stop method). If a connection is broken or the TCP connector is 
- *  stopped, reconnects will not be attempted, so it is the application's responsibility 
- *  to call @c start again on the @c net_entity. 
+ *  If a reconnect timeout is provided (parm > 0), connect failures result in reconnect 
+ *  attempts after the timeout period. Reconnect attempts will continue until a connect is 
+ *  successful or the @c net_entity @c stop method is called. If a connection is broken or the 
+ *  TCP connector is stopped, reconnects will not be attempted, so it is the application's 
+ *  responsibility to call @c start again on the @c net_entity. 
  *
- *  @param remote_port Port number of remote host.
+ *  @param remote_port_or_service Port number or service name of remote host.
  *
  *  @param remote_host Remote host name.
  *
@@ -191,11 +190,12 @@ public:
  *  @return @c tcp_connector_net_entity object.
  *
  */
-  tcp_connector_net_entity make_tcp_connector (std::string_view remote_port,
+  tcp_connector_net_entity make_tcp_connector (std::string_view remote_port_or_service,
                                                std::string_view remote_host,
                                                std::size_t reconn_time_millis = 0) {
 
-    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(remote_port, remote_host, reconn_time_millis);
+    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
+                                                                  remote_host, reconn_time_millis);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
 
@@ -219,7 +219,8 @@ public:
  */
 
   template <typename Iter>
-  tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end, reconn_time_millis = 0);
+  tcp_connector_net_entity make_tcp_connector (m_ioc, Iter beg, Iter end, std::size_t reconn_time_millis = 0);
+    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(beg, end, reconn_time_millis);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
   }
