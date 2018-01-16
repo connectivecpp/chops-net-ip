@@ -41,8 +41,8 @@ using hdr_decoder_func = std::size_t (*)(const std::byte*);
 
 /**
  *  @brief Create a message frame function object for the common use case of variable len 
- *  message composed of a header and a single body, where the header decoding function is 
- *  supplied by the application.
+ *  message composed of a single header and a single body, where the header decoding function 
+ *  is supplied by the application.
  *
  *  @relates io_interface
  */
