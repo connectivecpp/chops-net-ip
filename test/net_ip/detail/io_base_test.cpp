@@ -173,7 +173,7 @@ struct tcp_io_mock {
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
 
-  void notify_me(const std::error_code& err, std::shared_ptr<tcp_io_mock> p) {
+  void notify_me(std::error_code err, std::shared_ptr<tcp_io_mock> p) {
     notify_called = true;
   }
 
@@ -185,7 +185,7 @@ struct udp_io_mock {
   using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
 
-  void notify_me(const std::error_code& err, std::shared_ptr<udp_io_mock> p) {
+  void notify_me(std::error_code err, std::shared_ptr<udp_io_mock> p) {
     notify_called = true;
   }
 
