@@ -29,7 +29,7 @@ constexpr int Expected = 9;
 int count = 0;
 
 template <typename D>
-bool lambda_util (const std::error_code& err, const D& elap) {
+bool lambda_util (std::error_code err, D elap) {
   ++count;
   INFO ("count = " << count << ", err code = " << err.value() << ", " << err.message());
   return count < Expected;
@@ -58,7 +58,7 @@ void test_util () {
 
     WHEN ( "The duration is 100 ms" ) {
       auto test_dur { 100 };
-      timer.start_duration_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
+      timer.start_duration_timer( [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
         } , std::chrono::milliseconds(test_dur));
 
@@ -70,7 +70,7 @@ void test_util () {
     }
     WHEN ( "The duration is 200 ms and the start time is 2 seconds in the future" ) {
       auto test_dur { 200 };
-      timer.start_duration_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
+      timer.start_duration_timer( [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
         } , std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2));
 
@@ -82,7 +82,7 @@ void test_util () {
     }
     WHEN ( "The duration is 100 ms and the timer pops on timepoints" ) {
       auto test_dur { 100 };
-      timer.start_timepoint_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
+      timer.start_timepoint_timer( [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
         } , std::chrono::milliseconds(test_dur));
 
@@ -94,7 +94,7 @@ void test_util () {
     }
     WHEN ( "The duration is 200 ms and the timer pops on timepoints starting 2 seconds in the future" ) {
       auto test_dur { 200 };
-      timer.start_timepoint_timer( [] (const std::error_code& err, const typename Clock::duration& elap) { 
+      timer.start_timepoint_timer( [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
         } , std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2));
 
