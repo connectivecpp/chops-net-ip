@@ -39,22 +39,47 @@ public:
 private:
   using endpoints = std::vector<typename IOH::endpoint_type>;
   using io_handlers = std::vector<std::shared_ptr<IOH> >;
+  using prot = typename IOH::endpoint_type::protocol_type;
 
 private:
 
   std::atomic_bool           m_started; // may be called from multiple threads concurrently
   state_change_cb            m_state_change_cb;
   bool                       m_resolved;
-  endpoints_resolver         m_resolver;
+  endpoints_resolver<prot>   m_resolver;
   endpoints                  m_endpoints;
   io_handlers                m_io_handlers;
+  std::string                m_port;
+  std::string                m_host;
 
 public:
 
-  explicit net_entity_base(state_change_cb cb) noexcept :
-    m_started(false), m_state_change_cb(cb), m_ { }
+  template <typename Iter>
+  net_entity_base(std::experimental::net::io_context& ioc, Iter beg, Iter end) :
+        m_started(false),
+        m_state_change_cb(),
+        m_resolved(true),
+        m_resolver(ioc),
+        m_endpoints(beg, end),
+        m_io_handlers(),
+        m_port(),
+        m_host()
+    { }
+
+  net_entity_base(std::experimental::net::io_context& ioc, std::string_view port, 
+                                                           std::string_view host) :
+        m_started(false),
+        m_state_change_cb(),
+        m_resolved(false),
+        m_resolver(ioc),
+        m_endpoints(beg, end),
+        m_io_handlers(),
+        m_port(port),
+        m_host(host)
+    { }
 
   bool is_started() const noexcept { return m_started; }
+  bool is_resolved() const noexcept { return m_resolved; }
 
   void stop() noexcept { m_started = false; m_write_in_progress = false; }
 

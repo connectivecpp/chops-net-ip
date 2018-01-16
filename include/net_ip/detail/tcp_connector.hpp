@@ -25,8 +25,8 @@
 #include <cstddef> // for std::size_t
 
 #include "net_ip/detail/tcp_io.hpp"
+#include "net_ip/detail/net_entity_base.hpp"
 #include "timer/periodic_timer.hpp"
-#include "net_ip/endpoints_resolver.hpp"
 
 namespace chops {
 namespace net {
@@ -38,39 +38,30 @@ private:
 
 private:
 
-  std::atomic_bool       m_started;
-  bool                   m_resolved;
-  std::unique_ptr<chops::net::endpoints_resolver>
-                         m_resolver;
-  endpoints              m_endpoints;
-  std::experiment::net::ip::tcp::socket
-                         m_socket;
-  chops::periodic_timer  m_timer;
-  std::shared_ptr<detail::tcp_io>
-                         m_io_handler;
-  std::function<
+  net_entity_base                         m_entity_base;
+  std::experiment::net::ip::tcp::socket   m_socket;
+  chops::periodic_timer<>                 m_timer;
+  std::size_t                             m_reconn_time;
 
 public:
   template <typename Iter>
   tcp_connector(std::experimental::net::io_context& ioc, 
-                Iter beg, Iter end, std::size_t reconnTimeMillis) :
-      m_start(false),
-      m_resolved(true),
-      m_resolver(),
-      m_endpoints(beg, end),
+                Iter beg, Iter end, std::size_t reconn_time) :
+      m_entity_base(ioc, beg, end);
       m_socket(ioc),
       m_timer(ioc),
-      m_io_handler()
+      m_reconn_time(reconn_time)
     { }
-
-
-      SockLibResource(), mIoService(io_service), mEndpoint(endp), mReconnTimer(io_service), 
-      mReconnTimeMillis(reconnTimeMillis), mIoHandler(), mCcCb(), mNoDelay(noDelay), mStarted(false)
-      { SockLibResource::setDerived(this); }
 
   tcp_connector(std::experimental::net::io_context& ioc,
                 std::string_view remote_port, std::string_view remote_host, 
                 std::size_t reconn_time_millis) :
+      m_entity_base(ioc, remote_port, remote_host);
+      m_socket(ioc),
+      m_timer(ioc),
+      m_reconn_time(reconn_time)
+    { }
+
 
 public:
   // overrides of SockLibResource virtuals
