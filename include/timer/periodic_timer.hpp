@@ -97,9 +97,12 @@ public:
    * Constructing a @c periodic_timer does not start the actual timer. Calling one of the 
    * @c start methods starts the timer.
    *
-   * The application supplied function object requires a signature with two parameters, 
-   * @c const @c std::error_code& and @c const @c duration&. The second parameter provides an 
-   * elapsed time from the previous callback.
+   * The application supplied function object requires the following signature:
+   * @code
+   *   bool (std::error_code, duration);
+   * @endcode
+   *
+   * The @c duration parameter provides an elapsed time from the previous callback.
    *
    * The clock for the asynchronous timer defaults to @c std::chrono::steady_clock.
    * Other clock types can be used if desired (e.g. @c std::chrono::high_resolution_clock 
