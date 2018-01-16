@@ -25,7 +25,7 @@
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
-#include "net_ip/make_endpoints.hpp"
+#include "net_ip/endpoints_resolver.hpp"
 #include "utility/erase_where.hpp"
 
 namespace chops {
@@ -137,26 +137,31 @@ public:
  *
  *  @param local_port Port number to bind to for incoming TCP connects.
  *
- *  @param listen_intf If this parameter is supplied, the bind will be performed on a
- *  specific IP interface. Otherwise, the bind is for "any" IP interface (which is the
- *  typical usage).
+ *  @param listen_intf If this parameter is supplied, the bind (when @c start is called) will 
+ *  be performed on a specific IP interface. Otherwise, the bind is for "any" IP interface 
+ *  (which is the typical usage).
  *
  *  @return @c tcp_acceptor_net_entity object.
  *
+ *  @note The name and port lookup to create a TCP endpoint is immediately performed. The
+ *  alternate TCP acceptor @c make method can be used if this is not acceptable.
+ *
  */
   tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port, std::string_view listen_intf = "") {
-    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, local_port, listen_intf);
-    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
-    return tcp_acceptor_net_entity(p);
+    endpoints_resolver<std::experimental::net::ip::tcp> resolver(m_ioc);
+    auto results = resolver.make_endpoints(true, listen_intf, local_port);
+    return make_tcp_acceptor(results.cbegin()->endpoint());
   }
 
 /**
  *  @brief Create a TCP acceptor @c net_entity, using an already created endpoint.
  *
- *  This allows flexibility in creating an endpoint for the acceptor to use.
+ *  This @c make method allows flexibility in creating an endpoint for the acceptor to use, 
+ *  such as directly specifying ipV4 or ipV6 in name resolving, or directly creating the endpoint 
+ *  without using name resolving.
  *
  *  @param endp A @c std::experimental::net::ip::tcp::endpoint that the acceptor uses for the local
- *  bind.
+ *  bind (when @c start is called).
  *
  *  @return @c tcp_acceptor_net_entity object.
  *
@@ -171,7 +176,7 @@ public:
  *  @brief Create a TCP connector @c net_entity, which will perform an active TCP
  *  connect to the specified address (once started).
  *
- *  Internally a sequence of endpoints will be looked up through a name resolver,
+ *  Internally a sequence of remote endpoints will be looked up through a name resolver,
  *  and each endpoint will be tried in succession.
  *
  *  If a reconnect timeout is provided (parm > 0), connect failures result in reconnect 
@@ -180,7 +185,7 @@ public:
  *  TCP connector is stopped, reconnects will not be attempted, so it is the application's 
  *  responsibility to call @c start again on the @c net_entity. 
  *
- *  @param remote_port_or_service Port number or service name of remote host.
+ *  @param remote_port_or_service Port number or service name on remote host.
  *
  *  @param remote_host Remote host name.
  *
@@ -188,6 +193,11 @@ public:
  *  reconnects are attempted (default is 0).
  *
  *  @return @c tcp_connector_net_entity object.
+ *
+ *  @note The name and port lookup to create a sequence of remote TCP endpoints is not performed
+ *  until the @c net_entity @c start method is called. If this is not acceptable, the
+ *  endpoints can be looked up by the application and the alternate @c make_tcp_connector
+ *  method called.
  *
  */
   tcp_connector_net_entity make_tcp_connector (std::string_view remote_port_or_service,
@@ -204,12 +214,12 @@ public:
  *  @brief Create a TCP connector @c net_entity, using an already created sequence of 
  *  endpoints.
  *
- *  This allows flexibility in creating the endpoints for the connector to use.
+ *  This allows flexibility in creating the remote endpoints for the connector to use.
  *
- *  @param beg A begin iterator to a sequence of @c std::experimental::net::ip::tcp::endpoint
+ *  @param beg A begin iterator to a sequence of remote @c std::experimental::net::ip::tcp::endpoint
  *  objects.
  *
- *  @param end An end iterator to a sequence of endpoints.
+ *  @param end An end iterator to the sequence of endpoints.
  *
  *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
@@ -217,12 +227,29 @@ public:
  *  @return @c tcp_connector_net_entity object.
  *
  */
-
   template <typename Iter>
-  tcp_connector_net_entity make_tcp_connector (m_ioc, Iter beg, Iter end, std::size_t reconn_time_millis = 0);
-    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(beg, end, reconn_time_millis);
+  tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end, std::size_t reconn_time_millis = 0);
+    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time_millis);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
+  }
+
+/**
+ *  @brief Create a TCP connector @c net_entity using a single remote endpoint.
+ *
+ *  @param endp Remote @c std::experimental::net::ip::tcp::endpoint to use for the connect
+ *  attempt.
+ *
+ *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
+ *  reconnects are attempted (default is 0).
+ *
+ *  @return @c tcp_connector_net_entity object.
+ *
+ */
+  tcp_connector_net_entity make_tcp_connector (const std::experimental::net::ip::tcp::endpoint& endp, 
+                                               std::size_t reconn_time_millis = 0);
+    std::vector<std::experimental::net::ip::tcp::endpoint> vec { endp };
+    return make_tcp_connector(vec.cbegin(), vec.cend(), reconn_time_millis);
   }
 
 /**
