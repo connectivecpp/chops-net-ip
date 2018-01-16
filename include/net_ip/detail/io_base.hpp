@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef IO_COMMON_HPP_INCLUDED
-#define IO_COMMON_HPP_INCLUDED
+#ifndef IO_BASE_HPP_INCLUDED
+#define IO_BASE_HPP_INCLUDED
 
 #include <atomic>
 #include <system_error>
@@ -37,7 +37,7 @@ inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer /* buf
 }
 
 template <typename IOH>
-class io_common {
+class io_base {
 public:
   using entity_notifier_cb = std::function<void (const std::error_code&, std::shared_ptr<IOH>)>;
   using outq_type = output_queue<typename IOH::endpoint_type>;
@@ -54,7 +54,7 @@ private:
 
 public:
 
-  explicit io_common(entity_notifier_cb cb) noexcept :
+  explicit io_base(entity_notifier_cb cb) noexcept :
     m_started(false), m_write_in_progress(false), m_outq(), m_remote_endp(), m_entity_notifier_cb(cb) { }
 
   queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
@@ -80,14 +80,14 @@ public:
 };
 
 template <typename IOH>
-void io_common<IOH>::process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
+void io_base<IOH>::process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
   if (err) {
     m_entity_notifier_cb(err, ioh_ptr);
   }
 }
 
 template <typename IOH>
-bool io_common<IOH>::start_io_setup(typename IOH::socket_type& sock) noexcept {
+bool io_base<IOH>::start_io_setup(typename IOH::socket_type& sock) noexcept {
   if (m_started) {
     return false;
   }
@@ -98,7 +98,7 @@ bool io_common<IOH>::start_io_setup(typename IOH::socket_type& sock) noexcept {
 }
 
 template <typename IOH>
-bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
+bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
   if (!m_started) {
     return false; // shutdown happening or not started, don't start a write
   }
@@ -111,7 +111,7 @@ bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
 }
 
 template <typename IOH>
-bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
+bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
                                        const typename IOH::endpoint_type& endp) {
   if (!m_started) {
     return false; // shutdown happening or not started, don't start a write
@@ -125,7 +125,7 @@ bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf,
 }
 
 template <typename IOH>
-typename io_common<IOH>::outq_opt_el io_common<IOH>::get_next_element() {
+typename io_base<IOH>::outq_opt_el io_base<IOH>::get_next_element() {
   if (!m_started) { // shutting down
     return outq_opt_el { };
   }
