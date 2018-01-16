@@ -73,7 +73,7 @@ inline auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
  *
  *  An @c io_interface object is provided for application use through a state change 
  *  function object callback. This occurs when a @c net_entity creates the underlying 
- *  network IO handler, or the network IO handler is being closed and destucted. 
+ *  network IO handler, or the network IO handler is being closed and destructed. 
  *  The @c net_entity class documentation provides more detail.
  *
  *  An @c io_interface object is either associated with a network IO handler
@@ -346,7 +346,7 @@ public:
  *  object, or 2) Design a single class that provides two operator function call overloads 
  *  and use the same object for both the message handler and the message frame processing.
  *
- *  @note If @c is_started is @c true, this method call is ignored.
+ *  @note If @c is_started is already @c true, this method call is ignored.
  *
  *  @param header_size The initial read size (in bytes) of each incoming message.
  *
@@ -387,7 +387,7 @@ public:
  *  endpoint that sent the data. Returning @c false from the message handler callback 
  *  causes the connection to be closed.
  *
- *  @note If @c is_started is @c true, this method call is ignored.
+ *  @note If @c is_started is already @c true, this method call is ignored.
  *
  *  @param delimiter Delimiter characters denoting end of each message.
  *
@@ -433,7 +433,7 @@ public:
  *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
  *  be closed.
  *
- *  @note If @c is_started is @c true, this method call is ignored.
+ *  @note If @c is_started is already @c true, this method call is ignored.
  *
  *  @param read_size Maximum UDP datagram size or fixed TCP read size.
  *
@@ -459,7 +459,7 @@ public:
  *  the read completes it is due to an error condition). For UDP IO handlers, no
  *  reads are started.
  *
- *  @note If @c is_started is @c true, this method call is ignored.
+ *  @note If @c is_started is already @c true, this method call is ignored.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
