@@ -74,9 +74,9 @@ public:
  *  @code
  *    using namespace std::experimental::net;
  *    // TCP:
- *    void (const std::error_code& err, ip::basic_resolver_results<ip::tcp>);
+ *    void (std::error_code err, ip::basic_resolver_results<ip::tcp>);
  *    // UDP:
- *    void (const std::error_code& err, ip::basic_resolver_results<ip::udp>);
+ *    void (std::error_code err, ip::basic_resolver_results<ip::udp>);
  *  @endcode
  *
  *  If an error occurs, the error code is set accordingly. 
