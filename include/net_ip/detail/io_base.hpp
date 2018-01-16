@@ -39,7 +39,7 @@ inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer /* buf
 template <typename IOH>
 class io_base {
 public:
-  using entity_notifier_cb = std::function<void (const std::error_code&, std::shared_ptr<IOH>)>;
+  using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<IOH>)>;
   using outq_type = output_queue<typename IOH::endpoint_type>;
   using outq_opt_el = typename outq_type::opt_queue_element;
   using queue_stats = chops::net::output_queue_stats;
