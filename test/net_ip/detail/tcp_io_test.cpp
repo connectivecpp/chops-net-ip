@@ -46,14 +46,14 @@ const char*   test_addr = "127.0.0.1";
 constexpr int NumMsgs = 50;
 
 
-using notifier_data = std::tuple<std::error_code, std::shared_ptr<chops::net::detail::tcp_io> >;
+using notifier_data = std::tuple<std::error_code, chops::net::detail::tcp_io_ptr>;
 
 struct entity_notifier {
   entity_notifier() = default;
 
   std::promise<notifier_data> prom;
 
-  void notify_me(const std::error_code& e, std::shared_ptr<chops::net::detail::tcp_io> p) {
+  void notify_me(const std::error_code& e, chops::net::detail::tcp_io_ptr p) {
     p->close();
     prom.set_value(notifier_data(e, p));
   }
@@ -64,8 +64,6 @@ struct entity_notifier {
 // thread; return data: 1. error code 2. Does the ioh ptr match? 3. msg set size
 using thread_data = std::tuple<std::error_code, bool, std::size_t>; 
 using thread_promise = std::promise<thread_data>;
-
-using tcp_ioh_ptr = std::shared_ptr<chops::net::detail::tcp_io>;
 
 void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
                      int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {

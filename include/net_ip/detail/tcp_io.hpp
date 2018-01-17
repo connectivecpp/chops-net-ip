@@ -270,6 +270,8 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
   );
 }
 
+using tcp_io_ptr = std::shared_ptr<tcp_io>;
+
 } // end detail namespace
 } // end net namespace
 } // end chops namespace

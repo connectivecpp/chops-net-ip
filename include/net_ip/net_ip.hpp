@@ -141,16 +141,21 @@ public:
  *  be performed on a specific IP interface. Otherwise, the bind is for "any" IP interface 
  *  (which is the typical usage).
  *
+ *  @param reuse_addr If @c true (default), the @c reuse_address socket option is set upon 
+ *  socket open.
+ *
  *  @return @c tcp_acceptor_net_entity object.
  *
  *  @note The name and port lookup to create a TCP endpoint is immediately performed. The
  *  alternate TCP acceptor @c make method can be used if this is not acceptable.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port, std::string_view listen_intf = "") {
+  tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port, 
+                                             std::string_view listen_intf = "",
+                                             bool reuse_addr = true) {
     endpoints_resolver<std::experimental::net::ip::tcp> resolver(m_ioc);
     auto results = resolver.make_endpoints(true, listen_intf, local_port);
-    return make_tcp_acceptor(results.cbegin()->endpoint());
+    return make_tcp_acceptor(results.cbegin()->endpoint(), reuse_addr);
   }
 
 /**
@@ -163,11 +168,15 @@ public:
  *  @param endp A @c std::experimental::net::ip::tcp::endpoint that the acceptor uses for the local
  *  bind (when @c start is called).
  *
+ *  @param reuse_addr If @c true (default), the @c reuse_address socket option is set upon 
+ *  socket open.
+ *
  *  @return @c tcp_acceptor_net_entity object.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp) {
-    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp);
+  tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp,
+                                             bool reuse_addr = true) {
+    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     return tcp_acceptor_net_entity(p);
   }
