@@ -84,7 +84,7 @@ public:
 
   template <typename MH, typename MF>
   void start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) {
-    if (!m_io_base.start_io_setup(m_socket)) {
+    if (!start_io_setup()) {
       return;
     }
     m_read_size = header_size;
@@ -95,7 +95,7 @@ public:
 
   template <typename MH>
   void start_io(MH&& msg_handler, std::string_view delimiter) {
-    if (!m_io_base.start_io_setup(m_socket)) {
+    if (!start_io_setup()) {
       return;
     }
     m_delimiter = delimiter;
@@ -132,6 +132,16 @@ public:
   void close();
 
 private:
+
+  bool start_io_setup() {
+    std::error_code ec;
+    endpoint_type endp = m_socket.remote_endpoint(ec);
+    if (ec) {
+      m_io_base.process_err_code(ec, shared_from_this());
+      return false;
+    }
+    return m_io_base.start_io_setup(endp);
+  }
 
   template <typename MH, typename MF>
   void start_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf) {

@@ -21,7 +21,6 @@
 #include <memory> // std::shared_ptr
 
 #include <experimental/internet>
-#include <experimental/socket>
 #include <experimental/buffer>
 
 #include "net_ip/detail/output_queue.hpp"
@@ -32,12 +31,14 @@ namespace chops {
 namespace net {
 namespace detail {
 
-inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer /* buf */ ) {
+inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer /* buf */ ) noexcept {
   return 0;
 }
 
 template <typename IOH>
 class io_base {
+private:
+  using endp_type = typename IOH::endpoint_type;
 public:
   using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<IOH>)>;
   using outq_type = output_queue<typename IOH::endpoint_type>;
@@ -46,11 +47,11 @@ public:
 
 private:
 
-  std::atomic_bool             m_started; // may be called from multiple threads concurrently
-  bool                         m_write_in_progress; // internal only, doesn't need to be atomic
-  outq_type                    m_outq;
-  typename IOH::endpoint_type  m_remote_endp;
-  entity_notifier_cb           m_entity_notifier_cb;
+  std::atomic_bool     m_started; // may be called from multiple threads concurrently
+  bool                 m_write_in_progress; // internal only, doesn't need to be atomic
+  outq_type            m_outq;
+  endp_type            m_remote_endp;
+  entity_notifier_cb   m_entity_notifier_cb;
 
 public:
 
@@ -59,7 +60,7 @@ public:
 
   queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
 
-  const typename IOH::endpoint_type& get_remote_endp() const noexcept { return m_remote_endp; }
+  const endp_type& get_remote_endp() const noexcept { return m_remote_endp; }
 
   bool is_started() const noexcept { return m_started; }
 
@@ -67,13 +68,13 @@ public:
 
   void stop() noexcept { m_started = false; m_write_in_progress = false; }
 
-  bool start_io_setup(typename IOH::socket_type&) noexcept;
+  bool start_io_setup(const endp_type&);
 
   void process_err_code(const std::error_code&, std::shared_ptr<IOH>);
 
   // assumption - following methods called from single thread only
   bool start_write_setup(const chops::const_shared_buffer&);
-  bool start_write_setup(const chops::const_shared_buffer&, const typename IOH::endpoint_type&);
+  bool start_write_setup(const chops::const_shared_buffer&, const endp_type&);
 
   outq_opt_el get_next_element();
 
@@ -87,13 +88,12 @@ void io_base<IOH>::process_err_code(const std::error_code& err, std::shared_ptr<
 }
 
 template <typename IOH>
-bool io_base<IOH>::start_io_setup(typename IOH::socket_type& sock) noexcept {
+bool io_base<IOH>::start_io_setup(const endp_type& endp) {
   if (m_started) {
     return false;
   }
   m_started = true;
-  std::error_code ec;
-  m_remote_endp = sock.remote_endpoint(ec); // if fails, remote endp is left as default constructed
+  m_remote_endp = endp; // endpoint assignment not declared as noexcept
   return true;
 }
 
@@ -112,7 +112,7 @@ bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
 
 template <typename IOH>
 bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
-                                       const typename IOH::endpoint_type& endp) {
+                                     const endp_type& endp) {
   if (!m_started) {
     return false; // shutdown happening or not started, don't start a write
   }

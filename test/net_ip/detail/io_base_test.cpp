@@ -13,7 +13,6 @@
 #include "catch.hpp"
 
 #include <experimental/internet> // endpoint declarations
-#include <experimental/socket>
 #include <experimental/io_context>
 
 #include <memory> // std::shared_ptr
@@ -27,14 +26,6 @@
 
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
-
-template <typename IOH>
-bool call_start_io_setup(chops::net::detail::io_base<IOH>& comm) {
-
-  std::experimental::net::io_context ioc;
-  typename IOH::socket_type sock(ioc);
-  return comm.start_io_setup(sock);
-}
 
 template <typename IOH>
 void io_base_test(chops::const_shared_buffer buf, int num_bufs,
@@ -70,7 +61,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_io_setup is called") {
-      bool ret = call_start_io_setup(iobase);
+      bool ret = iobase.start_io_setup(endp);
       REQUIRE (ret);
       THEN ("the started flag is true and write_in_progress flag false") {
         REQUIRE (iobase.is_started());
@@ -79,9 +70,9 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_io_setup is called twice") {
-      bool ret = call_start_io_setup(iobase);
+      bool ret = iobase.start_io_setup(endp);
       REQUIRE (ret);
-      ret = call_start_io_setup(iobase);
+      ret = iobase.start_io_setup(endp);
       THEN ("the second call returns false") {
         REQUIRE_FALSE (ret);
       }
@@ -95,7 +86,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_write_setup is called after start_io_setup") {
-      bool ret = call_start_io_setup(iobase);
+      bool ret = iobase.start_io_setup(endp);
       ret = iobase.start_write_setup(buf);
       THEN ("the call returns true and write_in_progress flag is true and queue size is zero") {
         REQUIRE (ret);
@@ -105,7 +96,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_write_setup is called twice") {
-      bool ret = call_start_io_setup(iobase);
+      bool ret = iobase.start_io_setup(endp);
       ret = iobase.start_write_setup(buf);
       ret = iobase.start_write_setup(buf);
       THEN ("the call returns false and write_in_progress flag is true and queue size is one") {
@@ -116,7 +107,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_write_setup is called many times") {
-      bool ret = call_start_io_setup(iobase);
+      bool ret = iobase.start_io_setup(endp);
       REQUIRE (ret);
       chops::repeat(num_bufs, [&iobase, &buf, &ret, &endp] () { 
           ret = iobase.start_write_setup(buf, endp);
@@ -129,7 +120,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_write_setup is called many times and get_next_element is called 2 less times") {
-      bool ret = call_start_io_setup(iobase);
+      bool ret = iobase.start_io_setup(endp);
       REQUIRE (ret);
       chops::repeat(num_bufs, [&iobase, &buf, &ret, &endp] () { 
           iobase.start_write_setup(buf, endp);
@@ -170,7 +161,6 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
 struct tcp_io_mock {
   bool notify_called = false;
 
-  using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
 
   void notify_me(std::error_code err, std::shared_ptr<tcp_io_mock> p) {
@@ -182,7 +172,6 @@ struct tcp_io_mock {
 struct udp_io_mock {
   bool notify_called = false;
 
-  using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
 
   void notify_me(std::error_code err, std::shared_ptr<udp_io_mock> p) {
