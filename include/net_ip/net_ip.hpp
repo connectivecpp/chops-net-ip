@@ -387,7 +387,7 @@ public:
  */
   void remove(tcp_connector_net_entity conn) {
     std::experimental::net::post(m_ioc.get_executor(), 
-          [conn, this] () { conn->stop(); chops::erase_where(m_connectors, acc); } );
+          [conn, this] () { conn->stop(); chops::erase_where(m_connectors, conn); } );
   }
 
 /**

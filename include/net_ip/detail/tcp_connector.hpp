@@ -26,25 +26,35 @@
 #include "net_ip/detail/net_entity_base.hpp"
 #include "timer/periodic_timer.hpp"
 
+#include "net_ip/endpoints_resolver.hpp"
+
 namespace chops {
 namespace net {
 namespace detail {
 
 class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
 private:
+  using resolver_type = chops::net::endpoints_resolver<std::experimental::net::ip::tcp>;
+  using endpoints = std::vector<std::experimental::net::ip::tcp::endpoint>;
+
+private:
   net_entity_base<tcp_io>                 m_entity_base;
   std::experiment::net::ip::tcp::socket   m_socket;
+  resolver_type                           m_resolver;
+  endpoints                               m_endpoints;
   chops::periodic_timer<>                 m_timer;
   std::size_t                             m_reconn_time;
 
 public:
   template <typename Iter>
   tcp_connector(std::experimental::net::io_context& ioc, 
-                Iter beg, Iter end, std::size_t reconn_time) :
-      m_entity_base(ioc, beg, end);
+                Iter beg, Iter end, std::size_t reconn_time_millis) :
+      m_entity_base(ioc);
       m_socket(ioc),
+      m_resolver(ioc),
+      m_endpoints(beg, end),
       m_timer(ioc),
-      m_reconn_time(reconn_time)
+      m_reconn_time(reconn_time_millis)
     { }
 
   tcp_connector(std::experimental::net::io_context& ioc,
@@ -52,8 +62,10 @@ public:
                 std::size_t reconn_time_millis) :
       m_entity_base(ioc, remote_port, remote_host);
       m_socket(ioc),
+      m_resolver(ioc),
+      m_endpoints(),
       m_timer(ioc),
-      m_reconn_time(reconn_time)
+      m_reconn_time(reconn_time_millis)
     { }
 
 

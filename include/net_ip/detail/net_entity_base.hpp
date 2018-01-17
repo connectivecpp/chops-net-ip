@@ -18,16 +18,15 @@
 
 #include <atomic>
 #include <system_error>
-#include <functional> // std::function, used for type erased notifications to net_entity objects
-#include <memory> // std::shared_ptr, std::unique_ptr
+#include <functional> // std::function, for state change cb
+#include <memory>
 #include <vector>
-#include <string>
-#include <string_view>
+#include <cstddef> // std::size_t
 
 #include <experimental/executor>
 
 #include "net_ip/io_interface.hpp"
-#include "net_ip/endpoints_resolver.hpp"
+#include "utility/erase_where.hpp"
 
 namespace chops {
 namespace net {
@@ -39,112 +38,51 @@ public:
   using state_change_cb = std::function<void (io_interface<IOH>, std::error_code, std::size_t)>;
 
 private:
-  using endpoints = std::vector<typename IOH::endpoint_type>;
   using io_handlers = std::vector<std::shared_ptr<IOH> >;
-  using prot = typename IOH::endpoint_type::protocol_type;
 
 private:
 
   std::atomic_bool           m_started; // may be called from multiple threads concurrently
   state_change_cb            m_state_change_cb;
-  bool                       m_resolved;
-  endpoints_resolver<prot>   m_resolver;
-  endpoints                  m_endpoints;
   io_handlers                m_io_handlers;
-  std::string                m_port;
-  std::string                m_host;
 
 public:
 
-  template <typename Iter>
-  net_entity_base(std::experimental::net::io_context& ioc, Iter beg, Iter end) :
-        m_started(false),
-        m_state_change_cb(),
-        m_resolved(true),
-        m_resolver(ioc),
-        m_endpoints(beg, end),
-        m_io_handlers(),
-        m_port(),
-        m_host()
-    { }
-
-  net_entity_base(std::experimental::net::io_context& ioc, 
-                  std::string_view port, std::string_view host) :
-        m_started(false),
-        m_state_change_cb(),
-        m_resolved(false),
-        m_resolver(ioc),
-        m_endpoints(beg, end),
-        m_io_handlers(),
-        m_port(port),
-        m_host(host)
-    { }
+  net_entity_base() noexcept : m_started(false), m_state_change_cb(), m_io_handlers() { }
 
   bool is_started() const noexcept { return m_started; }
-  bool is_resolved() const noexcept { return m_resolved; }
 
-  void stop() noexcept { m_started = false; m_write_in_progress = false; }
+  std::size_t size() const noexcept { return m_io_handlers.size(); }
 
-  bool start_io_setup(typename IOH::socket_type&) noexcept;
+  template <typename F>
+  bool start(F&& func) {
+    if (m_started) {
+      return false;
+    }
+    m_started = true;
+    m_state_change_cb = func;
+    m_state_change_cb(io_interface<IOH>(), std::error_code(), 0);
+    return true;
+  }
 
-  void process_err_code(const std::error_code&, std::shared_ptr<IOH>);
+  void stop() {
+    m_started = false;
+    m_io_handlers.clear();
+  }
+
+  void add_handler(std::shared_ptr<IOH> p) {
+    m_io_handlers.push_back(p);
+  }
+
+  void remove_handler(std::shared_ptr<IOH> p) {
+    chops::erase_where(m_io_handlers, p);
+  }
+
+  void call_state_change_cb(const std::error_code& err, std::shared_ptr<IOH> p) {
+    m_state_change_cb(io_interface<IOH>(p), err, size());
+  }
 
 };
-
-template <typename IOH>
-void net_entity_base<IOH>::process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
-  if (err) {
-    m_entity_notifier_cb(err, ioh_ptr);
-  }
-}
-
-template <typename IOH>
-bool net_entity_base<IOH>::start_io_setup(typename IOH::socket_type& sock) noexcept {
-  if (m_started) {
-    return false;
-  }
-  m_started = true;
-  std::error_code ec;
-  m_remote_endp = sock.remote_endpoint(ec); // if fails, remote endp is left as default constructed
-  return true;
-}
-
-template <typename IOH>
-bool net_entity_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
-  if (!m_started) {
-    return false; // shutdown happening or not started, don't start a write
-  }
-  if (m_write_in_progress) { // queue buffer
-    m_outq.add_element(buf);
-    return false;
-  }
-  m_write_in_progress = true;
-  return true;
-}
-
-template <typename IOH>
-bool net_entity_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
-                                       const typename IOH::endpoint_type& endp) {
-  if (!m_started) {
-    return false; // shutdown happening or not started, don't start a write
-  }
-  if (m_write_in_progress) { // queue buffer
-    m_outq.add_element(buf, endp);
-    return false;
-  }
-  m_write_in_progress = true;
-  return true;
-}
-
-template <typename IOH>
-typename net_entity_base<IOH>::outq_opt_el net_entity_base<IOH>::get_next_element() {
-  if (!m_started) { // shutting down
-    return outq_opt_el { };
-  }
-  auto elem = m_outq.get_next_element();
-  m_write_in_progress = elem.has_value();
-  return elem;
-}
 
 } // end detail namespace
 } // end net namespace
