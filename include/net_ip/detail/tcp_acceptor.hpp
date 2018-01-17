@@ -19,8 +19,9 @@
 
 #include <system_error>
 #include <memory>
-
+#include <utility> // std::move
 #include <cstddef> // for std::size_t
+#include <functional> // std::bind
 
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_base.hpp"
@@ -36,14 +37,12 @@ private:
   std::experimental::net::ip::tcp::acceptor   m_acceptor;
   std::experimental::net::ip::tcp::endpoint   m_acceptor_endp;
   bool                                        m_reuse_addr;
-  std::experimental::net::ip::tcp::endpoint   m_remote_endp;
 
 public:
   tcp_acceptor(std::experimental::net::io_context& ioc, 
                const std::experimental::net::ip::tcp::endpoint& endp,
                bool reuse_addr) :
-    m_entity_base(), m_acceptor(ioc), m_acceptor_endp(endp), 
-    m_reuse_addr(reuse_addr), m_remote_endp() { }
+    m_entity_base(), m_acceptor(ioc), m_acceptor_endp(endp), m_reuse_addr(reuse_addr) { }
 
 public:
   bool is_started() const noexcept { return m_entity_base.is_started(); }
@@ -67,16 +66,32 @@ public:
 private:
 
   void start_accept() {
-    m_acceptor.async_accept(m_remote_endp, 
-                            [] (const std::error_code& err,
+    auto self = shared_from_this();
+    m_acceptor.async_accept( [this, self] (const std::error_code& err,
                                 std::experimental::net::ip::tcp::socket sock) {
-                                  handle_accept(err, sock);
+                                  handle_accept(err, std::move(sock));
                                 }
   }
 
-  void handle_accept(const std::error_code&, 
+  void handle_accept(const std::error_code&, std::experimental::net::ip::tcp::socket sock) {
+    using namespace std::placeholders;
+
+    tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
+                             tcp_io::entity_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
+    m_entity_base.add_handler(iop);
+    m_entity_base.call_state_change_cb(std::error_code(), iop);
+    start_accept();
+  }
+
+  void notify_me(std::error_code err, tcp_io_ptr iop) {
+    iop->close();
+    m_entity_base.remove_handler(iop);
+    m_entity_base.call_state_change_cb(err, iop);
+  }
 
 };
+
+using tcp_acceptor_ptr = std::shared_ptr<tcp_acceptor>;
 
 } // end detail namespace
 } // end net namespace

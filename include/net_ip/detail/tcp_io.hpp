@@ -43,8 +43,6 @@ public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
-
-private:
   using entity_cb = typename io_base<tcp_io>::entity_notifier_cb;
 
 private:

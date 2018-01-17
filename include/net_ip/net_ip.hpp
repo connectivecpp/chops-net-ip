@@ -104,16 +104,11 @@ namespace net {
  */
 class net_ip {
 private:
-  using tcp_acceptor_ptr = std::shared_ptr<detail::tcp_acceptor>;
-  using tcp_connector_ptr = std::shared_ptr<detail::tcp_connector>;
-  using udp_entity_ptr = std::shared_ptr<detail::udp_entity_io>;
-
-private:
 
   std::experimental::net::io_context m_ioc;
-  std::vector<tcp_acceptor_ptr> m_acceptors;
-  std::vector<tcp_connector_ptr> m_connectors;
-  std::vector<udp_entity_ptr> m_udp_entities;
+  std::vector<detail::tcp_acceptor_ptr> m_acceptors;
+  std::vector<detail::tcp_connector_ptr> m_connectors;
+  std::vector<detail::udp_entity_ptr> m_udp_entities;
 
 public:
 
@@ -176,7 +171,7 @@ public:
  */
   tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp,
                                              bool reuse_addr = true) {
-    tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
+    detail::tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     return tcp_acceptor_net_entity(p);
   }
@@ -213,7 +208,7 @@ public:
                                                std::string_view remote_host,
                                                std::size_t reconn_time_millis = 0) {
 
-    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
+    detail::tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
                                                                   remote_host, reconn_time_millis);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
@@ -238,7 +233,7 @@ public:
  */
   template <typename Iter>
   tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end, std::size_t reconn_time_millis = 0);
-    tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time_millis);
+    detail::tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time_millis);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
   }
