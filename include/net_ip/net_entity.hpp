@@ -114,13 +114,13 @@ public:
  *  providing state change function object callbacks.
  *
  *  Once a net entity (TCP acceptor, TCP connector, UDP entity) is created through 
- *  a @c net_ip @c make method, the application can call this method. At this 
- *  time local port binding and other processing (e.g. TCP listen, TCP connect) occurs.
+ *  a @c net_ip @c make method, calling @c start on the @c net_entity causes local port 
+ *  binding and other processing (e.g. TCP listen, TCP connect) to occur.
  *
  *  Input and output processing does not start until the @c io_interface @c start_io
  *  method is called.
  *
- *  The application provides two state change function object callbacks:
+ *  The application provides two state change function object callbacks to @c start:
  *
  *  1) An "IO ready" callback which is invoked when a TCP connection is created or 
  *  a UDP entity becomes ready. An @c io_interface object is provided to the callback 
@@ -170,7 +170,7 @@ public:
  *  underlying handler is being destructed.
  *
  *  2) The error code associated with the shutdown. There are error codes associated 
- *  with a graceful shutdown as well as network or system errors.
+ *  with graceful shutdown as well as error codes for network or system errors.
  *
  *  3) A count of the underlying IO handlers associated with this net entity, either 
  *  0 for a TCP connector or UDP entity, or 0 to N for a TCP acceptor.
@@ -183,7 +183,7 @@ public:
  *
  */
   template <typename R, typename S>
-  bool start(R&& io_ready_func, S&& stop_func ) {
+  bool start(R&& io_ready_func, S&& stop_func) {
     auto p = m_eh_wptr.lock();
     return p ? (p->start(std::forward<R>(io_ready_func), std::forward<S>(stop_func)), true) : false;
   }

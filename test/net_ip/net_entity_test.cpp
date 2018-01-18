@@ -27,8 +27,8 @@ struct net_entity_mock {
 
   bool is_started() const { return started; }
 
-  template <typename F>
-  void start(F &&) { started = true; }
+  template <typename R, typename S>
+  void start( R &&, S && ) { started = true; }
 
   void stop() { started = false; }
 
@@ -53,7 +53,7 @@ void net_entity_test_default_constructed() {
     AND_WHEN ("start or stop is called on an invalid net_entity") {
       THEN ("false is returned") {
 
-        REQUIRE_FALSE (net_ent.start([] { }));
+        REQUIRE_FALSE (net_ent.start([] { }, [] { } ));
         REQUIRE_FALSE (net_ent.stop());
       }
     }
@@ -82,7 +82,7 @@ void net_entity_test_two() {
     }
     AND_WHEN ("start or stop is called") {
       THEN ("true is returned") {
-        REQUIRE (net_ent.start([] { }));
+        REQUIRE (net_ent.start([] { }, [] { }));
         REQUIRE (net_ent.is_started());
         REQUIRE (net_ent.stop());
         REQUIRE_FALSE (net_ent.is_started());
