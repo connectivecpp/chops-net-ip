@@ -47,16 +47,17 @@ public:
 public:
   bool is_started() const noexcept { return m_entity_base.is_started(); }
 
-  template <typename F>
-  void start(F&& state_chg) {
-    if (!m_entity_base.start(std::forward<F>(state_chg))) { // already started
+  template <typename R, typename S>
+  void start(R&& start_chg, S&& shutdown_chg) {
+    if (!m_entity_base.start(std::forward<R>(start_chg), std::forward<S>(shutdown_chg))) {
+      // already started
       return;
     }
     try {
       m_acceptor = std::experimental::net::ip::tcp::acceptor(m_ioc, m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
-      m_entity_base.call_state_change_cb(se.code(), tcp_io_ptr());
+      m_entity_base.call_shutdown_change_cb(se.code(), tcp_io_ptr());
       m_entity_base.stop();
       return;
     }
@@ -66,7 +67,7 @@ public:
   void stop() {
     m_entity_base.stop_io_all();
     m_entity_base.stop(); // clears container of tcp io handlers
-    m_entity_base.call_state_change_cb(std::error_code(), tcp_io_ptr());
+    m_entity_base.call_shutdown_change_cb(std::error_code(), tcp_io_ptr());
   }
 
 private:
@@ -85,14 +86,14 @@ private:
     tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
                              tcp_io::entity_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
     m_entity_base.add_handler(iop);
-    m_entity_base.call_state_change_cb(std::error_code(), iop);
+    m_entity_base.call_start_change_cb(iop);
     start_accept();
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
     iop->close();
     m_entity_base.remove_handler(iop);
-    m_entity_base.call_state_change_cb(err, iop);
+    m_entity_base.call_shutdown_change_cb(err, iop);
   }
 
 };
