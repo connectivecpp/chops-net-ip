@@ -35,7 +35,8 @@ namespace detail {
 template <typename IOH>
 class net_entity_base {
 public:
-  using state_change_cb = std::function<void (io_interface<IOH>, std::error_code, std::size_t)>;
+  using start_change_cb = std::function<void (io_interface<IOH>, std::size_t)>;
+  using shutdown_change_cb = std::function<void (io_interface<IOH>, std::error_code, std::size_t)>;
 
 private:
   using io_handlers = std::vector<std::shared_ptr<IOH> >;
@@ -43,25 +44,27 @@ private:
 private:
 
   std::atomic_bool           m_started; // may be called from multiple threads concurrently
-  state_change_cb            m_state_change_cb;
+  start_change_cb            m_start_change_cb;
+  shutdown_change_cb         m_shutdown_change_cb;
   io_handlers                m_io_handlers;
 
 public:
 
-  net_entity_base() noexcept : m_started(false), m_state_change_cb(), m_io_handlers() { }
+  net_entity_base() noexcept : m_started(false), 
+         m_start_change_cb(), m_shutdown_change_cb(), m_io_handlers() { }
 
   bool is_started() const noexcept { return m_started; }
 
   std::size_t size() const noexcept { return m_io_handlers.size(); }
 
-  template <typename F>
-  bool start(F&& func) {
+  template <typename R, typename S>
+  bool start(R&& start_func, S&& shutdown_func) {
     if (m_started) {
       return false;
     }
     m_started = true;
-    m_state_change_cb = func;
-    m_state_change_cb(io_interface<IOH>(), std::error_code(), 0);
+    m_start_change_cb = start_func;
+    m_shutdown_change_cb = shutdown_func;
     return true;
   }
 
@@ -87,9 +90,14 @@ public:
     chops::erase_where(m_io_handlers, p);
   }
 
-  void call_state_change_cb(const std::error_code& err, std::shared_ptr<IOH> p) {
-    m_state_change_cb(io_interface<IOH>(p), err, size());
+  void call_start_change_cb(std::shared_ptr<IOH> p) {
+    m_start_change_cb(io_interface<IOH>(p), size());
   }
+
+  void call_shutdown_change_cb(const std::error_code& err, std::shared_ptr<IOH> p) {
+    m_shutdown_change_cb(io_interface<IOH>(p), err, size());
+  }
+
 
 };
 

@@ -28,6 +28,11 @@ struct state_change {
   std::size_t num;
   std::error_code err;
   bool ioh_valid;
+  void operator() (chops::net::io_interface<IOH> ioh, std::size_t n) {
+    called = true;
+    num = n;
+    ioh_valid = ioh.is_valid();
+  }
   void operator() (chops::net::io_interface<IOH> ioh, std::error_code e, std::size_t n) {
     called = true;
     num = n;
@@ -53,14 +58,9 @@ void net_entity_base_test() {
   GIVEN ("A default constructed net_entity_base and a state change object") {
 
     WHEN ("Start is called") {
-      ne.start(std::ref(state_chg));
-      THEN ("net entity base is started, state change called flag is true, other vals ok") {
+      ne.start(std::ref(state_chg), std::ref(state_chg));
+      THEN ("net entity base is started") {
         REQUIRE (ne.is_started());
-        REQUIRE (ne.size() == 0);
-        REQUIRE (state_chg.called);
-        REQUIRE (state_chg.num == 0);
-        REQUIRE_FALSE (state_chg.err);
-        REQUIRE_FALSE (state_chg.ioh_valid);
       }
     }
 
@@ -78,20 +78,32 @@ void net_entity_base_test() {
       }
     }
 
-    AND_WHEN ("Handlers are added and call state change is called") {
-      ne.start(std::ref(state_chg));
+    AND_WHEN ("Handlers are added and start state change is called") {
+      ne.start(std::ref(state_chg), std::ref(state_chg));
       ne.add_handler(iohp);
       ne.add_handler(iohp);
-      ne.call_state_change_cb(std::make_error_code(net_ip_errc::io_handler_stopped), iohp);
+      ne.call_start_change_cb(iohp);
       THEN ("state change internal vals are set correctly") {
         REQUIRE (state_chg.num == 2);
-        REQUIRE (state_chg.err);
         REQUIRE (state_chg.ioh_valid);
       }
     }
 
+    AND_WHEN ("Handlers are added and shutdown state change is called") {
+      ne.start(std::ref(state_chg), std::ref(state_chg));
+      ne.add_handler(iohp);
+      ne.add_handler(iohp);
+      ne.call_shutdown_change_cb(std::make_error_code(net_ip_errc::io_handler_stopped), 
+                                 std::shared_ptr<IOH>());
+      THEN ("state change internal vals are set correctly") {
+        REQUIRE (state_chg.num == 2);
+        REQUIRE (state_chg.err);
+        REQUIRE_FALSE (state_chg.ioh_valid);
+      }
+    }
+
     AND_WHEN ("Distinct handlers are added and stop io all is called") {
-      ne.start(std::ref(state_chg));
+      ne.start(std::ref(state_chg), std::ref(state_chg));
       auto iohp1 = std::make_shared<IOH>();
       REQUIRE_FALSE(iohp1->stop_io_called);
       ne.add_handler(iohp1);
