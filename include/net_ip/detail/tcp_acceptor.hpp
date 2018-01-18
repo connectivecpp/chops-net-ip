@@ -63,6 +63,12 @@ public:
     start_accept();
   }
 
+  void stop() {
+    m_entity_base.stop_io_all();
+    m_entity_base.stop(); // clears container of tcp io handlers
+    m_entity_base.call_state_change_cb(std::error_code(), tcp_io_ptr());
+  }
+
 private:
 
   void start_accept() {

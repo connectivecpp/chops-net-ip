@@ -70,6 +70,15 @@ public:
     m_io_handlers.clear();
   }
 
+  // careful - there is a coupling where the acceptor or connector or udp entity performs 
+  // a remove_handler as part of the stop_io shutdown
+  void stop_io_all() {
+    auto hdlrs = m_io_handlers;
+    for (auto i : hdlrs) {
+      i->stop_io();
+    }
+  }
+
   void add_handler(std::shared_ptr<IOH> p) {
     m_io_handlers.push_back(p);
   }

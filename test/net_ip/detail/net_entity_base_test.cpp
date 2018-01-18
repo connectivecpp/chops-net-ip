@@ -70,6 +70,7 @@ void net_entity_base_test() {
         REQUIRE (ne.size() == 1);
       }
     }
+
     AND_WHEN ("Remove handler is called") {
       ne.remove_handler(iohp);
       THEN ("size decreases by 1") {
@@ -89,17 +90,38 @@ void net_entity_base_test() {
       }
     }
 
+    AND_WHEN ("Distinct handlers are added and stop io all is called") {
+      ne.start(std::ref(state_chg));
+      auto iohp1 = std::make_shared<IOH>();
+      REQUIRE_FALSE(iohp1->stop_io_called);
+      ne.add_handler(iohp1);
+      auto iohp2 = std::make_shared<IOH>();
+      REQUIRE_FALSE(iohp2->stop_io_called);
+      ne.add_handler(iohp2);
+      ne.stop_io_all();
+      THEN ("state change internal vals are set correctly") {
+        REQUIRE(iohp1->stop_io_called);
+        REQUIRE(iohp2->stop_io_called);
+        ne.stop();
+        REQUIRE(ne.size() == 0);
+      }
+    }
+
   } // end given
 }
 
 struct tcp_io_mock {
+  bool stop_io_called = false;
   using endpoint_type = int;
   using socket_type = int;
+  void stop_io() { stop_io_called = true; }
 };
 
 struct udp_io_mock {
-  using endpoint_type = int;
-  using socket_type = int;
+  bool stop_io_called = false;
+  using endpoint_type = double;
+  using socket_type = double;
+  void stop_io() { stop_io_called = true; }
 };
 
 SCENARIO ( "Net entity base test, udp", "[net_entity_base_udp]" ) {
