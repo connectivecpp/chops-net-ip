@@ -256,7 +256,8 @@ void io_interface_test_compare() {
 
 }
 
-SCENARIO ( "Io interface test, simple variable len message frame", "[io_interface_msg_frame]" ) {
+SCENARIO ( "Io interface test, simple variable len message frame",
+           "[io_interface] [msg_frame]" ) {
   mutable_buffer buf;
   GIVEN ("A simple message frame object constructed with a decoder func") {
     // chops::net::simple_variable_len_msg_frame mf(decoder_func);
@@ -277,13 +278,15 @@ SCENARIO ( "Io interface test, simple variable len message frame", "[io_interfac
   } // end given
 }
 
-SCENARIO ( "Io interface test, udp", "[io_interface_udp]" ) {
+SCENARIO ( "Io interface test, udp",
+           "[io_interface] [udp]" ) {
   io_interface_test_default_constructed<udp_io_handler_mock>();
   io_interface_test_two<udp_io_handler_mock>();
   io_interface_test_compare<udp_io_handler_mock>();
 }
 
-SCENARIO ( "Io interface test, tcp", "[io_interface_tcp]" ) {
+SCENARIO ( "Io interface test, tcp",
+           "[io_interface] [tcp]" ) {
   io_interface_test_default_constructed<tcp_io_handler_mock>();
   io_interface_test_two<tcp_io_handler_mock>();
   io_interface_test_compare<tcp_io_handler_mock>();
