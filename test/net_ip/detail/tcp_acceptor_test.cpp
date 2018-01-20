@@ -43,10 +43,13 @@
 #include "utility/repeat.hpp"
 
 
+#include <iostream>
+
 using namespace std::experimental::net;
 using namespace chops::test;
 
 const char* test_port = "30434";
+const char* test_host = "";
 constexpr int NumMsgs = 50;
 
 
@@ -56,17 +59,17 @@ void connector_func (std::promise<std::size_t> thr_prom, const vec_buf& in_msg_s
                      bool read_reply, int interval, chops::const_shared_buffer empty_msg) {
 
   ip::tcp::socket sock(ioc);
-  auto endp_seq = chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, "", test_port);
+  auto endp_seq = chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
   ip::tcp::endpoint endp = connect(sock, endp_seq);
 
   std::size_t cnt = 0;
   chops::mutable_shared_buffer return_msg { };
   for (auto buf : in_msg_set) {
     write(sock, const_buffer(buf.data(), buf.size()));
+    ++cnt;
     if (read_reply) {
       return_msg.resize(buf.size());
       read(sock, mutable_buffer(return_msg.data(), return_msg.size()));
-      ++cnt;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
@@ -126,23 +129,33 @@ void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num
       THEN ("the futures provide synchronization and data returns") {
 
         auto endp_seq = 
-          chops::net::endpoints_resolver<ip::tcp>(wk.get_io_context()).make_endpoints(true, "", test_port);
-        chops::net::detail::tcp_acceptor acc(wk.get_io_context(), *(endp_seq.cbegin()), true);
+          chops::net::endpoints_resolver<ip::tcp>(wk.get_io_context()).make_endpoints(true, test_host, test_port);
+std::cerr << "acceptor endpoints:" << std::endl;
+for (auto i : endp_seq) {
+  std::cerr << "-- " << i.endpoint() << std::endl;
+}
+        auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(wk.get_io_context(), 
+                                                                 *(endp_seq.cbegin()), true);
 
-        REQUIRE_FALSE(acc.is_started());
+std::cerr << "acceptor created" << std::endl;
+
+        REQUIRE_FALSE(acc_ptr->is_started());
 
         start_cb start_callback(reply, delim);
         shut_cb  shut_callback { };
 
-        acc.start(std::ref(start_callback), std::ref(shut_callback));
+        acc_ptr->start(std::ref(start_callback), std::ref(shut_callback));
 
-        REQUIRE(acc.is_started());
+std::cerr << "acceptor started" << std::endl;
+
+        REQUIRE(acc_ptr->is_started());
         REQUIRE(start_callback.num == 0);
         REQUIRE(start_callback.vb.empty());
 
         std::vector<std::thread> conn_thrs;
         std::vector<std::future<std::size_t> > conn_futs;
 
+std::cerr << "creating " << num_conns << " futures and threads" << std::endl;
         chops::repeat(num_conns, [&] () {
             std::promise<std::size_t> conn_prom;
             conn_futs.emplace_back(conn_prom.get_future());
@@ -157,17 +170,20 @@ void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num
           accum_msgs += fut.get();
         }
         INFO ("Connector futures popped");
+std::cerr << "Connector futures popped" << std::endl;
 
         for (auto& thr : conn_thrs) {
           thr.join();
         }
         INFO ("Connector threads joined");
+std::cerr << "Connector threads joined" << std::endl;
 
-        acc.stop();
+        acc_ptr->stop();
 
         INFO ("Acceptor stopped");
+std::cerr << "Acceptor stopped" << std::endl;
 
-        REQUIRE_FALSE(acc.is_started());
+        REQUIRE_FALSE(acc_ptr->is_started());
 
         REQUIRE(start_callback.num == num_conns);
         REQUIRE(shut_callback.num == 0);
@@ -220,6 +236,24 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 10 connectors, two-way,
 
 }
 
+SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 60 connectors, two-way, many msgs", 
+           "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
+
+  auto ms = make_msg_set (make_variable_len_msg, "Many, many, fast!", 'G', 100*NumMsgs);
+  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
+  acceptor_test ( ms, true, 0, 60, std::string_view(), empty_msg );
+
+}
+
+SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 1 connectors, one-way", 
+           "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
+
+  auto ms = make_msg_set (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs);
+  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
+  acceptor_test ( ms, false, 50, 1, std::string_view("\r\n"), empty_msg );
+
+}
+
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 10 connectors, one-way", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
@@ -238,8 +272,9 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, one-way"
 
 }
 
+/*
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 30, 20 connectors, two-way", 
-           "[tcp_acc] [cr_lf_msg] [one_way] [interval_30] [connectors_20]" ) {
+           "[tcp_acc] [cr_lf_msg] [two_way] [interval_30] [connectors_20]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
@@ -248,7 +283,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 30, 20 connectors, two-way
 }
 
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, two-way, many msgs", 
-           "[tcp_acc] [cr_lf_msg] [one_way] [interval_0] [connectors_20] [many]" ) {
+           "[tcp_acc] [cr_lf_msg] [two_way] [interval_0] [connectors_20] [many]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
@@ -291,3 +326,4 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, two-way, man
   acceptor_test ( ms, true, 0, 25, std::string_view("\n"), empty_msg );
 
 }
+*/

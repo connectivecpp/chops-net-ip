@@ -26,7 +26,6 @@
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_base.hpp"
 
-
 namespace chops {
 namespace net {
 namespace detail {
@@ -59,8 +58,8 @@ public:
           m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
+      m_entity_base.stop(); // should not have any tcp io handlers
       m_entity_base.call_shutdown_change_cb(se.code(), tcp_io_ptr());
-      m_entity_base.stop();
       return;
     }
     start_accept();
@@ -69,28 +68,29 @@ public:
   void stop() {
     m_entity_base.stop_io_all();
     m_entity_base.stop(); // clears container of tcp io handlers
-    m_entity_base.call_shutdown_change_cb(std::error_code(), tcp_io_ptr());
+    m_entity_base.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_acceptor_stopped), tcp_io_ptr());
   }
 
 private:
 
   void start_accept() {
+    using namespace std::placeholders;
+
     auto self = shared_from_this();
     m_acceptor.async_accept( [this, self] (const std::error_code& err,
                                 std::experimental::net::ip::tcp::socket sock) {
-                                  handle_accept(err, std::move(sock));
-                                }
+        if (err) {
+          m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
+          stop();
+          return;
+        }
+        tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
+          tcp_io::entity_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
+        m_entity_base.add_handler(iop);
+        m_entity_base.call_start_change_cb(iop);
+        start_accept();
+      }
     );
-  }
-
-  void handle_accept(const std::error_code&, std::experimental::net::ip::tcp::socket sock) {
-    using namespace std::placeholders;
-
-    tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
-                             tcp_io::entity_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
-    m_entity_base.add_handler(iop);
-    m_entity_base.call_start_change_cb(iop);
-    start_accept();
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
