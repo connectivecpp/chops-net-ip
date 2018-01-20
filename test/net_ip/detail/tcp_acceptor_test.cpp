@@ -185,7 +185,7 @@ void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num
 }
 
 SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, one-way", 
-           "[tcp_acc] [var_len_msg] [one_way] [interval 50] [connectors 1]" ) {
+           "[tcp_acc] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
@@ -194,7 +194,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, one-way",
 }
 
 SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 1 connector, one-way", 
-           "[tcp_acc] [var_len_msg] [one_way] [interval 0] [connectors 1]" ) {
+           "[tcp_acc] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
@@ -203,7 +203,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 1 connector, one-way",
 }
 
 SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, two-way", 
-           "[tcp_acc] [var_len_msg] [two_way] [interval 50] [connectors 1]" ) {
+           "[tcp_acc] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Yowser!", 'X', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
@@ -212,7 +212,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, two-way",
 }
 
 SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 10 connectors, two-way, many msgs", 
-           "[tcp_acc] [var_len_msg] [two_way] [interval 0] [connectors 10] [many]" ) {
+           "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
@@ -221,7 +221,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 10 connectors, two-way,
 }
 
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 10 connectors, one-way", 
-           "[tcp_acc] [cr_lf_msg] [one_way] [interval 50] [connectors 10]" ) {
+           "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
@@ -230,7 +230,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 10 connectors, one-way
 }
 
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, one-way", 
-           "[tcp_acc] [cr_lf_msg] [one_way] [interval 0] [connectors 20]" ) {
+           "[tcp_acc] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
@@ -239,7 +239,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, one-way"
 }
 
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 30, 20 connectors, two-way", 
-           "[tcp_acc] [cr_lf_msg] [one_way] [interval 30] [connectors 20]" ) {
+           "[tcp_acc] [cr_lf_msg] [one_way] [interval_30] [connectors_20]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
@@ -248,7 +248,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 30, 20 connectors, two-way
 }
 
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, two-way, many msgs", 
-           "[tcp_acc] [cr_lf_msg] [one_way] [interval 0] [connectors 20] [many]" ) {
+           "[tcp_acc] [cr_lf_msg] [one_way] [interval_0] [connectors_20] [many]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
@@ -257,7 +257,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, two-way,
 }
 
 SCENARIO ( "Tcp acceptor test,  LF msgs, interval 50, 1 connectors, one-way", 
-           "[tcp_acc] [lf_msg] [one_way] [interval 50] [connectors 1]" ) {
+           "[tcp_acc] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited!", 'E', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
@@ -266,7 +266,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 50, 1 connectors, one-way",
 }
 
 SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, one-way", 
-           "[tcp_acc] [lf_msg] [one_way] [interval 0] [connectors 25]" ) {
+           "[tcp_acc] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
@@ -275,7 +275,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, one-way",
 }
 
 SCENARIO ( "Tcp acceptor test,  LF msgs, interval 20, 25 connectors, two-way", 
-           "[tcp_acc] [lf_msg] [two_way] [interval 20] [connectors 25]" ) {
+           "[tcp_acc] [lf_msg] [two_way] [interval_20] [connectors_25]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
@@ -284,7 +284,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 20, 25 connectors, two-way",
 }
 
 SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, two-way, many msgs", 
-           "[tcp_acc] [lf_msg] [two_way] [interval 0] [connectors 25] [many]" ) {
+           "[tcp_acc] [lf_msg] [two_way] [interval_0] [connectors_25] [many]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
