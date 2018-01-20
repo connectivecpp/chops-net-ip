@@ -108,18 +108,19 @@ void test_util () {
   } // end given
 }
 
-SCENARIO ( "A periodic timer can be instantiated on the steady clock", "[periodic_timer_steady_clock]" ) {
+SCENARIO ( "A periodic timer can be instantiated on the steady clock", "[periodic_timer] [steady_clock]" ) {
 
   test_util<std::chrono::steady_clock>();
 
 }
-SCENARIO ( "A periodic timer can be instantiated on the system clock", "[periodic_timer_system_clock]" ) {
+SCENARIO ( "A periodic timer can be instantiated on the system clock", "[periodic_timer] [system_clock]" ) {
 
   test_util<std::chrono::system_clock>();
 
 }
-SCENARIO ( "A periodic timer can be instantiated on the high resolution clock", "[periodic_timer_high_resolution_clock]" ) {
+SCENARIO ( "A periodic timer can be instantiated on the high resolution clock", "[periodic_timer] [high_resolution_clock]" ) {
 
   test_util<std::chrono::high_resolution_clock>();
 
 }
+
