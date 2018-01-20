@@ -180,7 +180,8 @@ struct udp_io_mock {
 
 };
 
-SCENARIO ( "Io base test, udp", "[io_base_udp]" ) {
+SCENARIO ( "Io base test, udp", 
+           "[io_base] [udp]" ) {
   using namespace std::experimental::net;
 
   auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
@@ -189,7 +190,8 @@ SCENARIO ( "Io base test, udp", "[io_base_udp]" ) {
                             ip::udp::endpoint(ip::udp::v4(), 1234));
 }
 
-SCENARIO ( "Io base test, tcp", "[io_base_tcp]" ) {
+SCENARIO ( "Io base test, tcp",
+           "[io_base] [tcp]" ) {
   using namespace std::experimental::net;
 
   auto ba = chops::make_byte_array(0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46);
