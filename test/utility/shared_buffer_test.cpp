@@ -116,17 +116,20 @@ void shared_buffer_byte_vector_move() {
   } // end given
 }
  
-SCENARIO ( "Const shared buffer common test", "[const_shared_common]" ) {
+SCENARIO ( "Const shared buffer common test", 
+           "[const_shared_buffer] [common]" ) {
   auto arr = chops::make_byte_array( 40, 41, 42, 43, 44, 60, 59, 58, 57, 56, 42, 42 );
   shared_buffer_common<chops::const_shared_buffer>(arr.data(), arr.size());
 }
 
-SCENARIO ( "Mutable shared buffer common test", "[mutable_shared_common]" ) {
+SCENARIO ( "Mutable shared buffer common test",
+           "[mutable_shared_buffer] [common]" ) {
   auto arr = chops::make_byte_array ( 80, 81, 82, 83, 84, 90, 91, 92 );
   shared_buffer_common<chops::const_shared_buffer>(arr.data(), arr.size());
 }
 
-SCENARIO ( "Mutable shared buffer copy construction and assignment", "[mutable_shared_copy]" ) {
+SCENARIO ( "Mutable shared buffer copy construction and assignment",
+           "[mutable_shared_buffer] [copy]" ) {
 
   GIVEN ("A default constructed mutable shared_buffer") {
 
@@ -156,7 +159,8 @@ SCENARIO ( "Mutable shared buffer copy construction and assignment", "[mutable_s
   } // end given
 }
 
-SCENARIO ( "Mutable shared buffer resize and clear", "[mutable_shared_resize_clear]" ) {
+SCENARIO ( "Mutable shared buffer resize and clear",
+           "[mutable_shared_buffer] [resize_and_clear]" ) {
 
   GIVEN ("A default constructed mutable shared_buffer") {
     chops::mutable_shared_buffer sb;
@@ -189,7 +193,8 @@ SCENARIO ( "Mutable shared buffer resize and clear", "[mutable_shared_resize_cle
   } // end given
 }
 
-SCENARIO ( "Mutable shared buffer swap", "[mutable_shared_swap]" ) {
+SCENARIO ( "Mutable shared buffer swap",
+           "[mutable_shared_buffer] [swap]" ) {
 
   GIVEN ("Two mutable shared_buffers") {
     auto arr1 = chops::make_byte_array (0xaa, 0xbb, 0xcc);
@@ -212,7 +217,8 @@ SCENARIO ( "Mutable shared buffer swap", "[mutable_shared_swap]" ) {
   } // end given
 }
 
-SCENARIO ( "Mutable shared buffer append", "[mutable_shared_append]" ) {
+SCENARIO ( "Mutable shared buffer append",
+           "[mutable_shared_buffer] [append]" ) {
 
   auto arr = chops::make_byte_array (0xaa, 0xbb, 0xcc);
   auto arr2 = chops::make_byte_array (0xaa, 0xbb, 0xcc, 0xaa, 0xbb, 0xcc);
@@ -259,7 +265,8 @@ SCENARIO ( "Mutable shared buffer append", "[mutable_shared_append]" ) {
   } // end given
 }
 
-SCENARIO ( "Compare a mutable shared_buffer with a const shared buffer", "[shared_compare]" ) {
+SCENARIO ( "Compare a mutable shared_buffer with a const shared buffer",
+           "[mutable_shared_buffer] [const_shared_buffer] [compare]" ) {
 
   GIVEN ("An array of bytes") {
     auto arr = chops::make_byte_array (0xaa, 0xbb, 0xcc);
@@ -274,7 +281,8 @@ SCENARIO ( "Compare a mutable shared_buffer with a const shared buffer", "[share
   } // end given
 }
 
-SCENARIO ( "Mutable shared buffer move into const shared buffer", "[mutable_shared_move_to_const_shared]" ) {
+SCENARIO ( "Mutable shared buffer move into const shared buffer",
+           "[mutable_shared_buffer] [const_shared_buffer] [move]" ) {
 
   auto arr1 = chops::make_byte_array (0xaa, 0xbb, 0xcc);
   auto arr2 = chops::make_byte_array (0x01, 0x02, 0x03, 0x04, 0x05);
@@ -295,19 +303,22 @@ SCENARIO ( "Mutable shared buffer move into const shared buffer", "[mutable_shar
   } // end given
 }
 
-SCENARIO ( "Move a vector of bytes into a mutable shared buffer", "[move_byte_vec_to_mutable_shared]" ) {
+SCENARIO ( "Move a vector of bytes into a mutable shared buffer",
+           "[mutable_shared_buffer] [move_byte_vec]" ) {
 
   shared_buffer_byte_vector_move<chops::mutable_shared_buffer>();
 
 }
 
-SCENARIO ( "Move a vector of bytes into a const shared buffer", "[move_byte_vec_to_const_shared]" ) {
+SCENARIO ( "Move a vector of bytes into a const shared buffer",
+           "[const_shared_buffer] [move_byte_vec]" ) {
 
   shared_buffer_byte_vector_move<chops::const_shared_buffer>();
 
 }
 
-SCENARIO ( "Use get_byte_vec for external modification of buffer", "[get_byte_vec]" ) {
+SCENARIO ( "Use get_byte_vec for external modification of buffer",
+           "[mutable_shared_buffer] [get_byte_vec]" ) {
 
   auto arr = chops::make_byte_array (0xaa, 0xbb, 0xcc);
   chops::mutable_shared_buffer::byte_vec bv (arr.cbegin(), arr.cend());
