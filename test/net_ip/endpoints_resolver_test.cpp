@@ -91,37 +91,43 @@ std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
 
 }
 
-SCENARIO ( "Make endpoints remote test, TCP  1", "[tcp_make_endpoints_1]" ) {
+SCENARIO ( "Make endpoints remote test, TCP  1", 
+           "[make_endpoints] [tcp]" ) {
 
   make_endpoints_test<ip::tcp> (false, "www.cnn.com", "80", true);
 
 }
 
-SCENARIO ( "Make endpoints remote test, TCP 2", "[tcp_make_endpoints_2]" ) {
+SCENARIO ( "Make endpoints remote test, TCP 2",
+           "[make_endpoints] [tcp]" ) {
 
   make_endpoints_test<ip::tcp> (false, "www.seattletimes.com", "80", true);
 
 }
 
-SCENARIO ( "Make endpoints local test, TCP 3", "[tcp_make_endpoints_3]" ) {
+SCENARIO ( "Make endpoints local test, TCP 3",
+           "[make_endpoints] [tcp]" ) {
 
   make_endpoints_test<ip::tcp> (true, "", "23000", true);
 
 }
 
-SCENARIO ( "Make endpoints remote test, UDP  1", "[udp_make_endpoints_1]" ) {
+SCENARIO ( "Make endpoints remote test, UDP  1",
+           "[make_endpoints] [udp]" ) {
 
   make_endpoints_test<ip::udp> (false, "www.cnn.com", "80", true);
 
 }
 
-SCENARIO ( "Make endpoints remote test, UDP 2", "[udp_make_endpoints_2]" ) {
+SCENARIO ( "Make endpoints remote test, UDP 2",
+           "[make_endpoints] [udp]" ) {
 
   make_endpoints_test<ip::udp> (false, "www.seattletimes.com", "80", true);
 
 }
 
-SCENARIO ( "Make endpoints local test, UDP 3", "[udp_make_endpoints_3]" ) {
+SCENARIO ( "Make endpoints local test, UDP 3",
+           "[make_endpoints] [udp]" ) {
 
   make_endpoints_test<ip::udp> (true, "", "23000", true);
 
