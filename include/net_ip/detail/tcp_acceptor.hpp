@@ -54,7 +54,9 @@ public:
       return;
     }
     try {
-      m_acceptor = std::experimental::net::ip::tcp::acceptor(m_ioc, m_acceptor_endp, m_reuse_addr);
+      m_acceptor = 
+        std::experimental::net::ip::tcp::acceptor(m_acceptor.get_executor().context(), 
+          m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
       m_entity_base.call_shutdown_change_cb(se.code(), tcp_io_ptr());
@@ -78,6 +80,7 @@ private:
                                 std::experimental::net::ip::tcp::socket sock) {
                                   handle_accept(err, std::move(sock));
                                 }
+    );
   }
 
   void handle_accept(const std::error_code&, std::experimental::net::ip::tcp::socket sock) {
