@@ -114,7 +114,7 @@ public:
   }
 
   void stop_io() {
-    m_io_base.process_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
+    m_io_base.process_err_code(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
                                  shared_from_this());
   }
 
