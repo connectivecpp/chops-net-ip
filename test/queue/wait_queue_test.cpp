@@ -206,7 +206,7 @@ constexpr T ExpectedSum = (N / 2) * (N - 1);
 // test with std::deque first
 
 SCENARIO ( "Non-threaded wait_queue test, with element type int and default container type of std::deque",
-           "[wait_queue_int_def_container]" ) {
+           "[wait_queue] [int] [deque]" ) {
   chops::wait_queue<int> wq;
   non_threaded_push_test(wq, 42, N);
   non_threaded_arithmetic_test(wq, 0, N, ExpectedSum<int>);
@@ -214,7 +214,7 @@ SCENARIO ( "Non-threaded wait_queue test, with element type int and default cont
 }
 
 SCENARIO ( "Non-threaded wait_queue test, with element type double and default container type of std::deque",
-           "[wait_queue_double_def_container]" ) {
+           "[wait_queue] [double] [deque]" ) {
   chops::wait_queue<double> wq;
   non_threaded_push_test(wq, 42.0, N);
   non_threaded_arithmetic_test(wq, 0.0, N, ExpectedSum<double>);
@@ -222,7 +222,7 @@ SCENARIO ( "Non-threaded wait_queue test, with element type double and default c
 }
 
 SCENARIO ( "Non-threaded wait_queue test, with element type std::string and default container type of std::deque",
-           "[wait_queue_string_def_container]" ) {
+           "[wait_queue] [string] [deque]" ) {
   chops::wait_queue<std::string> wq;
   non_threaded_push_test(wq, "Howzit going, bro!"s, N);
   non_threaded_open_close_test(wq, "It's hanging, bro!"s, N);
@@ -231,7 +231,7 @@ SCENARIO ( "Non-threaded wait_queue test, with element type std::string and defa
 // test with ring_span
 
 SCENARIO ( "Non-threaded wait_queue test, with element type int and ring_span container type",
-           "[wait_queue_int_ring_span_container]" ) {
+           "[wait_queue] [int] [ring_span]" ) {
   int buf[N];
   chops::wait_queue<int, nonstd::ring_span<int> > wq(buf+0, buf+N);
   non_threaded_push_test(wq, 42, N);
@@ -240,7 +240,7 @@ SCENARIO ( "Non-threaded wait_queue test, with element type int and ring_span co
 }
 
 SCENARIO ( "Non-threaded wait_queue test, with element type double and ring_span container type",
-           "[wait_queue_double_ring_span_container]" ) {
+           "[wait_queue] [double] [ring_span]" ) {
   double buf[N];
   chops::wait_queue<double, nonstd::ring_span<double> > wq(buf+0, buf+N);
   non_threaded_push_test(wq, 42.0, N);
@@ -249,7 +249,7 @@ SCENARIO ( "Non-threaded wait_queue test, with element type double and ring_span
 }
 
 SCENARIO ( "Non-threaded wait_queue test, with element type std::string and ring_span container type",
-           "[wait_queue_string_ring_span_container]" ) {
+           "[wait_queue] [string] [ring_span]" ) {
   std::string buf[N];
   chops::wait_queue<std::string, nonstd::ring_span<std::string> > wq(buf+0, buf+N);
   non_threaded_push_test(wq, "No bro speak, please"s, N);
@@ -259,7 +259,7 @@ SCENARIO ( "Non-threaded wait_queue test, with element type std::string and ring
 // test with boost circular_buffer
 
 SCENARIO ( "Non-threaded wait_queue test, with element type int and boost circular_buffer container type",
-           "[wait_queue_int_boost_circ_buf_container]" ) {
+           "[wait_queue] [int] [circular_buffer]" ) {
   chops::wait_queue<int, boost::circular_buffer<int> > wq(N);
   non_threaded_push_test(wq, 42, N);
   non_threaded_arithmetic_test(wq, 0, N, ExpectedSum<int>);
@@ -267,7 +267,7 @@ SCENARIO ( "Non-threaded wait_queue test, with element type int and boost circul
 }
 
 SCENARIO ( "Non-threaded wait_queue test, with element type double and boost circular_buffer container type",
-           "[wait_queue_double_boost_circ_buf_container]" ) {
+           "[wait_queue] [double] [circular_buffer]" ) {
   chops::wait_queue<double, boost::circular_buffer<double> > wq(N);
   non_threaded_push_test(wq, 42.0, N);
   non_threaded_arithmetic_test(wq, 0.0, N, ExpectedSum<double>);
@@ -275,14 +275,14 @@ SCENARIO ( "Non-threaded wait_queue test, with element type double and boost cir
 }
 
 SCENARIO ( "Non-threaded wait_queue test, with element type std::string and boost circular_buffer container type",
-           "[wait_queue_string_boost_circ_buf_container]" ) {
+           "[wait_queue] [string] [circular_buffer]" ) {
   chops::wait_queue<std::string, boost::circular_buffer<std::string> > wq(N);
   non_threaded_push_test(wq, "This code is bro-fessional level quality"s, N);
   non_threaded_open_close_test(wq, "Please, please, no more bro!"s, N);
 }
 
 SCENARIO ( "Non-threaded wait_queue test, testing copy construction without move construction",
-           "[wait_queue_copy_no_move]" ) {
+           "[wait_queue] [no_move]" ) {
 
   struct Foo {
     Foo() = delete;
@@ -303,7 +303,7 @@ SCENARIO ( "Non-threaded wait_queue test, testing copy construction without move
 }
 
 SCENARIO ( "Non-threaded wait_queue test, testing move construction without copy construction",
-           "[wait_queue_move_no_copy]" ) {
+           "[wait_queue] [no_copy]" ) {
 
   GIVEN ("A newly constructed wait_queue with a move-only type") {
 
@@ -337,7 +337,7 @@ SCENARIO ( "Non-threaded wait_queue test, testing move construction without copy
 }
 
 SCENARIO ( "Non-threaded wait_queue test, testing complex constructor and emplacement",
-           "[wait_queue_complex_type]" ) {
+           "[wait_queue] [complex_type] [deque]" ) {
 
   GIVEN ("A newly constructed wait_queue with a more complex type") {
 
@@ -382,7 +382,7 @@ SCENARIO ( "Non-threaded wait_queue test, testing complex constructor and emplac
 }
 
 SCENARIO ( "Fixed size ring_span, testing wrap around with int type",
-           "[wait_queue_int_ring_span_wrap_around]" ) {
+           "[wait_queue] [int] [ring_span_wrap_around]" ) {
 
   GIVEN ("A newly constructed wait_queue using a ring_span") {
 
@@ -413,7 +413,8 @@ SCENARIO ( "Fixed size ring_span, testing wrap around with int type",
   } // end given
 }
 
-SCENARIO ( "Threaded wait queue, deque int", "[wait_queue_threaded_deque_int]" ) {
+SCENARIO ( "Threaded wait queue, deque int",
+           "[wait_queue] [threaded] [int] [deque]" ) {
 
   GIVEN ("A newly constructed wait_queue, deque int") {
     chops::wait_queue<std::pair<int, int> > wq;
@@ -438,7 +439,8 @@ SCENARIO ( "Threaded wait queue, deque int", "[wait_queue_threaded_deque_int]" )
   } // end given
 }
 
-SCENARIO ( "Threaded wait queue, deque string", "[wait_queue_threaded_deque_string]" ) {
+SCENARIO ( "Threaded wait queue, deque string", 
+           "[wait_queue] [threaded] [string] [deque]" ) {
 
   GIVEN ("A newly constructed wait_queue, deque string") {
     chops::wait_queue<std::pair<int, std::string> > wq;
