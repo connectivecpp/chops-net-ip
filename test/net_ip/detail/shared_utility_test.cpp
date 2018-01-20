@@ -156,13 +156,15 @@ void make_msg_set_test(F&& f) {
   } // end given
 }
 
-SCENARIO ( "Shared Net IP test utility, make msg", "[shared_test_utility_make_msg]" ) {
+SCENARIO ( "Shared Net IP test utility, make msg",
+           "[shared_utility] [make_msg]" ) {
 
   make_msg_test();
 
 }
 
-SCENARIO ( "Shared Net IP test utility, make msg set", "[shared_test_utility_make_msg_set]" ) {
+SCENARIO ( "Shared Net IP test utility, make msg set",
+           "[shared_utility] [make_msg_set]" ) {
   using namespace chops::test;
 
   make_msg_set_test(make_variable_len_msg);
@@ -171,7 +173,8 @@ SCENARIO ( "Shared Net IP test utility, make msg set", "[shared_test_utility_mak
 
 }
 
-SCENARIO ( "Shared Net IP test utility, decode variable len msg header", "[shared_test_utility_decode_hdr]" ) {
+SCENARIO ( "Shared Net IP test utility, decode variable len msg header",
+           "[shared_utility] [decode_variable_len_msg]" ) {
   using namespace chops::test;
   using namespace std::experimental::net;
 
@@ -196,7 +199,8 @@ SCENARIO ( "Shared Net IP test utility, decode variable len msg header", "[share
   } // end given
 }
 
-SCENARIO ( "Shared Net IP test utility, msg hdlr", "[shared_test_utility_msg_hdlr]" ) {
+SCENARIO ( "Shared Net IP test utility, msg hdlr",
+           "[shared_utility] [msg_hdlr]" ) {
   using namespace chops::test;
   using namespace std::experimental::net;
 
