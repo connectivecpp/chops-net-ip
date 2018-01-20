@@ -136,11 +136,13 @@ struct udp_io_mock {
   void stop_io() { stop_io_called = true; }
 };
 
-SCENARIO ( "Net entity base test, udp", "[net_entity_base_udp]" ) {
+SCENARIO ( "Net entity base test, udp",
+           "[net_entity_base] [udp]" ) {
   net_entity_base_test<udp_io_mock>();
 }
 
-SCENARIO ( "Net entity base test, tcp", "[net_entity_base_tcp]" ) {
+SCENARIO ( "Net entity base test, tcp",
+           "[net_entity_base] [tcp]" ) {
   net_entity_base_test<tcp_io_mock>();
 }
 
