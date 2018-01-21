@@ -28,7 +28,7 @@ struct net_entity_mock {
   bool is_started() const { return started; }
 
   template <typename R, typename S>
-  void start( R &&, S && ) { started = true; }
+  void start( R&&, S&& ) { started = true; }
 
   void stop() { started = false; }
 
