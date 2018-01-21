@@ -25,6 +25,7 @@
 #include <vector>
 #include <algorithm>
 #include <memory> // std::shared_ptr, std::make_shared
+#include <future>
 
 #include <boost/endian/conversion.hpp>
 
@@ -156,6 +157,51 @@ void make_msg_set_test(F&& f) {
   } // end given
 }
 
+struct ioh_mock {
+  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using socket_type = std::experimental::net::ip::tcp::socket;
+
+  bool send_called = false;
+
+  void send(chops::const_shared_buffer) { send_called = true; }
+};
+
+
+template <typename F>
+std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, int num_msgs) {
+  using namespace chops::test;
+  using namespace std::experimental::net;
+
+  auto msgs = make_msg_set(f, pre, body_char, num_msgs);
+  auto empty = f(chops::mutable_shared_buffer());
+
+  auto iohp = std::make_shared<ioh_mock>();
+  ip::tcp::endpoint endp { };
+
+  std::promise<std::size_t> prom;
+  auto fut = prom.get_future();
+  msg_hdlr<ioh_mock> mh(false, std::move(prom));
+
+  for (auto i : msgs) {
+    mh(const_buffer(i.data(), i.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
+  }
+  mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
+  mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
+
+  return fut.get();
+
+}
+
+std::size_t msg_hdlr_stress_test_variable_len_msg(std::string_view pre, char body_char, int num_msgs) {
+  return msg_hdlr_stress_test(chops::test::make_variable_len_msg, pre, body_char, num_msgs);
+}
+std::size_t msg_hdlr_stress_test_cr_lf_text_msg(std::string_view pre, char body_char, int num_msgs) {
+  return msg_hdlr_stress_test(chops::test::make_cr_lf_text_msg, pre, body_char, num_msgs);
+}
+std::size_t msg_hdlr_stress_test_lf_text_msg(std::string_view pre, char body_char, int num_msgs) {
+  return msg_hdlr_stress_test(chops::test::make_lf_text_msg, pre, body_char, num_msgs);
+}
+
 SCENARIO ( "Shared Net IP test utility, make msg",
            "[shared_utility] [make_msg]" ) {
 
@@ -204,15 +250,6 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
   using namespace chops::test;
   using namespace std::experimental::net;
 
-  struct ioh_mock {
-    using endpoint_type = std::experimental::net::ip::tcp::endpoint;
-    using socket_type = std::experimental::net::ip::tcp::socket;
-
-    bool send_called = false;
-
-    void send(chops::const_shared_buffer) { send_called = true; }
-  };
-
   auto iohp = std::make_shared<ioh_mock>();
   REQUIRE_FALSE(iohp->send_called);
   ip::tcp::endpoint endp { };
@@ -243,6 +280,29 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(fut.get() == 1);
+      }
+    }
+  } // end given
+}
+
+SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
+           "[shared_utility] [msg_hdlr] [stress]" ) {
+  using namespace chops::test;
+
+  constexpr int sz1 = 2000;
+  constexpr int sz2 = 3000;
+  constexpr int sz3 = 8000;
+
+  GIVEN ("Three types of messages and three large sizes") {
+    WHEN ("a msg hdlr is created and stress tested in separate async calls") {
+      auto fut1 = std::async(std::launch::async, msg_hdlr_stress_test_variable_len_msg, "Async fun var len msg", 'A', sz1);
+      auto fut2 = std::async(std::launch::async, msg_hdlr_stress_test_cr_lf_text_msg, "Ha, hilarity cr lf text msg", 'L', sz2);
+      auto fut3 = std::async(std::launch::async, msg_hdlr_stress_test_lf_text_msg, "Nom, nom lf text msg", 'M', sz3);
+
+      THEN ("the three return values match") {
+        REQUIRE(fut1.get() == sz1);
+        REQUIRE(fut2.get() == sz2);
+        REQUIRE(fut3.get() == sz3);
       }
     }
   } // end given
