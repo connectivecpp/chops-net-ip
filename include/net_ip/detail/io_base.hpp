@@ -31,10 +31,6 @@ namespace chops {
 namespace net {
 namespace detail {
 
-inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer /* buf */ ) noexcept {
-  return 0;
-}
-
 template <typename IOH>
 class io_base {
 private:

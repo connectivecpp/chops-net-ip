@@ -26,6 +26,7 @@
 #include <utility> // std::forward, std::move
 #include <string>
 #include <string_view>
+#include <functional>
 
 #include "net_ip/detail/output_queue.hpp"
 #include "net_ip/detail/io_base.hpp"
@@ -37,6 +38,10 @@
 namespace chops {
 namespace net {
 namespace detail {
+
+std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexcept;
+bool null_msg_hdlr (std::experimental::net::const_buffer, io_interface<tcp_io>, 
+                    std::experimental::net::ip::tcp::endpoint) noexcept;
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
@@ -87,7 +92,7 @@ public:
     }
     m_read_size = header_size;
     m_byte_vec.resize(m_read_size);
-    start_read(msg_handler, msg_frame,
+    start_read(std::forward<MH>(msg_handler), std::forward<MF>(msg_frame),
                std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()));
   }
 
@@ -97,20 +102,16 @@ public:
       return;
     }
     m_delimiter = delimiter;
-    start_read_until(msg_handler);
+    start_read_until(std::forward<MH>(msg_handler));
   }
 
   template <typename MH>
   void start_io(MH&& msg_handler, std::size_t read_size) {
-    start_io(msg_handler, null_msg_frame, read_size);
+    start_io(std::forward<MH>(msg_handler), null_msg_frame, read_size);
   }
 
   void start_io() {
-    auto msg_hdlr = [] (std::experimental::net::const_buffer, 
-                        io_interface<tcp_io>, std::experimental::net::ip::tcp::endpoint) {
-      return true;
-    };
-    start_io(msg_hdlr, null_msg_frame, 1);
+    start_io(null_msg_hdlr, null_msg_frame, 1);
   }
 
   void stop_io() {
@@ -146,7 +147,7 @@ private:
     auto self { shared_from_this() };
     std::experimental::net::async_read(m_socket, mbuf,
       [this, self, mh = std::forward<MH>(msg_hdlr), mf = std::forward<MF>(msg_frame), mbuf]
-            (const std::error_code& err, std::size_t nb) mutable {
+            (const std::error_code& err, std::size_t nb) {
         handle_read(mh, mf, mbuf, err, nb);
       }
     );
@@ -163,7 +164,7 @@ private:
                                              std::experimental::net::dynamic_buffer(m_byte_vec), 
                                              m_delimiter,
           [this, self, mh = std::forward<MH>(msg_hdlr)] 
-            (const std::error_code& err, std::size_t nb) mutable {
+            (const std::error_code& err, std::size_t nb) {
         handle_read_until(mh, err, nb);
       }
     );
@@ -215,7 +216,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::
     m_byte_vec.resize(old_size + next_read_size);
     mbuf = std::experimental::net::mutable_buffer(m_byte_vec.data() + old_size, next_read_size);
   }
-  start_read(msg_hdlr, msg_frame, mbuf);
+  start_read(std::forward<MH>(msg_hdlr), std::forward<MF>(msg_frame), mbuf);
 }
 
 template <typename MH>
@@ -233,7 +234,7 @@ void tcp_io::handle_read_until(MH&& msg_hdlr, const std::error_code& err, std::s
     return;
   }
   m_byte_vec.erase(m_byte_vec.begin(), m_byte_vec.begin() + num_bytes);
-  start_read_until(msg_hdlr);
+  start_read_until(std::forward<MH>(msg_hdlr));
 }
 
 
@@ -269,6 +270,15 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
 }
 
 using tcp_io_ptr = std::shared_ptr<tcp_io>;
+
+inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexcept {
+  return 0;
+}
+
+inline bool null_msg_hdlr (std::experimental::net::const_buffer, io_interface<tcp_io>, 
+                           std::experimental::net::ip::tcp::endpoint) noexcept {
+  return true;
+}
 
 } // end detail namespace
 } // end net namespace

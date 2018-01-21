@@ -27,6 +27,7 @@
 #include <cstddef> // std::size_t, std::byte
 #include <vector>
 #include <utility> // std::forward, std::move
+#include <future>
 
 #include <experimental/buffer>
 
@@ -69,11 +70,19 @@ struct msg_hdlr {
   using endp_type = typename IOH::endpoint_type;
   using const_buf = std::experimental::net::const_buffer;
 
-  vec_buf& msgs;
-  bool reply;
-  bool shutdown_recvd;
+  vec_buf                   msgs;
+  bool                      reply;
+  bool                      shutdown_recvd;
+  std::promise<std::size_t> prom;
 
-  msg_hdlr(vec_buf& m, bool rep) : msgs(m), reply(rep), shutdown_recvd(false) { }
+  msg_hdlr(bool rep, std::promise<std::size_t>&& p) : 
+      msgs(), reply(rep), shutdown_recvd(false), prom(std::move(p)) { }
+
+  msg_hdlr(const msg_hdlr&) = delete;
+  msg_hdlr(msg_hdlr&&) = default;
+  msg_hdlr& operator=(const msg_hdlr&) = delete;
+  msg_hdlr& operator=(msg_hdlr&&) = default;
+  
 
   bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
@@ -81,8 +90,14 @@ struct msg_hdlr {
       msgs.push_back(sh_buf);
       return reply ? io_intf.send(std::move(sh_buf)) : true;
     }
-    return shutdown_recvd ? false : (shutdown_recvd = true, io_intf.send(std::move(sh_buf)));
+    if (shutdown_recvd) {
+      prom.set_value(msgs.size());
+      return false;
+    }
+    shutdown_recvd = true;
+    return io_intf.send(std::move(sh_buf));
   }
+
 };
 
 } // end namespace test

@@ -20,7 +20,6 @@
 #include <cstddef> // std::size_t
 #include <memory> // std::make_shared
 #include <utility> // std::move
-#include <tuple>
 #include <thread>
 #include <future>
 #include <chrono>
@@ -46,44 +45,28 @@ const char*   test_addr = "127.0.0.1";
 constexpr int NumMsgs = 50;
 
 
-using notifier_data = std::tuple<std::error_code, chops::net::detail::tcp_io_ptr>;
-
-struct entity_notifier {
-  entity_notifier() = default;
-
-  std::promise<notifier_data> prom;
-
-  void notify_me(const std::error_code& e, chops::net::detail::tcp_io_ptr p) {
-    p->close();
-    prom.set_value(notifier_data(e, p));
-  }
-
-};
+void notify_me(std::error_code, chops::net::detail::tcp_io_ptr p) { p->close(); }
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread; return data: 1. error code 2. Does the ioh ptr match? 3. msg set size
-using thread_data = std::tuple<std::error_code, bool, std::size_t>; 
-using thread_promise = std::promise<thread_data>;
+using prom_type = std::promise<std::size_t>;
 
-void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
+void connector_func (prom_type thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
                      int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {
   using namespace std::placeholders;
-
-  entity_notifier en { };
-  auto en_fut = en.prom.get_future();
-  notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
 
   ip::tcp::socket sock(ioc);
   sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
 
-  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), cb);
-  vec_buf vb;
+  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), notify_me);
+  prom_type mh_prom;
+  auto mh_fut = mh_prom.get_future();
   if (delim.empty()) {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, false), 
+    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(false, std::move(mh_prom)), 
                    chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
   }
   else {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, false), delim);
+    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(false, std::move(mh_prom)), delim);
   }
 
   for (auto buf : in_msg_set) {
@@ -92,8 +75,7 @@ void connector_func (thread_promise thr_prom, const vec_buf& in_msg_set, io_cont
   }
   iohp->send(empty_msg);
 
-  auto ret = en_fut.get(); // wait for termination callback
-  thr_prom.set_value(thread_data(std::get<0>(ret), std::get<1>(ret) == iohp, vb.size()));
+  thr_prom.set_value(mh_fut.get()); // wait for termination callback, pop val back
 
 }
 
@@ -112,45 +94,36 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
 
         ip::tcp::acceptor acc(wk.get_io_context(), ip::tcp::endpoint(ip::address_v4::any(), test_port));
 
-        entity_notifier en { };
-        auto en_fut = en.prom.get_future();
-        notifier_cb cb(std::bind(&entity_notifier::notify_me, &en, _1, _2));
-
         INFO ("Creating connector thread, msg interval: " << interval);
 
-        thread_promise conn_prom;
+        prom_type conn_prom;
         auto conn_fut = conn_prom.get_future();
         std::thread conn_thr(connector_func, std::move(conn_prom), std::cref(in_msg_set), 
                              std::ref(wk.get_io_context()), interval, delim, empty_msg);
 
-        auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), cb);
-        vec_buf vb;
+        auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), notify_me);
+        prom_type mh_prom;
+        auto mh_fut = mh_prom.get_future();
         if (delim.empty()) {
-          iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, reply), 
+          iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply, std::move(mh_prom)), 
                          chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
         }
         else {
-          iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(vb, reply), delim);
+          iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply, std::move(mh_prom)), delim);
         }
 
-        auto en_ret = en_fut.get(); // wait for termination callback
-        INFO ("Entity future popped");
+        auto acc_cnt = mh_fut.get(); // wait for mh termination callback
+        INFO ("Msg hdlr future popped");
 
-        auto conn_data = conn_fut.get();
+        auto conn_cnt = conn_fut.get();
         INFO ("Connector thread future popped, joining thread");
         conn_thr.join();
-        std::error_code e = std::get<0>(en_ret);
-        INFO ("Acceptor error code and msg: " << e << " " << e.message() );
-        e = std::get<0>(conn_data);
-        INFO ("Connector error code and msg: " << e << " " << e.message());
-        REQUIRE (std::get<1>(en_ret) == iohp);
-        REQUIRE (std::get<1>(conn_data));
-        REQUIRE (in_msg_set == vb);
+        REQUIRE (in_msg_set.size() == acc_cnt);
         if (reply) {
-          REQUIRE (std::get<2>(conn_data) == in_msg_set.size());
+          REQUIRE (in_msg_set.size() == conn_cnt);
         }
         else {
-          REQUIRE (std::get<2>(conn_data) == 0);
+          REQUIRE (conn_cnt == 0);
         }
       }
     }

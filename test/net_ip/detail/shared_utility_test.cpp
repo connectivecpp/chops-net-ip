@@ -222,25 +222,27 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
 
   GIVEN ("A mock io handler, a msg with a body, and an empty body msg") {
 
-    WHEN ("a msg hdlr is created with reply true and the messages passed in") {
-      vec_buf vb;
-      msg_hdlr<ioh_mock> mh(vb, true);
+    WHEN ("a msg hdlr is created with reply true") {
+      std::promise<std::size_t> prom;
+      auto fut = prom.get_future();
+      msg_hdlr<ioh_mock> mh(true, std::move(prom));
       THEN ("send has been called, shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(vb.size() == 1);
+        REQUIRE(fut.get() == 1);
       }
     }
-    AND_WHEN ("a msg hdlr is created with reply false and the messages passed in") {
-      vec_buf vb;
-      msg_hdlr<ioh_mock> mh(vb, false);
+    AND_WHEN ("a msg hdlr is created with reply false") {
+      std::promise<std::size_t> prom;
+      auto fut = prom.get_future();
+      msg_hdlr<ioh_mock> mh(false, std::move(prom));
       THEN ("shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(vb.size() == 1);
+        REQUIRE(fut.get() == 1);
       }
     }
   } // end given
