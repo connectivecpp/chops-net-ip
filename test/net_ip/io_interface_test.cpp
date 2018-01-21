@@ -45,7 +45,7 @@ struct io_handler_base_mock {
   }
 
   template <typename MH, typename MF>
-  void start_io(MH &&, MF&&, std::size_t) { started = true; }
+  void start_io(MH&&, MF&&, std::size_t) { started = true; }
 
   template <typename MH>
   void start_io(MH&&, std::string_view) { started = true; }
