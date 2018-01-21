@@ -86,7 +86,6 @@ std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
     }
   } // end given
 
-  std::this_thread::sleep_for(3s); // sleep for 3 seconds
   wk.reset();
 
 }
