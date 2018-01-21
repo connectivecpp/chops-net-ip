@@ -16,7 +16,7 @@
 
 #include <memory> // std::shared_ptr, std::weak_ptr
 #include <cstddef> // std::size_t 
-#include <utility> // std::forward
+#include <utility> // std::move, std::forward
 #include <system_error> // std::make_error
 
 #include "net_ip/net_ip_error.hpp"

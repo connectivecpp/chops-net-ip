@@ -17,7 +17,7 @@
 #include <string_view>
 #include <system_error>
 #include <cstddef> // std::size_t, std::byte
-#include <utility> // std::forward
+#include <utility> // std::forward, std::move
 
 #include <experimental/buffer>
 
@@ -234,7 +234,9 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
-  bool send(chops::mutable_shared_buffer&& buf) const { return send(chops::const_shared_buffer(buf)); }
+  bool send(chops::mutable_shared_buffer&& buf) const { 
+    return send(chops::const_shared_buffer(std::move(buf)));
+  }
 
 /**
  *  @brief Send a buffer to a specific destination endpoint (address and port), implemented
@@ -288,7 +290,7 @@ public:
  *  @return @c true if IO handler association is valid, otherwise @c false.
  */
   bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
-    return send(chops::const_shared_buffer(buf), endp);
+    return send(chops::const_shared_buffer(std::move(buf)), endp);
   }
 
 
@@ -355,7 +357,7 @@ public:
  *
  */
   template <typename MH, typename MF>
-  bool start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) {
+  bool start_io(MH&& msg_handler, MF&& msg_frame, std::size_t header_size) {
     auto p = m_ioh_wptr.lock();
     return p ? (p->start_io(std::forward<MH>(msg_handler), 
                             std::forward<MF>(msg_frame), header_size), true) : false;

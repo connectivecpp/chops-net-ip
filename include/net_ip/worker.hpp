@@ -15,6 +15,9 @@
 
 #include <thread>
 
+#include <exception>
+#include <iostream>
+
 #include <experimental/io_context>
 #include <experimental/executor>
 
@@ -47,7 +50,18 @@ public:
  *  operations.
  */
   void start() {
-    m_run_thr = std::thread([this] () { m_ioc.run(); } );
+    m_run_thr = std::thread([this] () {
+        try {
+          m_ioc.run();
+        }
+        catch (const std::exception& e) {
+          std::cerr << "std::exception caught in worker::start: " << e.what() << std::endl;
+        }
+        catch (...) {
+          std::cerr << "Unknown exception caught in worker::start" << std::endl;
+        }
+      }
+    );
   }
 
 /**

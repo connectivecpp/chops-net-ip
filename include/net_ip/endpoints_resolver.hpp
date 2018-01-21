@@ -98,15 +98,17 @@ public:
 
     using namespace std::experimental::net;
 
+    // Note - std::move used instead of std::forward since an explicit move or copy
+    // is needed to prevent worry about dangling references
     if (local) {
       m_resolver.async_resolve(std::string(host_or_intf_name), std::string(service_or_port), 
                         ip::resolver_base::flags(ip::resolver_base::passive | 
                                                  ip::resolver_base::address_configured),
-                        std::forward<F>(func));
+                        std::move(func));
     }
     else {
       m_resolver.async_resolve(std::string(host_or_intf_name), std::string(service_or_port),
-                        std::forward<F>(func));
+                        std::move(func));
     }
     return;
   }

@@ -86,7 +86,7 @@ public:
   bool is_started() const noexcept { return m_io_base.is_started(); }
 
   template <typename MH, typename MF>
-  void start_io(MH && msg_handler, MF&& msg_frame, std::size_t header_size) {
+  void start_io(MH&& msg_handler, MF&& msg_frame, std::size_t header_size) {
     if (!start_io_setup()) {
       return;
     }
@@ -144,11 +144,13 @@ private:
 
   template <typename MH, typename MF>
   void start_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf) {
+    // std::move in lambda instead of std::forward since an explicit copy or move of the function
+    // object is desired so there are no dangling references
     auto self { shared_from_this() };
     std::experimental::net::async_read(m_socket, mbuf,
-      [this, self, mh = std::forward<MH>(msg_hdlr), mf = std::forward<MF>(msg_frame), mbuf]
-            (const std::error_code& err, std::size_t nb) {
-        handle_read(mh, mf, mbuf, err, nb);
+      [this, self, mh = std::move(msg_hdlr), mf = std::move(msg_frame), mbuf]
+            (const std::error_code& err, std::size_t nb) mutable {
+        handle_read(std::move(mh), std::move(mf), mbuf, err, nb);
       }
     );
   }
@@ -163,9 +165,9 @@ private:
     std::experimental::net::async_read_until(m_socket, 
                                              std::experimental::net::dynamic_buffer(m_byte_vec), 
                                              m_delimiter,
-          [this, self, mh = std::forward<MH>(msg_hdlr)] 
-            (const std::error_code& err, std::size_t nb) {
-        handle_read_until(mh, err, nb);
+          [this, self, mh = std::move(msg_hdlr)] 
+            (const std::error_code& err, std::size_t nb) mutable {
+        handle_read_until(std::move(mh), err, nb);
       }
     );
   }
