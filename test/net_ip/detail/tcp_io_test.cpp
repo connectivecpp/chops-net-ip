@@ -125,7 +125,8 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
       }
     }
   } // end given
-  wk.reset();
+//  wk.reset();
+  wk.stop();
 
 }
 

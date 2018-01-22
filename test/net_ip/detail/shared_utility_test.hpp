@@ -86,17 +86,27 @@ struct msg_hdlr {
   
 
   bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
+    bool ret = true;
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       msgs.push_back(sh_buf);
-      return reply ? io_intf.send(std::move(sh_buf)) : true;
+      if (reply) {
+        ret = io_intf.send(std::move(sh_buf));
+      }
     }
-    if (shutdown_recvd) {
+    else {
+      if (shutdown_recvd) {
+        ret = false;
+      }
+      else {
+        shutdown_recvd = true;
+        ret = io_intf.send(std::move(sh_buf));
+      }
+    }
+    if (!ret) {
       prom.set_value(msgs.size());
-      return false;
     }
-    shutdown_recvd = true;
-    return io_intf.send(std::move(sh_buf));
+    return ret;
   }
 
 };
