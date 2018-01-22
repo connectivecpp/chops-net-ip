@@ -34,6 +34,8 @@
 #include "utility/shared_buffer.hpp"
 
 
+#include <iostream>
+
 using namespace std::experimental::net;
 using namespace chops::test;
 
@@ -41,11 +43,14 @@ using notifier_cb =
   typename chops::net::detail::io_base<chops::net::detail::tcp_io>::entity_notifier_cb;
 
 constexpr int test_port = 30434;
-const char*   test_addr = "127.0.0.1";
+const char*   test_addr = "0.0.0.0";
 constexpr int NumMsgs = 50;
 
 
-void notify_me(std::error_code, chops::net::detail::tcp_io_ptr p) { p->close(); }
+void notify_me(std::error_code e, chops::net::detail::tcp_io_ptr p) {
+  std::cerr << "Inside notify_me, err: " << e << ", " << e.message() << std::endl;
+  p->close();
+}
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
