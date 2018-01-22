@@ -75,7 +75,7 @@ struct msg_hdlr {
   bool                      shutdown_recvd;
   std::promise<std::size_t> prom;
 
-  msg_hdlr(bool rep, std::promise<std::size_t> p) : 
+  msg_hdlr(bool rep, std::promise<std::size_t> p = std::promise<std::size_t>()) : 
       msgs(), reply(rep), shutdown_recvd(false), prom(std::move(p)) { }
 
   // move-only, std::promise is not copyable

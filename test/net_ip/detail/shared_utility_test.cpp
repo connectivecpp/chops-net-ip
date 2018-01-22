@@ -271,15 +271,12 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
         REQUIRE(fut.get() == 1);
       }
     }
-    AND_WHEN ("a msg hdlr is created with reply false") {
-      std::promise<std::size_t> prom;
-      auto fut = prom.get_future();
-      msg_hdlr<ioh_mock> mh(false, std::move(prom));
+    AND_WHEN ("a msg hdlr is created with reply false and default constructed promise") {
+      msg_hdlr<ioh_mock> mh(false);
       THEN ("shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(fut.get() == 1);
       }
     }
   } // end given
