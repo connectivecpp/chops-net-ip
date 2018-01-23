@@ -4,10 +4,10 @@
  *
  *  @brief Test scenarios for @c tcp_acceptor detail class.
  *
- *  This test is similar to the tcp_io_test code, without all of the 
- *  internal plumbing needed, and allowing multiple connector threads to
- *  be started. The TCP acceptor is the Chops Net IP class, but the 
- *  connector threads are using blocking Networking TS connects and io.
+ *  This test is similar to the tcp_io_test code, with a little bit less
+ *  internal plumbing, and allowing multiple connector threads to be started. 
+ *  The TCP acceptor is the Chops Net IP class, but the connector threads are 
+ *  using blocking Networking TS connects and io.
  *
  *  @author Cliff Green
  *  @date 2018
@@ -43,7 +43,7 @@
 #include "utility/repeat.hpp"
 
 
-#include <iostream>
+// #include <iostream>
 
 using namespace std::experimental::net;
 using namespace chops::test;
@@ -55,8 +55,8 @@ constexpr int NumMsgs = 50;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
-void connector_func (std::promise<std::size_t> thr_prom, const vec_buf& in_msg_set, io_context& ioc, 
-                     bool read_reply, int interval, chops::const_shared_buffer empty_msg) {
+std::size_t connector_func (const vec_buf& in_msg_set, io_context& ioc, 
+                            bool read_reply, int interval, chops::const_shared_buffer empty_msg) {
 
   ip::tcp::socket sock(ioc);
   auto endp_seq = chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
@@ -73,55 +73,51 @@ void connector_func (std::promise<std::size_t> thr_prom, const vec_buf& in_msg_s
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
-  // shutdown message flow - send empty msg, receive empty msg, send it again, causes
-  // msg handler to close connection on other side
   write(sock, const_buffer(empty_msg.data(), empty_msg.size()));
-  return_msg.resize(empty_msg.size());
-  read(sock, mutable_buffer(return_msg.data(), return_msg.size()));
-  write(sock, const_buffer(empty_msg.data(), empty_msg.size()));
-
-  thr_prom.set_value(cnt);
-
+  char c;
+  std::error_code ec;
+  auto sz = read(sock, mutable_buffer(&c, 1), ec); // block on read until connection is closed
+// std::cerr << "Single byte read completed, sz: " << sz << ", err: " << ec << ", " 
+// << ec.message() << std::endl;
+  return cnt;
 }
 
 struct start_cb {
-  vec_buf                              vb;
-  std::size_t                          num;
-  msg_hdlr<chops::net::detail::tcp_io> mh;
-  std::string_view                     delim;
+  std::string_view     delim;
+  bool                 reply;
 
-
-  start_cb (bool reply, std::string_view d) : vb(), num(0), mh(vb, reply), delim(d) { }
+  start_cb (bool r, std::string_view d) : delim(d), reply(r) { }
 
   void operator() (chops::net::tcp_io_interface io, std::size_t n) {
-    num = n;
+
+// std::cerr << "Start_cb invoked, num hdlrs: " << n 
+// << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
+
     if (delim.empty()) {
-      io.start_io(mh, chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
+      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), 
+                  chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
     }
     else {
-      io.start_io(mh, delim);
+      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), delim);
     }
   }
 
 };
 
-struct shut_cb {
+void shut_cb(chops::net::tcp_io_interface io, std::error_code e, std::size_t n) {
 
-  std::size_t         num;
-  std::error_code     err;
-  void operator() (chops::net::tcp_io_interface io, std::error_code e, std::size_t n) {
-    num = n;
-    err = e;
-  }
+// std::cerr << "Shut_cb invoked, num hdlrs: " << n 
+// << std::boolalpha << ", err: " << e << ", " << e.message() << ", io is_valid: " 
+// << io.is_valid() << std::endl;
 
-};
-
+}
 
 void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num_conns,
                     std::string_view delim, chops::const_shared_buffer empty_msg) {
 
   chops::net::worker wk;
   wk.start();
+  auto& ioc = wk.get_io_context();
 
   GIVEN ("An executor work guard and a message set") {
  
@@ -129,70 +125,46 @@ void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num
       THEN ("the futures provide synchronization and data returns") {
 
         auto endp_seq = 
-          chops::net::endpoints_resolver<ip::tcp>(wk.get_io_context()).make_endpoints(true, test_host, test_port);
-std::cerr << "acceptor endpoints:" << std::endl;
-for (auto i : endp_seq) {
-  std::cerr << "-- " << i.endpoint() << std::endl;
-}
-        auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(wk.get_io_context(), 
-                                                                 *(endp_seq.cbegin()), true);
+            chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+        auto acc_ptr = 
+            std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 
-std::cerr << "acceptor created" << std::endl;
+// std::cerr << "acceptor created" << std::endl;
 
         REQUIRE_FALSE(acc_ptr->is_started());
 
-        start_cb start_callback(reply, delim);
-        shut_cb  shut_callback { };
+        acc_ptr->start(start_cb(reply, delim), shut_cb);
 
-        acc_ptr->start(std::ref(start_callback), std::ref(shut_callback));
-
-std::cerr << "acceptor started" << std::endl;
+// std::cerr << "acceptor started" << std::endl;
 
         REQUIRE(acc_ptr->is_started());
-        REQUIRE(start_callback.num == 0);
-        REQUIRE(start_callback.vb.empty());
 
-        std::vector<std::thread> conn_thrs;
         std::vector<std::future<std::size_t> > conn_futs;
 
-std::cerr << "creating " << num_conns << " futures and threads" << std::endl;
+// std::cerr << "creating " << num_conns << " async futures and threads" << std::endl;
         chops::repeat(num_conns, [&] () {
-            std::promise<std::size_t> conn_prom;
-            conn_futs.emplace_back(conn_prom.get_future());
-            conn_thrs.emplace_back(connector_func, std::move(conn_prom), std::cref(in_msg_set), 
-                                   std::ref(wk.get_io_context()), reply, interval, empty_msg);
+            conn_futs.emplace_back(std::async(std::launch::async, connector_func, std::cref(in_msg_set), 
+                                   std::ref(ioc), reply, interval, empty_msg));
+
           }
         );
 
         std::size_t accum_msgs = 0;
-
         for (auto& fut : conn_futs) {
-          accum_msgs += fut.get();
+          accum_msgs += fut.get(); // wait for connectors to finish
         }
-        INFO ("Connector futures popped");
-std::cerr << "Connector futures popped" << std::endl;
-
-        for (auto& thr : conn_thrs) {
-          thr.join();
-        }
-        INFO ("Connector threads joined");
-std::cerr << "Connector threads joined" << std::endl;
+        INFO ("All connector futures popped");
+// std::cerr << "All connector futures popped" << std::endl;
 
         acc_ptr->stop();
 
         INFO ("Acceptor stopped");
-std::cerr << "Acceptor stopped" << std::endl;
+// std::cerr << "Acceptor stopped" << std::endl;
 
         REQUIRE_FALSE(acc_ptr->is_started());
 
-        REQUIRE(start_callback.num == num_conns);
-        REQUIRE(shut_callback.num == 0);
-        REQUIRE(shut_callback.err);
-        INFO ("Last shutdown callback error code and msg: " << shut_callback.err << " " 
-                                                            << shut_callback.err.message() );
         std::size_t total_msgs = num_conns * in_msg_set.size();
         REQUIRE (accum_msgs == total_msgs);
-        REQUIRE (start_callback.vb.size() == total_msgs);
       }
     }
   } // end given
@@ -272,7 +244,6 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, one-way"
 
 }
 
-/*
 SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 30, 20 connectors, two-way", 
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_30] [connectors_20]" ) {
 
@@ -326,4 +297,3 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, two-way, man
   acceptor_test ( ms, true, 0, 25, std::string_view("\n"), empty_msg );
 
 }
-*/
