@@ -130,8 +130,9 @@ public:
   // been reported back to the net entity; post a handler to allow other operations one more
   // chance to complete
   void close() {
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self] { handle_close(); } );
+//    auto self { shared_from_this() };
+//    post(m_socket.get_executor(), [this, self] { handle_close(); } );
+    handle_close();
   }
 
 private:
