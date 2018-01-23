@@ -12,10 +12,8 @@
  *  the Chops Net IP library facilities provide the connection notification (state
  *  change function object callbacks).
  *
- *  When the message flow is finished, an empty body message is sent to the receiver. 
- *  This empty body message is sent back to the sender regardless of the loopback
- *  flag, and may make an additional trip to the receiver before being discarded 
- *  (depending on message handler logic).
+ *  When the message flow is finished, an empty body message is sent to the receiver,
+ *  which signals an "end of message flow" condition.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -72,11 +70,10 @@ struct msg_hdlr {
 
   vec_buf                   msgs;
   bool                      reply;
-  bool                      shutdown_recvd;
   std::promise<std::size_t> prom;
 
   msg_hdlr(bool rep, std::promise<std::size_t> p = std::promise<std::size_t>()) : 
-      msgs(), reply(rep), shutdown_recvd(false), prom(std::move(p)) { }
+      msgs(), reply(rep), prom(std::move(p)) { }
 
   // move-only, std::promise is not copyable
   msg_hdlr(const msg_hdlr&) = delete;
@@ -86,27 +83,13 @@ struct msg_hdlr {
   
 
   bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
-    bool ret = true;
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       msgs.push_back(sh_buf);
-      if (reply) {
-        ret = io_intf.send(std::move(sh_buf));
-      }
+      return reply ? io_intf.send(std::move(sh_buf)) : true;
     }
-    else {
-      if (shutdown_recvd) {
-        ret = false;
-      }
-      else {
-        shutdown_recvd = true;
-        ret = io_intf.send(std::move(sh_buf));
-      }
-    }
-    if (!ret) {
-      prom.set_value(msgs.size());
-    }
-    return ret;
+    prom.set_value(msgs.size());
+    return false;
   }
 
 };

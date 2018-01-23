@@ -186,7 +186,6 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
     mh(const_buffer(i.data(), i.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
   }
   mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
-  mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
 
   return fut.get();
 
@@ -266,16 +265,14 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
       THEN ("send has been called, shutdown message is handled correctly and msg container size is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
-        REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE(fut.get() == 1);
       }
     }
     AND_WHEN ("a msg hdlr is created with reply false and default constructed promise") {
       msg_hdlr<ioh_mock> mh(false);
-      THEN ("shutdown message is handled correctly and msg container size is correct") {
+      THEN ("shutdown message is handled correctly") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
       }
     }
