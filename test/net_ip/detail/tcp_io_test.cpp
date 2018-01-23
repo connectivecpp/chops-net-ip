@@ -39,33 +39,41 @@
 using namespace std::experimental::net;
 using namespace chops::test;
 
-using notifier_cb = 
-  typename chops::net::detail::io_base<chops::net::detail::tcp_io>::entity_notifier_cb;
+// using notifier_cb = 
+//   typename chops::net::detail::io_base<chops::net::detail::tcp_io>::entity_notifier_cb;
 
 constexpr int test_port = 30434;
 const char*   test_addr = "0.0.0.0";
 constexpr int NumMsgs = 50;
 
-
-void notify_me(std::error_code e, chops::net::detail::tcp_io_ptr p) {
-  std::cerr << "Inside notify_me, err: " << e << ", " << e.message() << std::endl;
-  p->close();
-}
-
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
-using prom_type = std::promise<std::size_t>;
+
+using notify_prom_type = std::promise<std::error_code>;
+
+struct notify_me {
+  std::shared_ptr<notify_prom_type>  m_prom;
+
+  notify_me(notify_prom_type prom) : m_prom(std::make_shared<notify_prom_type>(std::move(prom))) { }
+
+  void operator()(std::error_code e, chops::net::detail::tcp_io_ptr p) {
+    p->close();
+    m_prom->set_value(e);
+  }
+};
+
+
+using mh_prom_type = std::promise<std::size_t>;
 
 auto invoke_start_io(chops::net::detail::tcp_io_ptr iohp, bool reply, std::string_view delim) {
-
-  prom_type mh_prom;
-  auto mh_fut = mh_prom.get_future();
+  mh_prom_type prom;
+  auto mh_fut = prom.get_future();
   if (delim.empty()) {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply, std::move(mh_prom)), 
+    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply, std::move(prom)), 
                    chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
   }
   else {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply, std::move(mh_prom)), delim);
+    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply, std::move(prom)), delim);
   }
   return mh_fut;
 }
@@ -77,7 +85,11 @@ std::size_t connector_func (const vec_buf& in_msg_set, io_context& ioc,
   ip::tcp::socket sock(ioc);
   sock.connect(ip::tcp::endpoint(ip::make_address(test_addr), test_port));
 
-  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), notify_me);
+  notify_prom_type notify_prom;
+  auto notify_fut = notify_prom.get_future();
+
+  auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), 
+                                                           notify_me(std::move(notify_prom)));
   auto mh_fut = invoke_start_io(iohp, false, delim);
 
   for (auto buf : in_msg_set) {
@@ -85,6 +97,9 @@ std::size_t connector_func (const vec_buf& in_msg_set, io_context& ioc,
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
   iohp->send(empty_msg);
+
+  auto err = notify_fut.get();
+std::cerr << "Inside connector_func, err from notify_me: " << err << ", " << err.message() << std::endl;
 
   return mh_fut.get();
 }
@@ -107,14 +122,20 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
         auto conn_fut = std::async(std::launch::async, connector_func, std::cref(in_msg_set), 
                                    std::ref(wk.get_io_context()), interval, delim, empty_msg);
 
-        auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), notify_me);
+        notify_prom_type notify_prom;
+        auto notify_fut = notify_prom.get_future();
+
+        auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), 
+                                                                 notify_me(std::move(notify_prom)));
         auto mh_fut = invoke_start_io(iohp, reply, delim);
 
+        auto err = notify_fut.get();
+std::cerr << "Inside acc_conn_test, err from notify_me: " << err << ", " << err.message() << std::endl;
         auto acc_cnt = mh_fut.get(); // wait for mh termination callback
-        INFO ("Msg hdlr future popped");
-
+std::cerr << "Inside acc_conn_test, msg_hdlr future popped, val: " << acc_cnt << std::endl;
         auto conn_cnt = conn_fut.get(); // get msg set size from connector
-        INFO ("Connector future popped");
+std::cerr << "Inside acc_conn_test, connector_func future popped, val: " << conn_cnt << std::endl;
+
         REQUIRE (in_msg_set.size() == acc_cnt);
         if (reply) {
           REQUIRE (in_msg_set.size() == conn_cnt);
@@ -125,8 +146,9 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
       }
     }
   } // end given
-//  wk.reset();
-  wk.stop();
+
+  wk.reset();
+//  wk.stop();
 
 }
 
