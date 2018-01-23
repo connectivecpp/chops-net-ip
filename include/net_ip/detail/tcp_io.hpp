@@ -127,8 +127,12 @@ public:
 
 public:
   // this method can only be called through a net entity, assumes all error codes have already
-  // been reported back to the net entity
-  void close();
+  // been reported back to the net entity; post a handler to allow other operations one more
+  // chance to complete
+  void close() {
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), [this, self] { handle_close(); } );
+  }
 
 private:
 
@@ -179,11 +183,13 @@ private:
 
   void handle_write(const std::error_code&, std::size_t);
 
+  void handle_close();
+
 };
 
 // method implementations, just to make the class declaration a little more readable
 
-inline void tcp_io::close() {
+inline void tcp_io::handle_close() {
   m_io_base.stop();
   // attempt graceful shutdown
   std::error_code ec;

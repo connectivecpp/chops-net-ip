@@ -107,20 +107,23 @@ std::cerr << "Inside connector_func, err from notify_me: " << err << ", " << err
 void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::string_view delim,
                     chops::const_shared_buffer empty_msg) {
 
-  chops::net::worker wk;
-  wk.start();
+//  chops::net::worker wk;
+//  wk.start();
+//  auto ioc = wk.get_io_context();
+  io_context ioc;
+  auto wg = make_work_guard(ioc);
 
   GIVEN ("An executor work guard and a message set") {
  
     WHEN ("an acceptor and connector are created") {
       THEN ("the futures provide synchronization and data returns") {
 
-        ip::tcp::acceptor acc(wk.get_io_context(), ip::tcp::endpoint(ip::address_v4::any(), test_port));
+        ip::tcp::acceptor acc(ioc, ip::tcp::endpoint(ip::address_v4::any(), test_port));
 
         INFO ("Creating connector asynchronously, msg interval: " << interval);
 
         auto conn_fut = std::async(std::launch::async, connector_func, std::cref(in_msg_set), 
-                                   std::ref(wk.get_io_context()), interval, delim, empty_msg);
+                                   std::ref(ioc), interval, delim, empty_msg);
 
         notify_prom_type notify_prom;
         auto notify_fut = notify_prom.get_future();
@@ -147,7 +150,8 @@ std::cerr << "Inside acc_conn_test, connector_func future popped, val: " << conn
     }
   } // end given
 
-  wk.reset();
+  wg.reset();
+//  wk.reset();
 //  wk.stop();
 
 }
