@@ -35,22 +35,26 @@ namespace net {
 namespace detail {
 
 class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
+public:
+  using socket_type = std::experimental::net::ip::tcp::socket;
+  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+
 private:
   using resolver_type = chops::net::endpoints_resolver<std::experimental::net::ip::tcp>;
   using resolver_results = 
     std::experimental::net::ip::basic_resolver_results<std::experimental::net::ip::tcp>;
-  using endpoints = std::vector<std::experimental::net::ip::tcp::endpoint>;
+  using endpoints = std::vector<endpoint_type>;
   using endpoints_iter = endpoints::const_iterator;
 
 private:
-  net_entity_base<tcp_io>                 m_entity_base;
-  std::experiment::net::ip::tcp::socket   m_socket;
-  resolver_type                           m_resolver;
-  endpoints                               m_endpoints;
-  chops::periodic_timer<>                 m_timer;
-  std::size_t                             m_reconn_time;
-  std::string                             m_remote_host;
-  std::string                             m_remote_port;
+  net_entity_base<tcp_io>    m_entity_base;
+  socket_type                m_socket;
+  resolver_type              m_resolver;
+  endpoints                  m_endpoints;
+  chops::periodic_timer<>    m_timer;
+  std::size_t                m_reconn_time;
+  std::string                m_remote_host;
+  std::string                m_remote_port;
 
 public:
   template <typename Iter>
@@ -81,8 +85,9 @@ public:
 
 public:
 
-
   bool is_started() const noexcept { return m_entity_base.is_started(); }
+
+  socket_type& get_socket() noexcept { return m_socket; }
 
   template <typename R, typename S>
   void start(R&& start_chg, S&& shutdown_chg) {
@@ -90,34 +95,34 @@ public:
       // already started
       return;
     }
-    if (endpoints.empty()) { // need to get endpoints
+    if (m_endpoints.empty()) { // need to get endpoints
       auto self = shared_from_this();
       m_resolver.make_endpoints([this, self] (std::error_code err, resolver_results res) {
             if (err) {
-              stop_handlers();
+              close();
               m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
               return;
             }
             m_endpoints = res;
             start_connect();
-          }, 
-        false, remote_host, remote_port
-      );
+          }, false, remote_host, remote_port );
       return;
     }
     start_connect();
   }
 
   void stop() {
-    stop_handlers();
+    close();
     m_entity_base.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_connector_stopped), tcp_io_ptr());
   }
 
 private:
 
-  void stop_handlers() {
+  void close() {
     m_entity_base.stop_io_all();
     m_entity_base.stop(); // toggle started flag, clear container of tcp io handlers
+    std::error_code ec;
+    m_socket.close(ec);
   }
 
   void start_connect() {

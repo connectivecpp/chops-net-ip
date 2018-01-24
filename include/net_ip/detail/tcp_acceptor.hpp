@@ -31,11 +31,15 @@ namespace net {
 namespace detail {
 
 class tcp_acceptor : public std::enable_shared_from_this<tcp_acceptor> {
+public:
+  using socket_type = std::experimental::net::ip::tcp::acceptor;
+  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+
 private:
-  net_entity_base<tcp_io>                     m_entity_base;
-  std::experimental::net::ip::tcp::acceptor   m_acceptor;
-  std::experimental::net::ip::tcp::endpoint   m_acceptor_endp;
-  bool                                        m_reuse_addr;
+  net_entity_base<tcp_io>   m_entity_base;
+  socket_type               m_acceptor;
+  endpoint_type             m_acceptor_endp;
+  bool                      m_reuse_addr;
 
 public:
   tcp_acceptor(std::experimental::net::io_context& ioc, 
@@ -44,7 +48,10 @@ public:
     m_entity_base(), m_acceptor(ioc), m_acceptor_endp(endp), m_reuse_addr(reuse_addr) { }
 
 public:
+
   bool is_started() const noexcept { return m_entity_base.is_started(); }
+
+  socket_type& get_socket() noexcept { return m_acceptor; }
 
   template <typename R, typename S>
   void start(R&& start_chg, S&& shutdown_chg) {
@@ -66,15 +73,17 @@ public:
   }
 
   void stop() {
-    stop_handlers();
+    close();
     m_entity_base.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_acceptor_stopped), tcp_io_ptr());
   }
 
 private:
 
-  void stop_handlers() {
+  void close() {
     m_entity_base.stop_io_all();
     m_entity_base.stop(); // toggle started flag, clear container of tcp io handlers
+    std::error_code ec;
+    m_acceptor.close(ec);
   }
 
   void start_accept() {
@@ -84,7 +93,7 @@ private:
     m_acceptor.async_accept( [this, self] (const std::error_code& err,
                                 std::experimental::net::ip::tcp::socket sock) {
         if (err) {
-          stop_handlers(); // is this the right thing to do? what are possible causes of errors?
+          close(); // is this the right thing to do? what are possible causes of errors?
           m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
           return;
         }
