@@ -66,12 +66,16 @@ public:
   }
 
   void stop() {
-    m_entity_base.stop_io_all();
-    m_entity_base.stop(); // clears container of tcp io handlers
+    stop_handlers();
     m_entity_base.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_acceptor_stopped), tcp_io_ptr());
   }
 
 private:
+
+  void stop_handlers() {
+    m_entity_base.stop_io_all();
+    m_entity_base.stop(); // toggle started flag, clear container of tcp io handlers
+  }
 
   void start_accept() {
     using namespace std::placeholders;
@@ -80,8 +84,8 @@ private:
     m_acceptor.async_accept( [this, self] (const std::error_code& err,
                                 std::experimental::net::ip::tcp::socket sock) {
         if (err) {
+          stop_handlers(); // is this the right thing to do? what are possible causes of errors?
           m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
-          stop();
           return;
         }
         tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
