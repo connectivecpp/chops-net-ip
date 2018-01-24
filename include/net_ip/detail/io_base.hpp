@@ -64,7 +64,7 @@ public:
 
   void stop() noexcept { m_started = false; m_write_in_progress = false; }
 
-  bool start_io_setup(const endp_type&);
+  void start_io_setup(const endp_type&);
 
   void process_err_code(const std::error_code&, std::shared_ptr<IOH>);
 
@@ -84,13 +84,10 @@ void io_base<IOH>::process_err_code(const std::error_code& err, std::shared_ptr<
 }
 
 template <typename IOH>
-bool io_base<IOH>::start_io_setup(const endp_type& endp) {
-  if (m_started) {
-    return false;
-  }
+void io_base<IOH>::start_io_setup(const endp_type& endp) {
+  // io handler should check started
   m_started = true;
   m_remote_endp = endp; // endpoint assignment not declared as noexcept
-  return true;
 }
 
 template <typename IOH>

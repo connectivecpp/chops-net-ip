@@ -138,13 +138,17 @@ public:
 private:
 
   bool start_io_setup() {
+    if (!is_started()) {
+      return false;
+    }
     std::error_code ec;
     endpoint_type endp = m_socket.remote_endpoint(ec);
     if (ec) {
       m_io_base.process_err_code(ec, shared_from_this());
       return false;
     }
-    return m_io_base.start_io_setup(endp);
+    m_io_base.start_io_setup(endp);
+    return true;
   }
 
   template <typename MH, typename MF>
