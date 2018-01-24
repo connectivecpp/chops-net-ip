@@ -110,6 +110,22 @@ public:
   }
 
 /**
+ *  @brief Return a reference to the underlying net entity socket, allowing socket 
+ *  options to be queried or set or other socket methods to be called.
+ *
+ *  @return @c ip::tcp::socket or @c ip::udp::socket or @c ip::tcp::acceptor, 
+ *  depending on net entity type.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
+ */
+  typename ET::socket_type& get_socket() const {
+    if (auto p = m_eh_wptr.lock()) {
+      return p->get_socket();
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  }
+
+/**
  *  @brief Start network processing on the associated net entity with the application
  *  providing state change function object callbacks.
  *
