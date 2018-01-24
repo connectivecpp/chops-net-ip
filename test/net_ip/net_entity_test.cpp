@@ -22,10 +22,17 @@
 
 #include "net_ip/net_entity.hpp"
 
+constexpr double special_val = 42.0;
+
 struct net_entity_mock {
+  using socket_type = double;
+  double dummy = special_val;
+
   bool started = false;
 
   bool is_started() const { return started; }
+
+  double& get_socket() { return dummy; }
 
   template <typename R, typename S>
   void start( R&&, S&& ) { started = true; }
@@ -67,7 +74,7 @@ void net_entity_test_two() {
   chops::net::net_entity<EH> net_ent { };
 
   auto e = std::make_shared<EH>();
-  net_ent = chops::net::net_entity<EH>(e); // want a weak ptr to the e shared ptr
+  net_ent = chops::net::net_entity<EH>(e); // want a weak ptr to the shared ptr
 
   GIVEN ("A default constructed net_entity and an io handler") {
     WHEN ("an net_entity with a weak ptr to the io handler is assigned to it") {
@@ -86,6 +93,11 @@ void net_entity_test_two() {
         REQUIRE (net_ent.is_started());
         REQUIRE (net_ent.stop());
         REQUIRE_FALSE (net_ent.is_started());
+      }
+    }
+    AND_WHEN ("get_socket is called") {
+      THEN ("a reference is returned") {
+        REQUIRE (net_ent.get_socket() == special_val);
       }
     }
   } // end given
