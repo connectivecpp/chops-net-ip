@@ -94,7 +94,10 @@
  *  as an internal copy or move.
  *
  *  @note Very few methods are declared as @c noexcept since very few of the @c std::mutex,
- *  @c std::condition_variable, and @c std::lock_guard methods are @c noexcept.
+ *  @c std::condition_variable, and @c std::lock_guard methods are @c noexcept. It is
+ *  possible to declare the methods as conditionally @c noexcept (commented out code),
+ *  which would assume that no exceptions will escape from mutex or condition
+ *  variable objects (or if one does, @c std::terminate will be called).
  *
  *  @authors Cliff Green, Anthony Williams
  *  @date 2017
