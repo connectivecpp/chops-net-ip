@@ -53,6 +53,7 @@ public:
   net_entity_base() noexcept : m_started(false), 
          m_start_change_cb(), m_shutdown_change_cb(), m_io_handlers() { }
 
+  // following three methods can be called concurrently
   bool is_started() const noexcept { return m_started; }
 
   template <typename R, typename S>
@@ -70,8 +71,6 @@ public:
     bool expected = true;
     return m_started.compare_exchange_strong(expected, false); 
   }
-
-
 
   // following methods are not thread-safe, use only from within run thread
   std::size_t size() const noexcept { return m_io_handlers.size(); }

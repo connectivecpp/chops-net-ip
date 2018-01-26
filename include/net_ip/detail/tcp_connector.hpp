@@ -21,6 +21,7 @@
 #include <system_error>
 #include <vector>
 #include <memory>
+#include <chrono>
 
 #include <cstddef> // for std::size_t
 
@@ -45,6 +46,7 @@ private:
     std::experimental::net::ip::basic_resolver_results<std::experimental::net::ip::tcp>;
   using endpoints = std::vector<endpoint_type>;
   using endpoints_iter = endpoints::const_iterator;
+  using dur = typename chops::periodic_timer<>::duration;
 
 private:
   net_entity_base<tcp_io>    m_entity_base;
@@ -52,14 +54,14 @@ private:
   resolver_type              m_resolver;
   endpoints                  m_endpoints;
   chops::periodic_timer<>    m_timer;
-  std::size_t                m_reconn_time;
+  std::chrono::milliseconds  m_reconn_time;
   std::string                m_remote_host;
   std::string                m_remote_port;
 
 public:
   template <typename Iter>
   tcp_connector(std::experimental::net::io_context& ioc, 
-                Iter beg, Iter end, std::size_t reconn_time_millis) :
+                Iter beg, Iter end, std::chrono::milliseconds reconn_time) :
       m_entity_base(),
       m_socket(ioc),
       m_resolver(ioc),
@@ -95,51 +97,59 @@ public:
       // already started
       return;
     }
-    if (m_endpoints.empty()) { // need to get endpoints
+    // empty endpoints container is the flag that a resolve is needed
+    if (m_endpoints.empty()) {
       auto self = shared_from_this();
       m_resolver.make_endpoints([this, self] (std::error_code err, resolver_results res) {
-            if (err) {
-              close();
-              m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
-              return;
-            }
-            m_endpoints = res;
-            start_connect();
-          }, false, remote_host, remote_port );
+          handle_resolve(err, res);
+        }, false, remote_host, remote_port
+      );
       return;
     }
     start_connect();
   }
 
   void stop() {
-    close();
+    if (!m_entity_base.stop()) {
+      return; // stop already called
+    }
+    m_timer.cancel();
+    m_resolver.cancel();
+    m_entity_base.stop_io_all();
+    m_entity_base.clear_handlers(); // redundant?
     m_entity_base.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_connector_stopped), tcp_io_ptr());
+    // socket should already be closed
   }
+
 
 private:
 
-  void close() {
-    m_entity_base.stop_io_all();
-    m_entity_base.stop(); // toggle started flag, clear container of tcp io handlers
-    std::error_code ec;
-    m_socket.close(ec);
-  }
-
   void start_connect() {
-    using namespace std::placeholders;
-
     auto self = shared_from_this();
     std::experimental::net::async_connect(m_socket, m_endpoints.cbegin(), m_endpoints.cend(),
           [this, self] (const std::error_code& err, endpoints_iter iter) {
-             if (err) {
+        handle_connect(err, iter);
+      }
+    );
+  }
 
+  void handle_resolve(std::error_code err, resolver_results res) {
+    if (err) {
+      m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
+      stop();
+      return;
+    }
+    if (!is_started()) {
+      return;
+    }
+    m_endpoints = res;
+    start_connect();
+  }
 
-
-
-
-
-    async_accept( [this, self] (const std::error_code& err,
+  void handle_connect (const std::error_code& err, endpoints_iter iter) {
                                 std::experimental::net::ip::tcp::socket sock) {
+    using namespace std::placeholders;
+
         if (err) {
           m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
           stop();
@@ -152,6 +162,9 @@ private:
         start_accept();
       }
     );
+  }
+
+  void handle_timeout(djflkjl) {
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
