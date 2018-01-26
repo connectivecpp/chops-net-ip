@@ -35,6 +35,7 @@ template <typename IOH>
 class io_base {
 private:
   using endp_type = typename IOH::endpoint_type;
+
 public:
   using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<IOH>)>;
   using outq_type = output_queue<typename IOH::endpoint_type>;
@@ -46,27 +47,33 @@ private:
   std::atomic_bool     m_started; // may be called from multiple threads concurrently
   bool                 m_write_in_progress; // internal only, doesn't need to be atomic
   outq_type            m_outq;
-  endp_type            m_remote_endp;
   entity_notifier_cb   m_entity_notifier_cb;
 
 public:
 
   explicit io_base(entity_notifier_cb cb) noexcept :
-    m_started(false), m_write_in_progress(false), m_outq(), m_remote_endp(), m_entity_notifier_cb(cb) { }
+    m_started(false), m_write_in_progress(false), m_outq(), m_entity_notifier_cb(cb) { }
 
   queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
 
-  const endp_type& get_remote_endp() const noexcept { return m_remote_endp; }
-
   bool is_started() const noexcept { return m_started; }
+
+  // set_started can be called concurrently
+  bool set_started() noexcept {
+    bool expected = false;
+    return m_started.compare_exchange_strong(expected, true);
+  }
 
   bool is_write_in_progress() const noexcept { return m_write_in_progress; }
 
+  // stop is assumed to be called within io handler run thread
   void stop() noexcept { m_started = false; m_write_in_progress = false; }
 
-  void start_io_setup(const endp_type&);
-
-  void process_err_code(const std::error_code&, std::shared_ptr<IOH>);
+  void process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
+    if (err) {
+      m_entity_notifier_cb(err, ioh_ptr);
+    }
+  }
 
   // assumption - following methods called from single thread only
   bool start_write_setup(const chops::const_shared_buffer&);
@@ -75,20 +82,6 @@ public:
   outq_opt_el get_next_element();
 
 };
-
-template <typename IOH>
-void io_base<IOH>::process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
-  if (err) {
-    m_entity_notifier_cb(err, ioh_ptr);
-  }
-}
-
-template <typename IOH>
-void io_base<IOH>::start_io_setup(const endp_type& endp) {
-  // io handler should check started
-  m_started = true;
-  m_remote_endp = endp; // endpoint assignment not declared as noexcept
-}
 
 template <typename IOH>
 bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {

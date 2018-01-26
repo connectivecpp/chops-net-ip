@@ -54,6 +54,7 @@ private:
 
   socket_type            m_socket;
   io_base<tcp_io>        m_io_base;
+  endpoint_type          m_remote_endp;
 
   // the following members are only used for read processing; they could be 
   // passed through handlers, but are members for simplicity and to reduce 
@@ -138,16 +139,15 @@ public:
 private:
 
   bool start_io_setup() {
-    if (!is_started()) {
+    if (!m_io_base.set_started()) {
       return false;
     }
     std::error_code ec;
-    endpoint_type endp = m_socket.remote_endpoint(ec);
+    m_remote_endp = m_socket.remote_endpoint(ec);
     if (ec) {
       m_io_base.process_err_code(ec, shared_from_this());
       return false;
     }
-    m_io_base.start_io_setup(endp);
     return true;
   }
 
@@ -215,7 +215,7 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  io_interface<tcp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
+                  io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
       // message handler not happy, tear everything down
       m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                    shared_from_this());
@@ -241,7 +241,7 @@ void tcp_io::handle_read_until(MH&& msg_hdlr, const std::error_code& err, std::s
   }
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes),
-                io_interface<tcp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
+                io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
       m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                    shared_from_this());
     return;
