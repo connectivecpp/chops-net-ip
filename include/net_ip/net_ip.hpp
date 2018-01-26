@@ -19,6 +19,7 @@
 #include <cstddef> // for std::size_t
 #include <string_view>
 #include <vector>
+#include <chrono>
 
 #include <experimental/io_context>
 #include <experimental/executor>
@@ -88,7 +89,7 @@ namespace net {
  *    wk.start();
  *    chops::net::net_ip my_nip(wk.get_io_context());
  *    // ...
- *    wk.stop(); // or wk.reset();
+ *    wk.reset(); // or wk.stop();
  *  @endcode
  *
  *  The @c net_ip class is safe for multiple threads to use concurrently. 
@@ -99,7 +100,7 @@ namespace net {
  *  It should be noted, however, that race conditions are possible, specially for 
  *  similar operations invoked between @c net_entity and @c net_ip and @c io_interface 
  *  objects. For example, starting and stopping network entities concurrently between 
- *  separate objects or threads could cause unexpected or undefined behavior.
+ *  separate objects or threads could cause unexpected behavior.
  *
  */
 class net_ip {
@@ -178,7 +179,7 @@ public:
 
 /**
  *  @brief Create a TCP connector @c net_entity, which will perform an active TCP
- *  connect to the specified address (once started).
+ *  connect to the specified host and port (once started).
  *
  *  Internally a sequence of remote endpoints will be looked up through a name resolver,
  *  and each endpoint will be tried in succession.
@@ -193,7 +194,7 @@ public:
  *
  *  @param remote_host Remote host name.
  *
- *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
+ *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
  *
  *  @return @c tcp_connector_net_entity object.
@@ -206,10 +207,11 @@ public:
  */
   tcp_connector_net_entity make_tcp_connector (std::string_view remote_port_or_service,
                                                std::string_view remote_host,
-                                               std::size_t reconn_time_millis = 0) {
+                                               std::chrono::milliseconds reconn_time = 
+                                                 std::chrono::milliseconds { } ) {
 
     detail::tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
-                                                                  remote_host, reconn_time_millis);
+                                                                  remote_host, reconn_time);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
 
@@ -225,15 +227,17 @@ public:
  *
  *  @param end An end iterator to the sequence of endpoints.
  *
- *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
+ *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
  *
  *  @return @c tcp_connector_net_entity object.
  *
  */
   template <typename Iter>
-  tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end, std::size_t reconn_time_millis = 0);
-    detail::tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time_millis);
+  tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end,
+                                               std::chrono::milliseconds reconn_time = 
+                                                 std::chrono::milliseconds { } ) {
+    detail::tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
   }
@@ -251,9 +255,10 @@ public:
  *
  */
   tcp_connector_net_entity make_tcp_connector (const std::experimental::net::ip::tcp::endpoint& endp, 
-                                               std::size_t reconn_time_millis = 0);
+                                               std::chrono::milliseconds reconn_time = 
+                                                 std::chrono::milliseconds { } ) {
     std::vector<std::experimental::net::ip::tcp::endpoint> vec { endp };
-    return make_tcp_connector(vec.cbegin(), vec.cend(), reconn_time_millis);
+    return make_tcp_connector(vec.cbegin(), vec.cend(), reconn_time);
   }
 
 /**
