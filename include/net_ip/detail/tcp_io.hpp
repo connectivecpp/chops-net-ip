@@ -116,8 +116,13 @@ public:
   }
 
   void stop_io() {
-    m_io_base.process_err_code(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
-                                 shared_from_this());
+    // causes net entity to eventually call close
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), [this, self] {
+        m_io_base.process_err_code(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
+                                   self);
+      }
+    );
   }
 
   // use post for thread safety, multiple threads can call this method
@@ -131,6 +136,9 @@ public:
   // been reported back to the net entity; post a handler to allow other operations one more
   // chance to complete
   void close() {
+    if (!m_io_base.stop()) {
+      return; // already stopped
+    }
 //    auto self { shared_from_this() };
 //    post(m_socket.get_executor(), [this, self] { handle_close(); } );
     handle_close();
@@ -139,7 +147,7 @@ public:
 private:
 
   bool start_io_setup() {
-    if (!m_io_base.set_started()) {
+    if (!m_io_base.set_started()) { // concurrency protected
       return false;
     }
     std::error_code ec;
@@ -195,7 +203,6 @@ private:
 // method implementations, just to make the class declaration a little more readable
 
 inline void tcp_io::handle_close() {
-  m_io_base.stop();
   // attempt graceful shutdown
   std::error_code ec;
   m_socket.shutdown(std::experimental::net::ip::tcp::socket::shutdown_both, ec);

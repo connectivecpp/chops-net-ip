@@ -93,7 +93,7 @@ void net_entity_base_test() {
       ne.start(std::ref(state_chg), std::ref(state_chg));
       ne.add_handler(iohp);
       ne.add_handler(iohp);
-      ne.call_shutdown_change_cb(std::make_error_code(net_ip_errc::io_handler_stopped), 
+      ne.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
                                  std::shared_ptr<IOH>());
       THEN ("state change internal vals are set correctly") {
         REQUIRE (state_chg.num == 2);
@@ -115,6 +115,7 @@ void net_entity_base_test() {
         REQUIRE(iohp1->stop_io_called);
         REQUIRE(iohp2->stop_io_called);
         ne.stop();
+        ne.clear_handlers();
         REQUIRE(ne.size() == 0);
       }
     }

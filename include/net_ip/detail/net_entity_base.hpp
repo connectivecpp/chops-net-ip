@@ -55,23 +55,26 @@ public:
 
   bool is_started() const noexcept { return m_started; }
 
-  std::size_t size() const noexcept { return m_io_handlers.size(); }
-
   template <typename R, typename S>
   bool start(R&& start_func, S&& shutdown_func) {
-    if (m_started) {
-      return false;
+    bool expected = false;
+    if (m_started.compare_exchange_strong(expected, true)) {
+      m_start_change_cb = start_func;
+      m_shutdown_change_cb = shutdown_func;
+      return true;
     }
-    m_started = true;
-    m_start_change_cb = start_func;
-    m_shutdown_change_cb = shutdown_func;
-    return true;
+    return false;
   }
 
-  void stop() {
-    m_started = false;
-    m_io_handlers.clear();
+  bool stop() {
+    bool expected = true;
+    return m_started.compare_exchange_strong(expected, false); 
   }
+
+
+
+  // following methods are not thread-safe, use only from within run thread
+  std::size_t size() const noexcept { return m_io_handlers.size(); }
 
   // careful - there is a coupling where the acceptor or connector or udp entity performs 
   // a remove_handler as part of the stop_io shutdown
@@ -88,6 +91,10 @@ public:
 
   void remove_handler(std::shared_ptr<IOH> p) {
     chops::erase_where(m_io_handlers, p);
+  }
+
+  void clear_handlers() {
+    m_io_handlers.clear();
   }
 
   void call_start_change_cb(std::shared_ptr<IOH> p) {

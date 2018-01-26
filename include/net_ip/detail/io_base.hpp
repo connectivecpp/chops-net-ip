@@ -54,20 +54,25 @@ public:
   explicit io_base(entity_notifier_cb cb) noexcept :
     m_started(false), m_write_in_progress(false), m_outq(), m_entity_notifier_cb(cb) { }
 
+  // the following four methods can be called concurrently
   queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
 
   bool is_started() const noexcept { return m_started; }
 
-  // set_started can be called concurrently
   bool set_started() noexcept {
     bool expected = false;
     return m_started.compare_exchange_strong(expected, true);
   }
 
-  bool is_write_in_progress() const noexcept { return m_write_in_progress; }
+  bool stop() noexcept {
+    bool expected = true;
+    bool ret = m_started.compare_exchange_strong(expected, false); 
+    m_write_in_progress = false;
+    return ret;
+  }
 
-  // stop is assumed to be called within io handler run thread
-  void stop() noexcept { m_started = false; m_write_in_progress = false; }
+  // rest of these method called only from within run thread
+  bool is_write_in_progress() const noexcept { return m_write_in_progress; }
 
   void process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
     if (err) {
@@ -75,7 +80,6 @@ public:
     }
   }
 
-  // assumption - following methods called from single thread only
   bool start_write_setup(const chops::const_shared_buffer&);
   bool start_write_setup(const chops::const_shared_buffer&, const endp_type&);
 
