@@ -114,6 +114,13 @@ public:
   }
 
 /**
+ *  @brief Cancel any outstanding async operations.
+ */
+  void cancel() {
+    m_resolver.cancel();
+  }
+
+/**
  *  @brief Create a sequence of endpoints and return them immediately in a container.
  *
  *  This function performs synchronous (blocking) name resolution instead of asynchronous
