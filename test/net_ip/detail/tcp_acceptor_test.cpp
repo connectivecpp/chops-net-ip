@@ -94,11 +94,11 @@ struct start_cb {
 // << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
 
     if (delim.empty()) {
-      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                  chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
+      io.start_io(2, msg_hdlr<chops::net::detail::tcp_io>(reply), 
+                  chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
     }
     else {
-      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), delim);
+      io.start_io(delim, msg_hdlr<chops::net::detail::tcp_io>(reply));
     }
   }
 

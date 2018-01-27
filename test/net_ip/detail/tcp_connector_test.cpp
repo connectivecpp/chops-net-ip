@@ -42,7 +42,7 @@
 #include "utility/repeat.hpp"
 
 
-#include <iostream>
+// #include <iostream>
 
 using namespace std::experimental::net;
 using namespace chops::test;
@@ -57,11 +57,11 @@ constexpr int ReconnTime = 100;
 
 void start_io (chops::net::tcp_io_interface io, bool reply, std::string_view delim) {
   if (delim.empty()) {
-    io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
+    io.start_io(2, msg_hdlr<chops::net::detail::tcp_io>(reply), 
+                chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
   }
   else {
-    io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), delim);
+    io.start_io(delim, msg_hdlr<chops::net::detail::tcp_io>(reply));
   }
 }
 
@@ -72,8 +72,8 @@ struct acc_start_cb {
   acc_start_cb (bool r, std::string_view d) : delim(d), reply(r) { }
 
   void operator() (chops::net::tcp_io_interface io, std::size_t n) {
-std::cerr << "Acceptor start_cb invoked, num hdlrs: " << n 
-<< std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
+// std::cerr << "Acceptor start_cb invoked, num hdlrs: " << n 
+// << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
     start_io(io, reply, delim);
   }
 
@@ -93,8 +93,8 @@ struct conn_cb {
 
   void operator() (chops::net::tcp_io_interface io, std::size_t n) {
 
-std::cerr << "Connector start_cb invoked, num hdlrs: " << n 
-<< std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
+// std::cerr << "Connector start_cb invoked, num hdlrs: " << n 
+// << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
 
     start_io(io, false, delim);
     started = true;
@@ -103,9 +103,9 @@ std::cerr << "Connector start_cb invoked, num hdlrs: " << n
 
   void operator() (chops::net::tcp_io_interface io, std::error_code e, std::size_t n) {
 
-std::cerr << "Connector shut cb invoked, num hdlrs: " << n 
-<< std::boolalpha << ", io is_valid: " << io.is_valid() 
-<< ", err: " << e << ", " << e.message() << std::endl;
+// std::cerr << "Connector shut cb invoked, num hdlrs: " << n 
+// << std::boolalpha << ", io is_valid: " << io.is_valid() 
+// << ", err: " << e << ", " << e.message() << std::endl;
 
     if (started) {
       shut_prom.set_value(e);
@@ -117,9 +117,9 @@ std::cerr << "Connector shut cb invoked, num hdlrs: " << n
 
 void acc_shut_cb(chops::net::tcp_io_interface io, std::error_code e, std::size_t n) {
 
-std::cerr << "Acceptor shut_cb invoked, num hdlrs: " << n 
-<< std::boolalpha << ", err: " << e << ", " << e.message() << ", io is_valid: " 
-<< io.is_valid() << std::endl;
+// std::cerr << "Acceptor shut_cb invoked, num hdlrs: " << n 
+// << std::boolalpha << ", err: " << e << ", " << e.message() << ", io is_valid: " 
+// << io.is_valid() << std::endl;
 
 }
 
@@ -146,16 +146,16 @@ std::size_t connector_func (const vec_buf& in_msg_set, io_context& ioc,
     io.send(std::move(buf));
     ++cnt;
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-if (cnt % 100 == 0) {
- auto qs = io.get_output_queue_stats();
- std::cerr << "Send loop at cnt: " << cnt << ", stats: " << qs.output_queue_size
- << ", " << qs.bytes_in_output_queue << std::endl;
-}
+// if (cnt % 100 == 0) {
+//  auto qs = io.get_output_queue_stats();
+//  std::cerr << "Send loop at cnt: " << cnt << ", stats: " << qs.output_queue_size
+//  << ", " << qs.bytes_in_output_queue << std::endl;
+// }
   }
   io.send(empty_msg);
-std::cerr << "Empty message sent" << std::endl;
+// std::cerr << "Empty message sent" << std::endl;
   auto ec = shut_fut.get();
-std::cerr << "Shutdown future popped, err: " << ec << ", " << ec.message() << std::endl;
+// std::cerr << "Shutdown future popped, err: " << ec << ", " << ec.message() << std::endl;
 
   return cnt;
 }
@@ -177,7 +177,7 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 
-std::cerr << "acceptor created" << std::endl;
+// std::cerr << "acceptor created" << std::endl;
 
         REQUIRE_FALSE(acc_ptr->is_started());
 
@@ -187,7 +187,7 @@ std::cerr << "acceptor created" << std::endl;
 
         std::vector<std::future<std::size_t> > conn_futs;
 
-std::cerr << "creating " << num_conns << " async futures and threads" << std::endl;
+// std::cerr << "creating " << num_conns << " async futures and threads" << std::endl;
         chops::repeat(num_conns, [&] () {
             conn_futs.emplace_back(std::async(std::launch::async, connector_func, std::cref(in_msg_set), 
                                    std::ref(ioc), reply, interval, delim, empty_msg));
@@ -200,12 +200,12 @@ std::cerr << "creating " << num_conns << " async futures and threads" << std::en
           accum_msgs += fut.get(); // wait for connectors to finish
         }
         INFO ("All connector futures popped");
-std::cerr << "All connector futures popped" << std::endl;
+// std::cerr << "All connector futures popped" << std::endl;
 
         acc_ptr->stop();
 
         INFO ("Acceptor stopped");
-std::cerr << "Acceptor stopped" << std::endl;
+// std::cerr << "Acceptor stopped" << std::endl;
 
         REQUIRE_FALSE(acc_ptr->is_started());
 
