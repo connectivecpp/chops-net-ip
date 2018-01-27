@@ -66,11 +66,11 @@ struct notify_me {
 
 void invoke_start_io(chops::net::detail::tcp_io_ptr iohp, bool reply, std::string_view delim) {
   if (delim.empty()) {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                   chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
+    iohp->start_io(2, msg_hdlr<chops::net::detail::tcp_io>(reply), 
+                   chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
   }
   else {
-    iohp->start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), delim);
+    iohp->start_io(delim, msg_hdlr<chops::net::detail::tcp_io>(reply));
   }
 }
 

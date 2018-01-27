@@ -87,18 +87,18 @@ public:
   bool is_started() const noexcept { return m_io_base.is_started(); }
 
   template <typename MH, typename MF>
-  void start_io(MH&& msg_handler, MF&& msg_frame, std::size_t header_size) {
+  void start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
     if (!start_io_setup()) {
       return;
     }
     m_read_size = header_size;
     m_byte_vec.resize(m_read_size);
-    start_read(std::forward<MH>(msg_handler), std::forward<MF>(msg_frame),
-               std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()));
+    start_read(std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
+               std::forward<MH>(msg_handler), std::forward<MF>(msg_frame));
   }
 
   template <typename MH>
-  void start_io(MH&& msg_handler, std::string_view delimiter) {
+  void start_io(std::string_view delimiter, MH&& msg_handler) {
     if (!start_io_setup()) {
       return;
     }
@@ -107,20 +107,20 @@ public:
   }
 
   template <typename MH>
-  void start_io(MH&& msg_handler, std::size_t read_size) {
-    start_io(std::forward<MH>(msg_handler), null_msg_frame, read_size);
+  void start_io(std::size_t read_size, MH&& msg_handler) {
+    start_io(read_size, std::forward<MH>(msg_handler), null_msg_frame);
   }
 
   void start_io() {
-    start_io(null_msg_hdlr, null_msg_frame, 1);
+    start_io(1, null_msg_hdlr, null_msg_frame);
   }
 
   void stop_io() {
     // causes net entity to eventually call close
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self] {
-        m_io_base.process_err_code(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
-                                   self);
+    post(m_socket.get_executor(), 
+      [this, self] {
+        m_io_base.process_err_code(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), self);
       }
     );
   }
@@ -160,21 +160,21 @@ private:
   }
 
   template <typename MH, typename MF>
-  void start_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf) {
+  void start_read(std::experimental::net::mutable_buffer mbuf, MH&& msg_hdlr, MF&& msg_frame) {
     // std::move in lambda instead of std::forward since an explicit copy or move of the function
     // object is desired so there are no dangling references
     auto self { shared_from_this() };
     std::experimental::net::async_read(m_socket, mbuf,
-      [this, self, mh = std::move(msg_hdlr), mf = std::move(msg_frame), mbuf]
+      [this, self, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
             (const std::error_code& err, std::size_t nb) mutable {
-        handle_read(std::move(mh), std::move(mf), mbuf, err, nb);
+        handle_read(mbuf, err, nb, std::move(mh), std::move(mf));
       }
     );
   }
 
   template <typename MH, typename MF>
-  void handle_read(MH&&, MF&&, std::experimental::net::mutable_buffer, 
-                   const std::error_code&, std::size_t);
+  void handle_read(std::experimental::net::mutable_buffer, 
+                   const std::error_code&, std::size_t, MH&&, MF&&);
 
   template <typename MH>
   void start_read_until(MH&& msg_hdlr) {
@@ -182,15 +182,14 @@ private:
     std::experimental::net::async_read_until(m_socket, 
                                              std::experimental::net::dynamic_buffer(m_byte_vec), 
                                              m_delimiter,
-          [this, self, mh = std::move(msg_hdlr)] 
-            (const std::error_code& err, std::size_t nb) mutable {
-        handle_read_until(std::move(mh), err, nb);
+      [this, self, mh = std::move(msg_hdlr)] (const std::error_code& err, std::size_t nb) mutable {
+        handle_read_until(err, nb, std::move(mh));
       }
     );
   }
 
   template <typename MH>
-  void handle_read_until(MH&&, const std::error_code&, std::size_t);
+  void handle_read_until(const std::error_code&, std::size_t, MH&&);
 
   void start_write(chops::const_shared_buffer);
 
@@ -211,8 +210,9 @@ inline void tcp_io::handle_close() {
 }
 
 template <typename MH, typename MF>
-void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf, 
-                         const std::error_code& err, std::size_t num_bytes) {
+void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf, 
+                         const std::error_code& err, std::size_t num_bytes,
+                         MH&& msg_hdlr, MF&& msg_frame) {
 
   if (err) {
     m_io_base.process_err_code(err, shared_from_this());
@@ -236,11 +236,11 @@ void tcp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::
     m_byte_vec.resize(old_size + next_read_size);
     mbuf = std::experimental::net::mutable_buffer(m_byte_vec.data() + old_size, next_read_size);
   }
-  start_read(std::forward<MH>(msg_hdlr), std::forward<MF>(msg_frame), mbuf);
+  start_read(mbuf, std::forward<MH>(msg_hdlr), std::forward<MF>(msg_frame));
 }
 
 template <typename MH>
-void tcp_io::handle_read_until(MH&& msg_hdlr, const std::error_code& err, std::size_t num_bytes) {
+void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
     m_io_base.process_err_code(err, shared_from_this());
