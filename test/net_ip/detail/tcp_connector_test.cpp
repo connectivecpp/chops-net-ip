@@ -55,6 +55,16 @@ constexpr int ReconnTime = 100;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
+void start_io (chops::net::tcp_io_interface io, bool reply, std::string_view delim) {
+  if (delim.empty()) {
+    io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), 
+                chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
+  }
+  else {
+    io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), delim);
+  }
+}
+
 struct acc_start_cb {
   std::string_view     delim;
   bool                 reply;
@@ -62,39 +72,26 @@ struct acc_start_cb {
   acc_start_cb (bool r, std::string_view d) : delim(d), reply(r) { }
 
   void operator() (chops::net::tcp_io_interface io, std::size_t n) {
-
 std::cerr << "Acceptor start_cb invoked, num hdlrs: " << n 
 << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
-
-    if (delim.empty()) {
-      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                  chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
-    }
-    else {
-      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), delim);
-    }
+    start_io(io, reply, delim);
   }
 
 };
 
+using tcp_io_promise = std::promise<chops::net::tcp_io_interface>;
+
 struct conn_start_cb {
-  const vec_buf&       in_msg_set;
+  tcp_io_promise       prom;
   std::string_view     delim;
 
-  conn_start_cb (const vec_buf& in, std::string_view d) : in_msg_set(in), delim(d) { }
+  conn_start_cb (tcp_io_promise p, std::string_view d) : prom(std::move(p)), delim(d) { }
 
   void operator() (chops::net::tcp_io_interface io, std::size_t n) {
-
 std::cerr << "Connector start_cb invoked, num hdlrs: " << n 
 << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
-
-    if (delim.empty()) {
-      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(false), 
-                  chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr), 2);
-    }
-    else {
-      io.start_io(msg_hdlr<chops::net::detail::tcp_io>(reply), delim);
-    }
+    start_io(io, reply, delim);
+    prom.set_value(io);
   }
 
 };
