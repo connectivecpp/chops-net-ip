@@ -100,9 +100,10 @@ public:
     // empty endpoints container is the flag that a resolve is needed
     if (m_endpoints.empty()) {
       auto self = shared_from_this();
-      m_resolver.make_endpoints([this, self] (std::error_code err, resolver_results res) {
+      m_resolver.make_endpoints(false, m_remote_host, m_remote_port,
+        [this, self] (std::error_code err, resolver_results res) {
           handle_resolve(err, res);
-        }, false, m_remote_host, m_remote_port
+        }
       );
       return;
     }
@@ -158,10 +159,11 @@ private:
     if (err) {
       m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
       auto self = shared_from_this();
-      m_timer.start_duration_timer([this, self] (std::error_code err, dur_type dur) {
+      m_timer.start_duration_timer(m_reconn_time,
+        [this, self] (std::error_code err, dur_type dur) {
           start_connect();
           return true;
-        }, m_reconn_time
+        }
       );
       return;
     }
