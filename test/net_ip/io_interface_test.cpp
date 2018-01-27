@@ -45,19 +45,19 @@ struct io_handler_base_mock {
   }
 
   template <typename MH, typename MF>
-  void start_io(MH&&, MF&&, std::size_t) { started = true; }
+  void start_io(std::size_t, MH&&, MF&&) { started = true; }
 
   template <typename MH>
-  void start_io(MH&&, std::string_view) { started = true; }
+  void start_io(std::string_view, MH&&) { started = true; }
 
   template <typename MH>
-  void start_io(MH&&, std::size_t) { started = true; }
+  void start_io(std::size_t, MH&&) { started = true; }
 
   template <typename MH>
-  void start_io(MH&&, std::size_t, const ip::tcp::endpoint&) { started = true; }
+  void start_io(std::size_t, const ip::tcp::endpoint&, MH&&) { started = true; }
 
   template <typename MH>
-  void start_io(MH&&, std::size_t, const ip::udp::endpoint&) { started = true; }
+  void start_io(std::size_t, const ip::udp::endpoint&, MH&&) { started = true; }
 
   void start_io() { started = true; }
 
@@ -134,10 +134,10 @@ void io_interface_test_default_constructed() {
         REQUIRE_FALSE (io_intf.send(buf, endp));
         REQUIRE_FALSE (io_intf.send(chops::mutable_shared_buffer(), endp));
 
-        REQUIRE_FALSE (io_intf.start_io([] { }, [] { }, 0));
-        REQUIRE_FALSE (io_intf.start_io([] { }, "testing, hah!"));
-        REQUIRE_FALSE (io_intf.start_io([] { }, 0));
-        REQUIRE_FALSE (io_intf.start_io([] { }, 0, endp));
+        REQUIRE_FALSE (io_intf.start_io(0, [] { }, [] { }));
+        REQUIRE_FALSE (io_intf.start_io("testing, hah!", [] { }));
+        REQUIRE_FALSE (io_intf.start_io(0, [] { }));
+        REQUIRE_FALSE (io_intf.start_io(0, endp, [] { }));
         REQUIRE_FALSE (io_intf.start_io());
         REQUIRE_FALSE (io_intf.start_io(endp));
 
@@ -184,10 +184,10 @@ void io_interface_test_two() {
         REQUIRE (io_intf.send(buf, endp));
         REQUIRE (io_intf.send(chops::mutable_shared_buffer(), endp));
 
-        REQUIRE (io_intf.start_io([] { }, [] { }, 0));
-        REQUIRE (io_intf.start_io([] { }, "testing, hah!"));
-        REQUIRE (io_intf.start_io([] { }, 0));
-        REQUIRE (io_intf.start_io([] { }, 0, endp));
+        REQUIRE (io_intf.start_io(0, [] { }, [] { }));
+        REQUIRE (io_intf.start_io("testing, hah!", [] { }));
+        REQUIRE (io_intf.start_io(0, [] { }));
+        REQUIRE (io_intf.start_io(0, endp, [] { }));
         REQUIRE (io_intf.start_io(endp));
         REQUIRE (io_intf.start_io());
 

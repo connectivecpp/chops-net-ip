@@ -312,6 +312,8 @@ public:
  *  the message frame function object before the message frame determines the
  *  complete message has been read.
  *
+ *  @param header_size The initial read size (in bytes) of each incoming message.
+ *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
  *
@@ -344,12 +346,10 @@ public:
  *
  *  If there is non-trivial processing that is performed in the message frame
  *  object and the application wishes to keep any resulting state (typically to
- *  use within the message handler), two options (at least) are available. 
+ *  use within the message handler), two options (at least) are available:
  *  1) Store a reference to the message frame object from within the message handler 
  *  object, or 2) Design a single class that provides two operator function call overloads 
  *  and use the same object for both the message handler and the message frame processing.
- *
- *  @param header_size The initial read size (in bytes) of each incoming message.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
@@ -357,10 +357,10 @@ public:
  *
  */
   template <typename MH, typename MF>
-  bool start_io(MH&& msg_handler, MF&& msg_frame, std::size_t header_size) {
+  bool start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(std::forward<MH>(msg_handler), 
-                            std::forward<MF>(msg_frame), header_size), true) : false;
+    return p ? (p->start_io(header_size, std::forward<MH>(msg_handler), 
+                            std::forward<MF>(msg_frame)), true) : false;
   }
 
 /**
@@ -377,6 +377,8 @@ public:
  *  match" (which are usually "end-of-line" sequences). The message handler function 
  *  object callback is then invoked.
  *
+ *  @param delimiter Delimiter characters denoting end of each message.
+ *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
  *
@@ -391,17 +393,15 @@ public:
  *  endpoint that sent the data. Returning @c false from the message handler callback 
  *  causes the connection to be closed.
  *
- *  @param delimiter Delimiter characters denoting end of each message.
- *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
  *  @note If @c is_started is already @c true, this method call is ignored.
  *
  */
   template <typename MH>
-  bool start_io(MH&& msg_handler, std::string_view delimiter) {
+  bool start_io(std::string_view delimiter, MH&& msg_handler) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(std::forward<MH>(msg_handler), delimiter), true) : false;
+    return p ? (p->start_io(delimiter, std::forward<MH>(msg_handler)), true) : false;
   }
 
 /**
@@ -413,10 +413,12 @@ public:
  *  For TCP IO handlers, this reads fixed size messages.
  *
  *  For UDP IO handlers, this specifies the maximum size of the datagram. For IPv4 this
- *  value can be up to 65,507 (for IPv6 this maximum is larger). If the incoming datagram 
- *  contains a size larger than the specified size, data will be truncated or lost.
+ *  value can be up to 65,507 (for IPv6 the maximum is larger). If the incoming datagram 
+ *  is larger than the specified size, data will be truncated or lost.
  *
  *  Sends (writes) are enabled after this call.
+ *
+ *  @param read_size Maximum UDP datagram size or TCP fixed read size.
  *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
@@ -435,8 +437,6 @@ public:
  *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
  *  be closed.
  *
- *  @param read_size Maximum UDP datagram size or fixed TCP read size.
- *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
  *  @note If @c is_started is already @c true, this method call is ignored.
@@ -444,9 +444,9 @@ public:
  */
 
   template <typename MH>
-  bool start_io(MH&& msg_handler, std::size_t read_size) {
+  bool start_io(std::size_t read_size, MH&& msg_handler) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(std::forward<MH>(msg_handler), read_size), true) : false;
+    return p ? (p->start_io(read_size, std::forward<MH>(msg_handler)), true) : false;
   }
 
 /**
@@ -463,6 +463,10 @@ public:
  *
  *  Sends (writes) are enabled after this call.
  *
+ *  @param max_size Maximum UDP datagram size.
+ *
+ *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
  *
@@ -475,10 +479,6 @@ public:
  *  Returning @c false from the message handler callback causes the UDP socket to 
  *  be closed.
  *
- *  @param max_size Maximum UDP datagram size.
- *
- *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
- *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
  *  @note If @c is_started is already @c true, this method call is ignored.
@@ -486,9 +486,9 @@ public:
  */
 
   template <typename MH>
-  bool start_io(MH&& msg_handler, std::size_t max_size, const endpoint_type& endp) {
+  bool start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(std::forward<MH>(msg_handler), max_size, endp), true) : false;
+    return p ? (p->start_io(max_size, endp, std::forward<MH>(msg_handler)), true) : false;
   }
 
 /**
