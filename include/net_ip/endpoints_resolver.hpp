@@ -66,7 +66,17 @@ public:
 /**
  *  @brief Create a sequence of endpoints and return them in a function object callback.
  *
- *  This function always returns before the function object callback is invoked.
+ *  This method always returns before the function object callback is invoked.
+ *
+ *  @param local If @c true, create endpoints for a local endpoint; specifically the 
+ *  "passive" flag is set.
+ *
+ *  @param host_or_intf_name A host or interface name; if empty it can be used for a local 
+ *  endpoint where it specifies an "any" ("INADDR_ANY") address; if not empty it is used for the 
+ *  remote host name or for a local interface address.
+ *
+ *  @param service_or_port A service name or port number; if empty all resolved endpoints will 
+ *  have a port number of zero.
  *
  *  @param func Function object which will be invoked when the name resolution completes. The
  *  signature of the callback:
@@ -81,20 +91,10 @@ public:
  *
  *  If an error occurs, the error code is set accordingly. 
  *
- *  @param local If @c true, create endpoints for a local endpoint; specifically the 
- *  "passive" flag is set.
- *
- *  @param host_or_intf_name A host or interface name; if empty it can be used for a local 
- *  endpoint where it specifies an "any" ("INADDR_ANY") address; if not empty it is used for the 
- *  remote host name or for a local interface address.
- *
- *  @param service_or_port A service name or port number; if empty all resolved endpoints will 
- *  have a port number of zero.
- *
  */
   template <typename F>
-  void make_endpoints(F&& func, bool local, std::string_view host_or_intf_name, 
-                      std::string_view service_or_port) {
+  void make_endpoints(bool local, std::string_view host_or_intf_name, 
+                      std::string_view service_or_port, F&& func) {
 
     using namespace std::experimental::net;
 

@@ -62,10 +62,11 @@ std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
 
         std::promise<prom_ret> res_prom;
         auto fut = res_prom.get_future();
-        resolver.make_endpoints(
+        resolver.make_endpoints(local, host, port,
           [p = std::move(res_prom)] (const std::error_code& err, results_t res) mutable {
-              p.set_value(prom_ret(err, res));
-            }, local, host, port);
+            p.set_value(prom_ret(err, res));
+          }
+        );
         auto a = fut.get();
         if (a.first) {
           INFO ("Error val: " << a.first);
