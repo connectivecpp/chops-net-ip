@@ -58,9 +58,11 @@ void test_util () {
 
     WHEN ( "The duration is 100 ms" ) {
       auto test_dur { 100 };
-      timer.start_duration_timer( [] (std::error_code err, typename Clock::duration elap) { 
+      timer.start_duration_timer(std::chrono::milliseconds(test_dur),
+        [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
-        } , std::chrono::milliseconds(test_dur));
+        }
+      );
 
       wait_util (std::chrono::milliseconds((Expected+1)*test_dur), wg, thr);
 
@@ -70,9 +72,11 @@ void test_util () {
     }
     WHEN ( "The duration is 200 ms and the start time is 2 seconds in the future" ) {
       auto test_dur { 200 };
-      timer.start_duration_timer( [] (std::error_code err, typename Clock::duration elap) { 
+      timer.start_duration_timer(std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2),
+        [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
-        } , std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2));
+        }
+      );
 
       wait_util(std::chrono::milliseconds((Expected+1)*test_dur + 2000), wg, thr);
 
@@ -82,9 +86,11 @@ void test_util () {
     }
     WHEN ( "The duration is 100 ms and the timer pops on timepoints" ) {
       auto test_dur { 100 };
-      timer.start_timepoint_timer( [] (std::error_code err, typename Clock::duration elap) { 
+      timer.start_timepoint_timer(std::chrono::milliseconds(test_dur),
+        [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
-        } , std::chrono::milliseconds(test_dur));
+        }
+      );
 
       wait_util (std::chrono::milliseconds((Expected+1)*test_dur), wg, thr);
 
@@ -94,9 +100,11 @@ void test_util () {
     }
     WHEN ( "The duration is 200 ms and the timer pops on timepoints starting 2 seconds in the future" ) {
       auto test_dur { 200 };
-      timer.start_timepoint_timer( [] (std::error_code err, typename Clock::duration elap) { 
+      timer.start_timepoint_timer(std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2),
+        [] (std::error_code err, typename Clock::duration elap) { 
           return lambda_util(err, elap);
-        } , std::chrono::milliseconds(test_dur), Clock::now() + std::chrono::seconds(2));
+        }
+      );
 
       wait_util(std::chrono::milliseconds((Expected+1)*test_dur + 2000), wg, thr);
 

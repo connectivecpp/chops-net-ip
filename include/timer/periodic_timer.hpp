@@ -61,9 +61,8 @@ private:
 
 private:
   template <typename F>
-  void duration_handler_impl(F&& func, 
-                             const time_point& last_tp, const duration& dur, 
-                             const std::error_code& err) {
+  void duration_handler_impl(const time_point& last_tp, const duration& dur, 
+                             const std::error_code& err, F&& func) {
     time_point now_time { Clock::now() };
     // pass err and elapsed time to app function obj
     if (!func(err, now_time - last_tp) || 
@@ -71,16 +70,15 @@ private:
       return; // app is finished with timer for now or timer was cancelled
     }
     m_timer.expires_after(dur);
-    m_timer.async_wait( [f = std::move(func), now_time, dur, this]
+    m_timer.async_wait( [now_time, dur, f = std::move(func), this]
             (const std::error_code& e) {
-        duration_handler_impl(std::move(f), now_time, dur, e);
+        duration_handler_impl(now_time, dur, e, std::move(f));
       }
     );
   }
   template <typename F>
-  void timepoint_handler_impl(F&& func, 
-                              const time_point& last_tp, const duration& dur, 
-                              const std::error_code& err) {
+  void timepoint_handler_impl(const time_point& last_tp, const duration& dur, 
+                              const std::error_code& err, F&& func) {
     // pass err and elapsed time to app function obj
     if (!func(err, (Clock::now() - last_tp)) || 
         err == std::experimental::net::error::operation_aborted) {
@@ -89,7 +87,7 @@ private:
     m_timer.expires_at(last_tp + dur + dur);
     m_timer.async_wait( [f = std::move(func), last_tp, dur, this]
             (const std::error_code& e) {
-        timepoint_handler_impl(std::move(f), (last_tp+dur), dur, e);
+        timepoint_handler_impl(last_tp+dur, dur, e, std::move(f));
       }
     );
   }
@@ -103,7 +101,8 @@ public:
    * Constructing a @c periodic_timer does not start the actual timer. Calling one of the 
    * @c start methods starts the timer.
    *
-   * The application supplied function object requires the following signature:
+   * The application supplied function object for any of the @c start methods requires the 
+   * following signature:
    * @code
    *   bool (std::error_code, duration);
    * @endcode
@@ -145,15 +144,16 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
+   * @param dur Interval to be used between callback invocations.
+   *
    * @param func Function object to be invoked. 
    *
-   * @param dur Interval to be used between callback invocations.
    */
   template <typename F>
-  void start_duration_timer(F&& func, const duration& dur) {
+  void start_duration_timer(const duration& dur, F&& func) {
     m_timer.expires_after(dur);
-    m_timer.async_wait( [f = std::move(func), dur, this] (const std::error_code& e) {
-        duration_handler_impl(std::move(f), Clock::now(), dur, e);
+    m_timer.async_wait( [dur, f = std::move(func), this] (const std::error_code& e) {
+        duration_handler_impl(Clock::now(), dur, e, std::move(f));
       }
     );
   }
@@ -164,17 +164,18 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
-   * @param func Function object to be invoked.
-   *
    * @param dur Interval to be used between callback invocations.
    *
    * @param when Time point when the first timer callback will be invoked.
+   *
+   * @param func Function object to be invoked.
+   *
    */
   template <typename F>
-  void start_duration_timer(F&& func, const duration& dur, const time_point& when) {
+  void start_duration_timer(const duration& dur, const time_point& when, F&& func) {
     m_timer.expires_at(when);
-    m_timer.async_wait( [f = std::move(func), dur, this] (const std::error_code& e) {
-        duration_handler_impl(std::move(f), Clock::now(), dur, e);
+    m_timer.async_wait( [dur, f = std::move(func), this] (const std::error_code& e) {
+        duration_handler_impl(Clock::now(), dur, e, std::move(f));
       }
     );
   }
@@ -184,13 +185,14 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
+   * @param dur Interval to be used between callback invocations.
+   *
    * @param func Function object to be invoked. 
    *
-   * @param dur Interval to be used between callback invocations.
    */
   template <typename F>
-  void start_timepoint_timer(F&& func, const duration& dur) {
-    start_timepoint_timer(std::forward<F>(func), dur, (Clock::now() + dur));
+  void start_timepoint_timer(const duration& dur, F&& func) {
+    start_timepoint_timer(dur, (Clock::now() + dur), std::forward<F>(func));
   }
   /**
    * Start the timer on the specified timepoint, and the application supplied function object 
@@ -198,21 +200,21 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
-   * @param func Function object to be invoked. 
-   *
    * @param dur Interval to be used between callback invocations.
    *
    * @param when Time point when the first timer callback will be invoked.
+   *
+   * @param func Function object to be invoked. 
    *
    * @note The elapsed time for the first callback invocation is artificially set to the 
    * duration interval.
    */
   template <typename F>
-  void start_timepoint_timer(F&& func, const duration& dur, const time_point& when) {
+  void start_timepoint_timer(const duration& dur, const time_point& when, F&& func) {
     m_timer.expires_at(when);
-    m_timer.async_wait( [f = std::forward<F>(func), when, dur, this]
+    m_timer.async_wait( [when, dur, f = std::move(func), this]
             (const std::error_code& e) {
-        timepoint_handler_impl(std::move(f), (when-dur), dur, e);
+        timepoint_handler_impl((when-dur), dur, e, std::move(f));
       }
     );
   }
