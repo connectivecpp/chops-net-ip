@@ -67,7 +67,7 @@ public:
       m_resolver(ioc),
       m_endpoints(beg, end),
       m_timer(ioc),
-      m_reconn_time(reconn_time_millis),
+      m_reconn_time(reconn_time),
       m_remote_host(),
       m_remote_port()
     { }
@@ -80,7 +80,7 @@ public:
       m_resolver(ioc),
       m_endpoints(),
       m_timer(ioc),
-      m_reconn_time(reconn_time_millis),
+      m_reconn_time(reconn_time),
       m_remote_host(remote_host),
       m_remote_port(remote_port)
     { }
@@ -102,7 +102,7 @@ public:
       auto self = shared_from_this();
       m_resolver.make_endpoints([this, self] (std::error_code err, resolver_results res) {
           handle_resolve(err, res);
-        }, false, remote_host, remote_port
+        }, false, m_remote_host, m_remote_port
       );
       return;
     }
@@ -137,7 +137,9 @@ private:
     if (!is_started()) {
       return;
     }
-    m_endpoints = res;
+    for (const auto& e : res) {
+      m_endpoints.push_back(e.endpoint());
+    }
     start_connect();
   }
 
@@ -159,7 +161,7 @@ private:
       m_timer.start_duration_timer([this, self] (std::error_code err, dur_type dur) {
           start_connect();
           return true;
-        }, reconn_time
+        }, m_reconn_time
       );
       return;
     }
