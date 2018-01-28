@@ -25,6 +25,8 @@
 
 #include <cstddef> // for std::size_t
 
+#include <cassert>
+
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_base.hpp"
 #include "timer/periodic_timer.hpp"
@@ -51,6 +53,7 @@ private:
 private:
   net_entity_base<tcp_io>    m_entity_base;
   socket_type                m_socket;
+  tcp_io_ptr                 m_io_handler;
   resolver_type              m_resolver;
   endpoints                  m_endpoints;
   chops::periodic_timer<>    m_timer;
@@ -64,6 +67,7 @@ public:
                 Iter beg, Iter end, std::chrono::milliseconds reconn_time) :
       m_entity_base(),
       m_socket(ioc),
+      m_io_handler(),
       m_resolver(ioc),
       m_endpoints(beg, end),
       m_timer(ioc),
@@ -77,6 +81,7 @@ public:
                 std::chrono::milliseconds reconn_time) :
       m_entity_base(),
       m_socket(ioc),
+      m_io_handler(),
       m_resolver(ioc),
       m_endpoints(),
       m_timer(ioc),
@@ -112,7 +117,7 @@ public:
 
   void stop() {
     close();
-    m_entity_base.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_connector_stopped), tcp_io_ptr());
+    m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped), 0);
   }
 
 
@@ -122,16 +127,18 @@ private:
     if (!m_entity_base.stop()) {
       return; // stop already called
     }
+    if (m_io_handler) {
+      m_io_handler->close();
+    }
     m_timer.cancel();
     m_resolver.cancel();
-    m_entity_base.stop_io_all();
-    m_entity_base.clear_handlers(); // redundant?
+    m_io_handler.reset();
     // socket should already be closed or moved from
   }
 
   void handle_resolve(std::error_code err, resolver_results res) {
     if (err) {
-      m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
+      m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
       stop();
       return;
     }
@@ -157,26 +164,26 @@ private:
     using namespace std::placeholders;
 
     if (err) {
-      m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
+      m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
       auto self = shared_from_this();
       m_timer.start_duration_timer(m_reconn_time,
         [this, self] (std::error_code err, dur_type dur) {
-          start_connect();
-          return true;
+          if (!err) {
+            start_connect();
+          }
+          return false;
         }
       );
       return;
     }
-    tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(m_socket), 
+    m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
       tcp_io::entity_cb(std::bind(&tcp_connector::notify_me, shared_from_this(), _1, _2)));
-    m_entity_base.add_handler(iop);
-    m_entity_base.call_start_change_cb(iop);
+    m_entity_base.call_start_change_cb(m_io_handler, 1);
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
-    iop->close();
-    m_entity_base.remove_handler(iop);
-    m_entity_base.call_shutdown_change_cb(err, iop);
+    assert (iop == m_io_handler);
+    m_entity_base.call_shutdown_change_cb(m_io_handler, err, 0);
     close();
   }
 

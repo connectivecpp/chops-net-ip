@@ -51,7 +51,6 @@ void net_entity_base_test() {
 
   detail::net_entity_base<IOH> ne { };
   REQUIRE_FALSE (ne.is_started());
-  REQUIRE(ne.size() == 0);
 
   auto iohp = std::make_shared<IOH>();
 
@@ -64,59 +63,31 @@ void net_entity_base_test() {
       }
     }
 
-    AND_WHEN ("Add handler is called") {
-      ne.add_handler(iohp);
-      THEN ("size increases by 1") {
-        REQUIRE (ne.size() == 1);
-      }
-    }
-
-    AND_WHEN ("Remove handler is called") {
-      ne.remove_handler(iohp);
-      THEN ("size decreases by 1") {
-        REQUIRE (ne.size() == 0);
-      }
-    }
-
-    AND_WHEN ("Handlers are added and start state change is called") {
+    AND_WHEN ("Stop is called") {
       ne.start(std::ref(state_chg), std::ref(state_chg));
-      ne.add_handler(iohp);
-      ne.add_handler(iohp);
-      ne.call_start_change_cb(iohp);
+      ne.stop();
+      THEN ("net entity base is not started") {
+        REQUIRE_FALSE (ne.is_started());
+      }
+    }
+
+    AND_WHEN ("Start state change is called") {
+      ne.start(std::ref(state_chg), std::ref(state_chg));
+      ne.call_start_change_cb(iohp, 42);
       THEN ("state change internal vals are set correctly") {
-        REQUIRE (state_chg.num == 2);
+        REQUIRE (state_chg.num == 42);
         REQUIRE (state_chg.ioh_valid);
       }
     }
 
-    AND_WHEN ("Handlers are added and shutdown state change is called") {
+    AND_WHEN ("Shutdown state change is called") {
       ne.start(std::ref(state_chg), std::ref(state_chg));
-      ne.add_handler(iohp);
-      ne.add_handler(iohp);
       ne.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
-                                 std::shared_ptr<IOH>());
+                                 std::shared_ptr<IOH>(), 43);
       THEN ("state change internal vals are set correctly") {
-        REQUIRE (state_chg.num == 2);
+        REQUIRE (state_chg.num == 43);
         REQUIRE (state_chg.err);
         REQUIRE_FALSE (state_chg.ioh_valid);
-      }
-    }
-
-    AND_WHEN ("Distinct handlers are added and stop io all is called") {
-      ne.start(std::ref(state_chg), std::ref(state_chg));
-      auto iohp1 = std::make_shared<IOH>();
-      REQUIRE_FALSE(iohp1->stop_io_called);
-      ne.add_handler(iohp1);
-      auto iohp2 = std::make_shared<IOH>();
-      REQUIRE_FALSE(iohp2->stop_io_called);
-      ne.add_handler(iohp2);
-      ne.stop_io_all();
-      THEN ("state change internal vals are set correctly") {
-        REQUIRE(iohp1->stop_io_called);
-        REQUIRE(iohp2->stop_io_called);
-        ne.stop();
-        ne.clear_handlers();
-        REQUIRE(ne.size() == 0);
       }
     }
 
@@ -124,17 +95,13 @@ void net_entity_base_test() {
 }
 
 struct tcp_io_mock {
-  bool stop_io_called = false;
   using endpoint_type = int;
   using socket_type = int;
-  void stop_io() { stop_io_called = true; }
 };
 
 struct udp_io_mock {
-  bool stop_io_called = false;
   using endpoint_type = double;
   using socket_type = double;
-  void stop_io() { stop_io_called = true; }
 };
 
 SCENARIO ( "Net entity base test, udp",

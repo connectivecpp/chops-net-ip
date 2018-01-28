@@ -18,15 +18,11 @@
 
 #include <atomic>
 #include <system_error>
-#include <functional> // std::function, for state change cb
+#include <functional> // std::function, for start and shutdown state change cb's
 #include <memory>
-#include <vector>
 #include <cstddef> // std::size_t
 
-#include <experimental/executor>
-
 #include "net_ip/io_interface.hpp"
-#include "utility/erase_where.hpp"
 
 namespace chops {
 namespace net {
@@ -39,19 +35,13 @@ public:
   using shutdown_change_cb = std::function<void (io_interface<IOH>, std::error_code, std::size_t)>;
 
 private:
-  using io_handlers = std::vector<std::shared_ptr<IOH> >;
-
-private:
-
   std::atomic_bool           m_started; // may be called from multiple threads concurrently
   start_change_cb            m_start_change_cb;
   shutdown_change_cb         m_shutdown_change_cb;
-  io_handlers                m_io_handlers;
 
 public:
 
-  net_entity_base() noexcept : m_started(false), 
-         m_start_change_cb(), m_shutdown_change_cb(), m_io_handlers() { }
+  net_entity_base() noexcept : m_started(false), m_start_change_cb(), m_shutdown_change_cb() { }
 
   // following three methods can be called concurrently
   bool is_started() const noexcept { return m_started; }
@@ -72,36 +62,12 @@ public:
     return m_started.compare_exchange_strong(expected, false); 
   }
 
-  // following methods are not thread-safe, use only from within run thread
-  std::size_t size() const noexcept { return m_io_handlers.size(); }
-
-  // careful - there is a coupling where the acceptor or connector or udp entity performs 
-  // a remove_handler as part of the stop_io shutdown
-  void stop_io_all() {
-    auto hdlrs = m_io_handlers;
-    for (auto i : hdlrs) {
-      i->stop_io();
-    }
+  void call_start_change_cb(std::shared_ptr<IOH> p, std::size_t sz) {
+    m_start_change_cb(io_interface<IOH>(p), sz);
   }
 
-  void add_handler(std::shared_ptr<IOH> p) {
-    m_io_handlers.push_back(p);
-  }
-
-  void remove_handler(std::shared_ptr<IOH> p) {
-    chops::erase_where(m_io_handlers, p);
-  }
-
-  void clear_handlers() {
-    m_io_handlers.clear();
-  }
-
-  void call_start_change_cb(std::shared_ptr<IOH> p) {
-    m_start_change_cb(io_interface<IOH>(p), size());
-  }
-
-  void call_shutdown_change_cb(const std::error_code& err, std::shared_ptr<IOH> p) {
-    m_shutdown_change_cb(io_interface<IOH>(p), err, size());
+  void call_shutdown_change_cb(std::shared_ptr<IOH> p, const std::error_code& err, std::size_t sz) {
+    m_shutdown_change_cb(io_interface<IOH>(p), err, sz);
   }
 
 

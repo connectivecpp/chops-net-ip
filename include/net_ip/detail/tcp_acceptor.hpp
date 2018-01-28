@@ -19,12 +19,15 @@
 
 #include <system_error>
 #include <memory>
+#include <vector>
 #include <utility> // std::move
 #include <cstddef> // for std::size_t
 #include <functional> // std::bind
 
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_base.hpp"
+
+#include "utility/erase_where.hpp"
 
 namespace chops {
 namespace net {
@@ -38,6 +41,7 @@ public:
 private:
   net_entity_base<tcp_io>   m_entity_base;
   socket_type               m_acceptor;
+  std::vector<tcp_io_ptr>   m_io_handlers;
   endpoint_type             m_acceptor_endp;
   bool                      m_reuse_addr;
 
@@ -45,7 +49,8 @@ public:
   tcp_acceptor(std::experimental::net::io_context& ioc, 
                const std::experimental::net::ip::tcp::endpoint& endp,
                bool reuse_addr) :
-    m_entity_base(), m_acceptor(ioc), m_acceptor_endp(endp), m_reuse_addr(reuse_addr) { }
+    m_entity_base(), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
+    m_reuse_addr(reuse_addr) { }
 
 public:
 
@@ -65,7 +70,7 @@ public:
           m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
-      m_entity_base.call_shutdown_change_cb(se.code(), tcp_io_ptr());
+      m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);
       stop();
       return;
     }
@@ -76,9 +81,14 @@ public:
     if (!m_entity_base.stop()) {
       return; // stop already called
     }
-    m_entity_base.stop_io_all();
-    m_entity_base.clear_handlers(); // redundant?
-    m_entity_base.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_acceptor_stopped), tcp_io_ptr());
+    auto iohs = m_io_handlers;
+    for (auto i : iohs) {
+      i->close();
+    }
+    m_io_handlers.clear();
+    m_entity_base.call_shutdown_change_cb(tcp_io_ptr(),
+                                          std::make_error_code(net_ip_errc::tcp_acceptor_stopped), 
+                                          0);
     std::error_code ec;
     m_acceptor.close(ec);
   }
@@ -92,14 +102,14 @@ private:
     m_acceptor.async_accept( [this, self] (const std::error_code& err,
                                 std::experimental::net::ip::tcp::socket sock) {
         if (err) {
-          m_entity_base.call_shutdown_change_cb(err, tcp_io_ptr());
+          m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, m_io_handlers.size());
           stop(); // is this the right thing to do? what are possible causes of errors?
           return;
         }
         tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
-        m_entity_base.add_handler(iop);
-        m_entity_base.call_start_change_cb(iop);
+        m_io_handlers.push_back(iop);
+        m_entity_base.call_start_change_cb(iop, m_io_handlers.size());
         start_accept();
       }
     );
@@ -107,8 +117,8 @@ private:
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
     iop->close();
-    m_entity_base.remove_handler(iop);
-    m_entity_base.call_shutdown_change_cb(err, iop);
+    chops::erase_where(m_io_handlers, iop);
+    m_entity_base.call_shutdown_change_cb(iop, err, m_io_handlers.size());
   }
 
 };
