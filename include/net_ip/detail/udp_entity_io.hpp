@@ -2,8 +2,7 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief Internal class that is an IO handler for UDP datagram as well as
- *  an UDP entity class.
+ *  @brief Internal class that is both an UDP IO handler and UDP entity class.
  *
  *  @note For internal use only.
  *
@@ -13,8 +12,8 @@
  *
  */
 
-#ifndef UDP_IO_HPP_INCLUDED
-#define UDP_IO_HPP_INCLUDED
+#ifndef UDP_ENTITY_IO_HPP_INCLUDED
+#define UDP_ENTITY_IO_HPP_INCLUDED
 
 #include <experimental/executor>
 #include <experimental/internet>
@@ -38,38 +37,38 @@ namespace chops {
 namespace net {
 namespace detail {
 
-class udp_io : public std::enable_shared_from_this<udp_io> {
+class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
   using socket_type = std::experimental::net::ip::udp::socket;
-  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using endpoint_type = std::experimental::net::ip::udp::endpoint;
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
 
 private:
-  using entity_cb = typename io_base<udp_io>::entity_notifier_cb;
+  using entity_cb = typename io_base<udp_entity_io>::entity_notifier_cb;
 
 private:
 
-  socket_type            m_socket;
-  io_base<udp_io>        m_io_base;
-  endpoint_type          m_incoming_endp;
+  socket_type              m_socket;
+  io_base<udp_entity_io>   m_io_base;
+  endpoint_type            m_local_endp;
+  endpoint_type            m_default_dest_endp;
 
   // the following members could be passed through handlers, but are stored here
   // for simplicity and to reduce copying
-  byte_vec               m_byte_vec;
-  std::size_t            m_read_size;
+  byte_vec                 m_byte_vec;
 
 public:
 
-  udp_io(socket_type sock, entity_cb cb) noexcept : 
+  udp_entity_io(socket_type sock, entity_cb cb) noexcept : 
     m_socket(std::move(sock)), m_io_base(cb), 
     m_byte_vec(), m_read_size(0), m_delimiter() { }
 
 private:
   // no copy or assignment semantics for this class
-  udp_io(const udp_io&) = delete;
-  udp_io(udp_io&&) = delete;
-  udp_io& operator=(const udp_io&) = delete;
-  udp_io& operator=(udp_io&&) = delete;
+  udp_entity_io(const udp_entity_io&) = delete;
+  udp_entity_io(udp_entity_io&&) = delete;
+  udp_entity_io& operator=(const udp_entity_io&) = delete;
+  udp_entity_io& operator=(udp_entity_io&&) = delete;
 
 public:
   // all of the methods in this public section can be called through an io_interface
@@ -81,24 +80,27 @@ public:
 
   bool is_started() const noexcept { return m_io_base.is_started(); }
 
-
   template <typename MH>
-  void start_io(MH&& msg_handler, std::string_view delimiter) {
-    if (!m_io_base.start_io_setup(m_socket)) {
-      return;
+  void start_io(std::size_t max_size, MH&& msg_handler) {
+    if (!m_io_base.set_started()) { // concurrency protected
+      return false;
     }
-    m_delimiter = delimiter;
-    start_read_until(msg_handler);
+    m_byte_vec.resize(max_size);
   }
 
   template <typename MH>
-  void start_io(MH&& msg_handler, std::size_t read_size) {
+  void start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
+    if (!m_io_base.set_started()) { // concurrency protected
+      return false;
+    }
+    m_byte_vec.resize(max_size);
+    m_default_dest_endp = endp;
   }
 
   void start_io() {
   }
 
-  void stop_io() {
+  void stop_io(const endpoint_type& endp) {
     m_io_base.check_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
                                shared_from_this());
   }
@@ -152,17 +154,17 @@ private:
 
 // method implementations, just to make the class declaration a little more readable
 
-inline void udp_io::close() {
+inline void udp_entity_io::close() {
   m_io_base.stop();
   // attempt graceful shutdown
   std::error_code ec;
-  m_socket.shutdown(std::experimental::net::ip::tcp::socket::shutdown_both, ec);
+  m_socket.shutdown(std::experimental::net::ip::udp::socket::shutdown_both, ec);
   auto self { shared_from_this() };
   post(m_socket.get_executor(), [this, self] { m_socket.close(); } );
 }
 
 template <typename MH, typename MF>
-void udp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, 
+void udp_entity_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, 
                          const std::error_code& err, std::size_t num_bytes) {
 
   if (!m_io_base.check_err_code(err, shared_from_this())) {
@@ -173,7 +175,7 @@ void udp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  io_interface<udp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
+                  io_interface<udp_entity_io>(weak_from_this()), m_io_base.get_remote_endp())) {
       // message handler not happy, tear everything down
       m_io_base.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  shared_from_this());
@@ -191,14 +193,14 @@ void udp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame,
 }
 
 template <typename MH, typename DB>
-void udp_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf, 
+void udp_entity_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf, 
                                const std::error_code& err, std::size_t num_bytes) {
 
   if (!m_io_base.check_err_code(err, shared_from_this())) {
     return;
   }
   if (!msg_hdlr(dyn_buf.data(), // includes delimiter bytes
-                io_interface<udp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
+                io_interface<udp_entity_io>(weak_from_this()), m_io_base.get_remote_endp())) {
       m_io_base.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  shared_from_this());
     return;
@@ -208,7 +210,7 @@ void udp_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf,
 }
 
 
-inline void udp_io::start_write(chops::const_shared_buffer buf) {
+inline void udp_entity_io::start_write(chops::const_shared_buffer buf) {
   if (!m_io_base.start_write_setup(buf)) {
     return; // buf queued or shutdown happening
   }
@@ -221,7 +223,7 @@ inline void udp_io::start_write(chops::const_shared_buffer buf) {
   );
 }
 
-inline void udp_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
+inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (!m_io_base.check_err_code(err, shared_from_this())) {
     return;
   }
