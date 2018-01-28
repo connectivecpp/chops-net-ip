@@ -133,8 +133,7 @@ public:
 
 public:
   // this method can only be called through a net entity, assumes all error codes have already
-  // been reported back to the net entity; post a handler to allow other operations one more
-  // chance to complete
+  // been reported back to the net entity
   void close() {
     if (!m_io_base.stop()) {
       return; // already stopped

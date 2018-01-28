@@ -16,6 +16,7 @@
 #define UDP_IO_HPP_INCLUDED
 
 #include <experimental/executor>
+#include <experimental/io_context>
 #include <experimental/internet>
 #include <experimental/buffer>
 
@@ -24,7 +25,6 @@
 
 #include <cstddef> // std::size_t
 #include <utility> // std::forward, std::move
-#include <string>
 
 #include "net_ip/detail/output_queue.hpp"
 #include "net_ip/detail/io_base.hpp"
@@ -42,8 +42,6 @@ public:
   using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
-
-private:
   using entity_cb = typename io_base<udp_io>::entity_notifier_cb;
 
 private:
@@ -53,15 +51,22 @@ private:
   endpoint_type        m_local_endp;
   endpoint_type        m_default_dest_endp;
 
-  // the following members could be passed through handlers, but are stored here
-  // for simplicity and to reduce copying
-  byte_vec                 m_byte_vec;
+  // following members could be passed through handler, but member for simplicity 
+  // and less copying
+  byte_vec             m_byte_vec;
+  std::size_t          m_max_size;
+  endpoint_type        m_sender_endp;
 
 public:
 
-  udp_io(socket_type sock, entity_cb cb) noexcept : 
-    m_socket(std::move(sock)), m_io_base(cb), 
-    m_byte_vec(), m_read_size(0), m_delimiter() { }
+  udp_io(std::experimental::net::io_context& ioc, entity_cb cb) noexcept : 
+    m_socket(ioc), m_io_base(cb), m_local_endp(), m_default_dest_endp(),
+    m_byte_vec(), m_sender_endp() { }
+
+  udp_io(std::experimental::net::io_context& ioc, const endpoint_type& local_endp,
+         entity_cb cb) noexcept : 
+    m_socket(ioc), m_io_base(cb), m_local_endp(local_endp), m_default_dest_endp(),
+    m_byte_vec(), m_sender_endp() { }
 
 private:
   // no copy or assignment semantics for this class
@@ -83,28 +88,41 @@ public:
   template <typename MH>
   void start_io(std::size_t max_size, MH&& msg_handler) {
     if (!m_io_base.set_started()) { // concurrency protected
-      return false;
+      return;
     }
-    m_byte_vec.resize(max_size);
+    m_max_size = max_size;
+    start_read(std::forward<MH>(msg_handler));
   }
 
   template <typename MH>
   void start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
     if (!m_io_base.set_started()) { // concurrency protected
-      return false;
+      return;
     }
-    m_byte_vec.resize(max_size);
+    m_max_size = max_size;
     m_default_dest_endp = endp;
+    start_read(std::forward<MH>(msg_handler));
   }
 
   void start_io() {
+    m_io_base.set_started();
   }
 
   void start_io(const endpoint_type& endp) {
+    if (!m_io_base.set_started()) { // concurrency protected
+      return;
+    }
+    m_default_dest_endp = endp;
+  }
 
   void stop_io() {
-    m_io_base.check_err_code(std::make_error_code(net_ip_errc::io_handler_stopped), 
-                               shared_from_this());
+    // causes net entity to eventually call close
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), 
+      [this, self] {
+        m_io_base.process_err_code(std::make_error_code(net_ip_errc::udp_io_handler_stopped), self);
+      }
+    );
   }
 
   void send(chops::const_shared_buffer buf) {
@@ -136,34 +154,23 @@ public:
 
 private:
 
-  template <typename MH, typename MF>
-  void start_read(MH&& msg_hdlr, MF&& msg_frame, std::experimental::net::mutable_buffer mbuf) {
-    auto self { shared_from_this() };
-    std::experimental::net::async_read(m_socket, mbuf,
-      [this, self, mh = std::forward<MH>(msg_hdlr), mf = std::forward<MF>(msg_frame)]
-            (const std::error_code& err, std::size_t nb) {
-        handle_read(mh, mf, err, nb);
-      }
-    );
-  }
-
-  template <typename MH, typename MF>
-  void handle_read(MH&&, MF&&, const std::error_code&, std::size_t);
 
   template <typename MH>
-  void start_read_until(MH&& msg_hdlr) {
-    auto dyn_buf = std::experimental::net::dynamic_buffer(m_byte_vec);
+  void start_read(MH&& msg_hdlr) {
     auto self { shared_from_this() };
-    std::experimental::net::async_read_until(m_socket, dyn_buf, m_delimiter,
-          [this, self, mh = std::forward<MH>(msg_hdlr), db = std::move(dyn_buf)] 
-            (const std::error_code& err, std::size_t nb) {
-        handle_read_until(mh, db, err, nb);
+    m_byte_vec.resize(m_max_size);
+    m_socket.async_receive_from(
+              std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
+              m_sender_endp,
+                [this, self, mh = std::move(msg_hdlr)] 
+                  (const std::error_code& err, std::size_t nb) {
+        handle_read(err, nb, mh);
       }
     );
   }
 
-  template <typename MH, typename DB>
-  void handle_read_until(MH&&, DB&&, const std::error_code&, std::size_t);
+  template <typename MH>
+  void handle_read(const std::error_code&, std::size_t, MH&&);
 
   void start_write(chops::const_shared_buffer, const endpoint_type&);
 
@@ -182,50 +189,21 @@ inline void udp_io::close() {
   post(m_socket.get_executor(), [this, self] { m_socket.close(); } );
 }
 
-template <typename MH, typename MF>
-void udp_io::handle_read(MH&& msg_hdlr, MF&& msg_frame, 
-                         const std::error_code& err, std::size_t num_bytes) {
+template <typename MH>
+void udp_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
-  if (!m_io_base.check_err_code(err, shared_from_this())) {
+  if (err) {
+    m_io_base.process_err_code(err, shared_from_this());
     return;
   }
-  // assert num_bytes == m_byte_vec.size()
-  std::experimental::net::mutable_buffer mbuf(m_byte_vec.data(), m_byte_vec.size());
-  std::size_t next_read_size = msg_frame(mbuf);
-  if (next_read_size == 0) { // msg fully received, now invoke message handler
-    if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  io_interface<udp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
+  if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
+                io_interface<udp_io>(weak_from_this()), m_sender_endp)) {
       // message handler not happy, tear everything down
-      m_io_base.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
+      m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                  shared_from_this());
       return;
     }
-    m_byte_vec.resize(m_read_size);
-    mbuf = std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size());
-  }
-  else {
-    std::size_t old_size = m_byte_vec.size();
-    m_byte_vec.resize(old_size + next_read_size);
-    mbuf = std::experimental::net::mutable_buffer(m_byte_vec.data() + old_size, next_read_size);
-  }
-  start_read(msg_hdlr, msg_frame, mbuf);
-}
-
-template <typename MH, typename DB>
-void udp_io::handle_read_until(MH&& msg_hdlr, DB&& dyn_buf, 
-                               const std::error_code& err, std::size_t num_bytes) {
-
-  if (!m_io_base.check_err_code(err, shared_from_this())) {
-    return;
-  }
-  if (!msg_hdlr(dyn_buf.data(), // includes delimiter bytes
-                io_interface<udp_io>(weak_from_this()), m_io_base.get_remote_endp())) {
-      m_io_base.check_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                                 shared_from_this());
-    return;
-  }
-  dyn_buf.consume(num_bytes);
-  start_read_until(msg_hdlr);
+  start_read(std::forward<MH>(msg_hdlr));
 }
 
 inline void udp_io::start_write(chops::const_shared_buffer buf, const endpoint_type& endp) {
