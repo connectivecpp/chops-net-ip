@@ -51,8 +51,8 @@ private:
   endpoint_type        m_local_endp;
   endpoint_type        m_default_dest_endp;
 
-  // following members could be passed through handler, but member for simplicity 
-  // and less copying
+  // following members could be passed through handler, but are members for 
+  // simplicity and less copying
   byte_vec             m_byte_vec;
   std::size_t          m_max_size;
   endpoint_type        m_sender_endp;
@@ -181,7 +181,9 @@ private:
 // method implementations, just to make the class declaration a little more readable
 
 inline void udp_io::close() {
-  m_io_base.stop();
+  if (!m_io_base.stop()) {
+    return;
+  }
   // attempt graceful shutdown
   std::error_code ec;
   m_socket.shutdown(std::experimental::net::ip::udp::socket::shutdown_both, ec);
@@ -198,11 +200,11 @@ void udp_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&&
   }
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
                 io_interface<udp_io>(weak_from_this()), m_sender_endp)) {
-      // message handler not happy, tear everything down
-      m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                                 shared_from_this());
-      return;
-    }
+    // message handler not happy, tear everything down
+    m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
+                               shared_from_this());
+    return;
+  }
   start_read(std::forward<MH>(msg_hdlr));
 }
 
