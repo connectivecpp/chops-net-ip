@@ -52,9 +52,8 @@ private:
   net_entity_base<udp_entity_io>  m_entity_base;
   socket_type                     m_socket;
   endpoint_type                   m_local_endp;
-  bool                            m_local_bind_needed;
-  bool                            m_multicast;
   endpoint_type                   m_default_dest_endp;
+  // multicast stuff TBD
 
   // following members could be passed through handler, but are members for 
   // simplicity and less copying
@@ -63,11 +62,10 @@ private:
   endpoint_type                   m_sender_endp;
 
 public:
-  udp_entity_io(std::experimental::net::io_context& ioc, const endpoint_type& local_endp,
-         bool local_bind_needed, bool multicast) noexcept : 
+  udp_entity_io(std::experimental::net::io_context& ioc, 
+                const endpoint_type& local_endp) noexcept : 
     m_io_base(entity_cb()), m_entity_base(), 
-    m_socket(ioc), m_local_endp(local_endp), 
-    m_local_bind_needed(local_bind_needed), m_multicast(multicast), m_default_dest_endp(), 
+    m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
     m_byte_vec(), m_max_size(0), m_sender_endp() { }
 
 private:
@@ -99,10 +97,9 @@ public:
       return;
     }
     try {
-      if (m_local_bind_needed) {
+      // assume default constructed endpoints compare equal
+      if (m_local_endp != endpoint_type()) {
         m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
-      }
-      if (m_multicast) {
       }
     }
     catch (const std::system_error& se) {
