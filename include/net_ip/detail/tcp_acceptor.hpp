@@ -46,8 +46,7 @@ private:
   bool                      m_reuse_addr;
 
 public:
-  tcp_acceptor(std::experimental::net::io_context& ioc, 
-               const std::experimental::net::ip::tcp::endpoint& endp,
+  tcp_acceptor(std::experimental::net::io_context& ioc, const endpoint_type& endp,
                bool reuse_addr) :
     m_entity_base(), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
     m_reuse_addr(reuse_addr) { }
@@ -65,9 +64,8 @@ public:
       return;
     }
     try {
-      m_acceptor = 
-        std::experimental::net::ip::tcp::acceptor(m_acceptor.get_executor().context(), 
-          m_acceptor_endp, m_reuse_addr);
+      m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
+                               m_reuse_addr);
     }
     catch (const std::system_error& se) {
       m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);

@@ -27,6 +27,7 @@
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
 #include "net_ip/endpoints_resolver.hpp"
+
 #include "utility/erase_where.hpp"
 
 namespace chops {
@@ -61,18 +62,19 @@ namespace net {
  *  name resolution (if needed), a local bind (if needed) and (for TCP) a 
  *  connect or a listen. 
  *
- *  If name resolution (i.e. DNS lookup) is required on a host name, the 
- *  name resolution starts when @c start is called. If this is not acceptable,
- *  the application can perform the lookup and the endpoint (or endpoint 
- *  sequence) can be passed in through the @c make method.
+ *  Local host and port and interface name lookups are performed immediately 
+ *  using direct (synchronous) lookups. Remote host and port name lookups are 
+ *  performed asynchronously (since these may take longer) and are started when 
+ *  the @c net_entity @c start is called (this is only needed for TCP connectors).
+ *  If this is not acceptable, the application can perform the lookup and the 
+ *  endpoint (or endpoint sequence) can be passed in through the @c make method.
  *
- *  The @c start method takes a state change function object, and this will 
- *  be called when the @c net_entity becomes ready for network input and 
- *  output. The state change callback will be invoked if an error occurs.
+ *  State change function objects are invoked when network IO can be started as
+ *  well as when an error or shutdown occurs.
  *
  *  4. When an @c io_interface object is supplied to the application through
- *  the state change callback, input processing is started through a @c start_io
- *  call, and outbound data is sent through @c send methods.
+ *  the start state change callback, input processing is started through a 
+ *  @c start_io call, and outbound data is sent through @c send methods.
  *
  *  There are no executor operations available through the @c net_ip class. In 
  *  other words, no event loop or @c run methods are available. Instead, the
@@ -98,7 +100,7 @@ namespace net {
  *  or strand context.)
  *
  *  It should be noted, however, that race conditions are possible, specially for 
- *  similar operations invoked between @c net_entity and @c net_ip and @c io_interface 
+ *  similar operations invoked between @c net_entity and @c io_interface 
  *  objects. For example, starting and stopping network entities concurrently between 
  *  separate objects or threads could cause unexpected behavior.
  *
@@ -131,7 +133,8 @@ public:
  *  @brief Create a TCP acceptor @c net_entity, which will listen on a port for incoming
  *  connections (once started).
  *
- *  @param local_port Port number to bind to for incoming TCP connects.
+ *  @param local_port_or_service Port number or service name to bind to for incoming TCP 
+ *  connects.
  *
  *  @param listen_intf If this parameter is supplied, the bind (when @c start is called) will 
  *  be performed on a specific IP interface. Otherwise, the bind is for "any" IP interface 
@@ -142,15 +145,17 @@ public:
  *
  *  @return @c tcp_acceptor_net_entity object.
  *
+ *  @throw @c std::system_error if there is a name lookup failure.
+ *
  *  @note The name and port lookup to create a TCP endpoint is immediately performed. The
  *  alternate TCP acceptor @c make method can be used if this is not acceptable.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port, 
+  tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port_or_service, 
                                              std::string_view listen_intf = "",
                                              bool reuse_addr = true) {
     endpoints_resolver<std::experimental::net::ip::tcp> resolver(m_ioc);
-    auto results = resolver.make_endpoints(true, listen_intf, local_port);
+    auto results = resolver.make_endpoints(true, listen_intf, local_port_or_service);
     return make_tcp_acceptor(results.cbegin()->endpoint(), reuse_addr);
   }
 
@@ -262,66 +267,42 @@ public:
   }
 
 /**
- *  @brief Create a UDP resource that allows both receiving and sending.
+ *  @brief Create a UDP unicast @c net_entity that allows receiving as well as sending.
  *
- *  When incoming UDP datagrams need to be received, this create method is used. A local port 
- *  is required for binding, and a local host address can also be supplied for binding to 
- *  a specific interface.
+ *  This @c make method is used when incoming UDP (unicast) datagrams will be received. A
+ *  local port is used for binding, and an optional local host address can also be used as
+ *  part of the bind (e.g. if binding to a specific interface is needed).
  *
- *  If the multicast flag is set, a multicast join will be attempted, using the multicast
- *  address parameter.
+ *  If there is a need to determine whether an incoming UDP datagram was originally sent 
+ *  as unicast, multicast, or broadcast this can be performed by inspecting the remote 
+ *  endpoint address as supplied through the message handler callback.
  *
- *  Determining whether an incoming UDP datagram was originally sent as unicast, multicast, or 
- *  broadcast is up to the application (by inspecting the remote address through the
- *  @c io_interface object, possibly from within the @c IncomingMsgCb).
+ *  A bind to the local endpoint is not started until the @c net_entity @c start method is 
+ *  called, and a read is not started until the @c io_interface @c start_io method is
+ *  called.
  *
- *  Note that sending broadcast UDP is not supported through this network resource. Instead, use
- *  the UDP sender create method with the broadcast flag set to @c true.
+ *  @param local_port_or_service Port number or service name for local binding.
  *
- *  Binds and reads will not be started until the @c net_entity @c start method is called.
+ *  @param local_intf Local host interface, otherwise the default is "any address".
  *
- *  @param localPort Port number for local binding.
+ *  @throw @c std::system_error if there is a name lookup failure.
  *
- *  @param defRemotePort Port number of default remote host. If left out, the remote port
- *  can be specified as an @c io_interface @c send method parameter. Specifying this and
- *  the default remote host allows @c io_interface @c send methods to be called without
- *  a destination port and address.
+ *  @note Common socket options on UDP datagram sockets, such as increasing the 
+ *  "time to live" (hop limit), or allowing UDP broadcast, can be set by using the
+ *  @c net_entity @c get_socket method (or @c io_interface @c get_socket method, which
+ *  returns the same reference).
  *
- *  @param defRemoteHost Name of default remote host. Similar to
- *  the default remote port, it can also be specified in a @c send method parameter.
- *
- *  @param mcast If @c true, sets the multicast join socket option on. This allows UDP datagrams
- *  addressed to a multicast address to be received. The reusable socket option is set to allow 
- *  multiple applications on one host to receive incoming multicast UDP datagrams on the same 
- *  address.
- *
- *  @param mcastAddr If the multicast flag is set to @c true, this parameter specifies the
- *  multicast IP address that is to be used for receiving datagrams. If the multicast flag
- *  is @c true and this parameter is empty, an exception is thrown.
- *
- *  @param ttl Time to live (num hops) value. If 0 or not specified, the @c ttl socket option
- *  is not set. If greater than 0, the value is used in the socket option. There is both
- *  a multicast and unicast TTL, and the appropriate socket option is set, depending on the 
- *  multicast flag parameter.
- *
- *  @param localHost If this parameter is supplied, the local bind will be performed on a
- *  specific local host interface. This can be useful in a dual NIC environment for receiving 
- *  datagrams on a specific interface, and may also be useful when sending datagrams. If not
- *  specified, the local bind is for "any" interface (which is the typical usage).
- *
- *  @throw @c SockLibException is thrown if host names cannot be resolved, or if multicast
- *  is specified but the multicast address is empty.
  */
-  Embankment createUdpResource(unsigned short localPort, unsigned short defRemotePort = 0,
-                       const std::string& defRemoteHost = "", bool mcast = false,
-                       const std::string& mcastAddr = "", unsigned short ttl = 0,
-                       const std::string& localHost = "") {
-    if (mcast && mcastAddr.empty()) {
-      throw SockLibException(std::string("Multicast specified but multicast address is empty"));
-    }
-    return utilityCreateUdpResource(localPort, localHost, defRemotePort, defRemoteHost, true, 
-                                    mcast, mcastAddr, false, ttl);
-  }
+  udp_net_entity make_udp_unicast (std::string_view local_port_or_service, 
+                                   std::string_view local_intf = "") {
+    endpoints_resolver<std::experimental::net::ip::udp> resolver(m_ioc);
+    auto results = resolver.make_endpoints(true, local_intf, local_port_or_service);
+    return make_tcp_acceptor(results.cbegin()->endpoint(), reuse_addr);
+
+  udp_net_entity make_udp_unicast_sender
+
+  
+  udp_net_entity make_udp_multicast 
 
 /**
  *  @brief Create a UDP sender network resource, with no associated UDP reads or local

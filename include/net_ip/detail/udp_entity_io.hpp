@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief Internal UDP IO handler class.
+ *  @brief Internal class that combines a UDP entity and UDP io handler.
  *
  *  @note For internal use only.
  *
@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef UDP_IO_HPP_INCLUDED
-#define UDP_IO_HPP_INCLUDED
+#ifndef UDP_ENTITY_IO_HPP_INCLUDED
+#define UDP_ENTITY_IO_HPP_INCLUDED
 
 #include <experimental/executor>
 #include <experimental/io_context>
@@ -25,9 +25,11 @@
 
 #include <cstddef> // std::size_t
 #include <utility> // std::forward, std::move
+#include <functional> // std::bind
 
-#include "net_ip/detail/output_queue.hpp"
 #include "net_ip/detail/io_base.hpp"
+#include "net_ip/detail/net_entity_base.hpp"
+#include "net_ip/detail/output_queue.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/io_interface.hpp"
@@ -37,19 +39,21 @@ namespace chops {
 namespace net {
 namespace detail {
 
-class udp_io : public std::enable_shared_from_this<udp_io> {
+class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
   using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
-  using entity_cb = typename io_base<udp_io>::entity_notifier_cb;
+  using entity_cb = typename io_base<udp_entity_io>::entity_notifier_cb;
 
 private:
 
-  socket_type          m_socket;
-  io_base<udp_io>      m_io_base;
-  endpoint_type        m_local_endp;
-  endpoint_type        m_default_dest_endp;
+  io_base<udp_entity_io>          m_io_base;
+  net_entity_base<udp_entity_io>  m_entity_base;
+  socket_type                     m_socket;
+  endpoint_type                   m_local_endp;
+  bool                            m_local_bind_needed;
+  endpoint_type                   m_default_dest_endp;
 
   // following members could be passed through handler, but are members for 
   // simplicity and less copying
@@ -58,32 +62,42 @@ private:
   endpoint_type        m_sender_endp;
 
 public:
-
-  udp_io(std::experimental::net::io_context& ioc, entity_cb cb) noexcept : 
-    m_socket(ioc), m_io_base(cb), m_local_endp(), m_default_dest_endp(),
-    m_byte_vec(), m_sender_endp() { }
-
-  udp_io(std::experimental::net::io_context& ioc, const endpoint_type& local_endp,
-         entity_cb cb) noexcept : 
-    m_socket(ioc), m_io_base(cb), m_local_endp(local_endp), m_default_dest_endp(),
-    m_byte_vec(), m_sender_endp() { }
+  udp_entity_io(std::experimental::net::io_context& ioc, const endpoint_type& local_endp,
+         bool local_bind_needed) noexcept : 
+    m_socket(ioc), m_io_base(cb), m_local_endp(local_endp), m_local_bind_needed(local_bind_needed),
+    m_default_dest_endp(), m_byte_vec(), m_max_size(0), m_sender_endp() { }
 
 private:
   // no copy or assignment semantics for this class
-  udp_io(const udp_io&) = delete;
-  udp_io(udp_io&&) = delete;
-  udp_io& operator=(const udp_io&) = delete;
-  udp_io& operator=(udp_io&&) = delete;
+  udp_entity_io(const udp_entity_io&) = delete;
+  udp_entity_io(udp_entity_io&&) = delete;
+  udp_entity_io& operator=(const udp_entity_io&) = delete;
+  udp_entity_io& operator=(udp_entity_io&&) = delete;
 
 public:
-  // all of the methods in this public section can be called through an io_interface
+
+  // all of the methods in this public section can be called through either an io_interface
+  // or a net_entity
+
+  bool is_started() const noexcept { return m_entity_base.is_started(); }
+
+  bool is_io_started() const noexcept { return m_io_base.is_io_started(); }
+
   socket_type& get_socket() noexcept { return m_socket; }
 
   output_queue_stats get_output_queue_stats() const noexcept {
     return m_io_base.get_output_queue_stats();
   }
 
-  bool is_started() const noexcept { return m_io_base.is_started(); }
+  template <typename R, typename S>
+  void start(R&& start_chg, S&& shutdown_chg) {
+    if (!m_entity_base.start(std::forward<R>(start_chg), std::forward<S>(shutdown_chg))) {
+      // already started
+      return;
+    }
+    // bind code goes here
+  }
+
 
   template <typename MH>
   void start_io(std::size_t max_size, MH&& msg_handler) {
@@ -123,6 +137,17 @@ public:
         m_io_base.process_err_code(std::make_error_code(net_ip_errc::udp_io_handler_stopped), self);
       }
     );
+  }
+
+  void stop() {
+    if (!m_entity_base.stop()) {
+      return; // stop already called
+    }
+    m_entity_base.call_shutdown_change_cb(tcp_io_ptr(),
+                                          std::make_error_code(net_ip_errc::udp_entity_stopped), 
+                                          0);
+    std::error_code ec;
+    m_acceptor.close(ec);
   }
 
   void send(chops::const_shared_buffer buf) {
@@ -180,7 +205,7 @@ private:
 
 // method implementations, just to make the class declaration a little more readable
 
-inline void udp_io::close() {
+inline void udp_entity_io::close() {
   if (!m_io_base.stop()) {
     return;
   }
@@ -192,14 +217,14 @@ inline void udp_io::close() {
 }
 
 template <typename MH>
-void udp_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
+void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
     m_io_base.process_err_code(err, shared_from_this());
     return;
   }
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
-                io_interface<udp_io>(weak_from_this()), m_sender_endp)) {
+                io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
                                shared_from_this());
@@ -208,7 +233,7 @@ void udp_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&&
   start_read(std::forward<MH>(msg_hdlr));
 }
 
-inline void udp_io::start_write(chops::const_shared_buffer buf, const endpoint_type& endp) {
+inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const endpoint_type& endp) {
   auto self { shared_from_this() };
   m_socket.async_send_to(std::experimental::net::const_buffer(buf.data(), buf.size()), endp,
             [this, self] (const std::error_code& err, std::size_t nb) {
@@ -217,7 +242,7 @@ inline void udp_io::start_write(chops::const_shared_buffer buf, const endpoint_t
   );
 }
 
-inline void udp_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
+inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (err) {
     m_io_base.process_err_code(err, shared_from_this());
     return;
@@ -229,7 +254,7 @@ inline void udp_io::handle_write(const std::error_code& err, std::size_t /* num_
   start_write(elem.first, elem.second ? *(elem.second) : m_default_dest_endp);
 }
 
-using udp_io_ptr = std::shared_ptr<udp_io>;
+using udp_entity_io_ptr = std::shared_ptr<udp_entity_io>;
 
 } // end detail namespace
 } // end net namespace

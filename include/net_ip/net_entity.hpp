@@ -113,6 +113,14 @@ public:
  *  @brief Return a reference to the underlying net entity socket, allowing socket 
  *  options to be queried or set or other socket methods to be called.
  *
+ *  The socket reference returned from this method allows direct access to the
+ *  @c net_entity socket. This socket may be different from the socket that is
+ *  accessible hrough the @c io_interface object. In particular, a TCP acceptor
+ *  socket reference is of type @c ip::tcp::acceptor (in the namespace
+ *  @c std::experimental::net), a TCP connector socket reference is of type
+ *  @c ip::tcp::socket, and a UDP entity socket reference is of type 
+ *  @c ip::udp::socket.
+ *
  *  @return @c ip::tcp::socket or @c ip::udp::socket or @c ip::tcp::acceptor, 
  *  depending on net entity type.
  *
@@ -260,7 +268,7 @@ public:
 namespace detail {
 class tcp_connector;
 class tcp_acceptor;
-class udp_entity_io;
+class udp_entity;
 }
 
 /**
@@ -282,7 +290,7 @@ using tcp_acceptor_net_entity = net_entity<detail::tcp_acceptor>;
  *
  *  @relates net_entity
  */
-using udp_net_entity = net_entity<detail::udp_entity_io>;
+using udp_net_entity = net_entity<detail::udp_entity>;
 
 } // end net namespace
 } // end chops namespace
