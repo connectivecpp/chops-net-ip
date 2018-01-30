@@ -17,6 +17,7 @@
 #include <experimental/internet>
 #include <experimental/socket>
 #include <experimental/io_context>
+#include <experimental/timer>
 
 #include <system_error>
 #include <vector>
@@ -29,7 +30,6 @@
 
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_base.hpp"
-#include "timer/periodic_timer.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
 
@@ -48,18 +48,17 @@ private:
     std::experimental::net::ip::basic_resolver_results<std::experimental::net::ip::tcp>;
   using endpoints = std::vector<endpoint_type>;
   using endpoints_iter = endpoints::const_iterator;
-  using dur_type = typename chops::periodic_timer<>::duration;
 
 private:
-  net_entity_base<tcp_io>    m_entity_base;
-  socket_type                m_socket;
-  tcp_io_ptr                 m_io_handler;
-  resolver_type              m_resolver;
-  endpoints                  m_endpoints;
-  chops::periodic_timer<>    m_timer;
-  std::chrono::milliseconds  m_reconn_time;
-  std::string                m_remote_host;
-  std::string                m_remote_port;
+  net_entity_base<tcp_io>               m_entity_base;
+  socket_type                           m_socket;
+  tcp_io_ptr                            m_io_handler;
+  resolver_type                         m_resolver;
+  endpoints                             m_endpoints;
+  std::experimental::net::steady_timer  m_timer;
+  std::chrono::milliseconds             m_reconn_time;
+  std::string                           m_remote_host;
+  std::string                           m_remote_port;
 
 public:
   template <typename Iter>
@@ -172,15 +171,20 @@ private:
 
     if (err) {
       m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
-      auto self = shared_from_this();
-      m_timer.start_duration_timer(m_reconn_time,
-        [this, self] (std::error_code err, dur_type dur) {
-          if (!err) {
-            start_connect();
+      try {
+        auto self = shared_from_this();
+        m_timer.expires_after(m_reconn_time);
+        m_timer.async_wait( [this, self] (const std::error_code& err) {
+            if (!err) {
+              start_connect();
+            }
           }
-          return false;
-        }
-      );
+        );
+      }
+      catch (const std::system_error& se) {
+        m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);
+        stop();
+      }
       return;
     }
     m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
@@ -191,7 +195,7 @@ private:
   void notify_me(std::error_code err, tcp_io_ptr iop) {
     assert (iop == m_io_handler);
     m_entity_base.call_shutdown_change_cb(m_io_handler, err, 0);
-    close();
+    stop();
   }
 
 };

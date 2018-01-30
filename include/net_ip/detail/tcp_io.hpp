@@ -138,9 +138,9 @@ public:
     if (!m_io_base.stop()) {
       return; // already stopped
     }
-//    auto self { shared_from_this() };
-//    post(m_socket.get_executor(), [this, self] { handle_close(); } );
-    handle_close();
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), [this, self] { handle_close(); } );
+//    handle_close();
   }
 
 private:
