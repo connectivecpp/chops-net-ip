@@ -28,19 +28,19 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief Convenience class for resolving host names to endpoints suitable for use
+ *  @brief Convenience class for resolving names to endpoints suitable for use
  *  within the Chops Net IP library (or with the C++ Networking TS).
  *
  *  This class does not add much functionality above what is already present in the
  *  Networking TS, but does automate the flags for local resolves.
  *
  *  Many times only one endpoint is needed, for example a TCP acceptor local endpoint or a 
- *  UDP local endpoint. In this case the first entry of a sequence (if there are many) can 
+ *  UDP local endpoint. In this case the first entry of an endpoint sequence can 
  *  be used.
  *
  *  Name resolving will not be performed if the host name is already in dotted numeric or 
  *  hexadecimal (ipV6) form, or if the host name is empty (common for when the local
- *  host IP address is "INADDR_ANY" and used for a TCP acceptor local endpoint). 
+ *  host IP address is meant to be "INADDR_ANY", such as a TCP acceptor local endpoint). 
  *
  *  For the methods taking a function object callback it is the applications responsibility 
  *  to ensure that the memory context is still valid when the callback is invoked. A typical 
@@ -73,7 +73,7 @@ public:
  *
  *  @param host_or_intf_name A host or interface name; if empty it can be used for a local 
  *  endpoint where it specifies an "any" ("INADDR_ANY") address; if not empty it is used for the 
- *  remote host name or for a local interface address.
+ *  remote host name or for a local interface name where an address lookup is desired.
  *
  *  @param service_or_port A service name or port number; if empty all resolved endpoints will 
  *  have a port number of zero.
