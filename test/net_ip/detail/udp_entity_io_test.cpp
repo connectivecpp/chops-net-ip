@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Test scenarios for @c udp_io detail class.
+ *  @brief Test scenarios for @c udp_entity_io detail class.
  *
  *  @author Cliff Green
  *  @date 2018
@@ -26,7 +26,7 @@
 #include <functional> // std::ref, std::cref
 #include <string_view>
 
-#include "net_ip/detail/udp_io.hpp"
+#include "net_ip/detail/udp_entity_io.hpp"
 
 #include "net_ip/worker.hpp"
 #include "net_ip/endpoints_resolver.hpp"

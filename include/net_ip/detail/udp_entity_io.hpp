@@ -25,7 +25,6 @@
 
 #include <cstddef> // std::size_t
 #include <utility> // std::forward, std::move
-#include <functional> // std::bind
 
 #include "net_ip/detail/io_base.hpp"
 #include "net_ip/detail/net_entity_base.hpp"
@@ -104,6 +103,7 @@ public:
     }
     catch (const std::system_error& se) {
       m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(), se.code(), 0);
+      stop();
       return;
     }
   }
@@ -116,6 +116,7 @@ public:
     }
     m_max_size = max_size;
     start_read(std::forward<MH>(msg_handler));
+    m_entity_base.call_start_change_cb(shared_from_this(), 1);
   }
 
   template <typename MH>
@@ -126,10 +127,14 @@ public:
     m_max_size = max_size;
     m_default_dest_endp = endp;
     start_read(std::forward<MH>(msg_handler));
+    m_entity_base.call_start_change_cb(shared_from_this(), 1);
   }
 
   void start_io() {
-    m_io_base.set_started();
+    if (!m_io_base.set_started()) { // concurrency protected
+      return;
+    }
+    m_entity_base.call_start_change_cb(shared_from_this(), 1);
   }
 
   void start_io(const endpoint_type& endp) {
@@ -137,6 +142,7 @@ public:
       return;
     }
     m_default_dest_endp = endp;
+    m_entity_base.call_start_change_cb(shared_from_this(), 1);
   }
 
   void stop_io() {
@@ -155,11 +161,9 @@ public:
       return; // stop already called
     }
     stop_io();
-    m_entity_base.call_shutdown_change_cb(tcp_io_ptr(),
+    m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(),
                                           std::make_error_code(net_ip_errc::udp_entity_stopped), 
                                           0);
-    std::error_code ec;
-    m_acceptor.close(ec);
   }
 
   void send(chops::const_shared_buffer buf) {
@@ -186,8 +190,6 @@ public:
 
 private:
 
-  void close();
-
   template <typename MH>
   void start_read(MH&& msg_hdlr) {
     auto self { shared_from_this() };
@@ -213,14 +215,12 @@ private:
 
 // method implementations, just to make the class declaration a little more readable
 
-inline void udp_entity_io::close() {
-
-}
-
 template <typename MH>
 void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
+    m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(), err, 0);
+    stop();
     return;
   }
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 

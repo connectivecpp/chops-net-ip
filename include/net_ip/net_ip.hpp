@@ -139,7 +139,7 @@ private:
  *  connects.
  *
  *  @param listen_intf If this parameter is supplied, the bind (when @c start is called) will 
- *  be performed on a specific IP interface. Otherwise, the bind is for "any" IP interface 
+ *  be performed on this specific interface. Otherwise, the bind is for "any" IP interface 
  *  (which is the typical usage).
  *
  *  @param reuse_addr If @c true (default), the @c reuse_address socket option is set upon 
@@ -179,7 +179,7 @@ private:
  */
   tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp,
                                              bool reuse_addr = true) {
-    detail::tcp_acceptor_ptr p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
+    auto p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     return tcp_acceptor_net_entity(p);
   }
@@ -199,7 +199,7 @@ private:
  *
  *  @param remote_port_or_service Port number or service name on remote host.
  *
- *  @param remote_host Remote host name.
+ *  @param remote_host Remote host name or IP address.
  *
  *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
@@ -217,7 +217,7 @@ private:
                                                std::chrono::milliseconds reconn_time = 
                                                  std::chrono::milliseconds { } ) {
 
-    detail::tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
+    auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
                                                                   remote_host, reconn_time);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
@@ -244,7 +244,7 @@ private:
   tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end,
                                                std::chrono::milliseconds reconn_time = 
                                                  std::chrono::milliseconds { } ) {
-    detail::tcp_connector_ptr p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
+    auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
   }
@@ -285,78 +285,55 @@ private:
  *
  *  @param local_port_or_service Port number or service name for local binding.
  *
- *  @param local_intf Local host interface, otherwise the default is "any address".
+ *  @param local_intf Local interface name, otherwise the default is "any address".
  *
  *  @throw @c std::system_error if there is a name lookup failure.
  *
  *  @note Common socket options on UDP datagram sockets, such as increasing the 
- *  "time to live" (hop limit), or allowing UDP broadcast, can be set by using the
- *  @c net_entity @c get_socket method (or @c io_interface @c get_socket method, which
- *  returns the same reference).
+ *  "time to live" (hop limit), allowing UDP broadcast, or setting the socket 
+ *  reuse flag can be set by using the @c net_entity @c get_socket method (or 
+ *  @c io_interface @c get_socket method, which returns the same reference).
  *
  */
   udp_net_entity make_udp_unicast (std::string_view local_port_or_service, 
                                    std::string_view local_intf = "") {
     endpoints_resolver<std::experimental::net::ip::udp> resolver(m_ioc);
     auto results = resolver.make_endpoints(true, local_intf, local_port_or_service);
-    return make_tcp_acceptor(results.cbegin()->endpoint(), reuse_addr);
-
-  udp_net_entity make_udp_unicast_sender
-
-  
-  udp_net_entity make_udp_multicast 
+    return make_udp_unicast(results.cbegin()->endpoint());
+  }
 
 /**
- *  @brief Create a UDP sender network resource, with no associated UDP reads or local
- *  port binding.
+ *  @brief Create a UDP unicast @c net_entity for receiving and sending, using an already 
+ *  created endpoint.
  *
- *  When UDP reads are not needed (whether unicast, multicast, or broadcast), a UDP sender resource 
- *  can be created. This simplifies the application code, and does not require a local
- *  port number.
+ *  This @c make method allows flexibility in creating an endpoint for the UDP unicast
+ *  @c net_entity to use.
  *
- *  UDP datagrams can be sent to a unicast, multicast, or broadcast address. The broadcast
- *  flag must be specified to allow broadcast UDP packets to be sent.
+ *  @param endp A @c std::experimental::net::ip::udp::endpoint used for the local bind 
+ *  (when @c start is called).
  *
- *  It is the application responsibility to specify the destination address and port
- *  correctly. In particular, multicast addresses require special network configurations
- *  and assigned IP addresses, and broadcast addresses usually are specified as a directed
- *  broadcast.
+ *  @return @c udp_net_entity object.
  *
- *  Note that destination addresses and ports can either be specified at @c create time (through
- *  this method), or can be specified at each individual @c send method call in the 
- *  @c io_interface object.
- *
- *  The @c MsgFrame and @c IncomingMsgCb parameters of the @c net_entity @c start method
- *  are ignored for a UDP sender resource.
- *
- *  @param defRemotePort Port number of default remote host. If left out, the remote port
- *  can be specified as an @c io_interface @c send method parameter.
- *
- *  @param defRemoteHost Name of default remote host. Similar to
- *  the default remote port, it can also be specified in a @c send method parameter. Note that for
- *  broadcast UDP, this must be a broadcast address.
- *
- *  @param bcast If @c true, sets the broadcast socket option on. This allows UDP datagrams
- *  addressed to a broadcast address to be sent.
- *
- *  @param ttl Time to live (num hops) value. See documentation in @c createUdpResource.
- *
- *  @param localHost If this parameter is supplied, the local bind will be performed on a
- *  specific local host interface. This can be useful in a dual NIC environment where 
- *  datagrams must only be sent out through a specific interface. Note that there is not a 
- *  facility for specifying a port, since this @c net_entity will only be used for sending and not
- *  receiving.
- *
- *  @param mcast If @c true, this flag allows an outbound interface to be bound, using the localHost
- *  address parameter. It does not perform a multicast join.
- *
- *  @throw @c SockLibException is thrown if host names cannot be resolved.
  */
-  Embankment createUdpSender(unsigned short defRemotePort = 0, const std::string& defRemoteHost = "",
-                             bool bcast = false, unsigned short ttl = 0,
-                             const std::string& localHost = "", bool mcast = false) {
-    return utilityCreateUdpResource(0, localHost, defRemotePort, defRemoteHost, false, mcast, "", bcast, ttl);
+  udp_net_entity make_udp_unicast (const std::experimental::net::udp::endpoint& endp) {
+    auto p = std::make_shared<detail::udp_entity_io>(m_ioc, endp);
+    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
+    return udp_net_entity(p);
+}
+
+/**
+ *  @brief Create a UDP unicast @c net_entity for sending only (no local bind is performed).
+ *
+ *  This @c make method is used when no UDP reads are desired, only sends.
+ *
+ *  @return @c udp_net_entity object.
+ *
+ */
+  udp_net_entity make_udp_sender () {
+    return make_udp_unicast(std::experimental::net::udp::endpoint());
   }
+
+// TODO: multicast make methods 
 
 /**
  *  @brief Call @c stop on a TCP acceptor @c net_entity and remove it from the internal
