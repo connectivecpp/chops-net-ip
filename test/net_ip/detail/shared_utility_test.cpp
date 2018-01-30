@@ -164,6 +164,7 @@ struct ioh_mock {
   bool send_called = false;
 
   void send(chops::const_shared_buffer) { send_called = true; }
+  void send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; }
 };
 
 

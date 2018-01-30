@@ -88,6 +88,9 @@ struct msg_hdlr {
       msgs.push_back(sh_buf);
       return reply ? io_intf.send(std::move(sh_buf), endp) : true;
     }
+    if (reply) {
+      io_intf.send(std::move(sh_buf), endp); // may not make it back to sender
+    }
     prom.set_value(msgs.size());
     return false;
   }
