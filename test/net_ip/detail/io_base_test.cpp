@@ -46,7 +46,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     auto qs = iobase.get_output_queue_stats();
     REQUIRE (qs.output_queue_size == 0);
     REQUIRE (qs.bytes_in_output_queue == 0);
-    REQUIRE_FALSE (iobase.is_started());
+    REQUIRE_FALSE (iobase.is_io_started());
     REQUIRE_FALSE (iobase.is_write_in_progress());
 
     WHEN ("Process_err_code is called") {
@@ -58,33 +58,33 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
       }
     }
 
-    AND_WHEN ("Set_started is called") {
-      bool ret = iobase.set_started();
+    AND_WHEN ("Set_io_started is called") {
+      bool ret = iobase.set_io_started();
       REQUIRE (ret);
-      THEN ("the started flag is true and write_in_progress flag false") {
-        REQUIRE (iobase.is_started());
+      THEN ("the io_started flag is true and write_in_progress flag false") {
+        REQUIRE (iobase.is_io_started());
         REQUIRE_FALSE (iobase.is_write_in_progress());
       }
     }
 
-    AND_WHEN ("Set_started is called twice") {
-      bool ret = iobase.set_started();
+    AND_WHEN ("Set_io_started is called twice") {
+      bool ret = iobase.set_io_started();
       REQUIRE (ret);
-      ret = iobase.set_started();
+      ret = iobase.set_io_started();
       THEN ("the second call returns false") {
         REQUIRE_FALSE (ret);
       }
     }
 
-    AND_WHEN ("Start_write_setup is called before set_started") {
+    AND_WHEN ("Start_write_setup is called before set_io_started") {
       bool ret = iobase.start_write_setup(buf);
       THEN ("the call returns false") {
         REQUIRE_FALSE (ret);
       }
     }
 
-    AND_WHEN ("Start_write_setup is called after set_started") {
-      bool ret = iobase.set_started();
+    AND_WHEN ("Start_write_setup is called after set_io_started") {
+      bool ret = iobase.set_io_started();
       ret = iobase.start_write_setup(buf);
       THEN ("the call returns true and write_in_progress flag is true and queue size is zero") {
         REQUIRE (ret);
@@ -94,7 +94,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_write_setup is called twice") {
-      bool ret = iobase.set_started();
+      bool ret = iobase.set_io_started();
       ret = iobase.start_write_setup(buf);
       ret = iobase.start_write_setup(buf);
       THEN ("the call returns false and write_in_progress flag is true and queue size is one") {
@@ -105,7 +105,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_write_setup is called many times") {
-      bool ret = iobase.set_started();
+      bool ret = iobase.set_io_started();
       REQUIRE (ret);
       chops::repeat(num_bufs, [&iobase, &buf, &ret, &endp] () { 
           ret = iobase.start_write_setup(buf, endp);
@@ -118,7 +118,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     }
 
     AND_WHEN ("Start_write_setup is called many times and get_next_element is called 2 less times") {
-      bool ret = iobase.set_started();
+      bool ret = iobase.set_io_started();
       REQUIRE (ret);
       chops::repeat(num_bufs, [&iobase, &buf, &ret, &endp] () { 
           iobase.start_write_setup(buf, endp);

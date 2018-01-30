@@ -44,7 +44,7 @@ public:
 
 private:
 
-  std::atomic_bool     m_started; // may be called from multiple threads concurrently
+  std::atomic_bool     m_io_started; // may be called from multiple threads concurrently
   bool                 m_write_in_progress; // internal only, doesn't need to be atomic
   outq_type            m_outq;
   entity_notifier_cb   m_entity_notifier_cb;
@@ -52,21 +52,21 @@ private:
 public:
 
   explicit io_base(entity_notifier_cb cb) noexcept :
-    m_started(false), m_write_in_progress(false), m_outq(), m_entity_notifier_cb(cb) { }
+    m_io_started(false), m_write_in_progress(false), m_outq(), m_entity_notifier_cb(cb) { }
 
   // the following four methods can be called concurrently
   queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
 
-  bool is_started() const noexcept { return m_started; }
+  bool is_io_started() const noexcept { return m_io_started; }
 
-  bool set_started() noexcept {
+  bool set_io_started() noexcept {
     bool expected = false;
-    return m_started.compare_exchange_strong(expected, true);
+    return m_io_started.compare_exchange_strong(expected, true);
   }
 
   bool stop() noexcept {
     bool expected = true;
-    bool ret = m_started.compare_exchange_strong(expected, false); 
+    bool ret = m_io_started.compare_exchange_strong(expected, false); 
     m_write_in_progress = false;
     return ret;
   }
@@ -89,8 +89,8 @@ public:
 
 template <typename IOH>
 bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
-  if (!m_started) {
-    return false; // shutdown happening or not started, don't start a write
+  if (!m_io_started) {
+    return false; // shutdown happening or not io_started, don't start a write
   }
   if (m_write_in_progress) { // queue buffer
     m_outq.add_element(buf);
@@ -103,8 +103,8 @@ bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
 template <typename IOH>
 bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
                                      const endp_type& endp) {
-  if (!m_started) {
-    return false; // shutdown happening or not started, don't start a write
+  if (!m_io_started) {
+    return false; // shutdown happening or not io_started, don't start a write
   }
   if (m_write_in_progress) { // queue buffer
     m_outq.add_element(buf, endp);
@@ -116,7 +116,7 @@ bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf,
 
 template <typename IOH>
 typename io_base<IOH>::outq_opt_el io_base<IOH>::get_next_element() {
-  if (!m_started) { // shutting down
+  if (!m_io_started) { // shutting down
     return outq_opt_el { };
   }
   auto elem = m_outq.get_next_element();
