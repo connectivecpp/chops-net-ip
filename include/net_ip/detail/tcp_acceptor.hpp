@@ -51,6 +51,13 @@ public:
     m_entity_base(), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
     m_reuse_addr(reuse_addr) { }
 
+private:
+  // no copy or assignment semantics for this class
+  tcp_acceptor(const tcp_acceptor&) = delete;
+  tcp_acceptor(tcp_acceptor&&) = delete;
+  tcp_acceptor& operator=(const tcp_acceptor&) = delete;
+  tcp_acceptor& operator=(tcp_acceptor&&) = delete;
+
 public:
 
   bool is_started() const noexcept { return m_entity_base.is_started(); }

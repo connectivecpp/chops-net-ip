@@ -90,6 +90,13 @@ public:
       m_remote_port(remote_port)
     { }
 
+private:
+  // no copy or assignment semantics for this class
+  tcp_connector(const tcp_connector&) = delete;
+  tcp_connector(tcp_connector&&) = delete;
+  tcp_connector& operator=(const tcp_connector&) = delete;
+  tcp_connector& operator=(tcp_connector&&) = delete;
+
 public:
 
   bool is_started() const noexcept { return m_entity_base.is_started(); }
