@@ -38,7 +38,7 @@ std::size_t decoder_func (const std::byte*) { return magic; }
 struct io_handler_base_mock {
   bool started = false;
 
-  bool is_started() const { return started; }
+  bool is_io_started() const { return started; }
 
   chops::net::output_queue_stats get_output_queue_stats() const { 
     return chops::net::output_queue_stats { qs_base, qs_base +1 };
@@ -114,9 +114,9 @@ void io_interface_test_default_constructed() {
         REQUIRE_FALSE (io_intf.is_valid());
       }
     }
-    AND_WHEN ("is_started or get_socket or get_output_queue_stats is called on an invalid io_interface") {
+    AND_WHEN ("is_io_started or get_socket or get_output_queue_stats is called on an invalid io_interface") {
       THEN ("an exception is thrown") {
-        REQUIRE_THROWS (io_intf.is_started());
+        REQUIRE_THROWS (io_intf.is_io_started());
         REQUIRE_THROWS (io_intf.get_socket());
         REQUIRE_THROWS (io_intf.get_output_queue_stats());
       }
@@ -163,9 +163,9 @@ void io_interface_test_two() {
         REQUIRE (io_intf.is_valid());
       }
     }
-    AND_WHEN ("is_started or get_output_queue_stats is called") {
+    AND_WHEN ("is_io_started or get_output_queue_stats is called") {
       THEN ("values are returned") {
-        REQUIRE_FALSE (io_intf.is_started());
+        REQUIRE_FALSE (io_intf.is_io_started());
         chops::net::output_queue_stats s = io_intf.get_output_queue_stats();
         REQUIRE (s.output_queue_size == qs_base);
         REQUIRE (s.bytes_in_output_queue == (qs_base + 1));
@@ -191,10 +191,10 @@ void io_interface_test_two() {
         REQUIRE (io_intf.start_io(endp));
         REQUIRE (io_intf.start_io());
 
-        REQUIRE (io_intf.is_started());
+        REQUIRE (io_intf.is_io_started());
 
         REQUIRE (io_intf.stop_io());
-        REQUIRE_FALSE (io_intf.is_started());
+        REQUIRE_FALSE (io_intf.is_io_started());
       }
     }
   } // end given

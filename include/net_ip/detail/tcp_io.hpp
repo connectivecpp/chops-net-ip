@@ -84,7 +84,7 @@ public:
     return m_io_base.get_output_queue_stats();
   }
 
-  bool is_started() const noexcept { return m_io_base.is_started(); }
+  bool is_io_started() const noexcept { return m_io_base.is_io_started(); }
 
   template <typename MH, typename MF>
   void start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
@@ -146,7 +146,7 @@ public:
 private:
 
   bool start_io_setup() {
-    if (!m_io_base.set_started()) { // concurrency protected
+    if (!m_io_base.set_io_started()) { // concurrency protected
       return false;
     }
     std::error_code ec;

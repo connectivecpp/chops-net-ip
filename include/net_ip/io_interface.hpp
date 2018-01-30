@@ -149,9 +149,9 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool is_started() const {
+  bool is_io_started() const {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->is_started();
+      return p->is_io_started();
     }
     throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -353,7 +353,7 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
+ *  @note If @c is_io_started is already @c true, this method call is ignored.
  *
  */
   template <typename MH, typename MF>
@@ -395,7 +395,7 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
+ *  @note If @c is_io_started is already @c true, this method call is ignored.
  *
  */
   template <typename MH>
@@ -439,7 +439,7 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
+ *  @note If @c is_io_started is already @c true, this method call is ignored.
  *
  */
 
@@ -481,7 +481,7 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
+ *  @note If @c is_io_started is already @c true, this method call is ignored.
  *
  */
 
@@ -506,7 +506,7 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
+ *  @note If @c is_io_started is already @c true, this method call is ignored.
  *
  */
 
@@ -530,7 +530,7 @@ public:
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
- *  @note If @c is_started is already @c true, this method call is ignored.
+ *  @note If @c is_io_started is already @c true, this method call is ignored.
  *
  */
 
