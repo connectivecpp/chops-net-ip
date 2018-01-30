@@ -131,6 +131,10 @@ public:
     post(m_socket.get_executor(), [this, self, buf] { start_write(buf); } );
   }
 
+  void send(const chops::const_shared_buffer& buf, const endpoint_type&) {
+    send(buf);
+  }
+
 public:
   // this method can only be called through a net entity, assumes all error codes have already
   // been reported back to the net entity

@@ -82,11 +82,11 @@ struct msg_hdlr {
   msg_hdlr& operator=(msg_hdlr&&) = default;
   
 
-  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type /* endp */) {
+  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type endp) {
     chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       msgs.push_back(sh_buf);
-      return reply ? io_intf.send(std::move(sh_buf)) : true;
+      return reply ? io_intf.send(std::move(sh_buf), endp) : true;
     }
     prom.set_value(msgs.size());
     return false;

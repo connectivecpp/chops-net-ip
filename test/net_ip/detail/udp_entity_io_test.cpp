@@ -24,7 +24,6 @@
 #include <future>
 #include <chrono>
 #include <functional> // std::ref, std::cref
-#include <string_view>
 
 #include "net_ip/detail/udp_entity_io.hpp"
 
@@ -43,52 +42,54 @@ using namespace chops::test;
 // using notifier_cb = 
 //   typename chops::net::detail::io_base<chops::net::detail::udp_io>::entity_notifier_cb;
 
-const char*   test_port = "30434";
+const char*   test_port = "30665";
 const char*   test_addr = "";
 constexpr int NumMsgs = 50;
+constexpr int MaxSize = 65507;
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
 
-using notify_prom_type = std::promise<std::error_code>;
+struct state_chg_cb {
 
-struct notify_me {
-  std::shared_ptr<notify_prom_type>  m_prom;
+  bool started = false;
+  std::error_code last_err = std::error_code();
+  std::size_t     last_sz = 0;
 
-  notify_me(notify_prom_type prom) : m_prom(std::make_shared<notify_prom_type>(std::move(prom))) { }
-
-  void operator()(std::error_code e, chops::net::detail::udp_io p) {
-    p->close();
-    m_prom->set_value(e);
+  void operator()(chops::net::detail::udp_io p, std::size_t sz) {
+    started = true;
+    last_sz = sz;
   }
+
+  void operator()(chops::net::detail::udp_io p, std::error_code e, std::size_t sz) {
+    last_err = e;
+    last_sz = sz;
+  }
+
 };
 
 
-void invoke_start_io(chops::net::detail::udp_io_ptr iohp, bool reply, std::string_view delim) {
-  if (delim.empty()) {
-    iohp->start_io(2, msg_hdlr<chops::net::detail::udp_io>(reply), 
-                   chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
+void invoke_start_io(chops::net::detail::udp_entity_io_ptr iohp, bool reply, bool receive,
+                     ip::udp::endpoint endp) {
+  if (receive) {
+    iohp->start_io(MaxSize, msg_hdlr<chops::net::detail::udp_io>(reply));
   }
   else {
-    iohp->start_io(delim, msg_hdlr<chops::net::detail::udp_io>(reply));
+    iohp->start_io(endp);
   }
 }
 
-std::error_code connector_func (const vec_buf& in_msg_set, io_context& ioc, 
-                     int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {
-  using namespace std::placeholders;
+std::error_code sender_func (const vec_buf& in_msg_set, io_context& ioc, bool receive,
+                             int interval, chops::const_shared_buffer empty_msg) {
 
-  auto endps = 
-      chops::net::endpoints_resolver<ip::udp>(ioc).make_endpoints(true, test_addr, test_port);
-  ip::udp::socket sock(ioc);
-  connect(sock, endps);
+  auto endps = chops::net::endpoints_resolver<ip::udp>(ioc).make_endpoints(true, test_addr, test_port);
+  ip::udp::endpoint dest_endp = endps.cbegin()->endpoint();
 
-  notify_prom_type notify_prom;
-  auto notify_fut = notify_prom.get_future();
+  auto iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, ip::udp::endpoint());
+  state_chg_cb cb;
 
-  auto iohp = std::make_shared<chops::net::detail::udp_io>(std::move(sock), 
-                                                           notify_me(std::move(notify_prom)));
-  invoke_start_io(iohp, false, delim);
+  iohp->start(std::ref(cb), std::ref(cb));
+  invoke_start_io(iohp, false, receive, dest_endp);
 
   for (auto buf : in_msg_set) {
     iohp->send(chops::const_shared_buffer(std::move(buf)));
@@ -96,11 +97,10 @@ std::error_code connector_func (const vec_buf& in_msg_set, io_context& ioc,
   }
   iohp->send(empty_msg);
 
-  return notify_fut.get();
+  return in_msg_set.size();
 }
 
-void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::string_view delim,
-                    chops::const_shared_buffer empty_msg) {
+void udp_test (const vec_buf& in_msg_set, bool reply, int interval, chops::const_shared_buffer empty_msg) {
 
   chops::net::worker wk;
   wk.start();
@@ -111,7 +111,7 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
 
   GIVEN ("An executor work guard and a message set") {
  
-    WHEN ("an acceptor and connector are created") {
+    WHEN ("a UDP sender and receiver are created") {
       THEN ("the futures provide synchronization and data returns") {
 
         auto endps = 
