@@ -82,8 +82,9 @@ void net_entity_base_test() {
 
     AND_WHEN ("Shutdown state change is called") {
       ne.start(std::ref(state_chg), std::ref(state_chg));
-      ne.call_shutdown_change_cb(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
-                                 std::shared_ptr<IOH>(), 43);
+      ne.call_shutdown_change_cb(std::shared_ptr<IOH>(),
+                                 std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
+                                 43);
       THEN ("state change internal vals are set correctly") {
         REQUIRE (state_chg.num == 43);
         REQUIRE (state_chg.err);
@@ -94,23 +95,13 @@ void net_entity_base_test() {
   } // end given
 }
 
-struct tcp_io_mock {
-  using endpoint_type = int;
-  using socket_type = int;
-};
-
-struct udp_io_mock {
+struct io_mock {
   using endpoint_type = double;
   using socket_type = double;
+
 };
 
-SCENARIO ( "Net entity base test, udp",
-           "[net_entity_base] [udp]" ) {
-  net_entity_base_test<udp_io_mock>();
-}
-
-SCENARIO ( "Net entity base test, tcp",
-           "[net_entity_base] [tcp]" ) {
-  net_entity_base_test<tcp_io_mock>();
+SCENARIO ( "Net entity base test", "[net_entity_base]" ) {
+  net_entity_base_test<io_mock>();
 }
 
