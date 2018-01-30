@@ -115,12 +115,6 @@ private:
 
 public:
 
-  net_ip() = delete;
-  net_ip(const net_ip&) = delete;
-  net_ip(net_ip&&) = delete;
-  net_ip& operator=(const net_ip&) = delete;
-  net_ip& operator=(net_ip&&) = delete;
-
 /**
  *  @brief Construct a @c net_ip object without starting any network processing.
  *
@@ -128,6 +122,14 @@ public:
  */
   explicit net_ip(std::experimental::net::io_context& ioc) :
     m_ioc(ioc), m_acceptors(), m_connectors(), m_udp_entities() { }
+
+private:
+
+  net_ip() = delete;
+  net_ip(const net_ip&) = delete;
+  net_ip(net_ip&&) = delete;
+  net_ip& operator=(const net_ip&) = delete;
+  net_ip& operator=(net_ip&&) = delete;
 
 /**
  *  @brief Create a TCP acceptor @c net_entity, which will listen on a port for incoming

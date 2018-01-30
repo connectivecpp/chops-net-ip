@@ -53,19 +53,22 @@ private:
   socket_type                     m_socket;
   endpoint_type                   m_local_endp;
   bool                            m_local_bind_needed;
+  bool                            m_multicast;
   endpoint_type                   m_default_dest_endp;
 
   // following members could be passed through handler, but are members for 
   // simplicity and less copying
-  byte_vec             m_byte_vec;
-  std::size_t          m_max_size;
-  endpoint_type        m_sender_endp;
+  byte_vec                        m_byte_vec;
+  std::size_t                     m_max_size;
+  endpoint_type                   m_sender_endp;
 
 public:
   udp_entity_io(std::experimental::net::io_context& ioc, const endpoint_type& local_endp,
-         bool local_bind_needed) noexcept : 
-    m_socket(ioc), m_io_base(cb), m_local_endp(local_endp), m_local_bind_needed(local_bind_needed),
-    m_default_dest_endp(), m_byte_vec(), m_max_size(0), m_sender_endp() { }
+         bool local_bind_needed, bool multicast) noexcept : 
+    m_io_base(entity_cb()), m_entity_base(), 
+    m_socket(ioc), m_local_endp(local_endp), 
+    m_local_bind_needed(local_bind_needed), m_multicast(multicast), m_default_dest_endp(), 
+    m_byte_vec(), m_max_size(0), m_sender_endp() { }
 
 private:
   // no copy or assignment semantics for this class
@@ -95,7 +98,17 @@ public:
       // already started
       return;
     }
-    // bind code goes here
+    try {
+      if (m_local_bind_needed) {
+        m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
+      }
+      if (m_multicast) {
+      }
+    }
+    catch (const std::system_error& se) {
+      m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(), se.code(), 0);
+      return;
+    }
   }
 
 
@@ -130,19 +143,21 @@ public:
   }
 
   void stop_io() {
-    // causes net entity to eventually call close
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), 
-      [this, self] {
-        m_io_base.process_err_code(std::make_error_code(net_ip_errc::udp_io_handler_stopped), self);
-      }
-    );
+    if (!m_io_base.stop()) {
+      return;
+    }
+    std::error_code ec;
+    m_socket.close(ec);
+    m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(),
+                                          std::make_error_code(net_ip_errc::udp_io_handler_stopped), 
+                                          0);
   }
 
   void stop() {
     if (!m_entity_base.stop()) {
       return; // stop already called
     }
+    stop_io();
     m_entity_base.call_shutdown_change_cb(tcp_io_ptr(),
                                           std::make_error_code(net_ip_errc::udp_entity_stopped), 
                                           0);
@@ -172,13 +187,9 @@ public:
     );
   }
 
-public:
-  // this method can only be called through a net entity, assumes all error codes have already
-  // been reported back to the net entity
-  void close();
-
 private:
 
+  void close();
 
   template <typename MH>
   void start_read(MH&& msg_hdlr) {
@@ -206,21 +217,13 @@ private:
 // method implementations, just to make the class declaration a little more readable
 
 inline void udp_entity_io::close() {
-  if (!m_io_base.stop()) {
-    return;
-  }
-  // attempt graceful shutdown
-  std::error_code ec;
-  m_socket.shutdown(std::experimental::net::ip::udp::socket::shutdown_both, ec);
-  auto self { shared_from_this() };
-  post(m_socket.get_executor(), [this, self] { m_socket.close(); } );
+
 }
 
 template <typename MH>
 void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
-    m_io_base.process_err_code(err, shared_from_this());
     return;
   }
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
@@ -244,7 +247,6 @@ inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const end
 
 inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (err) {
-    m_io_base.process_err_code(err, shared_from_this());
     return;
   }
   auto elem = m_io_base.get_next_element();

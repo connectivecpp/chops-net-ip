@@ -268,7 +268,7 @@ public:
 namespace detail {
 class tcp_connector;
 class tcp_acceptor;
-class udp_entity;
+class udp_entity_io;
 }
 
 /**
@@ -290,7 +290,7 @@ using tcp_acceptor_net_entity = net_entity<detail::tcp_acceptor>;
  *
  *  @relates net_entity
  */
-using udp_net_entity = net_entity<detail::udp_entity>;
+using udp_net_entity = net_entity<detail::udp_entity_io>;
 
 } // end net namespace
 } // end chops namespace

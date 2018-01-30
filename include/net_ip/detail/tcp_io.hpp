@@ -205,7 +205,7 @@ inline void tcp_io::handle_close() {
   std::error_code ec;
   m_socket.shutdown(std::experimental::net::ip::tcp::socket::shutdown_both, ec);
   auto self { shared_from_this() };
-  post(m_socket.get_executor(), [this, self] { m_socket.close(); } );
+  post(m_socket.get_executor(), [this, self, ec] () mutable { m_socket.close(ec); } );
 }
 
 template <typename MH, typename MF>
