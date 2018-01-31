@@ -4,6 +4,11 @@
  *
  *  @brief Test scenarios for @c udp_entity_io detail class.
  *
+ *  This test design is different in a few respects from the tcp_io, tcp_acceptor,
+ *  and tcp_connector tests. In particular, multiple UDP senders are sending to one
+ *  UDP receiver, so an empty message shutdown sequence won't work the same as with
+ *  TCP connections (which are always one-to-one).
+ *
  *  @author Cliff Green
  *  @date 2018
  *  @copyright Cliff Green, MIT License
@@ -58,21 +63,22 @@ ip::udp::endpoint make_test_endpoint(int port_num) {
 
 using start_prom_t = std::promise<chops::net::udp_io_interface>;
 
-struct start_chg_cb {
+struct state_chg_cb {
 
-  bool              m_reply;
   bool              m_receive;
   ip::udp::endpoint m_dest_endp;
   start_prom_t      m_prom;
+  msg_hdlr<chops::net::detail::udp_io>
+                    m_hdlr;
 
 
   start_chg_cb (bool reply, bool receive, ip::udp::endpoint dest_endp, 
                 start_prom_t p = start_prom_t()) : 
-      m_reply(reply), m_receive(receive), m_dest_endp(dest_endp), m_prom(std::move(p)) { }
+      m_receive(receive), m_dest_endp(dest_endp), m_prom(std::move(p)), m_hdlr(reply) { }
 
   void operator()(chops::net::udp_io_interface io, std::size_t sz) {
     if (m_receive) {
-      io.start_io(MaxSize, m_dest_endp, msg_hdlr<chops::net::detail::udp_io>(reply));
+      io.start_io(MaxSize, m_dest_endp, std::ref(m_hdlr));
     }
     else {
       io.start_io(m_dest_endp);
@@ -80,14 +86,6 @@ struct start_chg_cb {
 std::cerr << "In start chg cb, sz = " << sz << std::endl;
     m_prom.set_value(io);
   }
-
-};
-
-struct shutdown_chg_cb {
-
-  prom_type m_prom;
-
-  shutdown_chg_cb (prom_type p = prom_type()) : m_prom(std::move(p)) { }
 
   void operator()(chops::net::udp_io_interface io, std::error_code e, std::size_t sz) {
 std::cerr << "In shutdown chg cb, err = " << e << ", " << e.message() << ", sz = " << 
@@ -99,7 +97,7 @@ sz << std::endl;
 
 bool sender_func (const vec_buf& in_msg_set, io_context& ioc, 
                   ip::udp::endpoint dest_endp, ip::udp::endpoint sender_endp,
-                  int interval, chops::const_shared_buffer empty_msg) {
+                  int interval) {
 
   bool receive = (sender_endp != ip::udp::endpoint());
 
