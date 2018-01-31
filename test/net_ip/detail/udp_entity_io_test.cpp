@@ -23,6 +23,7 @@
 #include <thread>
 #include <future>
 #include <chrono>
+#include <vector>
 #include <functional> // std::ref, std::cref
 
 #include "net_ip/detail/udp_entity_io.hpp"
@@ -34,7 +35,7 @@
 #include "utility/shared_buffer.hpp"
 
 
-// #include <iostream>
+#include <iostream>
 
 using namespace std::experimental::net;
 using namespace chops::test;
@@ -42,65 +43,98 @@ using namespace chops::test;
 // using notifier_cb = 
 //   typename chops::net::detail::io_base<chops::net::detail::udp_io>::entity_notifier_cb;
 
-const char*   test_port = "30665";
-const char*   test_addr = "";
+const char*   test_addr = "127.0.0.1";
+constexpr int test_port_base = 30665;
 constexpr int NumMsgs = 50;
 constexpr int MaxSize = 65507;
+
+ip::udp::endpoint make_test_endpoint(int port_num) {
+  return ip::udp::endpoint(ip::address:make_address(test_addr),
+                           static_cast<unsigned short>(port_num));
+}
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
 
-struct state_chg_cb {
+using start_prom_t = std::promise<chops::net::udp_io_interface>;
 
-  bool started = false;
-  std::error_code last_err = std::error_code();
-  std::size_t     last_sz = 0;
+struct start_chg_cb {
 
-  void operator()(chops::net::detail::udp_io p, std::size_t sz) {
-    started = true;
-    last_sz = sz;
-  }
+  bool              m_reply;
+  bool              m_receive;
+  ip::udp::endpoint m_dest_endp;
+  start_prom_t      m_prom;
 
-  void operator()(chops::net::detail::udp_io p, std::error_code e, std::size_t sz) {
-    last_err = e;
-    last_sz = sz;
+
+  start_chg_cb (bool reply, bool receive, ip::udp::endpoint dest_endp, 
+                start_prom_t p = start_prom_t()) : 
+      m_reply(reply), m_receive(receive), m_dest_endp(dest_endp), m_prom(std::move(p)) { }
+
+  void operator()(chops::net::udp_io_interface io, std::size_t sz) {
+    if (m_receive) {
+      io.start_io(MaxSize, m_dest_endp, msg_hdlr<chops::net::detail::udp_io>(reply));
+    }
+    else {
+      io.start_io(m_dest_endp);
+    }
+std::cerr << "In start chg cb, sz = " << sz << std::endl;
+    m_prom.set_value(io);
   }
 
 };
 
+struct shutdown_chg_cb {
 
-void invoke_start_io(chops::net::detail::udp_entity_io_ptr iohp, bool reply, bool receive,
-                     ip::udp::endpoint endp) {
-  if (receive) {
-    iohp->start_io(MaxSize, msg_hdlr<chops::net::detail::udp_io>(reply));
+  prom_type m_prom;
+
+  shutdown_chg_cb (prom_type p = prom_type()) : m_prom(std::move(p)) { }
+
+  void operator()(chops::net::udp_io_interface io, std::error_code e, std::size_t sz) {
+std::cerr << "In shutdown chg cb, err = " << e << ", " << e.message() << ", sz = " << 
+sz << std::endl;
+    m_prom.set_value(io);
   }
-  else {
-    iohp->start_io(endp);
-  }
-}
 
-std::error_code sender_func (const vec_buf& in_msg_set, io_context& ioc, bool receive,
-                             int interval, chops::const_shared_buffer empty_msg) {
+};
 
-  auto endps = chops::net::endpoints_resolver<ip::udp>(ioc).make_endpoints(true, test_addr, test_port);
-  ip::udp::endpoint dest_endp = endps.cbegin()->endpoint();
+bool sender_func (const vec_buf& in_msg_set, io_context& ioc, 
+                  ip::udp::endpoint dest_endp, ip::udp::endpoint sender_endp,
+                  int interval, chops::const_shared_buffer empty_msg) {
 
-  auto iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, ip::udp::endpoint());
-  state_chg_cb cb;
+  bool receive = (sender_endp != ip::udp::endpoint());
 
-  iohp->start(std::ref(cb), std::ref(cb));
-  invoke_start_io(iohp, false, receive, dest_endp);
+  auto iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, sender_endp);
 
+  prom_type start_prom;
+  auto start_fut = start_prom.get_future();
+  prom_type shutdown_prom;
+  auto shutdown_fut = shutdown_prom.get_future();
+
+  iohp->start(start_chg_cb(false, receive, dest_endp, std::move(start_prom)),
+              shutdown_chg_cb(std::move(shutdown_prom)));
+
+  auto io = start_fut.get();
+std::cerr << "Start chg future popped" << std::endl;
   for (auto buf : in_msg_set) {
-    iohp->send(chops::const_shared_buffer(std::move(buf)));
+    io.send(chops::const_shared_buffer(std::move(buf)));
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
-  iohp->send(empty_msg);
+  io.send(empty_msg);
 
-  return in_msg_set.size();
+  if (receive) {
+    io = shutdown_fut.get();
+std::cerr << "Shutdown chg future popped" << std::endl;
+    iohp->stop();
+  else {
+    iohp->stop();
+    io = shutdown_fut.get();
+std::cerr << "Shutdown chg future popped" << std::endl;
+  }
+  return !io.is_valid();
 }
 
-void udp_test (const vec_buf& in_msg_set, bool reply, int interval, chops::const_shared_buffer empty_msg) {
+void udp_test (const vec_buf& in_msg_set, bool reply, int interval, 
+               int num_senders, chops::const_shared_buffer empty_msg) {
 
   chops::net::worker wk;
   wk.start();
@@ -112,30 +146,45 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, chops::const
   GIVEN ("An executor work guard and a message set") {
  
     WHEN ("a UDP sender and receiver are created") {
-      THEN ("the futures provide synchronization and data returns") {
+      THEN ("the futures provide synchronization") {
 
-        auto endps = 
-            chops::net::endpoints_resolver<ip::udp>(ioc).make_endpoints(true, test_addr, test_port);
-        ip::udp::acceptor acc(ioc, *(endps.cbegin()));
+        auto receiver_endp = make_test_endpoint(test_port_base);
+        auto iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, receiver_endp);
 
-        INFO ("Creating connector asynchronously, msg interval: " << interval);
+        REQUIRE_FALSE (iohp->is_started());
+        REQUIRE_FALSE (iohp->is_io_started());
 
-        auto conn_fut = std::async(std::launch::async, connector_func, std::cref(in_msg_set), 
-                                   std::ref(ioc), interval, delim, empty_msg);
+        iohp->start(start_chg_cb(reply, true, ip::udp::endpoint()),
+                    shutdown_chg_cb());
 
-        notify_prom_type notify_prom;
-        auto notify_fut = notify_prom.get_future();
+        REQUIRE (iohp->is_started());
 
-        auto iohp = std::make_shared<chops::net::detail::udp_io>(std::move(acc.accept()), 
-                                                                 notify_me(std::move(notify_prom)));
-        invoke_start_io(iohp, reply, delim);
+        std::vector<std::future<bool> > sender_futs;
 
-        auto acc_err = notify_fut.get();
-// std::cerr << "Inside acc_conn_test, acc_err: " << acc_err << ", " << acc_err.message() << std::endl;
-        auto conn_err = conn_fut.get(); // get std::error_code from connector
-// std::cerr << "Inside acc_conn_test, connector_func future popped, val: " << conn_err << std::endl;
+std::cerr << "creating " << num_senders << " async futures and threads" << std::endl;
+        chops::repeat(num_senders, [&] (int i) {
+            ip::udp::endpoint sender_endp = reply ? 
+                ip::udp::endpoint(ip::udp::v4(), static_cast<unsigned short>(test_port_base + i + 1)) :
+                ip::udp::endpoint();
+            sender_futs.emplace_back(std::async(std::launch::async, sender_func, 
+                                     std::cref(in_msg_set), std::ref(ioc), 
+                                     receiver_endp, sender_endp,
+                                     interval, empty_msg));
+          }
+        );
 
-        REQUIRE (true);
+        for (auto& fut : conn_futs) {
+          REQUIRE (fut.get()); // wait for senders to finish
+        }
+        INFO ("All sender futures popped");
+std::cerr << "All sender futures popped" << std::endl;
+
+        iohp->stop();
+
+        INFO ("Receiver stopped");
+std::cerr << "Receiver stopped" << std::endl;
+
+        REQUIRE_FALSE(iohp->is_started());
       }
     }
   } // end given
