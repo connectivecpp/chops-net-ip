@@ -52,7 +52,6 @@ const char* test_host = "";
 constexpr int NumMsgs = 50;
 constexpr int ReconnTime = 100;
 
-
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
 void start_io (chops::net::tcp_io_interface io, bool reply, std::string_view delim) {
