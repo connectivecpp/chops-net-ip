@@ -231,6 +231,15 @@ public:
     return tcp_connector_net_entity(p);
   }
 
+  // match const char* to string_view instead of templated iterator
+  tcp_connector_net_entity make_tcp_connector (const char* remote_port_or_service,
+                                               const char* remote_host,
+                                               std::chrono::milliseconds reconn_time =
+                                                 std::chrono::milliseconds { } ) {
+    return make_tcp_connector(std::string_view(remote_port_or_service),
+                              std::string_view(remote_host),
+                              reconn_time);
+  }
 
 /**
  *  @brief Create a TCP connector @c net_entity, using an already created sequence of 

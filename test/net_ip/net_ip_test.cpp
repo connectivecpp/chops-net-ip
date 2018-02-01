@@ -92,7 +92,7 @@ struct start_cb {
       m_reply(reply), m_delim(delim), m_io_prom(std::move(iop))  { }
 
   void operator() (chops::net::tcp_io_interface io, std::size_t n) {
-// std::cerr << "Connector start_cb invoked, num hdlrs: " << n 
+// std::cerr << "Start_cb invoked, num hdlrs: " << n 
 // << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
     start_io(io, m_reply, m_delim);
     m_io_prom.set_value(io);
@@ -113,7 +113,7 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num
 
         chops::net::net_ip nip(ioc);
 
-        auto acc = nip.make_tcp_acceptor(test_host, test_port);
+        auto acc = nip.make_tcp_acceptor(test_port, test_host);
         REQUIRE_FALSE(acc.is_started());
 
         acc.start( start_cb(reply, delim), null_stop_func );
@@ -127,16 +127,17 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num
 // std::cerr << "creating " << num_conns << " connectors" << std::endl;
 
         chops::repeat(num_conns, [&] () {
-            auto conn = nip.make_tcp_connector(std::string_view(test_port), 
-                                               std::string_view(test_host),
+            auto conn = nip.make_tcp_connector(test_port, test_host,
                                                std::chrono::milliseconds(ReconnTime));
             conns.push_back(conn);
             tcp_io_promise prom;
             auto io_fut = prom.get_future();
             conn.start( start_cb(false, delim, std::move(prom)), null_stop_func );
             auto io = io_fut.get();
+// std::cerr << "Connector start promise popped, passing io_interface to sender func" << std::endl;
             futs.emplace_back(std::async(std::launch::async, send_func, 
                               std::cref(in_msg_set), io, interval, empty_msg));
+// std::cerr << "Sender thread started" << std::endl;
           
           }
         );
@@ -152,6 +153,7 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num
           conn.stop();
           REQUIRE_FALSE(conn.is_started());
         }
+// std::cerr << "All connectors stopped" << std::endl;
 
         acc.stop();
 // std::cerr << "Acceptor stopped" << std::endl;
