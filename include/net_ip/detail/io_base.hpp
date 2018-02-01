@@ -37,7 +37,6 @@ private:
   using endp_type = typename IOH::endpoint_type;
 
 public:
-  using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<IOH>)>;
   using outq_type = output_queue<typename IOH::endpoint_type>;
   using outq_opt_el = typename outq_type::opt_queue_element;
   using queue_stats = chops::net::output_queue_stats;
@@ -47,12 +46,11 @@ private:
   std::atomic_bool     m_io_started; // may be called from multiple threads concurrently
   bool                 m_write_in_progress; // internal only, doesn't need to be atomic
   outq_type            m_outq;
-  entity_notifier_cb   m_entity_notifier_cb;
 
 public:
 
-  explicit io_base(entity_notifier_cb cb) noexcept :
-    m_io_started(false), m_write_in_progress(false), m_outq(), m_entity_notifier_cb(cb) { }
+  explicit io_base() noexcept :
+    m_io_started(false), m_write_in_progress(false), m_outq() { }
 
   // the following four methods can be called concurrently
   queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
@@ -73,12 +71,6 @@ public:
 
   // rest of these method called only from within run thread
   bool is_write_in_progress() const noexcept { return m_write_in_progress; }
-
-  void process_err_code(const std::error_code& err, std::shared_ptr<IOH> ioh_ptr) {
-    if (err) {
-      m_entity_notifier_cb(err, ioh_ptr);
-    }
-  }
 
   bool start_write_setup(const chops::const_shared_buffer&);
   bool start_write_setup(const chops::const_shared_buffer&, const endp_type&);
