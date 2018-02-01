@@ -30,6 +30,7 @@
 #include <functional> // std::ref, std::cref
 #include <string_view>
 #include <vector>
+#include <optional>
 
 
 #include "net_ip/worker.hpp"
@@ -84,9 +85,9 @@ std::size_t send_func (const vec_buf& in_msg_set, chops::net::tcp_io_interface i
 using tcp_io_promise = std::promise<chops::net::tcp_io_interface>;
 
 struct start_cb {
-  bool                 m_reply;
-  std::string_view     m_delim;
-  tcp_io_promise       m_io_prom; // move only, no copy allowed
+  bool                           m_reply;
+  std::string_view               m_delim;
+  std::optional<tcp_io_promise>  m_io_prom;
 
   start_cb (bool reply, std::string_view delim, tcp_io_promise iop = tcp_io_promise()) : 
       m_reply(reply), m_delim(delim), m_io_prom(std::move(iop))  { }
