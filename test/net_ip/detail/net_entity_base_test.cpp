@@ -28,11 +28,6 @@ struct state_change {
   std::size_t num;
   std::error_code err;
   bool ioh_valid;
-  void operator() (chops::net::io_interface<IOH> ioh, std::size_t n) {
-    called = true;
-    num = n;
-    ioh_valid = ioh.is_valid();
-  }
   void operator() (chops::net::io_interface<IOH> ioh, std::error_code e, std::size_t n) {
     called = true;
     num = n;
@@ -57,31 +52,22 @@ void net_entity_base_test() {
   GIVEN ("A default constructed net_entity_base and a state change object") {
 
     WHEN ("Start is called") {
-      ne.start(std::ref(state_chg), std::ref(state_chg));
+      ne.start(std::ref(state_chg));
       THEN ("net entity base is started") {
         REQUIRE (ne.is_started());
       }
     }
 
     AND_WHEN ("Stop is called") {
-      ne.start(std::ref(state_chg), std::ref(state_chg));
+      ne.start(std::ref(state_chg));
       ne.stop();
       THEN ("net entity base is not started") {
         REQUIRE_FALSE (ne.is_started());
       }
     }
 
-    AND_WHEN ("Start state change is called") {
-      ne.start(std::ref(state_chg), std::ref(state_chg));
-      ne.call_start_change_cb(iohp, 42);
-      THEN ("state change internal vals are set correctly") {
-        REQUIRE (state_chg.num == 42);
-        REQUIRE (state_chg.ioh_valid);
-      }
-    }
-
     AND_WHEN ("Shutdown state change is called") {
-      ne.start(std::ref(state_chg), std::ref(state_chg));
+      ne.start(std::ref(state_chg));
       ne.call_shutdown_change_cb(std::shared_ptr<IOH>(),
                                  std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
                                  43);
