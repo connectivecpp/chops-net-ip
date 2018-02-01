@@ -111,13 +111,14 @@ public:
     if (m_endpoints.empty()) {
       auto self = shared_from_this();
       m_resolver.make_endpoints(false, m_remote_host, m_remote_port,
-        [this, self, sf = std::move(start_chg)] (std::error_code err, resolver_results res) {
+        [this, self, sf = std::move(start_chg)] 
+             (std::error_code err, resolver_results res) mutable {
           handle_resolve(err, res, std::move(sf));
         }
       );
       return;
     }
-    start_connect(std::forward<R>(start_chg));
+    start_connect(std::move(start_chg));
   }
 
   void stop() {
@@ -154,21 +155,22 @@ private:
     for (const auto& e : res) {
       m_endpoints.push_back(e.endpoint());
     }
-    start_connect(std::forward<R>(start_chg));
+    start_connect(std::move(start_chg));
   }
 
   template <typename R>
   void start_connect(R&& start_chg) {
     auto self = shared_from_this();
     std::experimental::net::async_connect(m_socket, m_endpoints.cbegin(), m_endpoints.cend(),
-          [this, self, sf = std::move(start_chg)] (const std::error_code& err, endpoints_iter iter) {
+          [this, self, sf = std::move(start_chg)] 
+                (const std::error_code& err, endpoints_iter iter) mutable {
         handle_connect(err, iter, std::move(sf));
       }
     );
   }
 
   template <typename R>
-  void handle_connect (const std::error_code& err, endpoints_iter iter, R&& start_chg) {
+  void handle_connect (const std::error_code& err, endpoints_iter /* iter */, R&& start_chg) {
     using namespace std::placeholders;
 
     if (err) {
@@ -176,9 +178,10 @@ private:
       try {
         auto self = shared_from_this();
         m_timer.expires_after(m_reconn_time);
-        m_timer.async_wait( [this, self, sf = std::move(start_chg)] (const std::error_code& err) {
+        m_timer.async_wait( [this, self, sf = std::move(start_chg)] 
+                            (const std::error_code& err) mutable {
             if (!err) {
-              start_connect(sf);
+              start_connect(std::move(sf));
             }
           }
         );
@@ -192,7 +195,7 @@ private:
     m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
       tcp_io::entity_notifier_cb(std::bind(&tcp_connector::notify_me, shared_from_this(), _1, _2)));
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] {
+    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] () mutable {
         strt(tcp_io_interface(m_io_handler), 1);
       }
     );
@@ -200,7 +203,7 @@ private:
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, err, iop] {
+    post(m_socket.get_executor(), [this, self, err, iop] () mutable {
         iop->close();
         m_entity_base.call_shutdown_change_cb(iop, err, 0);
         stop();

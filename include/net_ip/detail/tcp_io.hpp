@@ -218,7 +218,7 @@ inline void tcp_io::handle_close() {
 
 template <typename MH, typename MF>
 void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf, 
-                         const std::error_code& err, std::size_t num_bytes,
+                         const std::error_code& err, std::size_t /* num_bytes */,
                          MH&& msg_hdlr, MF&& msg_frame) {
 
   if (err) {

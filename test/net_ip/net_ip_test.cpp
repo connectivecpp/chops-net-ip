@@ -127,7 +127,9 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num
 // std::cerr << "creating " << num_conns << " connectors" << std::endl;
 
         chops::repeat(num_conns, [&] () {
-            auto conn = nip.make_tcp_connector(test_port, test_host);
+            auto conn = nip.make_tcp_connector(std::string_view(test_port), 
+                                               std::string_view(test_host),
+                                               std::chrono::milliseconds(ReconnTime));
             conns.push_back(conn);
             tcp_io_promise prom;
             auto io_fut = prom.get_future();

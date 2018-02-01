@@ -109,7 +109,7 @@ private:
 
     auto self = shared_from_this();
     m_acceptor.async_accept( [this, self, strt = std::move(start_chg)] 
-                               (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) {
+            (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) mutable {
         if (err) {
           m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, m_io_handlers.size());
           stop(); // is this the right thing to do? what are possible causes of errors?
@@ -118,8 +118,9 @@ private:
         tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
-        post(m_acceptor.get_executor(), [this, self, iop, sf = std::move(strt)] {
-            sf(tcp_io_interface(iop), m_io_handlers.size());
+        // auto s = shared_from_this();
+        post(m_acceptor.get_executor(), [this, self, iop, st = std::move(strt)] () mutable {
+            st(tcp_io_interface(iop), static_cast<std::size_t>(m_io_handlers.size()));
           }
         );
         start_accept(std::move(strt));
