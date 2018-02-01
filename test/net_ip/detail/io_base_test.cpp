@@ -18,7 +18,6 @@
 #include <memory> // std::shared_ptr
 #include <system_error> // std::error_code
 #include <utility> // std::move
-#include <functional> // std::bind
 
 #include "net_ip/detail/output_queue.hpp"
 #include "net_ip/detail/io_base.hpp"
@@ -33,7 +32,6 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
 
   using namespace std::experimental::net;
   using namespace std::placeholders;
-  using notifier_type = typename chops::net::detail::io_base<IOH>::entity_notifier_cb;
 
   REQUIRE (num_bufs > 1);
 
@@ -41,7 +39,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
 
   GIVEN ("An io_base and a buf and endpoint") {
 
-    chops::net::detail::io_base<IOH> iobase ( notifier_type(std::bind(&IOH::notify_me, &ioh, _1, _2)) );
+    chops::net::detail::io_base<IOH> iobase { };
 
     auto qs = iobase.get_output_queue_stats();
     REQUIRE (qs.output_queue_size == 0);
@@ -49,16 +47,7 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
     REQUIRE_FALSE (iobase.is_io_started());
     REQUIRE_FALSE (iobase.is_write_in_progress());
 
-    WHEN ("Process_err_code is called") {
-      REQUIRE_FALSE (ioh.notify_called);
-      iobase.process_err_code(std::make_error_code(chops::net::net_ip_errc::message_handler_terminated), 
-                              std::shared_ptr<IOH>());
-      THEN ("the notify_called flag is now true") {
-        REQUIRE (ioh.notify_called);
-      }
-    }
-
-    AND_WHEN ("Set_io_started is called") {
+    WHEN ("Set_io_started is called") {
       bool ret = iobase.set_io_started();
       REQUIRE (ret);
       THEN ("the io_started flag is true and write_in_progress flag false") {
@@ -157,17 +146,11 @@ void io_base_test(chops::const_shared_buffer buf, int num_bufs,
 }
 
 struct io_mock {
-  bool notify_called = false;
-
   using endpoint_type = float;
-
-  void notify_me(std::error_code err, std::shared_ptr<io_mock> p) {
-    notify_called = true;
-  }
 
 };
 
-SCENARIO ( "Io base test, udp", "[io_base]" ) {
+SCENARIO ( "Io base test", "[io_base]" ) {
   using namespace std::experimental::net;
 
   auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
