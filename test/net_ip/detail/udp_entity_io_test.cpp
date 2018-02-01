@@ -54,7 +54,7 @@ constexpr int NumMsgs = 50;
 constexpr int MaxSize = 65507;
 
 ip::udp::endpoint make_test_endpoint(int port_num) {
-  return ip::udp::endpoint(ip::address:make_address(test_addr),
+  return ip::udp::endpoint(ip::make_address(test_addr),
                            static_cast<unsigned short>(port_num));
 }
 
@@ -64,15 +64,14 @@ ip::udp::endpoint make_test_endpoint(int port_num) {
 using start_prom_t = std::promise<chops::net::udp_io_interface>;
 
 struct state_chg_cb {
-
   bool              m_receive;
   ip::udp::endpoint m_dest_endp;
   start_prom_t      m_prom;
-  msg_hdlr<chops::net::detail::udp_io>
+  msg_hdlr<chops::net::detail::udp_entity_io>
                     m_hdlr;
 
 
-  start_chg_cb (bool reply, bool receive, ip::udp::endpoint dest_endp, 
+  state_chg_cb (bool reply, bool receive, ip::udp::endpoint dest_endp, 
                 start_prom_t p = start_prom_t()) : 
       m_receive(receive), m_dest_endp(dest_endp), m_prom(std::move(p)), m_hdlr(reply) { }
 
@@ -87,15 +86,17 @@ std::cerr << "In start chg cb, sz = " << sz << std::endl;
     m_prom.set_value(io);
   }
 
-  void operator()(chops::net::udp_io_interface io, std::error_code e, std::size_t sz) {
+  void operator()(chops::net::udp_io_interface io, std::error_code e, std::size_t sz) const {
 std::cerr << "In shutdown chg cb, err = " << e << ", " << e.message() << ", sz = " << 
 sz << std::endl;
-    m_prom.set_value(io);
   }
 
 };
 
-bool sender_func (const vec_buf& in_msg_set, io_context& ioc, 
+void null_start_cb(chops::net::udp_io_interface, std::size_t) { }
+void null_shutdown_cb(chops::net::udp_io_interface, std::error_code, std::size_t) { }
+
+std::size_t sender_func (const vec_buf& in_msg_set, io_context& ioc, 
                   ip::udp::endpoint dest_endp, ip::udp::endpoint sender_endp,
                   int interval) {
 
@@ -103,36 +104,37 @@ bool sender_func (const vec_buf& in_msg_set, io_context& ioc,
 
   auto iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, sender_endp);
 
-  prom_type start_prom;
+  start_prom_t start_prom;
   auto start_fut = start_prom.get_future();
-  prom_type shutdown_prom;
-  auto shutdown_fut = shutdown_prom.get_future();
 
-  iohp->start(start_chg_cb(false, receive, dest_endp, std::move(start_prom)),
-              shutdown_chg_cb(std::move(shutdown_prom)));
+  state_chg_cb cb(false, receive, dest_endp, std::move(start_prom));
+
+  iohp->start(std::ref(cb), std::ref(cb));
 
   auto io = start_fut.get();
-std::cerr << "Start chg future popped" << std::endl;
+
+std::cerr << "Sender start chg future popped, io valid: " << std::boolalpha << 
+io.is_valid() << std::endl;
+
   for (auto buf : in_msg_set) {
     io.send(chops::const_shared_buffer(std::move(buf)));
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
-  io.send(empty_msg);
-
-  if (receive) {
-    io = shutdown_fut.get();
-std::cerr << "Shutdown chg future popped" << std::endl;
-    iohp->stop();
-  else {
-    iohp->stop();
-    io = shutdown_fut.get();
-std::cerr << "Shutdown chg future popped" << std::endl;
+  // poll output queue size until it is 0
+  std::size_t qsz = 1;
+  while (qsz > 0) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto qstats = io.get_output_queue_stats();
+    qsz = qstats.output_queue_size;
   }
-  return !io.is_valid();
+  iohp->stop();
+
+std::cerr << "Sender udp entity stopped, returning msgs size" << std::endl;
+
+  return cb.m_hdlr.msgs.size();
 }
 
-void udp_test (const vec_buf& in_msg_set, bool reply, int interval, 
-               int num_senders, chops::const_shared_buffer empty_msg) {
+void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_senders) {
 
   chops::net::worker wk;
   wk.start();
@@ -143,7 +145,7 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval,
 
   GIVEN ("An executor work guard and a message set") {
  
-    WHEN ("a UDP sender and receiver are created") {
+    WHEN ("UDP senders and a receiver are created") {
       THEN ("the futures provide synchronization") {
 
         auto receiver_endp = make_test_endpoint(test_port_base);
@@ -152,12 +154,15 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval,
         REQUIRE_FALSE (iohp->is_started());
         REQUIRE_FALSE (iohp->is_io_started());
 
-        iohp->start(start_chg_cb(reply, true, ip::udp::endpoint()),
-                    shutdown_chg_cb());
-
+        iohp->start(null_start_cb, null_shutdown_cb);
         REQUIRE (iohp->is_started());
 
-        std::vector<std::future<bool> > sender_futs;
+        msg_hdlr<chops::net::detail::udp_entity_io> msg_hdlr(reply);
+        iohp->start_io(MaxSize, std::ref(msg_hdlr));
+        REQUIRE (iohp->is_io_started());
+
+
+        std::vector<std::future<std::size_t> > sender_futs;
 
 std::cerr << "creating " << num_senders << " async futures and threads" << std::endl;
         chops::repeat(num_senders, [&] (int i) {
@@ -167,12 +172,13 @@ std::cerr << "creating " << num_senders << " async futures and threads" << std::
             sender_futs.emplace_back(std::async(std::launch::async, sender_func, 
                                      std::cref(in_msg_set), std::ref(ioc), 
                                      receiver_endp, sender_endp,
-                                     interval, empty_msg));
+                                     interval));
           }
         );
 
-        for (auto& fut : conn_futs) {
-          REQUIRE (fut.get()); // wait for senders to finish
+        std::size_t accum_msgs = 0;
+        for (auto& fut : sender_futs) {
+          accum_msgs += fut.get(); // wait for senders to finish
         }
         INFO ("All sender futures popped");
 std::cerr << "All sender futures popped" << std::endl;
@@ -183,6 +189,16 @@ std::cerr << "All sender futures popped" << std::endl;
 std::cerr << "Receiver stopped" << std::endl;
 
         REQUIRE_FALSE(iohp->is_started());
+        REQUIRE_FALSE (iohp->is_io_started());
+
+        std::size_t total_msgs = num_senders * in_msg_set.size();
+        REQUIRE (msg_hdlr.msgs.size() == total_msgs);
+        if (reply) {
+          REQUIRE (accum_msgs == total_msgs);
+        }
+        else {
+          REQUIRE (accum_msgs == 0);
+        }
       }
     }
   } // end given
@@ -195,111 +211,85 @@ std::cerr << "Receiver stopped" << std::endl;
 }
 
 
-SCENARIO ( "Udp IO handler test, variable len msgs, interval 50, one-way",
-           "[udp_io] [one_way] [var_len_msg] [interval_50]" ) {
+void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_senders);
+
+SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 50, senders 1",
+           "[udp_io] [var_len_msg] [one_way] [interval_50] [senders_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, false, 50, std::string_view(), empty_msg );
+  udp_test ( ms, false, 50, 1);
 
 }
 
-SCENARIO ( "Udp IO handler test, variable len msgs, interval 0, one-way",
-           "[udp_io] [one_way] [var_len_msg] [interval_0]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
+           "[udp_io] [var_len_msg] [one-way] [interval_0] [senders_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, false, 0, std::string_view(), empty_msg );
+  udp_test ( ms, false, 0, 1);
 
 }
 
-SCENARIO ( "Udp IO handler test, variable len msgs, interval 50, two-way",
-           "[udp_io] [two_way] [var_len_msg] [interval_50]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 50, senders 10",
+           "[udp_io] [var_len_msg] [two-way] [interval_50] [senders_10]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Yowser!", 'X', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, true, 50, std::string_view(), empty_msg );
+  udp_test ( ms, true, 50, 10);
 
 }
 
-SCENARIO ( "Udp IO handler test, variable len msgs, interval 0, two-way, many msgs",
-           "[udp_io] [two_way] [var_len_msg] [interval_0] [many]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 0, senders 20, many msgs",
+           "[udp_io] [var_len_msg] [two_way] [interval_0] [senders_20] [many]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, true, 0, std::string_view(), empty_msg );
+  udp_test ( ms, true, 0, 20);
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, interval 50, one-way",
-           "[udp_io] [one_way] [cr_lf_msg] [interval_50]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 50, senders 30",
+           "[udp_io] [cr_lf_msg] [one-way] [interval_50] [senders_30]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, false, 50, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, false, 50, 30);
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, interval 0, one-way",
-           "[udp_io] [one_way] [cr_lf_msg] [interval_0]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 25",
+           "[udp_io] [cr_lf_msg] [two-way] [interval_0] [senders_25]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, false, 0, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, true, 0, 25);
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, interval 30, two-way",
-           "[udp_io] [two_way] [cr_lf_msg] [interval_30]" ) {
-
-  auto ms = make_msg_set (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, true, 30, std::string_view("\r\n"), empty_msg );
-
-}
-
-SCENARIO ( "Udp IO handler test, CR / LF msgs, interval 0, two-way, many msgs",
-           "[udp_io] [two_way] [cr_lf_msg] [interval_0] [many]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 10, many msgs",
+           "[udp_io] [cr_lf_msg] [two_way] [interval_0] [senders_10] [many]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, true, 0, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, true, 0, 10);
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, interval 50, one-way",
-           "[udp_io] [one_way] [lf_msg] [interval_50]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, one-way, interval 50, senders 1",
+           "[udp_io] [lf_msg] [two-way] [interval_50] [senders_1]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited!", 'E', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, false, 50, std::string_view("\n"), empty_msg );
+  udp_test ( ms, false, 50, 1);
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, interval 0, one-way",
-           "[udp_io] [one_way] [lf_msg] [interval_0]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 0, senders 20",
+           "[udp_io] [lf_msg] [two-way] [interval_0] [senders_20]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, false, 0, std::string_view("\n"), empty_msg );
+  udp_test ( ms, true, 0, 20);
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, interval 20, two-way",
-           "[udp_io] [two_way] [lf_msg] [interval_20]" ) {
-
-  auto ms = make_msg_set (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, true, 20, std::string_view("\n"), empty_msg );
-
-}
-
-SCENARIO ( "Udp IO handler test, LF msgs, interval 0, two-way, many msgs",
-           "[udp_io] [two_way] [lf_msg] [interval_0] [many]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 0, senders 40, many msgs",
+           "[udp_io] [lf_msg] [two-way] [interval_0] [senders_40] [many]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, true, 0, std::string_view("\n"), empty_msg );
+  udp_test ( ms, true, 0, 40);
 
 }
 

@@ -48,12 +48,13 @@ public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
-  using entity_cb = typename io_base<tcp_io>::entity_notifier_cb;
+  using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<tcp_io>)>;
 
 private:
 
   socket_type            m_socket;
   io_base<tcp_io>        m_io_base;
+  entity_notifier_cb     m_notifier_cb;
   endpoint_type          m_remote_endp;
 
   // the following members are only used for read processing; they could be 
@@ -65,8 +66,9 @@ private:
 
 public:
 
-  tcp_io(socket_type sock, entity_cb cb) noexcept : 
-    m_socket(std::move(sock)), m_io_base(cb), 
+  tcp_io(socket_type sock, entity_notifier_cb cb) noexcept : 
+    m_socket(std::move(sock)), m_io_base(), 
+    m_notifier_cb(cb), m_remote_endp(),
     m_byte_vec(), m_read_size(0), m_delimiter() { }
 
 private:
@@ -117,18 +119,20 @@ public:
 
   void stop_io() {
     // causes net entity to eventually call close
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), 
-      [this, self] {
-        m_io_base.process_err_code(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), self);
-      }
-    );
+    m_notifier_cb(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
+                  shared_from_this());
   }
 
   // use post for thread safety, multiple threads can call this method
   void send(chops::const_shared_buffer buf) {
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf] { start_write(buf); } );
+    post(m_socket.get_executor(), [this, self, buf] {
+        if (!m_io_base.start_write_setup(buf)) {
+          return; // buf queued or shutdown happening
+        }
+        start_write(buf);
+      }
+    );
   }
 
   void send(const chops::const_shared_buffer& buf, const endpoint_type&) {
@@ -156,7 +160,7 @@ private:
     std::error_code ec;
     m_remote_endp = m_socket.remote_endpoint(ec);
     if (ec) {
-      m_io_base.process_err_code(ec, shared_from_this());
+      m_notifier_cb(ec, shared_from_this());
       return false;
     }
     return true;
@@ -218,7 +222,7 @@ void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf,
                          MH&& msg_hdlr, MF&& msg_frame) {
 
   if (err) {
-    m_io_base.process_err_code(err, shared_from_this());
+    m_notifier_cb(err, shared_from_this());
     return;
   }
   // assert num_bytes == mbuf.size()
@@ -227,8 +231,8 @@ void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf,
     if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
                   io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
       // message handler not happy, tear everything down
-      m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                                   shared_from_this());
+      m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
+                    shared_from_this());
       return;
     }
     m_byte_vec.resize(m_read_size);
@@ -246,14 +250,14 @@ template <typename MH>
 void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
-    m_io_base.process_err_code(err, shared_from_this());
+    m_notifier_cb(err, shared_from_this());
     return;
   }
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes),
                 io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
-      m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                                   shared_from_this());
+      m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
+                    shared_from_this());
     return;
   }
   m_byte_vec.erase(m_byte_vec.begin(), m_byte_vec.begin() + num_bytes);
@@ -262,9 +266,6 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
 
 
 inline void tcp_io::start_write(chops::const_shared_buffer buf) {
-  if (!m_io_base.start_write_setup(buf)) {
-    return; // buf queued or shutdown happening
-  }
   auto self { shared_from_this() };
   std::experimental::net::async_write(m_socket, 
           std::experimental::net::const_buffer(buf.data(), buf.size()),
@@ -276,20 +277,15 @@ inline void tcp_io::start_write(chops::const_shared_buffer buf) {
 
 inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (err) {
-    m_io_base.process_err_code(err, shared_from_this());
+    // read pops first, so usually no error is needed in write handlers
+    // m_notifier_cb(err, shared_from_this());
     return;
   }
   auto elem = m_io_base.get_next_element();
   if (!elem) {
     return;
   }
-  auto self { shared_from_this() };
-  std::experimental::net::async_write(m_socket, 
-              std::experimental::net::const_buffer(elem->first.data(), elem->first.size()),
-              [this, self] (const std::error_code& err, std::size_t nb) {
-      handle_write(err, nb);
-    }
-  );
+  start_write(elem->first);
 }
 
 using tcp_io_ptr = std::shared_ptr<tcp_io>;

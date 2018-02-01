@@ -16,16 +16,19 @@
 
 #include <experimental/internet>
 #include <experimental/io_context>
+#include <experimental/executor>
 
 #include <system_error>
 #include <memory>
 #include <vector>
-#include <utility> // std::move
+#include <utility> // std::move, std::forward
 #include <cstddef> // for std::size_t
 #include <functional> // std::bind
 
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_base.hpp"
+
+#include "net_ip/io_interface.hpp"
 
 #include "utility/erase_where.hpp"
 
@@ -66,7 +69,7 @@ public:
 
   template <typename R, typename S>
   void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_base.start(std::forward<R>(start_chg), std::forward<S>(shutdown_chg))) {
+    if (!m_entity_base.start(std::forward<S>(shutdown_chg))) {
       // already started
       return;
     }
@@ -79,7 +82,7 @@ public:
       stop();
       return;
     }
-    start_accept();
+    start_accept(std::forward<R>(start_chg));
   }
 
   void stop() {
@@ -100,30 +103,35 @@ public:
 
 private:
 
-  void start_accept() {
+  template <typename R>
+  void start_accept(R&& start_chg) {
     using namespace std::placeholders;
 
     auto self = shared_from_this();
-    m_acceptor.async_accept( [this, self] (const std::error_code& err,
-                                std::experimental::net::ip::tcp::socket sock) {
+    m_acceptor.async_accept( [this, self, sf = std::move(start_chg)] 
+                               (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) {
         if (err) {
           m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, m_io_handlers.size());
           stop(); // is this the right thing to do? what are possible causes of errors?
           return;
         }
         tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
-          tcp_io::entity_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
+          tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
-        m_entity_base.call_start_change_cb(iop, m_io_handlers.size());
-        start_accept();
+        sf(tcp_io_interface(iop), m_io_handlers.size());
+        start_accept(std::move(sf));
       }
     );
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
-    iop->close();
-    chops::erase_where(m_io_handlers, iop);
-    m_entity_base.call_shutdown_change_cb(iop, err, m_io_handlers.size());
+    auto self { shared_from_this() };
+    post(m_acceptor.get_executor(), [this, self, err, iop] {
+        iop->close();
+        chops::erase_where(m_io_handlers, iop);
+        m_entity_base.call_shutdown_change_cb(iop, err, m_io_handlers.size());
+      }
+    );
   }
 
 };

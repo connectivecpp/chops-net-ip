@@ -88,7 +88,7 @@ struct start_cb {
 
   start_cb (bool r, std::string_view d) : delim(d), reply(r) { }
 
-  void operator() (chops::net::tcp_io_interface io, std::size_t n) {
+  void operator() (chops::net::tcp_io_interface io, std::size_t n) const {
 
 // std::cerr << "Start_cb invoked, num hdlrs: " << n 
 // << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;

@@ -43,7 +43,6 @@ public:
   using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
-  using entity_cb = typename io_base<udp_entity_io>::entity_notifier_cb;
 
 private:
 
@@ -63,7 +62,7 @@ private:
 public:
   udp_entity_io(std::experimental::net::io_context& ioc, 
                 const endpoint_type& local_endp) noexcept : 
-    m_io_base(entity_cb()), m_entity_base(), 
+    m_io_base(), m_entity_base(), 
     m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
     m_byte_vec(), m_max_size(0), m_sender_endp() { }
 
@@ -91,7 +90,7 @@ public:
 
   template <typename R, typename S>
   void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_base.start(std::forward<R>(start_chg), std::forward<S>(shutdown_chg))) {
+    if (!m_entity_base.start(std::forward<S>(shutdown_chg))) {
       // already started
       return;
     }
@@ -102,47 +101,41 @@ public:
       }
     }
     catch (const std::system_error& se) {
-      m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(), se.code(), 0);
+      err_notify(se.code());
       stop();
       return;
     }
+    start_chg(udp_io_interface(shared_from_this()), 1);
   }
-
 
   template <typename MH>
   void start_io(std::size_t max_size, MH&& msg_handler) {
-    if (!m_io_base.set_started()) { // concurrency protected
+    if (!m_io_base.set_io_started()) { // concurrency protected
       return;
     }
     m_max_size = max_size;
     start_read(std::forward<MH>(msg_handler));
-    m_entity_base.call_start_change_cb(shared_from_this(), 1);
   }
 
   template <typename MH>
   void start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
-    if (!m_io_base.set_started()) { // concurrency protected
+    if (!m_io_base.set_io_started()) { // concurrency protected
       return;
     }
     m_max_size = max_size;
     m_default_dest_endp = endp;
     start_read(std::forward<MH>(msg_handler));
-    m_entity_base.call_start_change_cb(shared_from_this(), 1);
   }
 
   void start_io() {
-    if (!m_io_base.set_started()) { // concurrency protected
-      return;
-    }
-    m_entity_base.call_start_change_cb(shared_from_this(), 1);
+    m_io_base.set_io_started();
   }
 
   void start_io(const endpoint_type& endp) {
-    if (!m_io_base.set_started()) { // concurrency protected
+    if (!m_io_base.set_io_started()) { // concurrency protected
       return;
     }
     m_default_dest_endp = endp;
-    m_entity_base.call_start_change_cb(shared_from_this(), 1);
   }
 
   void stop_io() {
@@ -151,9 +144,7 @@ public:
     }
     std::error_code ec;
     m_socket.close(ec);
-    m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(),
-                                          std::make_error_code(net_ip_errc::udp_io_handler_stopped), 
-                                          0);
+    err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
   }
 
   void stop() {
@@ -161,9 +152,7 @@ public:
       return; // stop already called
     }
     stop_io();
-    m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(),
-                                          std::make_error_code(net_ip_errc::udp_entity_stopped), 
-                                          0);
+    err_notify(std::make_error_code(net_ip_errc::udp_entity_stopped));
   }
 
   void send(chops::const_shared_buffer buf) {
@@ -204,6 +193,10 @@ private:
     );
   }
 
+  void err_notify (const std::error_code& err) {
+    m_entity_base.call_shutdown_change_cb(shared_from_this(), err, 0);
+  }
+
   template <typename MH>
   void handle_read(const std::error_code&, std::size_t, MH&&);
 
@@ -219,15 +212,14 @@ template <typename MH>
 void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
-    m_entity_base.call_shutdown_change_cb(udp_entity_io_ptr(), err, 0);
+    err_notify(err);
     stop();
     return;
   }
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
                 io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
-    m_io_base.process_err_code(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                               shared_from_this());
+    err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;
   }
   start_read(std::forward<MH>(msg_hdlr));
@@ -244,13 +236,15 @@ inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const end
 
 inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (err) {
+    err_notify(err);
+    stop();
     return;
   }
   auto elem = m_io_base.get_next_element();
   if (!elem) {
     return;
   }
-  start_write(elem.first, elem.second ? *(elem.second) : m_default_dest_endp);
+  start_write(elem->first, elem->second ? *(elem->second) : m_default_dest_endp);
 }
 
 using udp_entity_io_ptr = std::shared_ptr<udp_entity_io>;
