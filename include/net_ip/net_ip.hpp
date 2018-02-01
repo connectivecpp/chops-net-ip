@@ -28,6 +28,10 @@
 #include "net_ip/net_entity.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
+#include "net_ip/detail/tcp_connector.hpp"
+#include "net_ip/detail/tcp_acceptor.hpp"
+#include "net_ip/detail/udp_entity_io.hpp"
+
 #include "utility/erase_where.hpp"
 
 namespace chops {
