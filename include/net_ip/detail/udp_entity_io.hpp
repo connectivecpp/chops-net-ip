@@ -96,7 +96,10 @@ public:
     }
     try {
       // assume default constructed endpoints compare equal
-      if (m_local_endp != endpoint_type()) {
+      if (m_local_endp == endpoint_type()) {
+        m_socket.open(std::experimental::net::ip::udp::v4());
+      }
+      else {
         m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
       }
     }

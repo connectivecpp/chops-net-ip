@@ -40,7 +40,7 @@
 #include "utility/shared_buffer.hpp"
 
 
-#include <iostream>
+// #include <iostream>
 
 using namespace std::experimental::net;
 using namespace chops::test;
@@ -82,13 +82,13 @@ struct state_chg_cb {
     else {
       io.start_io(m_dest_endp);
     }
-std::cerr << "In start chg cb, sz = " << sz << std::endl;
+// std::cerr << "In start chg cb, sz = " << sz << std::endl;
     m_prom.set_value(io);
   }
 
   void operator()(chops::net::udp_io_interface io, std::error_code e, std::size_t sz) const {
-std::cerr << "In shutdown chg cb, err = " << e << ", " << e.message() << ", sz = " << 
-sz << std::endl;
+// std::cerr << "In shutdown chg cb, err = " << e << ", " << e.message() << ", sz = " << 
+// sz << std::endl;
   }
 
 };
@@ -113,8 +113,8 @@ std::size_t sender_func (const vec_buf& in_msg_set, io_context& ioc,
 
   auto io = start_fut.get();
 
-std::cerr << "Sender start chg future popped, io valid: " << std::boolalpha << 
-io.is_valid() << std::endl;
+// std::cerr << "Sender start chg future popped, io valid: " << std::boolalpha << 
+// io.is_valid() << std::endl;
 
   for (auto buf : in_msg_set) {
     io.send(chops::const_shared_buffer(std::move(buf)));
@@ -129,7 +129,7 @@ io.is_valid() << std::endl;
   }
   iohp->stop();
 
-std::cerr << "Sender udp entity stopped, returning msgs size" << std::endl;
+// std::cerr << "Sender udp entity stopped, returning msgs size" << std::endl;
 
   return cb.m_hdlr.msgs.size();
 }
@@ -164,7 +164,7 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
 
         std::vector<std::future<std::size_t> > sender_futs;
 
-std::cerr << "creating " << num_senders << " async futures and threads" << std::endl;
+// std::cerr << "creating " << num_senders << " async futures and threads" << std::endl;
         chops::repeat(num_senders, [&] (int i) {
             ip::udp::endpoint sender_endp = reply ? 
                 ip::udp::endpoint(ip::udp::v4(), static_cast<unsigned short>(test_port_base + i + 1)) :
@@ -181,20 +181,21 @@ std::cerr << "creating " << num_senders << " async futures and threads" << std::
           accum_msgs += fut.get(); // wait for senders to finish
         }
         INFO ("All sender futures popped");
-std::cerr << "All sender futures popped" << std::endl;
+// std::cerr << "All sender futures popped" << std::endl;
 
         iohp->stop();
 
         INFO ("Receiver stopped");
-std::cerr << "Receiver stopped" << std::endl;
+// std::cerr << "Receiver stopped" << std::endl;
 
         REQUIRE_FALSE(iohp->is_started());
         REQUIRE_FALSE (iohp->is_io_started());
 
         std::size_t total_msgs = num_senders * in_msg_set.size();
-        REQUIRE (msg_hdlr.msgs.size() == total_msgs);
+        // CHECK instead of REQUIRE since UDP is an unreliable protocol
+        CHECK (msg_hdlr.msgs.size() == total_msgs);
         if (reply) {
-          REQUIRE (accum_msgs == total_msgs);
+          CHECK (accum_msgs == total_msgs);
         }
         else {
           REQUIRE (accum_msgs == 0);
@@ -237,35 +238,35 @@ SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 50, senders 10"
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 0, senders 20, many msgs",
-           "[udp_io] [var_len_msg] [two_way] [interval_0] [senders_20] [many]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 0, senders 5, many msgs",
+           "[udp_io] [var_len_msg] [two_way] [interval_0] [senders_5] [many]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
-  udp_test ( ms, true, 0, 20);
+  udp_test ( ms, true, 0, 5);
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 50, senders 30",
-           "[udp_io] [cr_lf_msg] [one-way] [interval_50] [senders_30]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 100, senders 5",
+           "[udp_io] [cr_lf_msg] [one-way] [interval_100] [senders_5]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs);
-  udp_test ( ms, false, 50, 30);
+  udp_test ( ms, false, 100, 5);
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 25",
-           "[udp_io] [cr_lf_msg] [two-way] [interval_0] [senders_25]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 20, senders 5",
+           "[udp_io] [cr_lf_msg] [two-way] [interval_20] [senders_5]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs);
-  udp_test ( ms, true, 0, 25);
+  udp_test ( ms, true, 20, 5);
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 10, many msgs",
-           "[udp_io] [cr_lf_msg] [two_way] [interval_0] [senders_10] [many]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, many msgs",
+           "[udp_io] [cr_lf_msg] [two_way] [interval_0] [senders_1] [many]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
-  udp_test ( ms, true, 0, 10);
+  udp_test ( ms, true, 0, 1);
 
 }
 
@@ -277,19 +278,19 @@ SCENARIO ( "Udp IO handler test, LF msgs, one-way, interval 50, senders 1",
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 0, senders 20",
-           "[udp_io] [lf_msg] [two-way] [interval_0] [senders_20]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 20, senders 10",
+           "[udp_io] [lf_msg] [two-way] [interval_20] [senders_10]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
-  udp_test ( ms, true, 0, 20);
+  udp_test ( ms, true, 20, 10);
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 0, senders 40, many msgs",
-           "[udp_io] [lf_msg] [two-way] [interval_0] [senders_40] [many]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 200, senders 2, many msgs",
+           "[udp_io] [lf_msg] [two-way] [interval_200] [senders_2] [many]" ) {
 
-  auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs);
-  udp_test ( ms, true, 0, 40);
+  auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 30*NumMsgs);
+  udp_test ( ms, true, 200, 2);
 
 }
 
