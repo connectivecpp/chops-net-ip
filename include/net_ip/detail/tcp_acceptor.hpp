@@ -108,7 +108,7 @@ private:
     using namespace std::placeholders;
 
     auto self = shared_from_this();
-    m_acceptor.async_accept( [this, self, sf = std::move(start_chg)] 
+    m_acceptor.async_accept( [this, self, strt = std::move(start_chg)] 
                                (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) {
         if (err) {
           m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, m_io_handlers.size());
@@ -118,8 +118,11 @@ private:
         tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
-        sf(tcp_io_interface(iop), m_io_handlers.size());
-        start_accept(std::move(sf));
+        post(m_acceptor.get_executor(), [this, self, iop, sf = std::move(strt)] {
+            sf(tcp_io_interface(iop), m_io_handlers.size());
+          }
+        );
+        start_accept(std::move(strt));
       }
     );
   }

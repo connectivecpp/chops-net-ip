@@ -191,7 +191,11 @@ private:
     }
     m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
       tcp_io::entity_notifier_cb(std::bind(&tcp_connector::notify_me, shared_from_this(), _1, _2)));
-    start_chg(tcp_io_interface(m_io_handler), 1);
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] {
+        strt(tcp_io_interface(m_io_handler), 1);
+      }
+    );
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {

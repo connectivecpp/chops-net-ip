@@ -263,6 +263,16 @@ public:
     return (lp && rp && lp < rp) || (!lp && rp);
   }
 
+/**
+ *  @brief Return a @c shared_ptr to the actual net entity object, meant to be used
+ *  for internal purposes only.
+ *
+ *  @return As described in the comments.
+ */
+  auto get_ptr() const noexcept {
+    return m_eh_wptr.lock();
+  }
+
 };
 
 namespace detail {

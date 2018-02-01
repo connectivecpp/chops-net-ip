@@ -108,7 +108,11 @@ public:
       stop();
       return;
     }
-    start_chg(udp_io_interface(shared_from_this()), 1);
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] {
+        strt(udp_io_interface(self), 1);
+      }
+    );
   }
 
   template <typename MH>

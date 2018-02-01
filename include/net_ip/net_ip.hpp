@@ -23,6 +23,7 @@
 
 #include <experimental/io_context>
 #include <experimental/executor>
+#include <experimental/internet>
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
@@ -31,6 +32,7 @@
 #include "net_ip/detail/tcp_connector.hpp"
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/udp_entity_io.hpp"
+#include "net_ip/detail/tcp_io.hpp"
 
 #include "utility/erase_where.hpp"
 
@@ -112,10 +114,10 @@ namespace net {
 class net_ip {
 private:
 
-  std::experimental::net::io_context m_ioc;
+  std::experimental::net::io_context& m_ioc;
   std::vector<detail::tcp_acceptor_ptr> m_acceptors;
   std::vector<detail::tcp_connector_ptr> m_connectors;
-  std::vector<detail::udp_entity_ptr> m_udp_entities;
+  std::vector<detail::udp_entity_io_ptr> m_udp_entities;
 
 public:
 
@@ -134,6 +136,8 @@ private:
   net_ip(net_ip&&) = delete;
   net_ip& operator=(const net_ip&) = delete;
   net_ip& operator=(net_ip&&) = delete;
+
+public:
 
 /**
  *  @brief Create a TCP acceptor @c net_entity, which will listen on a port for incoming
@@ -225,6 +229,7 @@ private:
                                                                   remote_host, reconn_time);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     return tcp_connector_net_entity(p);
+  }
 
 
 /**
@@ -319,11 +324,11 @@ private:
  *  @return @c udp_net_entity object.
  *
  */
-  udp_net_entity make_udp_unicast (const std::experimental::net::udp::endpoint& endp) {
+  udp_net_entity make_udp_unicast (const std::experimental::net::ip::udp::endpoint& endp) {
     auto p = std::make_shared<detail::udp_entity_io>(m_ioc, endp);
     std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
     return udp_net_entity(p);
-}
+  }
 
 /**
  *  @brief Create a UDP unicast @c net_entity for sending only (no local bind is performed).
@@ -334,7 +339,7 @@ private:
  *
  */
   udp_net_entity make_udp_sender () {
-    return make_udp_unicast(std::experimental::net::udp::endpoint());
+    return make_udp_unicast(std::experimental::net::ip::udp::endpoint());
   }
 
 // TODO: multicast make methods 
@@ -347,8 +352,12 @@ private:
  *
  */
   void remove(tcp_acceptor_net_entity acc) {
+    acc.stop();
     std::experimental::net::post(m_ioc.get_executor(), 
-          [acc, this] () { acc->stop(); chops::erase_where(m_acceptors, acc); } );
+          [acc, this] () mutable {
+        chops::erase_where(m_acceptors, acc.get_ptr());
+      }
+    );
   }
 
 /**
@@ -359,8 +368,12 @@ private:
  *
  */
   void remove(tcp_connector_net_entity conn) {
+    conn.stop();
     std::experimental::net::post(m_ioc.get_executor(), 
-          [conn, this] () { conn->stop(); chops::erase_where(m_connectors, conn); } );
+          [conn, this] () mutable {
+        chops::erase_where(m_connectors, conn.get_ptr());
+      }
+    );
   }
 
 /**
@@ -371,8 +384,12 @@ private:
  *
  */
   void remove(udp_net_entity udp_ent) {
+    udp_ent.stop();
     std::experimental::net::post(m_ioc.get_executor(), 
-          [udp_ent, this] () { udp_ent->stop(); chops::erase_where(m_udp_entities, udp_ent); } );
+          [udp_ent, this] () mutable {
+        chops::erase_where(m_udp_entities, udp_ent.get_ptr());
+      }
+    );
   }
 
 /**
