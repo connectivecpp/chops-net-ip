@@ -109,7 +109,7 @@ public:
       return;
     }
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] {
+    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] () mutable {
         strt(udp_io_interface(self), 1);
       }
     );
@@ -194,7 +194,7 @@ private:
               std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
               m_sender_endp,
                 [this, self, mh = std::move(msg_hdlr)] 
-                  (const std::error_code& err, std::size_t nb) {
+                  (const std::error_code& err, std::size_t nb) mutable {
         handle_read(err, nb, mh);
       }
     );
