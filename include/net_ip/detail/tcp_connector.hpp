@@ -135,7 +135,6 @@ private:
     }
     if (m_io_handler) {
       m_io_handler->close();
-      m_io_handler.reset();
     }
     m_timer.cancel();
     m_resolver.cancel();

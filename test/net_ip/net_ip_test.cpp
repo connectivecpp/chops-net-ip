@@ -43,7 +43,7 @@
 #include "utility/repeat.hpp"
 
 
-// #include <iostream>
+#include <iostream>
 
 using namespace std::experimental::net;
 using namespace chops::test;
@@ -53,7 +53,7 @@ const char* tcp_test_host = "";
 constexpr int NumMsgs = 50;
 constexpr int ReconnTime = 500;
 
-const char*   udp_test_addr = "ldskfjlk";
+const char*   udp_test_addr = "127.0.0.1";
 constexpr int udp_port_base = 31445;
 constexpr int udp_max_size = 65507;
 
@@ -212,7 +212,7 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num
       }
     }
   } // end given
-  wk.stop();
+  wk.reset();
 }
 
 void udp_test (const vec_buf& in_msg_set, int interval, int num_udp_pairs, 
@@ -224,17 +224,17 @@ void udp_test (const vec_buf& in_msg_set, int interval, int num_udp_pairs,
 
   GIVEN ("An executor work guard and a message set") {
  
-    WHEN ("pairs of senders and receivers are created") {
+    WHEN ("pairs of udp senders and receivers are created") {
       THEN ("the futures provide synchronization and data returns") {
 
         chops::net::net_ip nip(ioc);
 
         std::vector< std::future<std::size_t> > futs;
 
-// std::cerr << "creating " << num << " udp sender receiver pairs" << std::endl;
+std::cerr << "creating " << num_udp_pairs << " udp sender receiver pairs" << std::endl;
 
-        chops::repeat(num_udp_pairs, [&] () {
-            auto recv_endp = make_test_udp_endpoint(udp_port_base);
+        chops::repeat(num_udp_pairs, [&] (int i) {
+            auto recv_endp = make_test_udp_endpoint(udp_port_base + i);
 
             auto udp_receiver = nip.make_udp_unicast(recv_endp);
             auto udp_sender = nip.make_udp_sender();
@@ -254,7 +254,7 @@ void udp_test (const vec_buf& in_msg_set, int interval, int num_udp_pairs,
 
             futs.emplace_back(std::async(std::launch::async, send_func<chops::net::detail::udp_entity_io>, 
                               std::cref(in_msg_set), io, interval, empty_msg));
-// std::cerr << "Sender thread started" << std::endl;
+std::cerr << "Sender thread started" << std::endl;
           
           }
         );
@@ -264,12 +264,14 @@ void udp_test (const vec_buf& in_msg_set, int interval, int num_udp_pairs,
           accum_msgs += fut.get(); // wait for senders to finish
         }
         INFO ("All sender futures popped");
-// std::cerr << "All sender futures popped" << std::endl;
+std::cerr << "All sender futures popped" << std::endl;
 
         nip.remove_all();
+std::cerr << "Remove_all called" << std::endl;
     
         std::size_t total_msgs = num_udp_pairs * in_msg_set.size();
-        REQUIRE (accum_msgs == total_msgs);
+        // CHECK instead of REQUIRE since UDP
+        CHECK (accum_msgs == total_msgs);
       }
     }
   } // end given
@@ -277,128 +279,142 @@ void udp_test (const vec_buf& in_msg_set, int interval, int num_udp_pairs,
 }
 
 
-SCENARIO ( "Net IP acceptor connector test, var len msgs, one-way, interval 50, 1 connector", 
+SCENARIO ( "Net IP test, var len msgs, one-way, interval 50, 1 connector or pair", 
            "[netip_acc_conn] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
   acc_conn_test ( ms, false, 50, 1, std::string_view(), empty_msg );
+  udp_test ( ms, 50, 1, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, var len msgs, one-way, interval 0, 1 connector", 
+SCENARIO ( "Net IP test, var len msgs, one-way, interval 0, 1 connector or pair", 
            "[netip_acc_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
   acc_conn_test ( ms, false, 0, 1, std::string_view(), empty_msg );
+  udp_test ( ms, 0, 1, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, var len msgs, two-way, interval 50, 1 connector", 
-           "[netip_acc_conn] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
+SCENARIO ( "Net IP test, var len msgs, two-way, interval 50, 1 connector or pair", 
+           "[net_ip] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Yowser!", 'X', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
   acc_conn_test ( ms, true, 50, 1, std::string_view(), empty_msg );
+  udp_test ( ms, 50, 1, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
-           "[netip_acc_conn] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
+SCENARIO ( "Net IP test, var len msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
+           "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
   acc_conn_test ( ms, true, 0, 10, std::string_view(), empty_msg );
+  udp_test ( ms, 0, 10, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, var len msgs, two-way, interval 0, 40 connectors", 
-           "[netip_acc_conn] [var_len_msg] [two_way] [interval_0] [connectors_40] [many]" ) {
+SCENARIO ( "Net IP test, var len msgs, two-way, interval 0, 40 connectors or pairs", 
+           "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_40] [many]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Many, many, fast!", 'G', 100*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
   acc_conn_test ( ms, true, 0, 40, std::string_view(), empty_msg );
+  udp_test ( ms, 0, 40, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, CR / LF msgs, one-way, interval 50, 1 connectors", 
-           "[netip_acc_conn] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
+SCENARIO ( "Net IP test, CR / LF msgs, one-way, interval 50, 1 connector or pair", 
+           "[net_ip] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
   acc_conn_test ( ms, false, 50, 1, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, 50, 1, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, CR / LF msgs, one-way, interval 50, 10 connectors", 
-           "[netip_acc_conn] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
+SCENARIO ( "Net IP test, CR / LF msgs, one-way, interval 50, 10 connectors or pairs", 
+           "[net_ip] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
   acc_conn_test ( ms, false, 50, 10, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, 50, 10, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, CR / LF msgs, one-way, interval 0, 20 connectors", 
-           "[netip_acc_conn] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
+SCENARIO ( "Net IP test, CR / LF msgs, one-way, interval 0, 20 connectors or pairs", 
+           "[net_ip] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
   acc_conn_test ( ms, false, 0, 20, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, 0, 20, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, CR / LF msgs, two-way, interval 30, 10 connectors", 
-           "[netip_acc_conn] [cr_lf_msg] [two_way] [interval_30] [connectors_10]" ) {
+SCENARIO ( "Net IP test, CR / LF msgs, two-way, interval 30, 10 connectors or pairs", 
+           "[net_ip] [cr_lf_msg] [two_way] [interval_30] [connectors_10]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
   acc_conn_test ( ms, true, 30, 10, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, 30, 10, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test, CR / LF msgs, two-way, interval 0, 10 connectors, many msgs", 
-           "[netip_acc_conn] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
+SCENARIO ( "Net IP test, CR / LF msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
+           "[net_ip] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
   acc_conn_test ( ms, true, 0, 10, std::string_view("\r\n"), empty_msg );
+  udp_test ( ms, 0, 10, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test,  LF msgs, one-way, interval 50, 1 connectors", 
-           "[netip_acc_conn] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
+SCENARIO ( "Net IP test,  LF msgs, one-way, interval 50, 1 connector or pair", 
+           "[net_ip] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited!", 'E', NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
   acc_conn_test ( ms, false, 50, 1, std::string_view("\n"), empty_msg );
+  udp_test ( ms, 50, 1, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test,  LF msgs, one-way, interval 0, 25 connectors", 
-           "[netip_acc_conn] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
+SCENARIO ( "Net IP test,  LF msgs, one-way, interval 0, 25 connectors or pairs", 
+           "[net_ip] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
   acc_conn_test ( ms, false, 0, 25, std::string_view("\n"), empty_msg );
+  udp_test ( ms, 0, 25, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test,  LF msgs, two-way, interval 20, 15 connectors", 
-           "[netip_acc_conn] [lf_msg] [two_way] [interval_20] [connectors_15]" ) {
+SCENARIO ( "Net IP test,  LF msgs, two-way, interval 20, 15 connectors or pairs", 
+           "[net_ip] [lf_msg] [two_way] [interval_20] [connectors_15]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
   acc_conn_test ( ms, true, 20, 15, std::string_view("\n"), empty_msg );
+  udp_test ( ms, 20, 15, empty_msg );
 
 }
 
-SCENARIO ( "Net IP acceptor connector test,  LF msgs, two-way, interval 0, 15 connectors, many msgs", 
-           "[netip_acc_conn] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
+SCENARIO ( "Net IP test,  LF msgs, two-way, interval 0, 15 connectors or pairs, many msgs", 
+           "[net_ip] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
   acc_conn_test ( ms, true, 0, 15, std::string_view("\n"), empty_msg );
+  udp_test ( ms, 0, 15, empty_msg );
 
 }

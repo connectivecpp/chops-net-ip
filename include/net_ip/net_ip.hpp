@@ -354,14 +354,13 @@ public:
 // TODO: multicast make methods 
 
 /**
- *  @brief Call @c stop on a TCP acceptor @c net_entity and remove it from the internal
- *  list of TCP acceptors.
+ *  @brief Remove a TCP acceptor @c net_entity from the internal list of TCP 
+ *  acceptors; @c stop is not called.
  *
- *  @param acc TCP acceptor @c net_entity to be stopped and removed.
+ *  @param acc TCP acceptor @c net_entity to be removed.
  *
  */
   void remove(tcp_acceptor_net_entity acc) {
-    acc.stop();
     std::experimental::net::post(m_ioc.get_executor(), 
           [acc, this] () mutable {
         chops::erase_where(m_acceptors, acc.get_ptr());
@@ -370,10 +369,10 @@ public:
   }
 
 /**
- *  @brief Call @c stop on a TCP connector @c net_entity and remove it from the internal
- *  list of TCP connectors.
+ *  @brief Remove a TCP connector @c net_entity from the internal list of TCP 
+ *  connectors; @c stop is not called.
  *
- *  @param conn TCP connector @c net_entity to be stopped and removed.
+ *  @param conn TCP connector @c net_entity to be removed.
  *
  */
   void remove(tcp_connector_net_entity conn) {
@@ -386,10 +385,10 @@ public:
   }
 
 /**
- *  @brief Call @c stop on a UDP @c net_entity and remove it from the internal
- *  list of UDP entities.
+ *  @brief Remove a UDP @c net_entity from the internal list of UDP entities;
+ *  @c stop is not called.
  *
- *  @param udp_ent UDP @c net_entity to be stopped and removed.
+ *  @param udp_ent UDP @c net_entity to be removed.
  *
  */
   void remove(udp_net_entity udp_ent) {
@@ -402,19 +401,29 @@ public:
   }
 
 /**
- *  @brief Call @c stop and remove all acceptors, connectors, and UDP entities.
- *
- *  This method allows for a more measured shutdown, if needed.
+ *  @brief Remove all acceptors, connectors, and UDP entities.
  *
  */
   void remove_all() {
     std::experimental::net::post(m_ioc.get_executor(), [this] () {
-        for (auto i : m_acceptors) { i->stop(); }
-        for (auto i : m_connectors) { i->stop(); }
-        for (auto i : m_udp_entities) { i->stop(); }
-        m_acceptors.clear();
-        m_connectors.clear();
         m_udp_entities.clear();
+        m_connectors.clear();
+        m_acceptors.clear();
+      }
+    );
+  }
+
+/**
+ *  @brief Call @c stop on all acceptors, connectors, and UDP entities.
+ *
+ *  This method allows for a more measured shutdown, if needed.
+ *
+ */
+  void stop_all() {
+    std::experimental::net::post(m_ioc.get_executor(), [this] () {
+        for (auto i : m_udp_entities) { i->stop(); }
+        for (auto i : m_connectors) { i->stop(); }
+        for (auto i : m_acceptors) { i->stop(); }
       }
     );
   }

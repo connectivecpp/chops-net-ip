@@ -91,9 +91,9 @@ public:
     }
     auto iohs = m_io_handlers;
     for (auto i : iohs) {
-      i->close();
+      i->stop_io();
     }
-    m_io_handlers.clear();
+    // m_io_handlers.clear(); // the stop_io on each tcp_io handler should clear the container
     m_entity_base.call_shutdown_change_cb(tcp_io_ptr(),
                                           std::make_error_code(net_ip_errc::tcp_acceptor_stopped), 
                                           0);
@@ -131,11 +131,15 @@ private:
   void notify_me(std::error_code err, tcp_io_ptr iop) {
     auto self { shared_from_this() };
     post(m_acceptor.get_executor(), [this, self, err, iop] {
-        iop->close();
-        chops::erase_where(m_io_handlers, iop);
-        m_entity_base.call_shutdown_change_cb(iop, err, m_io_handlers.size());
+        remove_handler(err, iop);
       }
     );
+  }
+
+  void remove_handler(std::error_code err, tcp_io_ptr iop) {
+    iop->close();
+    chops::erase_where(m_io_handlers, iop);
+    m_entity_base.call_shutdown_change_cb(iop, err, m_io_handlers.size());
   }
 
 };
