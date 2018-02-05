@@ -49,22 +49,22 @@ chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char,
   return buf.append(body.data(), body.size());
 }
 
-chops::mutable_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
+chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
   std::uint16_t hdr = boost::endian::native_to_big(static_cast<std::uint16_t>(body.size()));
   chops::mutable_shared_buffer msg(static_cast<const void*>(&hdr), 2);
-  return msg.append(body.data(), body.size());
+  return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
 }
 
-chops::mutable_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body) {
+chops::const_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body) {
   chops::mutable_shared_buffer msg(body.data(), body.size());
   auto ba = chops::make_byte_array(0x0D, 0x0A); // CR, LF
-  return msg.append(ba.data(), ba.size());
+  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
 }
 
-chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body) {
+chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body) {
   chops::mutable_shared_buffer msg(body.data(), body.size());
   auto ba = chops::make_byte_array(0x0A); // LF
-  return msg.append(ba.data(), ba.size());
+  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
 }
 
 

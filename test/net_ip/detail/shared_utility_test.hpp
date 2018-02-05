@@ -40,24 +40,23 @@ namespace chops {
 namespace test {
 
 chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char, std::size_t num_body_chars);
-chops::mutable_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body);
-chops::mutable_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body);
-chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body);
+chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body);
+chops::const_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body);
+chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body);
 
-
-using vec_buf = std::vector<chops::mutable_shared_buffer>;
+using vec_buf = std::vector<chops::const_shared_buffer>;
 
 template <typename F>
 vec_buf make_msg_set(F&& func, std::string_view pre, char body_char, int num_msgs) {
   vec_buf vec;
-  chops::repeat(num_msgs, [&vec, f = std::forward<F>(func), pre, body_char] (const int& i) {
+  chops::repeat(num_msgs, [&vec, f = std::forward<F>(func), pre, body_char] (int i) {
       vec.push_back (f(make_body_buf(pre, body_char, i+1)));
     }
   );
   return vec;
 }
 template <typename F>
-chops::mutable_shared_buffer make_empty_body_msg(F&& func) {
+chops::const_shared_buffer make_empty_body_msg(F&& func) {
   return func( chops::mutable_shared_buffer{ } );
 }
 
@@ -83,13 +82,14 @@ struct msg_hdlr {
   
 
   bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type endp) {
-    chops::mutable_shared_buffer sh_buf(buf.data(), buf.size());
+    chops::const_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       msgs.push_back(sh_buf);
       return reply ? io_intf.send(std::move(sh_buf), endp) : true;
     }
     if (reply) {
-      io_intf.send(std::move(sh_buf), endp); // may not make it back to sender
+      // may not make it back to sender, depending on TCP connection or UDP reliability
+      io_intf.send(sh_buf, endp);
     }
     prom.set_value(msgs.size());
     return false;
