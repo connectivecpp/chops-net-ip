@@ -25,7 +25,7 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief Convenience class that combines an executor, work guard, and a thread,
+ *  @brief Convenience class that combines an executor work guard and a thread,
  *  invoking asynchronous operations as per the C++ Networking TS.
  */
 class worker {

@@ -23,7 +23,7 @@
 #include <iostream> // temporary debugging
 
 #include "net_ip/endpoints_resolver.hpp"
-#include "net_ip/worker.hpp"
+#include "net_ip/component/worker.hpp"
 
 using namespace std::experimental::net;
 

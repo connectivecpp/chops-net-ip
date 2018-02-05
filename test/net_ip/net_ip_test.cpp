@@ -33,10 +33,11 @@
 #include <optional>
 
 
-#include "net_ip/worker.hpp"
 #include "net_ip/net_ip.hpp"
 #include "net_ip/io_interface.hpp"
 #include "net_ip/net_entity.hpp"
+
+#include "net_ip/component/worker.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"

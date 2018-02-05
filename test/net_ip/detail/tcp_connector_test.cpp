@@ -34,7 +34,7 @@
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/tcp_connector.hpp"
 
-#include "net_ip/worker.hpp"
+#include "net_ip/component/worker.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
