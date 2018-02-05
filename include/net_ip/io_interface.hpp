@@ -19,8 +19,6 @@
 #include <cstddef> // std::size_t, std::byte
 #include <utility> // std::forward, std::move
 
-#include <experimental/buffer>
-
 #include "utility/shared_buffer.hpp"
 
 #include "net_ip/net_ip_error.hpp"
@@ -58,7 +56,7 @@ namespace net {
  *
  *  Applications can default construct an @c io_interface object, but it is not useful 
  *  until a valid @c io_interface object is assigned to it (typically this would be 
- *  performed in the state change function object callback).
+ *  performed through the state change function object callback).
  *
  *  The network IO handler socket can be accessed through this interface. This allows 
  *  socket options to be queried and set (or other useful socket methods to be called).
@@ -567,23 +565,39 @@ public:
 };
 
 namespace detail {
-class tcp_io;
-class udp_entity_io;
+  class tcp_io;
+  class udp_entity_io;
 }
+
+/**
+ *  @brief Using declaration for TCP based io, used to instantiate an @c io_interface
+ *  type.
+ *
+ *  @relates io_interface
+ */
+using tcp_io = detail::tcp_io;
+
+/**
+ *  @brief Using declaration for UDP based io, used to instantiate an @c io_interface
+ *  type.
+ *
+ *  @relates io_interface
+ */
+using udp_io = detail::udp_entity_io;
 
 /**
  *  @brief Using declaration for a TCP based @c io_interface type.
  *
  *  @relates io_interface
  */
-using tcp_io_interface = io_interface<detail::tcp_io>;
+using tcp_io_interface = io_interface<tcp_io>;
 
 /**
  *  @brief Using declaration for a UDP based @c io_interface type.
  *
  *  @relates io_interface
  */
-using udp_io_interface = io_interface<detail::udp_entity_io>;
+using udp_io_interface = io_interface<udp_io>;
 
 } // end net namespace
 } // end chops namespace

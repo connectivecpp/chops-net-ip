@@ -61,7 +61,7 @@ chops::mutable_shared_buffer make_empty_body_msg(F&& func) {
   return func( chops::mutable_shared_buffer{ } );
 }
 
-std::size_t decode_variable_len_msg_hdr(const std::byte*);
+std::size_t decode_variable_len_msg_hdr(const std::byte*, std::size_t);
 
 template <typename IOH>
 struct msg_hdlr {

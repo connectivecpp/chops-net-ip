@@ -30,10 +30,7 @@
 
 using namespace std::experimental::net;
 
-constexpr std::size_t magic = 42;
-constexpr std::size_t qs_base = magic + 1;
-
-std::size_t decoder_func (const std::byte*) { return magic; }
+constexpr int qs_base = 42;
 
 struct io_handler_base_mock {
   bool started = false;
@@ -254,28 +251,6 @@ void io_interface_test_compare() {
     }
   } // end given
 
-}
-
-SCENARIO ( "Io interface test, simple variable len message frame",
-           "[io_interface] [msg_frame]" ) {
-  mutable_buffer buf;
-  GIVEN ("A simple message frame object constructed with a decoder func") {
-    // chops::net::simple_variable_len_msg_frame mf(decoder_func);
-    auto a = chops::net::make_simple_variable_len_msg_frame(decoder_func);
-    auto mf = a; // verify copying the lambda does the right thing
-    WHEN ("it is called multiple times") {
-      THEN ("the return value toggles between the decoder supplied number and zero") {
-        REQUIRE (mf(buf) == magic);
-        REQUIRE (mf(buf) == 0);
-        REQUIRE (mf(buf) == magic);
-        REQUIRE (mf(buf) == 0);
-        auto b = mf;
-        REQUIRE (b(buf) == magic);
-        REQUIRE (b(buf) == 0);
-
-      }
-    }
-  } // end given
 }
 
 SCENARIO ( "Io interface test, udp",
