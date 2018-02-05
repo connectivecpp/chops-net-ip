@@ -97,6 +97,7 @@ public:
     try {
       // assume default constructed endpoints compare equal
       if (m_local_endp == endpoint_type()) {
+// TODO: this needs to be changed, can't send to an ipV6 endpoint
         m_socket.open(std::experimental::net::ip::udp::v4());
       }
       else {

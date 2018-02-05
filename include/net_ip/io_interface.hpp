@@ -30,33 +30,6 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief Signature for header decoder function.
- *
- *  Given a buffer of @c std::bytes corresponding to the header, decode the header and 
- *  return the length of the message body.
- *
- *  @relates io_interface
- */
-using hdr_decoder_func = std::size_t (*)(const std::byte*);
-
-/**
- *  @brief Create a message frame function object for the common use case of variable len 
- *  message composed of a single header and a single body, where the header decoding function 
- *  is supplied by the application.
- *
- *  @relates io_interface
- */
-inline auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
-  bool hdr_processed = false;
-  return [hdr_processed, func] 
-      (std::experimental::net::mutable_buffer buf) mutable -> std::size_t {
-    return hdr_processed ? 
-        (hdr_processed = false, 0) :
-        (hdr_processed = true, func(static_cast<const std::byte*>(buf.data())));
-  };
-}
-
-/**
  *  @brief The @c io_interface class provides access to an underlying network
  *  IO handler (TCP or UDP IO handler).
  *

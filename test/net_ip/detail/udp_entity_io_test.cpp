@@ -38,6 +38,7 @@
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
+#include "utility/make_byte_array.hpp"
 
 
 // #include <iostream>
@@ -212,7 +213,34 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
 }
 
 
-void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_senders);
+SCENARIO ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
+           "[udp_io] ") {
+
+  auto ipv4_endp = make_test_endpoint(test_port_base);
+  auto ipv6_endp = ip::udp::endpoint(ip::make_address("::1"), 
+                                     static_cast<unsigned short>(test_port_base));
+
+  auto ba = chops::make_byte_array(0x0D, 0x0E, 0x0A);
+
+  GIVEN ("A UDP socket opened with ipv4") {
+
+    io_context ioc;
+    ip::udp::socket sock(ioc);
+    sock.open(ip::udp::v4());
+  
+    INFO ("UDP socket opened");
+
+    WHEN ("send_to is called with both ipv4 and ipv6 endpoints") {
+      auto sz1 = sock.send_to(const_buffer(ba.data(), ba.size()), ipv4_endp);
+//      auto sz2 = sock.send_to(const_buffer(ba.data(), ba.size()), ipv6_endp);
+      THEN ("the call succeeds") {
+        REQUIRE(sz1 == ba.size());
+//        REQUIRE(sz2 == ba.size());
+      }
+    }
+  } // end given
+
+}
 
 SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 50, senders 1",
            "[udp_io] [var_len_msg] [one_way] [interval_50] [senders_1]" ) {
@@ -238,11 +266,11 @@ SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 50, senders 10"
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 0, senders 5, many msgs",
-           "[udp_io] [var_len_msg] [two_way] [interval_0] [senders_5] [many]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 5, many msgs",
+           "[udp_io] [var_len_msg] [two_way] [interval_20] [senders_5] [many]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
-  udp_test ( ms, true, 0, 5);
+  udp_test ( ms, true, 20, 5);
 
 }
 
@@ -278,11 +306,11 @@ SCENARIO ( "Udp IO handler test, LF msgs, one-way, interval 50, senders 1",
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 20, senders 10",
-           "[udp_io] [lf_msg] [two-way] [interval_20] [senders_10]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 30, senders 10",
+           "[udp_io] [lf_msg] [two-way] [interval_30] [senders_10]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
-  udp_test ( ms, true, 20, 10);
+  udp_test ( ms, true, 30, 10);
 
 }
 
