@@ -27,6 +27,9 @@ namespace net {
 /**
  *  @brief Convenience class that combines an executor work guard and a thread,
  *  invoking asynchronous operations as per the C++ Networking TS.
+ *
+ *  @note This class is not a necessary dependency of the @c net_ip library, but
+ *  is provided for convenience in many use cases.
  */
 class worker {
 private:

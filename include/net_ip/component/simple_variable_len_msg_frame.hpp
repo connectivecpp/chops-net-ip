@@ -32,6 +32,9 @@ namespace net {
  *  and match the parameter given to the @c io_interface @c start_io call.
  *
  *  @relates make_simple_variable_len_msg_frame
+ *
+ *  @note These functions are not a necessary dependency of the @c net_ip library,
+ *  but are useful components in many use cases.
  */
 using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
 
