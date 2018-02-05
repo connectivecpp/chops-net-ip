@@ -47,8 +47,10 @@ class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
-  using byte_vec = chops::mutable_shared_buffer::byte_vec;
   using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<tcp_io>)>;
+
+private:
+  using byte_vec = chops::mutable_shared_buffer::byte_vec;
 
 private:
 
