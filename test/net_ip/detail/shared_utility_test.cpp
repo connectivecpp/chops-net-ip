@@ -34,7 +34,9 @@
 
 #include "utility/make_byte_array.hpp"
 #include "utility/shared_buffer.hpp"
+
 #include "net_ip/io_interface.hpp"
+#include "net_ip/component/simple_variable_len_msg_frame.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 
@@ -66,7 +68,8 @@ chops::mutable_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer
 }
 
 
-std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr) {
+std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t /* sz */) {
+  // assert (sz == 2);
   std::uint16_t hdr;
   std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
   *(hdr_ptr+0) = *(buf_ptr+0);
@@ -229,7 +232,7 @@ SCENARIO ( "Shared Net IP test utility, decode variable len msg header",
   GIVEN ("A two byte buffer that is a variable len msg header") {
     WHEN ("the decode variable len msg hdr function is called") {
       THEN ("the correct length is returned") {
-        REQUIRE(decode_variable_len_msg_hdr(ba.data()) == 513);
+        REQUIRE(decode_variable_len_msg_hdr(ba.data(), 2) == 513);
       }
     }
     AND_WHEN ("a simple variable len msg frame is constructed") {

@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief @c io_interface class template and related functionality.
+ *  @brief Simple variable length msg frame functionality.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -23,8 +23,8 @@ namespace net {
 /**
  *  @brief Signature for a variable length message header decoder function.
  *
- *  Given a buffer of @c std::bytes corresponding to a variable length message header, 
- *  decode the header and return the length of the message body.
+ *  Given a buffer of @c std::bytes corresponding to a header on a variable length
+ *  message, decode the header and return the length of the message body.
  *
  *  @param ptr A pointer to the beginning of the variable len message header.
  *
@@ -36,9 +36,16 @@ namespace net {
 using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
 
 /**
- *  @brief Create a message frame function object for the use case of a variable len 
- *  message composed of a single header and a single body, where the header decoding 
- *  function is supplied by the application.
+ *  @brief Create a message frame function object for simple variable length messages.
+ *
+ *  Many variable length TCP messages have a fixed size header followed by a variable 
+ *  length body. Given a function that can decode the header and return the size of
+ *  the following body, this function creates a function object that can be used as 
+ *  a message frame in the @c io_interface @c start_io method.
+ *
+ *  @param func Function pointer (not a function object) that decodes the header.
+ *
+ *  @return A function object that can be used with the @c start_io method.
  *
  */
 inline auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
