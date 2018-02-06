@@ -26,6 +26,7 @@ constexpr double special_val = 42.0;
 
 struct net_entity_mock {
   using socket_type = double;
+
   double dummy = special_val;
 
   bool started = false;
@@ -36,6 +37,9 @@ struct net_entity_mock {
 
   template <typename R, typename S>
   void start( R&&, S&& ) { started = true; }
+
+  template <typename R>
+  void start( R&& ) { started = true; }
 
   void stop() { started = false; }
 
@@ -61,6 +65,7 @@ void net_entity_test_default_constructed() {
       THEN ("false is returned") {
 
         REQUIRE_FALSE (net_ent.start([] { }, [] { } ));
+        REQUIRE_FALSE (net_ent.start([] { }));
         REQUIRE_FALSE (net_ent.stop());
       }
     }
@@ -90,6 +95,10 @@ void net_entity_test_two() {
     AND_WHEN ("start or stop is called") {
       THEN ("true is returned") {
         REQUIRE (net_ent.start([] { }, [] { }));
+        REQUIRE (net_ent.is_started());
+        REQUIRE (net_ent.stop());
+        REQUIRE_FALSE (net_ent.is_started());
+        REQUIRE (net_ent.start([] { }));
         REQUIRE (net_ent.is_started());
         REQUIRE (net_ent.stop());
         REQUIRE_FALSE (net_ent.is_started());

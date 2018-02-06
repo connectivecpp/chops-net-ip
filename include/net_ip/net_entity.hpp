@@ -203,16 +203,28 @@ public:
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
  *  code will be provided.
  *
- *  A @c stop_func does not need to be supplied (defaults to a "do nothing" function).
- *
  *  @return @c true if valid net entity association.
  *
  */
   template <typename R, typename S>
-  bool start(R&& io_ready_func, 
-             S&& stop_func = [] (typename ET::io_interface_type, std::size_t) { } )
+  bool start(R&& io_ready_func, S&& stop_func) {
     auto p = m_eh_wptr.lock();
     return p ? (p->start(std::forward<R>(io_ready_func), std::forward<S>(stop_func)), true) : false;
+  }
+
+/**
+ *  @brief Start network processing on the associated net entity where only an
+ *  "IO ready" callback is provided.
+ *
+ *  @param io_ready_func A function object callback as described in the other @c start 
+ *  method.
+ *
+ *  @return @c true if valid net entity association.
+ */
+  template <typename R>
+  bool start(R&& io_ready_func) {
+    auto p = m_eh_wptr.lock();
+    return p ? (p->start(std::forward<R>(io_ready_func)), true) : false;
   }
 
 /**

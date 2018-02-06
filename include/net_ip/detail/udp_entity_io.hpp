@@ -42,7 +42,6 @@ class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
   using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
-  using io_interface_type = udp_io_interface;
 
 private:
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
@@ -100,7 +99,7 @@ public:
     try {
       // assume default constructed endpoints compare equal
       if (m_local_endp == endpoint_type()) {
-// TODO: this needs to be changed, can't send to an ipV6 endpoint
+// TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
         m_socket.open(std::experimental::net::ip::udp::v4());
       }
       else {
@@ -117,6 +116,12 @@ public:
         strt(udp_io_interface(self), 1);
       }
     );
+  }
+
+  template <typename R>
+  void start(R&& start_chg) {
+    auto shutdown_func = [] (udp_io_interface, std::error_code, std::size_t) { };
+    start(std::forward<R>(start_chg), shutdown_func);
   }
 
   template <typename MH>

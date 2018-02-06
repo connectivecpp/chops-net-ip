@@ -40,7 +40,6 @@ class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
 public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
-  using io_interface_type = chops::net::tcp_io_interface;
 
 private:
   using resolver_type = chops::net::endpoints_resolver<std::experimental::net::ip::tcp>;
@@ -120,6 +119,12 @@ public:
       return;
     }
     start_connect(std::move(start_chg));
+  }
+
+  template <typename R>
+  void start(R&& start_chg) {
+    auto shutdown_func = [] (tcp_io_interface, std::error_code, std::size_t) { };
+    start(std::forward<R>(start_chg), shutdown_func);
   }
 
   void stop() {

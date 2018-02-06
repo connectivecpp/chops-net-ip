@@ -13,33 +13,54 @@
 #include "catch.hpp"
 
 #include <cstddef> // std::size_t
+#include <chrono>
+#include <thread>
+#include <system_error>
 
 #include "net_ip/component/io_interface_future.hpp"
+#include "net_ip/net_entity.hpp"
 
-SCENARIO ( "Simple variable len message frame test",
-           "[msg_frame]" ) {
 
-  auto mf = chops::net::make_simple_variable_len_msg_frame(decoder_func);
+struct io_mock1 {
+  int magic = 42;
+};
 
-  // Protocol: 1 byte header specifying body len; three msgs in the following byte array
-  auto msgs = chops::make_byte_array(0x01, 0xBB, 0x03, 0xAA, 0xDD, 0xEE, 0x04, 0xDE, 0xAD, 0xBE, 0xEF);
+struct io_mock2 {
+  int magic = 66;
+};
 
-  GIVEN ("A simple message frame object constructed with a decoder func") {
-    auto a = mf; // verify copying the lambda does the right thing
-    WHEN ("it is called multiple times") {
-      THEN ("the return value toggles between the decoder supplied number and zero") {
-        std::size_t idx = 0;
-        mutable_buffer mbuf;
-        while (idx < msgs.size()) {
-          mbuf = mutable_buffer(msgs.data() + idx, 1);
-          auto ret = mf(mbuf);
-          INFO("Return from msg frame: " << ret);
-          idx += ret;
-          mbuf = mutable_buffer(msgs.data() + idx, ret);
-          ret = mf(mbuf);
-          REQUIRE (ret == 0);
-          idx += 1;
-        }
+template <typename IO>
+struct entity_mock {
+  using io_interface_type = IO;
+  template <typename F>
+  void start(F&& func) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    func(IO(), std::error_code(), 0);
+  }
+};
+
+SCENARIO ( "Testing make_aaa_io_interface_future, where aaa is both tcp and udp",
+           "[io_interface_future]" ) {
+
+  using entity1 = entity_mock<io_mock1>;
+  using entity2 = entity_mock<io_mock2>;
+
+  auto ep1 = chops::net::net_entity<entity1>(std::make_shared<entity1>());
+  auto ep2 = chops::net::net_entity<entity2>(std::make_shared<entity2>());
+  
+  GIVEN ("Two net_entity objects") {
+    WHEN ("make_tcp_io_interface_future is called") {
+      auto tcp_fut = chops::net::make_tcp_io_interface_future(ep1);
+      THEN ("a future is returned, which returns a value when set") {
+          auto tcp_val = tcp_fut.get();
+          REQUIRE (tcp_val.magic == 42);
+      }
+    }
+    AND_WHEN ("make_udp_io_interface_future is called") {
+      auto udp_fut = chops::net::make_udp_io_interface_future(ep2);
+      THEN ("a future is returned, which returns a value when set") {
+          auto udp_val = udp_fut.get();
+          REQUIRE (udp_val.magic == 66);
       }
     }
   } // end given
