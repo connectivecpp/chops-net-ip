@@ -1,6 +1,9 @@
 /** @file 
  *
- *  @ingroup net_ip_module
+ *  @defgroup net_ip_component_module Class and functions useful with the Chops Net IP 
+ *  library, but not part of the core library dependencies.
+ *
+ *  @ingroup net_ip_component_module
  *
  *  @brief Convenience executor and work guard class.
  *

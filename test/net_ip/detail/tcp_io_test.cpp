@@ -34,6 +34,7 @@
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
 
+#include "net_ip/component/simple_variable_len_msg_frame.hpp"
 
 // #include <iostream>
 

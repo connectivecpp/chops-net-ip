@@ -40,6 +40,7 @@ class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
 public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using io_interface_type = chops::net::tcp_io_interface;
 
 private:
   using resolver_type = chops::net::endpoints_resolver<std::experimental::net::ip::tcp>;

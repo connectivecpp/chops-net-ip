@@ -150,9 +150,9 @@ public:
  *  a UDP entity becomes ready. An @c io_interface object is provided to the callback 
  *  which allows IO processing to commence through the @c start_io method call.
  *
- *  2) A "stop" callback which is invoked when a TCP connection is shutdown or taken 
- *  down through an error, or a TCP or UDP entity encounters an error and cannot 
- *  continue.
+ *  2) A "stop" callback which is invoked when a TCP connection is gracefully shutdown 
+ *  or when the connection is taken down through an error, or a TCP or UDP entity 
+ *  encounters an error and cannot continue.
  *
  *  The @c start method call can be followed by a @c stop call, followed by @c start, 
  *  etc. This may be useful (for example) for a TCP connector that needs to reconnect 
@@ -203,11 +203,14 @@ public:
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
  *  code will be provided.
  *
+ *  A @c stop_func does not need to be supplied (defaults to a "do nothing" function).
+ *
  *  @return @c true if valid net entity association.
  *
  */
   template <typename R, typename S>
-  bool start(R&& io_ready_func, S&& stop_func) {
+  bool start(R&& io_ready_func, 
+             S&& stop_func = [] (typename ET::io_interface_type, std::size_t) { } )
     auto p = m_eh_wptr.lock();
     return p ? (p->start(std::forward<R>(io_ready_func), std::forward<S>(stop_func)), true) : false;
   }

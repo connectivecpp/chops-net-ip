@@ -1,8 +1,14 @@
 /** @file 
  *
- *  @ingroup net_ip_module
+ *  @ingroup net_ip_component_module
  *
  *  @brief Simple variable length msg frame functionality.
+ *
+ *  Many variable length TCP messages have a fixed size header followed by a variable 
+ *  length body. The @c make_simple_variable_len_msg_frame function creates a function
+ *  object that is supplied to the @c io_interface @c start_io method. The application
+ *  provides a function that decodes the message header and returns the size of the
+ *  following message body.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -40,11 +46,6 @@ using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
 
 /**
  *  @brief Create a message frame function object for simple variable length messages.
- *
- *  Many variable length TCP messages have a fixed size header followed by a variable 
- *  length body. Given a function that can decode the header and return the size of
- *  the following body, this function creates a function object that can be used as 
- *  a message frame in the @c io_interface @c start_io method.
  *
  *  @param func Function pointer (not a function object) that decodes the header.
  *

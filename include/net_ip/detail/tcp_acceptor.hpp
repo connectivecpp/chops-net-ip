@@ -40,6 +40,7 @@ class tcp_acceptor : public std::enable_shared_from_this<tcp_acceptor> {
 public:
   using socket_type = std::experimental::net::ip::tcp::acceptor;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using io_interface_type = chops::net::tcp_io_interface;
 
 private:
   net_entity_base<tcp_io>   m_entity_base;
