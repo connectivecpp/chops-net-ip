@@ -39,8 +39,8 @@ namespace net {
  *  @return A @c std::future which will provide a @c tcp_io_interface when ready.
  *
  *  @note There is not an equivalent function for a @c tcp_acceptor_net_entity, 
- *  since multiple connections can be potentially made and a @c std::promise can
- *  only be fulfilled once.
+ *  since multiple connections can be potentially made and a @c std::promise and
+ *  corresponding @c std::future can only be fulfilled once.
  */
 std::future<tcp_io_interface> make_tcp_io_interface_future(tcp_connector_net_entity conn) {
   return make_io_interface_impl<tcp_io_interface, tcp_connector_net_entity>(conn);

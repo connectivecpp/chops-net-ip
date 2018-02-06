@@ -18,7 +18,11 @@
 
 #include "net_ip/component/send_to_all.hpp"
 
+#include "net_ip/queue_stats.hpp"
+
 #include "utility/shared_buffer.hpp"
+
+constexpr int magic = 42;
 
 struct ioh_mock {
   using endpoint_type = int;
@@ -27,6 +31,10 @@ struct ioh_mock {
   bool send_called = false;
 
   void send(chops::const_shared_buffer) { send_called = true; }
+
+  chops::net::output_queue_stats get_output_queue_stats() const noexcept {
+    return chops::net::output_queue_stats { magic, 66 };
+  }
 
 };
 
@@ -79,6 +87,15 @@ SCENARIO ( "Testing send_to_all class",
       THEN ("the send flag is true") {
         REQUIRE(ioh1->send_called);
         REQUIRE(ioh2->send_called);
+      }
+    }
+    AND_WHEN ("total_queue_size is called") {
+      auto ioh1 = std::make_shared<ioh_mock>();
+      auto ioh2 = std::make_shared<ioh_mock>();
+      sta.add_io_interface(io_interface_type(ioh1));
+      sta.add_io_interface(io_interface_type(ioh2));
+      THEN ("the right results are returned") {
+        REQUIRE(sta.total_output_queue_size() == sta.size() * magic );
       }
     }
   } // end given

@@ -233,7 +233,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     return;
   }
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
-                io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
+                udp_io_interface(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;

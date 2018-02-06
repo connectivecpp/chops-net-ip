@@ -92,7 +92,7 @@ std::error_code connector_func (const vec_buf& in_msg_set, io_context& ioc,
   invoke_start_io(iohp, false, delim);
 
   for (auto buf : in_msg_set) {
-    iohp->send(chops::const_shared_buffer(std::move(buf)));
+    iohp->send(buf);
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
   iohp->send(empty_msg);

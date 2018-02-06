@@ -75,13 +75,22 @@ public:
     send(chops::const_shared_buffer(buf, sz));
   }
   void send(chops::mutable_shared_buffer&& buf) const { 
-     send(chops::const_shared_buffer(std::move(buf)));
+    send(chops::const_shared_buffer(std::move(buf)));
   }
 
   std::size_t size() const noexcept {
+    lock_guard gd { m_mutex };
     return m_io_intfs.size();
   }
 
+  std::size_t total_output_queue_size() const noexcept {
+    std::size_t tot = 0;
+    lock_guard gd { m_mutex };
+    for (auto io : m_io_intfs) {
+      tot += io.get_output_queue_stats().output_queue_size;
+    }
+    return tot;
+  }
 };
 
 } // end net namespace

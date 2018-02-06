@@ -33,10 +33,16 @@
 
 #include "net_ip/detail/udp_entity_io.hpp"
 
+#include "net_ip/net_entity.hpp"
+#include "net_ip/io_interface.hpp"
 #include "net_ip/component/worker.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
+#include "net_ip/component/io_interface_future.hpp"
+#include "net_ip/component/send_to_all.hpp"
+
 #include "../test/net_ip/detail/shared_utility_test.hpp"
+
 #include "utility/shared_buffer.hpp"
 #include "utility/make_byte_array.hpp"
 
@@ -62,79 +68,6 @@ ip::udp::endpoint make_test_endpoint(int port_num) {
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
 
-using start_prom_t = std::promise<chops::net::udp_io_interface>;
-
-struct state_chg_cb {
-  bool              m_receive;
-  ip::udp::endpoint m_dest_endp;
-  start_prom_t      m_prom;
-  msg_hdlr<chops::net::detail::udp_entity_io>
-                    m_hdlr;
-
-
-  state_chg_cb (bool reply, bool receive, ip::udp::endpoint dest_endp, 
-                start_prom_t p = start_prom_t()) : 
-      m_receive(receive), m_dest_endp(dest_endp), m_prom(std::move(p)), m_hdlr(reply) { }
-
-  void operator()(chops::net::udp_io_interface io, std::size_t sz) {
-    if (m_receive) {
-      io.start_io(MaxSize, m_dest_endp, std::ref(m_hdlr));
-    }
-    else {
-      io.start_io(m_dest_endp);
-    }
-// std::cerr << "In start chg cb, sz = " << sz << std::endl;
-    m_prom.set_value(io);
-  }
-
-  void operator()(chops::net::udp_io_interface io, std::error_code e, std::size_t sz) const {
-// std::cerr << "In shutdown chg cb, err = " << e << ", " << e.message() << ", sz = " << 
-// sz << std::endl;
-  }
-
-};
-
-void null_start_cb(chops::net::udp_io_interface, std::size_t) { }
-void null_shutdown_cb(chops::net::udp_io_interface, std::error_code, std::size_t) { }
-
-std::size_t sender_func (const vec_buf& in_msg_set, io_context& ioc, 
-                  ip::udp::endpoint dest_endp, ip::udp::endpoint sender_endp,
-                  int interval) {
-
-  bool receive = (sender_endp != ip::udp::endpoint());
-
-  auto iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, sender_endp);
-
-  start_prom_t start_prom;
-  auto start_fut = start_prom.get_future();
-
-  state_chg_cb cb(false, receive, dest_endp, std::move(start_prom));
-
-  iohp->start(std::ref(cb), std::ref(cb));
-
-  auto io = start_fut.get();
-
-// std::cerr << "Sender start chg future popped, io valid: " << std::boolalpha << 
-// io.is_valid() << std::endl;
-
-  for (auto buf : in_msg_set) {
-    io.send(chops::const_shared_buffer(std::move(buf)));
-    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-  }
-  // poll output queue size until it is 0
-  std::size_t qsz = 1;
-  while (qsz > 0) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    auto qstats = io.get_output_queue_stats();
-    qsz = qstats.output_queue_size;
-  }
-  iohp->stop();
-
-// std::cerr << "Sender udp entity stopped, returning msgs size" << std::endl;
-
-  return cb.m_hdlr.msgs.size();
-}
-
 void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_senders) {
 
   chops::net::worker wk;
@@ -149,58 +82,78 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
     WHEN ("UDP senders and a receiver are created") {
       THEN ("the futures provide synchronization") {
 
-        auto receiver_endp = make_test_endpoint(test_port_base);
-        auto iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, receiver_endp);
+        auto recv_endp = make_test_endpoint(test_port_base);
+        auto recv_iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
 
-        REQUIRE_FALSE (iohp->is_started());
-        REQUIRE_FALSE (iohp->is_io_started());
+        REQUIRE_FALSE (recv_iohp->is_started());
+        REQUIRE_FALSE (recv_iohp->is_io_started());
 
-        iohp->start(null_start_cb, null_shutdown_cb);
-        REQUIRE (iohp->is_started());
+        auto recv_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_entity(recv_iohp));
+        auto recv_io = recv_io_fut.get(); // UDP receiver is started
 
-        msg_hdlr<chops::net::detail::udp_entity_io> msg_hdlr(reply);
-        iohp->start_io(MaxSize, std::ref(msg_hdlr));
-        REQUIRE (iohp->is_io_started());
+        REQUIRE (recv_iohp->is_started());
 
+        msg_hdlr<chops::net::udp_io> recv_mh(reply);
+        recv_iohp->start_io(MaxSize, std::ref(recv_mh));
 
-        std::vector<std::future<std::size_t> > sender_futs;
+        REQUIRE (recv_io.is_io_started());
 
-// std::cerr << "creating " << num_senders << " async futures and threads" << std::endl;
+        chops::net::send_to_all send_to_all_ios { };
+
+        std::vector<chops::net::detail::udp_entity_io_ptr> senders;
+
+// std::cerr << "creating " << num_senders << " senders" << std::endl;
         chops::repeat(num_senders, [&] (int i) {
-            ip::udp::endpoint sender_endp = reply ? 
+            ip::udp::endpoint send_endp = reply ? 
                 ip::udp::endpoint(ip::udp::v4(), static_cast<unsigned short>(test_port_base + i + 1)) :
                 ip::udp::endpoint();
-            sender_futs.emplace_back(std::async(std::launch::async, sender_func, 
-                                     std::cref(in_msg_set), std::ref(ioc), 
-                                     receiver_endp, sender_endp,
-                                     interval));
-          }
-        );
 
-        std::size_t accum_msgs = 0;
-        for (auto& fut : sender_futs) {
-          accum_msgs += fut.get(); // wait for senders to finish
+            auto send_iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, send_endp);
+            REQUIRE_FALSE (send_iohp->is_started());
+            REQUIRE_FALSE (send_iohp->is_io_started());
+
+            senders.push_back(send_iohp);
+
+            auto send_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_entity(send_iohp));
+            auto send_io = send_fut.get();
+
+            if (reply) {
+              send_io.start_io(MaxSize, recv_endp, msg_hdlr<chops::net::udp_io>(false));
+            }
+            else {
+              send_io.start_io(recv_endp);
+            }
+
+            REQUIRE (send_io.is_started());
+
+            send_to_all_ios.add_io_interface(send_io);
         }
-        INFO ("All sender futures popped");
-// std::cerr << "All sender futures popped" << std::endl;
+        // send messages through all of the senders
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+        for (auto buf : in_msg_set) {
+          send_to_all_ios.send(buf);
+          std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+        }
+        // poll output queue size of all handlers until 0
+        while (send_to_all_ios.total_output_queue_size() > 0) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        // stop all handlers
+        for (auto p : senders) {
+          p->stop();
+          REQUIRE_FALSE (p->is_started());
+          REQUIRE_FALSE (p->is_io_started());
+        }
+        recv_iohp->stop();
+        REQUIRE_FALSE (recv_iohp->is_started());
+        REQUIRE_FALSE (recv_iohp->is_io_started());
 
-        iohp->stop();
-
-        INFO ("Receiver stopped");
-// std::cerr << "Receiver stopped" << std::endl;
-
-        REQUIRE_FALSE(iohp->is_started());
-        REQUIRE_FALSE (iohp->is_io_started());
+// std::cerr << "Udp entities stopped, returning msgs size" << std::endl;
 
         std::size_t total_msgs = num_senders * in_msg_set.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
-        CHECK (msg_hdlr.msgs.size() == total_msgs);
-        if (reply) {
-          CHECK (accum_msgs == total_msgs);
-        }
-        else {
-          REQUIRE (accum_msgs == 0);
-        }
+        CHECK (recv_mh.msgs.size() == total_msgs);
       }
     }
   } // end given
