@@ -6,9 +6,9 @@
  *
  *  Many variable length TCP messages have a fixed size header followed by a variable 
  *  length body. The @c make_simple_variable_len_msg_frame function creates a function
- *  object that is supplied to the @c io_interface @c start_io method. The application
- *  provides a function that decodes the message header and returns the size of the
- *  following message body.
+ *  object that is supplied to the @c basic_io_interface @c start_io method. The 
+ *  application provides a function that decodes the message header and returns the size 
+ *  of the following message body.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
