@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef NET_ENTITY_BASE_HPP_INCLUDED
-#define NET_ENTITY_BASE_HPP_INCLUDED
+#ifndef NET_ENTITY_COMMON_HPP_INCLUDED
+#define NET_ENTITY_COMMON_HPP_INCLUDED
 
 #include <atomic>
 #include <system_error>
@@ -29,7 +29,7 @@ namespace net {
 namespace detail {
 
 template <typename IOH>
-class net_entity_base {
+class net_entity_common {
 public:
   using shutdown_change_cb = std::function<void (io_interface<IOH>, std::error_code, std::size_t)>;
 
@@ -39,9 +39,9 @@ private:
 
 public:
 
-  net_entity_base() noexcept : m_started(false), m_shutdown_change_cb() { }
+  net_entity_common() noexcept : m_started(false), m_shutdown_change_cb() { }
 
-  // following three methods can be called concurrently
+  // following four methods can be called concurrently
   bool is_started() const noexcept { return m_started; }
 
   template <typename F>
@@ -54,13 +54,20 @@ public:
     return false;
   }
 
+  bool start() {
+    bool expected = false;
+    return m_started.compare_exchange_strong(expected, true);
+  }
+
   bool stop() {
     bool expected = true;
     return m_started.compare_exchange_strong(expected, false); 
   }
 
   void call_shutdown_change_cb(std::shared_ptr<IOH> p, const std::error_code& err, std::size_t sz) {
-    m_shutdown_change_cb(io_interface<IOH>(p), err, sz);
+    if (m_shutdown_change_cb) {
+      m_shutdown_change_cb(io_interface<IOH>(p), err, sz);
+    }
   }
 
 
