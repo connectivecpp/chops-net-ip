@@ -83,22 +83,22 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
       THEN ("the futures provide synchronization") {
 
         auto recv_endp = make_test_endpoint(test_port_base);
-        auto recv_iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
+        auto recv_ep = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
 
-        REQUIRE_FALSE (recv_iohp->is_started());
-        REQUIRE_FALSE (recv_iohp->is_io_started());
+        REQUIRE_FALSE (recv_ep->is_started());
+        REQUIRE_FALSE (recv_ep->is_io_started());
 
-        auto recv_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_entity(recv_iohp));
+        auto recv_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_net_entity(recv_ep));
         auto recv_io = recv_io_fut.get(); // UDP receiver is started
 
-        REQUIRE (recv_iohp->is_started());
+        REQUIRE (recv_ep->is_started());
 
         msg_hdlr<chops::net::udp_io> recv_mh(reply);
-        recv_iohp->start_io(MaxSize, std::ref(recv_mh));
+        recv_ep->start_io(MaxSize, std::ref(recv_mh));
 
         REQUIRE (recv_io.is_io_started());
 
-        chops::net::send_to_all send_to_all_ios { };
+        chops::net::send_to_all<chops::net::udp_io> send_to_all_ios { };
 
         std::vector<chops::net::detail::udp_entity_io_ptr> senders;
 
@@ -108,14 +108,14 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
                 ip::udp::endpoint(ip::udp::v4(), static_cast<unsigned short>(test_port_base + i + 1)) :
                 ip::udp::endpoint();
 
-            auto send_iohp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, send_endp);
-            REQUIRE_FALSE (send_iohp->is_started());
-            REQUIRE_FALSE (send_iohp->is_io_started());
+            auto send_ep = std::make_shared<chops::net::detail::udp_entity_io>(ioc, send_endp);
+            REQUIRE_FALSE (send_ep->is_started());
+            REQUIRE_FALSE (send_ep->is_io_started());
 
-            senders.push_back(send_iohp);
+            senders.push_back(send_ep);
 
-            auto send_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_entity(send_iohp));
-            auto send_io = send_fut.get();
+            auto send_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_net_entity(send_ep));
+            auto send_io = send_io_fut.get();
 
             if (reply) {
               send_io.start_io(MaxSize, recv_endp, msg_hdlr<chops::net::udp_io>(false));
@@ -124,10 +124,11 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
               send_io.start_io(recv_endp);
             }
 
-            REQUIRE (send_io.is_started());
+            REQUIRE (send_io.is_io_started());
 
             send_to_all_ios.add_io_interface(send_io);
-        }
+          }
+        );
         // send messages through all of the senders
         std::this_thread::sleep_for(std::chrono::milliseconds(interval));
         for (auto buf : in_msg_set) {
@@ -147,9 +148,9 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
           REQUIRE_FALSE (p->is_started());
           REQUIRE_FALSE (p->is_io_started());
         }
-        recv_iohp->stop();
-        REQUIRE_FALSE (recv_iohp->is_started());
-        REQUIRE_FALSE (recv_iohp->is_io_started());
+        recv_ep->stop();
+        REQUIRE_FALSE (recv_ep->is_started());
+        REQUIRE_FALSE (recv_ep->is_io_started());
 
 // std::cerr << "Udp entities stopped, returning msgs size" << std::endl;
 

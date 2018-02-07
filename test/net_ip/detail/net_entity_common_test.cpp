@@ -19,7 +19,7 @@
 #include <cstddef> // std::size_t
 
 #include "net_ip/detail/net_entity_common.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 #include "net_ip/net_ip_error.hpp"
 
 template<typename IOH>
@@ -28,7 +28,7 @@ struct state_change {
   std::size_t num = 0;
   std::error_code err;
   bool ioh_valid = false;
-  void operator() (chops::net::io_interface<IOH> ioh, std::error_code e, std::size_t n) {
+  void operator() (chops::net::basic_io_interface<IOH> ioh, std::error_code e, std::size_t n) {
     called = true;
     num = n;
     err = e;

@@ -15,6 +15,7 @@
 #include <chrono>
 #include <thread>
 #include <memory>
+#include <future>
 
 #include "net_ip/component/io_interface_future.hpp"
 #include "net_ip/basic_net_entity.hpp"
@@ -39,8 +40,12 @@ struct entity_mock {
 
   template <typename F>
   void start(F&& func) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    func(io_interface_mock(std::make_shared<io_mock>()), 1);
+    auto thr = std::thread([ f = std::move(func) ] () mutable {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        f(io_interface_mock(std::make_shared<io_mock>()), 1);
+      }
+    );
+    thr.join();
   }
 };
 
