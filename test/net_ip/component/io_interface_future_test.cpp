@@ -12,55 +12,53 @@
 
 #include "catch.hpp"
 
-#include <cstddef> // std::size_t
 #include <chrono>
 #include <thread>
-#include <system_error>
+#include <memory>
 
 #include "net_ip/component/io_interface_future.hpp"
-#include "net_ip/net_entity.hpp"
+#include "net_ip/basic_net_entity.hpp"
+#include "net_ip/basic_io_interface.hpp"
 
 
-struct io_mock1 {
+struct io_mock {
+  using socket_type = int;
+  using endpoint_type = long;
+
+  socket_type& get_socket() { return magic; }
+
   int magic = 42;
 };
 
-struct io_mock2 {
-  int magic = 66;
-};
+using io_interface_mock = chops::net::basic_io_interface<io_mock>;
 
-template <typename IO>
 struct entity_mock {
-  using io_interface_type = IO;
+
+  using socket_type = int;
+  using endpoint_type = double;
+
   template <typename F>
   void start(F&& func) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    func(IO(), std::error_code(), 0);
+    func(io_interface_mock(std::make_shared<io_mock>()), 1);
   }
 };
 
-SCENARIO ( "Testing make_aaa_io_interface_future, where aaa is both tcp and udp",
+using net_entity_mock = chops::net::basic_net_entity<entity_mock>;
+
+SCENARIO ( "Testing make_io_interface_future_impl",
            "[io_interface_future]" ) {
 
-  using entity1 = entity_mock<io_mock1>;
-  using entity2 = entity_mock<io_mock2>;
-
-  auto ep1 = chops::net::net_entity<entity1>(std::make_shared<entity1>());
-  auto ep2 = chops::net::net_entity<entity2>(std::make_shared<entity2>());
+  auto ent = net_entity_mock (std::make_shared<entity_mock>());
   
-  GIVEN ("Two net_entity objects") {
-    WHEN ("make_tcp_io_interface_future is called") {
-      auto tcp_fut = chops::net::make_tcp_io_interface_future(ep1);
-      THEN ("a future is returned, which returns a value when set") {
-          auto tcp_val = tcp_fut.get();
-          REQUIRE (tcp_val.magic == 42);
-      }
-    }
-    AND_WHEN ("make_udp_io_interface_future is called") {
-      auto udp_fut = chops::net::make_udp_io_interface_future(ep2);
-      THEN ("a future is returned, which returns a value when set") {
-          auto udp_val = udp_fut.get();
-          REQUIRE (udp_val.magic == 66);
+  GIVEN ("A entity object") {
+    WHEN ("make_io_interface_future_impl is called") {
+      auto fut = 
+        chops::net::detail::make_io_interface_future_impl<io_interface_mock, net_entity_mock>(ent);
+
+      THEN ("a future is returned, which returns a value when ready") {
+          auto val = fut.get();
+          REQUIRE (val.get_socket() == 42);
       }
     }
   } // end given
