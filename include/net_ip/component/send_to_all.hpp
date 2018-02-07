@@ -3,7 +3,7 @@
  *  @ingroup net_ip_component_module
  *
  *  @brief A class template that manages a collection of 
- *  @c io_interface objects and provides "send to all" functionality.
+ *  @c basic_io_interface objects and provides "send to all" functionality.
  *
  *  @author Cliff Green
  *  @date 2018
@@ -20,7 +20,7 @@
 #include <mutex>
 #include <vector>
 
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 #include "net_ip/queue_stats.hpp"
 
 #include "utility/erase_where.hpp"
@@ -30,37 +30,37 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief Manage a collection of @c io_interface objects and provide a way
+ *  @brief Manage a collection of @c basic_io_interface objects and provide a way
  *  to send data to all.
  *
  *  In addition to providing "send to all" functionality, this class overloads
  *  the function call operator so that it can be used as a "stop function" in
  *  the @c net_entity @c start method. If used in this manner, the functional
- *  operator deletes the @c io_interface object from the collection.
+ *  operator deletes the @c basic_io_interface object from the collection.
  *
  */
 template <typename IOH>
 class send_to_all {
 private:
   using lock_guard = std::lock_guard<std::mutex>;
-  using io_intfs   = std::vector<io_interface<IOH> >;
+  using io_intfs   = std::vector<basic_io_interface<IOH> >;
 
 private:
   mutable std::mutex    m_mutex;
   io_intfs              m_io_intfs;
 
 public:
-  void add_io_interface(io_interface<IOH> io) {
+  void add_io_interface(basic_io_interface<IOH> io) {
     lock_guard gd { m_mutex };
     m_io_intfs.push_back(io);
   }
 
-  void remove_io_interface(io_interface<IOH> io) {
+  void remove_io_interface(basic_io_interface<IOH> io) {
     lock_guard gd { m_mutex };
     chops::erase_where(m_io_intfs, io);
   }
 
-  void operator() (io_interface<IOH> io, std::error_code /* err */, std::size_t /* num */ ) {
+  void operator() (basic_io_interface<IOH> io, std::error_code /* err */, std::size_t /* num */ ) {
     if (io.is_valid()) {
       remove_io_interface(io);
     }

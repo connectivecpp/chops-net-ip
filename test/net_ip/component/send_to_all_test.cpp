@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Test scenario for @c make_io_interface_future functions.
+ *  @brief Test scenario for @c send_to_all class template.
  *
  *  @author Cliff Green
  *  @date 2018
@@ -39,7 +39,7 @@ struct ioh_mock {
 
 };
 
-using io_interface_type = chops::net::io_interface<ioh_mock>;
+using io_interface_type = chops::net::basic_io_interface<ioh_mock>;
 
 SCENARIO ( "Testing send_to_all class",
            "[send_to_all]" ) {
