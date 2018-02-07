@@ -32,7 +32,7 @@ namespace net {
 namespace detail {
 
 template <typename IOH>
-class io_base {
+class io_common {
 private:
   using endp_type = typename IOH::endpoint_type;
 
@@ -49,7 +49,7 @@ private:
 
 public:
 
-  explicit io_base() noexcept :
+  explicit io_common() noexcept :
     m_io_started(false), m_write_in_progress(false), m_outq() { }
 
   // the following four methods can be called concurrently
@@ -80,7 +80,7 @@ public:
 };
 
 template <typename IOH>
-bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
+bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
   if (!m_io_started) {
     return false; // shutdown happening or not io_started, don't start a write
   }
@@ -93,7 +93,7 @@ bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
 }
 
 template <typename IOH>
-bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
+bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
                                      const endp_type& endp) {
   if (!m_io_started) {
     return false; // shutdown happening or not io_started, don't start a write
@@ -107,7 +107,7 @@ bool io_base<IOH>::start_write_setup(const chops::const_shared_buffer& buf,
 }
 
 template <typename IOH>
-typename io_base<IOH>::outq_opt_el io_base<IOH>::get_next_element() {
+typename io_common<IOH>::outq_opt_el io_common<IOH>::get_next_element() {
   if (!m_io_started) { // shutting down
     return outq_opt_el { };
   }
