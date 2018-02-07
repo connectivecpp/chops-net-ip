@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef IO_BASE_HPP_INCLUDED
-#define IO_BASE_HPP_INCLUDED
+#ifndef IO_COMMON_HPP_INCLUDED
+#define IO_COMMON_HPP_INCLUDED
 
 #include <atomic>
 #include <system_error>
