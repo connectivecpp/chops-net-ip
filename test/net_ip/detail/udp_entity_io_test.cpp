@@ -135,8 +135,10 @@ void udp_test (const vec_buf& in_msg_set, bool reply, int interval, int num_send
           std::this_thread::sleep_for(std::chrono::milliseconds(interval));
         }
         // poll output queue size of all handlers until 0
-        while (send_to_all_ios.total_output_queue_size() > 0) {
+        auto qs = send_to_all_ios.get_total_output_queue_stats();
+        while (qs.output_queue_size > 0) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          qs = send_to_all_ios.get_total_output_queue_stats();
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
         // stop all handlers
