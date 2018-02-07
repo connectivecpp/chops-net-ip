@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "net_ip/io_interface.hpp"
+#include "net_ip/queue_stats.hpp"
 
 #include "utility/erase_where.hpp"
 #include "utility/shared_buffer.hpp"
@@ -83,11 +84,13 @@ public:
     return m_io_intfs.size();
   }
 
-  std::size_t total_output_queue_size() const noexcept {
-    std::size_t tot = 0;
+  auto get_total_output_queue_stats() const noexcept {
+    chops::net::output_queue_stats tot { };
     lock_guard gd { m_mutex };
     for (auto io : m_io_intfs) {
-      tot += io.get_output_queue_stats().output_queue_size;
+      auto qs = io.get_output_queue_stats();
+      tot.output_queue_size += qs.output_queue_size;
+      tot.bytes_in_output_queue += qs.bytes_in_output_queue;
     }
     return tot;
   }

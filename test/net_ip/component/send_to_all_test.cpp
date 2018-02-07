@@ -22,7 +22,8 @@
 
 #include "utility/shared_buffer.hpp"
 
-constexpr int magic = 42;
+constexpr int magic1 = 42;
+constexpr int magic2 = 100;
 
 struct ioh_mock {
   using endpoint_type = int;
@@ -33,7 +34,7 @@ struct ioh_mock {
   void send(chops::const_shared_buffer) { send_called = true; }
 
   chops::net::output_queue_stats get_output_queue_stats() const noexcept {
-    return chops::net::output_queue_stats { magic, 66 };
+    return chops::net::output_queue_stats { magic1, magic2 };
   }
 
 };
@@ -89,13 +90,15 @@ SCENARIO ( "Testing send_to_all class",
         REQUIRE(ioh2->send_called);
       }
     }
-    AND_WHEN ("total_queue_size is called") {
+    AND_WHEN ("get_total_output_queue_stats is called") {
       auto ioh1 = std::make_shared<ioh_mock>();
       auto ioh2 = std::make_shared<ioh_mock>();
       sta.add_io_interface(io_interface_type(ioh1));
       sta.add_io_interface(io_interface_type(ioh2));
       THEN ("the right results are returned") {
-        REQUIRE(sta.total_output_queue_size() == sta.size() * magic );
+        auto tot = sta.get_total_output_queue_stats();
+        REQUIRE(tot.output_queue_size == sta.size() * magic1);
+        REQUIRE(tot.bytes_in_output_queue == sta.size() * magic2);
       }
     }
   } // end given
