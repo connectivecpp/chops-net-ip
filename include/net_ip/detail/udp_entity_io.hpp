@@ -26,8 +26,8 @@
 #include <cstddef> // std::size_t
 #include <utility> // std::forward, std::move
 
-#include "net_ip/detail/io_base.hpp"
-#include "net_ip/detail/net_entity_base.hpp"
+#include "net_ip/detail/io_common.hpp"
+#include "net_ip/detail/net_entity_common.hpp"
 #include "net_ip/detail/output_queue.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
@@ -48,23 +48,23 @@ private:
 
 private:
 
-  io_base<udp_entity_io>          m_io_base;
-  net_entity_base<udp_entity_io>  m_entity_base;
-  socket_type                     m_socket;
-  endpoint_type                   m_local_endp;
-  endpoint_type                   m_default_dest_endp;
-  // multicast stuff TBD
+  io_common<udp_entity_io>          m_io_common;
+  net_entity_common<udp_entity_io>  m_entity_common;
+  socket_type                       m_socket;
+  endpoint_type                     m_local_endp;
+  endpoint_type                     m_default_dest_endp;
+  // TODO: multicast stuff
 
   // following members could be passed through handler, but are members for 
   // simplicity and less copying
-  byte_vec                        m_byte_vec;
-  std::size_t                     m_max_size;
-  endpoint_type                   m_sender_endp;
+  byte_vec                          m_byte_vec;
+  std::size_t                       m_max_size;
+  endpoint_type                     m_sender_endp;
 
 public:
   udp_entity_io(std::experimental::net::io_context& ioc, 
                 const endpoint_type& local_endp) noexcept : 
-    m_io_base(), m_entity_base(), 
+    m_io_common(), m_entity_common(), 
     m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
     m_byte_vec(), m_max_size(0), m_sender_endp() { }
 
@@ -80,22 +80,107 @@ public:
   // all of the methods in this public section can be called through either an io_interface
   // or a net_entity
 
-  bool is_started() const noexcept { return m_entity_base.is_started(); }
+  bool is_started() const noexcept { return m_entity_common.is_started(); }
 
-  bool is_io_started() const noexcept { return m_io_base.is_io_started(); }
+  bool is_io_started() const noexcept { return m_io_common.is_io_started(); }
 
   socket_type& get_socket() noexcept { return m_socket; }
 
   output_queue_stats get_output_queue_stats() const noexcept {
-    return m_io_base.get_output_queue_stats();
+    return m_io_common.get_output_queue_stats();
   }
 
   template <typename R, typename S>
   void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_base.start(std::forward<S>(shutdown_chg))) {
+    if (!m_entity_common.start(std::forward<S>(shutdown_chg))) {
       // already started
       return;
     }
+    open_udp(std::forward<R>(start_chg));
+  }
+
+  template <typename R>
+  void start(R&& start_chg) {
+    if (!m_entity_common.start()) {
+      // already started
+      return;
+    }
+    open_udp(std::forward<R>(start_chg));
+  }
+
+  template <typename MH>
+  void start_io(std::size_t max_size, MH&& msg_handler) {
+    if (!m_io_common.set_io_started()) { // concurrency protected
+      return;
+    }
+    m_max_size = max_size;
+    start_read(std::forward<MH>(msg_handler));
+  }
+
+  template <typename MH>
+  void start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
+    if (!m_io_common.set_io_started()) { // concurrency protected
+      return;
+    }
+    m_max_size = max_size;
+    m_default_dest_endp = endp;
+    start_read(std::forward<MH>(msg_handler));
+  }
+
+  void start_io() {
+    m_io_common.set_io_started();
+  }
+
+  void start_io(const endpoint_type& endp) {
+    if (!m_io_common.set_io_started()) { // concurrency protected
+      return;
+    }
+    m_default_dest_endp = endp;
+  }
+
+  void stop_io() {
+    if (!m_io_common.stop()) {
+      return;
+    }
+    std::error_code ec;
+    m_socket.close(ec);
+    err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
+  }
+
+  void stop() {
+    if (!m_entity_common.stop()) {
+      return; // stop already called
+    }
+    stop_io();
+    err_notify(std::make_error_code(net_ip_errc::udp_entity_stopped));
+  }
+
+  void send(chops::const_shared_buffer buf) {
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), [this, self, buf] {
+        if (!m_io_common.start_write_setup(buf)) {
+          return; // buf queued or shutdown happening
+        }
+        start_write(buf, m_default_dest_endp);
+      }
+    );
+  }
+
+  void send(chops::const_shared_buffer buf, const endpoint_type& endp) {
+    auto self { shared_from_this() };
+    post(m_socket.get_executor(), [this, self, buf, endp] {
+        if (!m_io_common.start_write_setup(buf, endp)) {
+          return; // buf queued or shutdown happening
+        }
+        start_write(buf, endp);
+      }
+    );
+  }
+
+private:
+
+  template <typename R>
+  void open_udp(R&& start_chg) {
     try {
       // assume default constructed endpoints compare equal
       if (m_local_endp == endpoint_type()) {
@@ -118,83 +203,6 @@ public:
     );
   }
 
-  template <typename R>
-  void start(R&& start_chg) {
-    auto shutdown_func = [] (udp_io_interface, std::error_code, std::size_t) { };
-    start(std::forward<R>(start_chg), shutdown_func);
-  }
-
-  template <typename MH>
-  void start_io(std::size_t max_size, MH&& msg_handler) {
-    if (!m_io_base.set_io_started()) { // concurrency protected
-      return;
-    }
-    m_max_size = max_size;
-    start_read(std::forward<MH>(msg_handler));
-  }
-
-  template <typename MH>
-  void start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
-    if (!m_io_base.set_io_started()) { // concurrency protected
-      return;
-    }
-    m_max_size = max_size;
-    m_default_dest_endp = endp;
-    start_read(std::forward<MH>(msg_handler));
-  }
-
-  void start_io() {
-    m_io_base.set_io_started();
-  }
-
-  void start_io(const endpoint_type& endp) {
-    if (!m_io_base.set_io_started()) { // concurrency protected
-      return;
-    }
-    m_default_dest_endp = endp;
-  }
-
-  void stop_io() {
-    if (!m_io_base.stop()) {
-      return;
-    }
-    std::error_code ec;
-    m_socket.close(ec);
-    err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
-  }
-
-  void stop() {
-    if (!m_entity_base.stop()) {
-      return; // stop already called
-    }
-    stop_io();
-    err_notify(std::make_error_code(net_ip_errc::udp_entity_stopped));
-  }
-
-  void send(chops::const_shared_buffer buf) {
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf] {
-        if (!m_io_base.start_write_setup(buf)) {
-          return; // buf queued or shutdown happening
-        }
-        start_write(buf, m_default_dest_endp);
-      }
-    );
-  }
-
-  void send(chops::const_shared_buffer buf, const endpoint_type& endp) {
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf, endp] {
-        if (!m_io_base.start_write_setup(buf, endp)) {
-          return; // buf queued or shutdown happening
-        }
-        start_write(buf, endp);
-      }
-    );
-  }
-
-private:
-
   template <typename MH>
   void start_read(MH&& msg_hdlr) {
     auto self { shared_from_this() };
@@ -210,7 +218,7 @@ private:
   }
 
   void err_notify (const std::error_code& err) {
-    m_entity_base.call_shutdown_change_cb(shared_from_this(), err, 0);
+    m_entity_common.call_shutdown_change_cb(shared_from_this(), err, 0);
   }
 
   template <typename MH>
@@ -256,7 +264,7 @@ inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t 
     stop();
     return;
   }
-  auto elem = m_io_base.get_next_element();
+  auto elem = m_io_common.get_next_element();
   if (!elem) {
     return;
   }

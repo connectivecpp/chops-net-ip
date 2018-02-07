@@ -26,7 +26,7 @@
 #include <functional> // std::bind
 
 #include "net_ip/detail/tcp_io.hpp"
-#include "net_ip/detail/net_entity_base.hpp"
+#include "net_ip/detail/net_entity_common.hpp"
 
 #include "net_ip/io_interface.hpp"
 
@@ -42,16 +42,16 @@ public:
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
 
 private:
-  net_entity_base<tcp_io>   m_entity_base;
-  socket_type               m_acceptor;
-  std::vector<tcp_io_ptr>   m_io_handlers;
-  endpoint_type             m_acceptor_endp;
-  bool                      m_reuse_addr;
+  net_entity_common<tcp_io>  m_entity_common;
+  socket_type                m_acceptor;
+  std::vector<tcp_io_ptr>    m_io_handlers;
+  endpoint_type              m_acceptor_endp;
+  bool                       m_reuse_addr;
 
 public:
   tcp_acceptor(std::experimental::net::io_context& ioc, const endpoint_type& endp,
                bool reuse_addr) :
-    m_entity_base(), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
+    m_entity_common(), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
     m_reuse_addr(reuse_addr) { }
 
 private:
@@ -63,36 +63,30 @@ private:
 
 public:
 
-  bool is_started() const noexcept { return m_entity_base.is_started(); }
+  bool is_started() const noexcept { return m_entity_common.is_started(); }
 
   socket_type& get_socket() noexcept { return m_acceptor; }
 
   template <typename R, typename S>
   void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_base.start(std::forward<S>(shutdown_chg))) {
+    if (!m_entity_common.start(std::forward<S>(shutdown_chg))) {
       // already started
       return;
     }
-    try {
-      m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
-                               m_reuse_addr);
-    }
-    catch (const std::system_error& se) {
-      m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);
-      stop();
-      return;
-    }
-    start_accept(std::forward<R>(start_chg));
+    open_acceptor(std::forward<R>(start_chg));
   }
 
   template <typename R>
   void start(R&& start_chg) {
-    auto shutdown_func = [] (tcp_io_interface, std::error_code, std::size_t) { };
-    start(std::forward<R>(start_chg), shutdown_func);
+    if (!m_entity_common.start()) {
+      // already started
+      return;
+    }
+    open_acceptor(std::forward<R>(start_chg));
   }
 
   void stop() {
-    if (!m_entity_base.stop()) {
+    if (!m_entity_common.stop()) {
       return; // stop already called
     }
     auto iohs = m_io_handlers;
@@ -100,7 +94,7 @@ public:
       i->stop_io();
     }
     // m_io_handlers.clear(); // the stop_io on each tcp_io handler should clear the container
-    m_entity_base.call_shutdown_change_cb(tcp_io_ptr(),
+    m_entity_common.call_shutdown_change_cb(tcp_io_ptr(),
                                           std::make_error_code(net_ip_errc::tcp_acceptor_stopped), 
                                           0);
     std::error_code ec;
@@ -110,6 +104,20 @@ public:
 private:
 
   template <typename R>
+  void open_acceptor(R&& start_chg) {
+    try {
+      m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
+                               m_reuse_addr);
+    }
+    catch (const std::system_error& se) {
+      m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);
+      stop();
+      return;
+    }
+    start_accept(std::forward<R>(start_chg));
+  }
+
+  template <typename R>
   void start_accept(R&& start_chg) {
     using namespace std::placeholders;
 
@@ -117,7 +125,7 @@ private:
     m_acceptor.async_accept( [this, self, strt = std::move(start_chg)] 
             (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) mutable {
         if (err) {
-          m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, m_io_handlers.size());
+          m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), err, m_io_handlers.size());
           stop(); // is this the right thing to do? what are possible causes of errors?
           return;
         }
@@ -126,7 +134,7 @@ private:
         m_io_handlers.push_back(iop);
         // auto s = shared_from_this();
         post(m_acceptor.get_executor(), [this, self, iop, st = std::move(strt)] () mutable {
-            st(tcp_io_interface(iop), static_cast<std::size_t>(m_io_handlers.size()));
+            st(tcp_io_interface(iop), m_io_handlers.size());
           }
         );
         start_accept(std::move(strt));
@@ -145,7 +153,7 @@ private:
   void remove_handler(std::error_code err, tcp_io_ptr iop) {
     iop->close();
     chops::erase_where(m_io_handlers, iop);
-    m_entity_base.call_shutdown_change_cb(iop, err, m_io_handlers.size());
+    m_entity_common.call_shutdown_change_cb(iop, err, m_io_handlers.size());
   }
 
 };

@@ -28,7 +28,7 @@
 #include <cstddef> // for std::size_t
 
 #include "net_ip/detail/tcp_io.hpp"
-#include "net_ip/detail/net_entity_base.hpp"
+#include "net_ip/detail/net_entity_common.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
 
@@ -49,7 +49,7 @@ private:
   using endpoints_iter = endpoints::const_iterator;
 
 private:
-  net_entity_base<tcp_io>               m_entity_base;
+  net_entity_common<tcp_io>             m_entity_common;
   socket_type                           m_socket;
   tcp_io_ptr                            m_io_handler;
   resolver_type                         m_resolver;
@@ -63,7 +63,7 @@ public:
   template <typename Iter>
   tcp_connector(std::experimental::net::io_context& ioc, 
                 Iter beg, Iter end, std::chrono::milliseconds reconn_time) :
-      m_entity_base(),
+      m_entity_common(),
       m_socket(ioc),
       m_io_handler(),
       m_resolver(ioc),
@@ -77,7 +77,7 @@ public:
   tcp_connector(std::experimental::net::io_context& ioc,
                 std::string_view remote_port, std::string_view remote_host, 
                 std::chrono::milliseconds reconn_time) :
-      m_entity_base(),
+      m_entity_common(),
       m_socket(ioc),
       m_io_handler(),
       m_resolver(ioc),
@@ -97,16 +97,38 @@ private:
 
 public:
 
-  bool is_started() const noexcept { return m_entity_base.is_started(); }
+  bool is_started() const noexcept { return m_entity_common.is_started(); }
 
   socket_type& get_socket() noexcept { return m_socket; }
 
   template <typename R, typename S>
   void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_base.start(std::forward<S>(shutdown_chg))) {
+    if (!m_entity_common.start(std::forward<S>(shutdown_chg))) {
       // already started
       return;
     }
+    open_connector(std::forward<R>(start_chg));
+  }
+
+  template <typename R>
+  void start(R&& start_chg) {
+    if (!m_entity_common.start()) {
+      // already started
+      return;
+    }
+    open_connector(std::forward<R>(start_chg));
+  }
+
+  void stop() {
+    close();
+    m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped), 0);
+  }
+
+
+private:
+
+  template <typename R>
+  void open_connector(R&& start_chg) {
     // empty endpoints container is the flag that a resolve is needed
     if (m_endpoints.empty()) {
       auto self = shared_from_this();
@@ -121,22 +143,8 @@ public:
     start_connect(std::move(start_chg));
   }
 
-  template <typename R>
-  void start(R&& start_chg) {
-    auto shutdown_func = [] (tcp_io_interface, std::error_code, std::size_t) { };
-    start(std::forward<R>(start_chg), shutdown_func);
-  }
-
-  void stop() {
-    close();
-    m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped), 0);
-  }
-
-
-private:
-
   void close() {
-    if (!m_entity_base.stop()) {
+    if (!m_entity_common.stop()) {
       return; // stop already called
     }
     if (m_io_handler) {
@@ -150,7 +158,7 @@ private:
   template <typename R>
   void handle_resolve(std::error_code err, resolver_results res, R&& start_chg) {
     if (err) {
-      m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
+      m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
       stop();
       return;
     }
@@ -179,7 +187,7 @@ private:
     using namespace std::placeholders;
 
     if (err) {
-      m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
+      m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
       try {
         auto self = shared_from_this();
         m_timer.expires_after(m_reconn_time);
@@ -192,7 +200,7 @@ private:
         );
       }
       catch (const std::system_error& se) {
-        m_entity_base.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);
+        m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);
         stop();
       }
       return;
@@ -210,7 +218,7 @@ private:
     auto self { shared_from_this() };
     post(m_socket.get_executor(), [this, self, err, iop] () mutable {
         iop->close();
-        m_entity_base.call_shutdown_change_cb(iop, err, 0);
+        m_entity_common.call_shutdown_change_cb(iop, err, 0);
         stop();
       }
     );

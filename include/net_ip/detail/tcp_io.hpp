@@ -29,7 +29,7 @@
 #include <functional>
 
 #include "net_ip/detail/output_queue.hpp"
-#include "net_ip/detail/io_base.hpp"
+#include "net_ip/detail/io_common.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/io_interface.hpp"
@@ -55,7 +55,7 @@ private:
 private:
 
   socket_type            m_socket;
-  io_base<tcp_io>        m_io_base;
+  io_common<tcp_io>      m_io_common;
   entity_notifier_cb     m_notifier_cb;
   endpoint_type          m_remote_endp;
 
@@ -69,7 +69,7 @@ private:
 public:
 
   tcp_io(socket_type sock, entity_notifier_cb cb) noexcept : 
-    m_socket(std::move(sock)), m_io_base(), 
+    m_socket(std::move(sock)), m_io_common(), 
     m_notifier_cb(cb), m_remote_endp(),
     m_byte_vec(), m_read_size(0), m_delimiter() { }
 
@@ -85,10 +85,10 @@ public:
   socket_type& get_socket() noexcept { return m_socket; }
 
   output_queue_stats get_output_queue_stats() const noexcept {
-    return m_io_base.get_output_queue_stats();
+    return m_io_common.get_output_queue_stats();
   }
 
-  bool is_io_started() const noexcept { return m_io_base.is_io_started(); }
+  bool is_io_started() const noexcept { return m_io_common.is_io_started(); }
 
   template <typename MH, typename MF>
   void start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
@@ -129,7 +129,7 @@ public:
   void send(chops::const_shared_buffer buf) {
     auto self { shared_from_this() };
     post(m_socket.get_executor(), [this, self, buf] {
-        if (!m_io_base.start_write_setup(buf)) {
+        if (!m_io_common.start_write_setup(buf)) {
           return; // buf queued or shutdown happening
         }
         start_write(buf);
@@ -145,7 +145,7 @@ public:
   // this method can only be called through a net entity, assumes all error codes have already
   // been reported back to the net entity
   void close() {
-    if (!m_io_base.stop()) {
+    if (!m_io_common.stop()) {
       return; // already stopped
     }
     auto self { shared_from_this() };
@@ -156,7 +156,7 @@ public:
 private:
 
   bool start_io_setup() {
-    if (!m_io_base.set_io_started()) { // concurrency protected
+    if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
     std::error_code ec;
@@ -283,7 +283,7 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
     // m_notifier_cb(err, shared_from_this());
     return;
   }
-  auto elem = m_io_base.get_next_element();
+  auto elem = m_io_common.get_next_element();
   if (!elem) {
     return;
   }
