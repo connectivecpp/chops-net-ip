@@ -35,7 +35,7 @@
 #include "utility/make_byte_array.hpp"
 #include "utility/shared_buffer.hpp"
 
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 #include "net_ip/component/simple_variable_len_msg_frame.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
@@ -187,9 +187,9 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
   msg_hdlr<ioh_mock> mh(false, std::move(prom));
 
   for (auto i : msgs) {
-    mh(const_buffer(i.data(), i.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
+    mh(const_buffer(i.data(), i.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp);
   }
-  mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp);
+  mh(const_buffer(empty.data(), empty.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp);
 
   return fut.get();
 
@@ -267,17 +267,19 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
       auto fut = prom.get_future();
       msg_hdlr<ioh_mock> mh(true, std::move(prom));
       THEN ("send has been called, shutdown message is handled correctly and msg container size is correct") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
-        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
+                      chops::net::basic_io_interface<ioh_mock>(iohp), endp));
         REQUIRE(fut.get() == 1);
       }
     }
     AND_WHEN ("a msg hdlr is created with reply false and default constructed promise") {
       msg_hdlr<ioh_mock> mh(false);
       THEN ("shutdown message is handled correctly") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
-        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
+                      chops::net::basic_io_interface<ioh_mock>(iohp), endp));
       }
     }
   } // end given

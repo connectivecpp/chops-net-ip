@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Test scenarios for @c io_interface public class.
+ *  @brief Test scenarios for @c basic_io_interface class template.
  *
  *  @author Cliff Green
  *  @date 2018
@@ -23,7 +23,7 @@
 #include <cstddef> // std::size_t
 
 #include "net_ip/queue_stats.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 
 #include "utility/shared_buffer.hpp"
 #include "utility/make_byte_array.hpp"
@@ -101,24 +101,24 @@ struct udp_io_handler_mock : public io_handler_base_mock {
 };
 
 template <typename IOH>
-void io_interface_test_default_constructed() {
+void basic_io_interface_test_default_constructed() {
 
-  chops::net::io_interface<IOH> io_intf { };
+  chops::net::basic_io_interface<IOH> io_intf { };
 
-  GIVEN ("A default constructed io_interface") {
+  GIVEN ("A default constructed basic_io_interface") {
     WHEN ("is_valid is called") {
       THEN ("the return is false") {
         REQUIRE_FALSE (io_intf.is_valid());
       }
     }
-    AND_WHEN ("is_io_started or get_socket or get_output_queue_stats is called on an invalid io_interface") {
+    AND_WHEN ("is_io_started or get_socket or get_output_queue_stats is called on an invalid basic_io_interface") {
       THEN ("an exception is thrown") {
         REQUIRE_THROWS (io_intf.is_io_started());
         REQUIRE_THROWS (io_intf.get_socket());
         REQUIRE_THROWS (io_intf.get_output_queue_stats());
       }
     }
-    AND_WHEN ("send or start_io or stop_io is called on an invalid io_interface") {
+    AND_WHEN ("send or start_io or stop_io is called on an invalid basic_io_interface") {
       THEN ("false is returned") {
 
         chops::const_shared_buffer buf(nullptr, 0);
@@ -146,16 +146,16 @@ void io_interface_test_default_constructed() {
 }
 
 template <typename IOH>
-void io_interface_test_two() {
+void basic_io_interface_test_two() {
 
-  chops::net::io_interface<IOH> io_intf { };
+  chops::net::basic_io_interface<IOH> io_intf { };
 
   io_context ioc;
   auto ioh = std::make_shared<IOH>(ioc);
-  io_intf = chops::net::io_interface<IOH>(ioh);
+  io_intf = chops::net::basic_io_interface<IOH>(ioh);
 
-  GIVEN ("A default constructed io_interface and an io handler") {
-    WHEN ("an io_interface with a weak ptr to the io handler is assigned to it") {
+  GIVEN ("A default constructed basic_io_interface and an io handler") {
+    WHEN ("an basic_io_interface with a weak ptr to the io handler is assigned to it") {
       THEN ("the return is true") {
         REQUIRE (io_intf.is_valid());
       }
@@ -199,25 +199,25 @@ void io_interface_test_two() {
 }
 
 template <typename IOH>
-void io_interface_test_compare() {
+void basic_io_interface_test_compare() {
 
-  chops::net::io_interface<IOH> io_intf1 { };
+  chops::net::basic_io_interface<IOH> io_intf1 { };
 
   io_context ioc;
   auto ioh1 = std::make_shared<IOH>(ioc);
-  chops::net::io_interface<IOH> io_intf2(ioh1);
+  chops::net::basic_io_interface<IOH> io_intf2(ioh1);
 
-  chops::net::io_interface<IOH> io_intf3 { };
+  chops::net::basic_io_interface<IOH> io_intf3 { };
 
   auto ioh2 = std::make_shared<IOH>(ioc);
-  chops::net::io_interface<IOH> io_intf4(ioh2);
+  chops::net::basic_io_interface<IOH> io_intf4(ioh2);
 
-  chops::net::io_interface<IOH> io_intf5 { };
+  chops::net::basic_io_interface<IOH> io_intf5 { };
 
-  GIVEN ("Three default constructed io_interfaces and two with io handlers") {
+  GIVEN ("Three default constructed basic_io_interfaces and two with io handlers") {
     WHEN ("all three are inserted in a multiset") {
-      std::multiset<chops::net::io_interface<IOH> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
-      THEN ("the invalid io_interfaces are first in the set") {
+      std::multiset<chops::net::basic_io_interface<IOH> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
+      THEN ("the invalid basic_io_interfaces are first in the set") {
         REQUIRE (a_set.size() == 5);
         auto i = a_set.cbegin();
         REQUIRE_FALSE (i->is_valid());
@@ -231,20 +231,20 @@ void io_interface_test_compare() {
         REQUIRE (i->is_valid());
       }
     }
-    AND_WHEN ("two invalid io_interfaces are compared for equality") {
+    AND_WHEN ("two invalid basic_io_interfaces are compared for equality") {
       THEN ("they compare equal") {
         REQUIRE (io_intf1 == io_intf3);
         REQUIRE (io_intf3 == io_intf5);
       }
     }
-    AND_WHEN ("two valid io_interfaces are compared for equality") {
+    AND_WHEN ("two valid basic_io_interfaces are compared for equality") {
       THEN ("they compare equal if both point to the same io handler") {
         REQUIRE_FALSE (io_intf2 == io_intf4);
         io_intf2 = io_intf4;
         REQUIRE (io_intf2 == io_intf4);
       }
     }
-    AND_WHEN ("an invalid io_interface is order compared with a valid io_interface") {
+    AND_WHEN ("an invalid basic_io_interface is order compared with a valid basic_io_interface") {
       THEN ("the invalid compares less than the valid") {
         REQUIRE (io_intf1 < io_intf2);
       }
@@ -253,17 +253,17 @@ void io_interface_test_compare() {
 
 }
 
-SCENARIO ( "Io interface test, udp",
-           "[io_interface] [udp]" ) {
-  io_interface_test_default_constructed<udp_io_handler_mock>();
-  io_interface_test_two<udp_io_handler_mock>();
-  io_interface_test_compare<udp_io_handler_mock>();
+SCENARIO ( "Basic io interface test, udp",
+           "[basic_io_interface] [udp]" ) {
+  basic_io_interface_test_default_constructed<udp_io_handler_mock>();
+  basic_io_interface_test_two<udp_io_handler_mock>();
+  basic_io_interface_test_compare<udp_io_handler_mock>();
 }
 
-SCENARIO ( "Io interface test, tcp",
-           "[io_interface] [tcp]" ) {
-  io_interface_test_default_constructed<tcp_io_handler_mock>();
-  io_interface_test_two<tcp_io_handler_mock>();
-  io_interface_test_compare<tcp_io_handler_mock>();
+SCENARIO ( "Basic io interface test, tcp",
+           "[basic_io_interface] [tcp]" ) {
+  basic_io_interface_test_default_constructed<tcp_io_handler_mock>();
+  basic_io_interface_test_two<tcp_io_handler_mock>();
+  basic_io_interface_test_compare<tcp_io_handler_mock>();
 }
 

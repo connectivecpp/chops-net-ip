@@ -21,6 +21,9 @@
  *
  */
 
+#ifndef SHARED_UTILITY_TEST_HPP_INCLUDED
+#define SHARED_UTILITY_TEST_HPP_INCLUDED
+
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
 #include <vector>
@@ -31,10 +34,7 @@
 
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
-#include "net_ip/io_interface.hpp"
-
-#ifndef SHARED_UTILITY_TEST_HPP_INCLUDED
-#define SHARED_UTILITY_TEST_HPP_INCLUDED
+#include "net_ip/basic_io_interface.hpp"
 
 namespace chops {
 namespace test {
@@ -81,7 +81,7 @@ struct msg_hdlr {
   msg_hdlr& operator=(msg_hdlr&&) = default;
   
 
-  bool operator()(const_buf buf, chops::net::io_interface<IOH> io_intf, endp_type endp) {
+  bool operator()(const_buf buf, chops::net::basic_io_interface<IOH> io_intf, endp_type endp) {
     chops::const_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       msgs.push_back(sh_buf);

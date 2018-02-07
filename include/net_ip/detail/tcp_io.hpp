@@ -32,7 +32,7 @@
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 #include "utility/shared_buffer.hpp"
 
 namespace chops {
@@ -40,7 +40,7 @@ namespace net {
 namespace detail {
 
 std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexcept;
-bool null_msg_hdlr (std::experimental::net::const_buffer, io_interface<tcp_io>, 
+bool null_msg_hdlr (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
                     std::experimental::net::ip::tcp::endpoint) noexcept;
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
@@ -81,7 +81,7 @@ private:
   tcp_io& operator=(tcp_io&&) = delete;
 
 public:
-  // all of the methods in this public section can be called through an io_interface
+  // all of the methods in this public section can be called through an basic_io_interface
   socket_type& get_socket() noexcept { return m_socket; }
 
   output_queue_stats get_output_queue_stats() const noexcept {
@@ -231,7 +231,7 @@ void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf,
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
+                  basic_io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
       // message handler not happy, tear everything down
       m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
                     shared_from_this());
@@ -257,7 +257,7 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
   }
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes),
-                io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
+                basic_io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
       m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
                     shared_from_this());
     return;
@@ -296,7 +296,7 @@ inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexc
   return 0;
 }
 
-inline bool null_msg_hdlr (std::experimental::net::const_buffer, io_interface<tcp_io>, 
+inline bool null_msg_hdlr (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
                            std::experimental::net::ip::tcp::endpoint) noexcept {
   return true;
 }

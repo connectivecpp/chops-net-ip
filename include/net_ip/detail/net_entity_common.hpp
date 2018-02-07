@@ -22,7 +22,7 @@
 #include <memory>
 #include <cstddef> // std::size_t
 
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 
 namespace chops {
 namespace net {
@@ -31,7 +31,8 @@ namespace detail {
 template <typename IOH>
 class net_entity_common {
 public:
-  using shutdown_change_cb = std::function<void (io_interface<IOH>, std::error_code, std::size_t)>;
+  using shutdown_change_cb = 
+    std::function<void (basic_io_interface<IOH>, std::error_code, std::size_t)>;
 
 private:
   std::atomic_bool           m_started; // may be called from multiple threads concurrently
@@ -66,7 +67,7 @@ public:
 
   void call_shutdown_change_cb(std::shared_ptr<IOH> p, const std::error_code& err, std::size_t sz) {
     if (m_shutdown_change_cb) {
-      m_shutdown_change_cb(io_interface<IOH>(p), err, sz);
+      m_shutdown_change_cb(basic_io_interface<IOH>(p), err, sz);
     }
   }
 
