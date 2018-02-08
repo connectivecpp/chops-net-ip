@@ -102,15 +102,15 @@ struct msg_hdlr {
 using tcp_msg_hdlr = msg_hdlr<chops::net::tcp_io>;
 using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
 
-inline bool verify_recv_count (std::size_t total, const test_counter& cnt) {
-  return total == cnt;
+inline bool verify_receiver_count (std::size_t expected, std::size_t actual) {
+  return expected == actual;
 }
 
-inline bool verify_send_count (std::size_t total, const test_counter& cnt, bool reply) {
-  return reply ? total == cnt : 0 == cnt;
+inline bool verify_sender_count (std::size_t total_sent, std::size_t recvd, bool reply) {
+  return reply ? total_sent == recvd : recvd == 0;
 }
 
-void tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
+inline void tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
                    std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
     io.start_io(2, tcp_msg_hdlr(reply, cnt), 
@@ -123,7 +123,7 @@ void tcp_start_io (chops::net::tcp_io_interface io, bool reply,
 
 constexpr int udp_max_buf_size = 65507;
 
-void udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
+inline void udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
   io.start_io(udp_max_buf_size, udp_msg_hdlr(reply, cnt));
 }
 

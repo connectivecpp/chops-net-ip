@@ -29,6 +29,7 @@
 #include "net_ip/detail/tcp_io.hpp"
 
 #include "net_ip/component/worker.hpp"
+#include "net_ip/component/simple_variable_len_msg_frame.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
@@ -64,20 +65,8 @@ struct notify_me {
   }
 };
 
-
-void invoke_start_io(chops::net::detail::tcp_io_ptr iohp, bool reply, std::string_view delim) {
-  if (delim.empty()) {
-    iohp->start_io(2, msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                   chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
-  }
-  else {
-    iohp->start_io(delim, msg_hdlr<chops::net::detail::tcp_io>(reply));
-  }
-}
-
-std::error_code connector_func (const vec_buf& in_msg_set, io_context& ioc, 
-                     int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {
-  using namespace std::placeholders;
+std::size_t connector_func (const vec_buf& in_msg_vec, io_context& ioc, 
+                            int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {
 
   auto endps = 
       chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
@@ -87,20 +76,27 @@ std::error_code connector_func (const vec_buf& in_msg_set, io_context& ioc,
   notify_prom_type notify_prom;
   auto notify_fut = notify_prom.get_future();
 
+
   auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(sock), 
                                                            notify_me(std::move(notify_prom)));
-  invoke_start_io(iohp, false, delim);
 
-  for (auto buf : in_msg_set) {
+  test_counter cnt = 0;
+  tcp_start_io(chops::net::tcp_io_interface(iohp), false, delim, cnt);
+
+  for (auto buf : in_msg_vec) {
     iohp->send(buf);
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
   iohp->send(empty_msg);
 
-  return notify_fut.get();
+  auto err = notify_fut.get();
+
+// std::cerr << "Inside connector func, err: " << err << ", " << err.message() << std::endl;
+
+  return cnt.load();
 }
 
-void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::string_view delim,
+void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::string_view delim,
                     chops::const_shared_buffer empty_msg) {
 
   chops::net::worker wk;
@@ -121,7 +117,7 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
 
         INFO ("Creating connector asynchronously, msg interval: " << interval);
 
-        auto conn_fut = std::async(std::launch::async, connector_func, std::cref(in_msg_set), 
+        auto conn_fut = std::async(std::launch::async, connector_func, std::cref(in_msg_vec), 
                                    std::ref(ioc), interval, delim, empty_msg);
 
         notify_prom_type notify_prom;
@@ -129,14 +125,16 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
 
         auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), 
                                                                  notify_me(std::move(notify_prom)));
-        invoke_start_io(iohp, reply, delim);
+        test_counter cnt = 0;
+        tcp_start_io(chops::net::tcp_io_interface(iohp), reply, delim, cnt);
 
         auto acc_err = notify_fut.get();
 // std::cerr << "Inside acc_conn_test, acc_err: " << acc_err << ", " << acc_err.message() << std::endl;
-        auto conn_err = conn_fut.get(); // get std::error_code from connector
-// std::cerr << "Inside acc_conn_test, connector_func future popped, val: " << conn_err << std::endl;
 
-        REQUIRE (true);
+        auto conn_cnt = conn_fut.get();
+
+        REQUIRE (verify_receiver_count(in_msg_vec.size(), cnt));
+        REQUIRE (verify_sender_count(in_msg_vec.size(), conn_cnt, reply));
       }
     }
   } // end given
@@ -149,111 +147,111 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, std::st
 }
 
 
-SCENARIO ( "Tcp IO handler test, variable len msgs, interval 50, one-way",
-           "[tcp_io] [one_way] [var_len_msg] [interval_50]" ) {
+SCENARIO ( "Tcp IO handler test, variable len msgs, one-way, interval 50",
+           "[tcp_io] [var_len_msg] [one-way] [interval_50]" ) {
 
-  auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, false, 50, std::string_view(), empty_msg );
-
-}
-
-SCENARIO ( "Tcp IO handler test, variable len msgs, interval 0, one-way",
-           "[tcp_io] [one_way] [var_len_msg] [interval_0]" ) {
-
-  auto ms = make_msg_set (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, false, 0, std::string_view(), empty_msg );
+  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
+                  false, 50,
+                  std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp IO handler test, variable len msgs, interval 50, two-way",
-           "[tcp_io] [two_way] [var_len_msg] [interval_50]" ) {
+SCENARIO ( "Tcp IO handler test, variable len msgs, one-way, interval 0",
+           "[tcp_io] [var_len_msg] [one-way] [interval_0]" ) {
 
-  auto ms = make_msg_set (make_variable_len_msg, "Yowser!", 'X', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, true, 50, std::string_view(), empty_msg );
-
-}
-
-SCENARIO ( "Tcp IO handler test, variable len msgs, interval 0, two-way, many msgs",
-           "[tcp_io] [two_way] [var_len_msg] [interval_0] [many]" ) {
-
-  auto ms = make_msg_set (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
-  acc_conn_test ( ms, true, 0, std::string_view(), empty_msg );
+  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
+                  false, 0,
+                  std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp IO handler test, CR / LF msgs, interval 50, one-way",
-           "[tcp_io] [one_way] [cr_lf_msg] [interval_50]" ) {
+SCENARIO ( "Tcp IO handler test, variable len msgs, two-way, interval 50",
+           "[tcp_io] [var_len_msg] [two_way] [interval_50]" ) {
 
-  auto ms = make_msg_set (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, false, 50, std::string_view("\r\n"), empty_msg );
-
-}
-
-SCENARIO ( "Tcp IO handler test, CR / LF msgs, interval 0, one-way",
-           "[tcp_io] [one_way] [cr_lf_msg] [interval_0]" ) {
-
-  auto ms = make_msg_set (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, false, 0, std::string_view("\r\n"), empty_msg );
+  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
+                  true, 50,
+                  std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp IO handler test, CR / LF msgs, interval 30, two-way",
-           "[tcp_io] [two_way] [cr_lf_msg] [interval_30]" ) {
+SCENARIO ( "Tcp IO handler test, variable len msgs, two-way, interval 0, many msgs",
+           "[tcp_io] [var_len_msg] [two_way] [interval_0] [many]" ) {
 
-  auto ms = make_msg_set (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, true, 30, std::string_view("\r\n"), empty_msg );
-
-}
-
-SCENARIO ( "Tcp IO handler test, CR / LF msgs, interval 0, two-way, many msgs",
-           "[tcp_io] [two_way] [cr_lf_msg] [interval_0] [many]" ) {
-
-  auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
-  acc_conn_test ( ms, true, 0, std::string_view("\r\n"), empty_msg );
+  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
+                  true, 0, 
+                  std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp IO handler test, LF msgs, interval 50, one-way",
-           "[tcp_io] [one_way] [lf_msg] [interval_50]" ) {
+SCENARIO ( "Tcp IO handler test, CR / LF msgs, one-way, interval 50",
+           "[tcp_io] [cr_lf_msg] [one-way] [interval_50]" ) {
 
-  auto ms = make_msg_set (make_lf_text_msg, "Excited!", 'E', NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, false, 50, std::string_view("\n"), empty_msg );
-
-}
-
-SCENARIO ( "Tcp IO handler test, LF msgs, interval 0, one-way",
-           "[tcp_io] [one_way] [lf_msg] [interval_0]" ) {
-
-  auto ms = make_msg_set (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, false, 0, std::string_view("\n"), empty_msg );
+  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
+                  false, 50,
+                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp IO handler test, LF msgs, interval 20, two-way",
-           "[tcp_io] [two_way] [lf_msg] [interval_20]" ) {
+SCENARIO ( "Tcp IO handler test, CR / LF msgs, one-way, interval 0",
+           "[tcp_io] [cr_lf_msg] [one-way] [interval_0]" ) {
 
-  auto ms = make_msg_set (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, true, 20, std::string_view("\n"), empty_msg );
+  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
+                  false, 0,
+                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp IO handler test, LF msgs, interval 0, two-way, many msgs",
-           "[tcp_io] [two_way] [lf_msg] [interval_0] [many]" ) {
+SCENARIO ( "Tcp IO handler test, CR / LF msgs, two-way, interval 30",
+           "[tcp_io] [cr_lf_msg] [two-way] [interval_30]" ) {
 
-  auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs);
-  chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
-  acc_conn_test ( ms, true, 0, std::string_view("\n"), empty_msg );
+  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
+                  true, 30,
+                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+
+}
+
+SCENARIO ( "Tcp IO handler test, CR / LF msgs, two-way, interval 0, many msgs",
+           "[tcp_io] [cr_lf_msg] [two-way] [interval_0] [many]" ) {
+
+  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
+                  true, 0, 
+                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+
+}
+
+SCENARIO ( "Tcp IO handler test, LF msgs, one-way, interval 50",
+           "[tcp_io] [lf_msg] [one_way] [interval_50]" ) {
+
+  acc_conn_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
+                  false, 50,
+                  std::string_view("\n"), make_empty_lf_text_msg() );
+
+}
+
+SCENARIO ( "Tcp IO handler test, LF msgs, one-way, interval 0",
+           "[tcp_io] [lf_msg] [one_way] [interval_0]" ) {
+
+  acc_conn_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
+                  false, 0,
+                  std::string_view("\n"), make_empty_lf_text_msg() );
+
+}
+
+SCENARIO ( "Tcp IO handler test, LF msgs, two-way, interval 20",
+           "[tcp_io] [lf_msg] [two_way] [interval_20]" ) {
+
+  acc_conn_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs),
+                  true, 20,
+                  std::string_view("\n"), make_empty_lf_text_msg() );
+
+}
+
+SCENARIO ( "Tcp IO handler test, LF msgs, two-way, interval 0, many msgs",
+           "[tcp_io] [lf_msg] [two_way] [interval_0] [many]" ) {
+
+  acc_conn_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs),
+                  true, 0, 
+                  std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
