@@ -32,20 +32,27 @@ struct io_mock {
 };
 
 using io_interface_mock = chops::net::basic_io_interface<io_mock>;
+using io_mock_ptr = std::shared_ptr<io_mock>;
 
 struct entity_mock {
 
   using socket_type = int;
   using endpoint_type = double;
 
+  io_mock_ptr  iop;
+  std::thread  thr;
+  
+  entity_mock() : iop(std::make_shared<io_mock>()) { }
+
+  void join_thr() { thr.join(); }
+
   template <typename F>
   void start(F&& func) {
-    auto thr = std::thread([ f = std::move(func) ] () mutable {
+    thr = std::thread([ this, f = std::move(func) ] () mutable {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        f(io_interface_mock(std::make_shared<io_mock>()), 1);
+        f(io_interface_mock(iop), 1);
       }
     );
-    thr.join();
   }
 };
 
@@ -54,7 +61,8 @@ using net_entity_mock = chops::net::basic_net_entity<entity_mock>;
 SCENARIO ( "Testing make_io_interface_future_impl",
            "[io_interface_future]" ) {
 
-  auto ent = net_entity_mock (std::make_shared<entity_mock>());
+  auto ent_ptr = std::make_shared<entity_mock>();
+  auto ent = net_entity_mock (ent_ptr);
   
   GIVEN ("A entity object") {
     WHEN ("make_io_interface_future_impl is called") {
@@ -64,10 +72,9 @@ SCENARIO ( "Testing make_io_interface_future_impl",
       THEN ("a future is returned, which returns a value when ready") {
           auto val = fut.get();
           REQUIRE (val.get_socket() == 42);
+          ent_ptr->join_thr();
       }
     }
   } // end given
 }
-
-
 
