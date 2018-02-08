@@ -185,8 +185,12 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
   test_counter cnt(0);
   msg_hdlr<ioh_mock> mh(false, cnt);
 
+  int m = 0;
   for (auto i : msgs) {
-    REQUIRE(mh(const_buffer(i.data(), i.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+    auto ret = mh(const_buffer(i.data(), i.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp);
+    if (++m % 1000 == 0) {
+      REQUIRE(ret);
+    }
   }
   REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
 
