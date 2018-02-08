@@ -83,36 +83,6 @@ std::size_t connector_func (const vec_buf& in_msg_set, io_context& ioc,
   return cnt;
 }
 
-struct start_cb {
-  std::string_view     delim;
-  bool                 reply;
-
-  start_cb (bool r, std::string_view d) : delim(d), reply(r) { }
-
-  void operator() (chops::net::tcp_io_interface io, std::size_t n) const {
-
-// std::cerr << "Start_cb invoked, num hdlrs: " << n 
-// << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
-
-    if (delim.empty()) {
-      io.start_io(2, msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                  chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
-    }
-    else {
-      io.start_io(delim, msg_hdlr<chops::net::detail::tcp_io>(reply));
-    }
-  }
-
-};
-
-void shut_cb(chops::net::tcp_io_interface io, std::error_code e, std::size_t n) {
-
-// std::cerr << "Shut_cb invoked, num hdlrs: " << n 
-// << std::boolalpha << ", err: " << e << ", " << e.message() << ", io is_valid: " 
-// << io.is_valid() << std::endl;
-
-}
-
 void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num_conns,
                     std::string_view delim, chops::const_shared_buffer empty_msg) {
 
@@ -134,7 +104,16 @@ void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num
 
         REQUIRE_FALSE(acc_ptr->is_started());
 
-        acc_ptr->start(start_cb(reply, delim), shut_cb);
+        acc_ptr->start( [reply, delim] (chops::net::tcp_io_interface io, std::size_t /* num */) {
+            if (delim.empty()) {
+              io.start_io(2, msg_hdlr<chops::net::tcp_io>(reply), 
+                          chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
+            }
+            else {
+              io.start_io(delim, msg_hdlr<chops::net::tcp_io>(reply));
+            }
+          }
+        );
 
 // std::cerr << "acceptor started" << std::endl;
 
@@ -173,7 +152,7 @@ void acceptor_test (const vec_buf& in_msg_set, bool reply, int interval, int num
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, one-way", 
+SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector", 
            "[tcp_acc] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
@@ -182,7 +161,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, one-way",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 1 connector, one-way", 
+SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector", 
            "[tcp_acc] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs);
@@ -191,7 +170,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 1 connector, one-way",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, two-way", 
+SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Yowser!", 'X', NumMsgs);
@@ -200,7 +179,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 50, 1 connector, two-way",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 10 connectors, two-way, many msgs", 
+SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
   auto ms = make_msg_set (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
@@ -209,16 +188,16 @@ SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 10 connectors, two-way,
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, interval 0, 60 connectors, two-way, many msgs", 
+SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
 
-  auto ms = make_msg_set (make_variable_len_msg, "Many, many, fast!", 'G', 100*NumMsgs);
+  auto ms = make_msg_set (make_variable_len_msg, "Many, many, fast!", 'G', 50*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_variable_len_msg));
   acceptor_test ( ms, true, 0, 60, std::string_view(), empty_msg );
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 1 connectors, one-way", 
+SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs);
@@ -227,7 +206,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 1 connectors, one-way"
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 10 connectors, one-way", 
+SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs);
@@ -236,7 +215,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 50, 10 connectors, one-way
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, one-way", 
+SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs);
@@ -245,7 +224,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, one-way"
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 30, 20 connectors, two-way", 
+SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connectors", 
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_30] [connectors_20]" ) {
 
   auto ms = make_msg_set (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs);
@@ -254,16 +233,16 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 30, 20 connectors, two-way
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, interval 0, 20 connectors, two-way, many msgs", 
+SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors, many msgs", 
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_0] [connectors_20] [many]" ) {
 
-  auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
+  auto ms = make_msg_set (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_cr_lf_text_msg));
   acceptor_test ( ms, true, 0, 20, std::string_view("\r\n"), empty_msg );
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, interval 50, 1 connectors, one-way", 
+SCENARIO ( "Tcp acceptor test,  LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_acc] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited!", 'E', NumMsgs);
@@ -272,7 +251,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 50, 1 connectors, one-way",
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, one-way", 
+SCENARIO ( "Tcp acceptor test,  LF msgs, one-way, interval 0, 25 connectors", 
            "[tcp_acc] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
@@ -281,7 +260,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, one-way",
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, interval 20, 25 connectors, two-way", 
+SCENARIO ( "Tcp acceptor test,  LF msgs, two-way, interval 20, 25 connectors", 
            "[tcp_acc] [lf_msg] [two_way] [interval_20] [connectors_25]" ) {
 
   auto ms = make_msg_set (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs);
@@ -290,10 +269,10 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, interval 20, 25 connectors, two-way",
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, interval 0, 25 connectors, two-way, many msgs", 
+SCENARIO ( "Tcp acceptor test,  LF msgs, two-way, interval 0, 25 connectors, many msgs", 
            "[tcp_acc] [lf_msg] [two_way] [interval_0] [connectors_25] [many]" ) {
 
-  auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs);
+  auto ms = make_msg_set (make_lf_text_msg, "Super fast!", 'S', 80*NumMsgs);
   chops::const_shared_buffer empty_msg(make_empty_body_msg(make_lf_text_msg));
   acceptor_test ( ms, true, 0, 25, std::string_view("\n"), empty_msg );
 

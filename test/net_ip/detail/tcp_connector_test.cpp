@@ -34,8 +34,13 @@
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/tcp_connector.hpp"
 
+#include "net_ip/net_entity.hpp"
+#include "net_ip/io_interface.hpp"
+
 #include "net_ip/component/worker.hpp"
 #include "net_ip/component/simple_variable_len_msg_frame.hpp"
+#include "net_ip/component/send_to_all.hpp"
+#include "net_ip/component/io_interface_future.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
@@ -43,112 +48,31 @@
 #include "utility/repeat.hpp"
 
 
-// #include <iostream>
+#include <iostream>
 
 using namespace std::experimental::net;
 using namespace chops::test;
 
-const char* test_port = "30565";
+const char* test_port = "30777";
 const char* test_host = "";
 constexpr int NumMsgs = 50;
 constexpr int ReconnTime = 100;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
-void start_io (chops::net::tcp_io_interface io, bool reply, std::string_view delim) {
+using mh_type = msg_hdlr<chops::net::detail::tcp_io>;
+
+void start_io (chops::net::tcp_io_interface io, bool reply, 
+               std::string_view delim, mh_type& mh) {
   if (delim.empty()) {
-    io.start_io(2, msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
+    io.start_io(2, mh, chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
   }
   else {
-    io.start_io(delim, msg_hdlr<chops::net::detail::tcp_io>(reply));
+    io.start_io(delim, mh);
   }
 }
 
-struct acc_start_cb {
-  std::string_view     delim;
-  bool                 reply;
 
-  acc_start_cb (bool r, std::string_view d) : delim(d), reply(r) { }
-
-  void operator() (chops::net::tcp_io_interface io, std::size_t n) const {
-// std::cerr << "Acceptor start_cb invoked, num hdlrs: " << n 
-// << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
-    start_io(io, reply, delim);
-  }
-
-};
-
-void acc_shut_cb(chops::net::tcp_io_interface io, std::error_code e, std::size_t n) {
-
-// std::cerr << "Acceptor shut_cb invoked, num hdlrs: " << n 
-// << std::boolalpha << ", err: " << e << ", " << e.message() << ", io is_valid: " 
-// << io.is_valid() << std::endl;
-
-}
-
-using tcp_io_promise = std::promise<chops::net::tcp_io_interface>;
-
-struct conn_cb {
-  tcp_io_promise       io_prom;
-  std::string_view     delim;
-
-  conn_cb (tcp_io_promise iop, std::string_view d) : 
-    io_prom(std::move(iop)), delim(d) { }
-
-  void operator() (chops::net::tcp_io_interface io, std::size_t n) {
-
-// std::cerr << "Connector start_cb invoked, num hdlrs: " << n 
-// << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
-
-    start_io(io, false, delim);
-    io_prom.set_value(io);
-  }
-
-  void operator() (chops::net::tcp_io_interface io, std::error_code e, std::size_t n) {
-// std::cerr << "Connector shut cb invoked, num hdlrs: " << n 
-// << std::boolalpha << ", io is_valid: " << io.is_valid() 
-// << ", err: " << e << ", " << e.message() << std::endl;
-  }
-
-};
-
-
-std::size_t connector_func (const vec_buf& in_msg_set, io_context& ioc, 
-                            bool read_reply, int interval, std::string_view delim,
-                            chops::const_shared_buffer empty_msg) {
-
-  auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc, 
-                           std::string_view(test_port), std::string_view(test_host),
-                           std::chrono::milliseconds(ReconnTime));
-
-  tcp_io_promise io_prom;
-  auto io_fut = io_prom.get_future();
-  conn_cb cb(std::move(io_prom), delim);
-
-  conn_ptr->start(std::ref(cb), std::ref(cb));
-
-  auto io = io_fut.get();
-
-  std::size_t cnt = 0;
-  for (auto buf : in_msg_set) {
-    io.send(std::move(buf));
-    ++cnt;
-    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-// if (cnt % 100 == 0) {
-//  auto qs = io.get_output_queue_stats();
-//  std::cerr << "Send loop at cnt: " << cnt << ", stats: " << qs.output_queue_size
-//  << ", " << qs.bytes_in_output_queue << std::endl;
-// }
-  }
-  io.send(empty_msg);
-// std::cerr << "Empty message sent" << std::endl;
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  conn_ptr->stop();
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-  return cnt;
-}
 
 void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num_conns,
                     std::string_view delim, chops::const_shared_buffer empty_msg) {
@@ -164,47 +88,74 @@ void acc_conn_test (const vec_buf& in_msg_set, bool reply, int interval, int num
 
         auto endp_seq = 
             chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 
-// std::cerr << "acceptor created" << std::endl;
+std::cerr << "acceptor created" << std::endl;
 
-        REQUIRE_FALSE(acc_ptr->is_started());
+//        REQUIRE_FALSE(acc_ptr->is_started());
 
-        acc_ptr->start(acc_start_cb(reply, delim), acc_shut_cb);
+        mh_type acc_mh(reply);
 
-        REQUIRE(acc_ptr->is_started());
-
-        std::vector<std::future<std::size_t> > conn_futs;
-
-// std::cerr << "creating " << num_conns << " async futures and threads" << std::endl;
-        chops::repeat(num_conns, [&] () {
-            conn_futs.emplace_back(std::async(std::launch::async, connector_func, std::cref(in_msg_set), 
-                                   std::ref(ioc), reply, interval, delim, empty_msg));
-
+        acc_ptr->start( [reply, delim, &acc_mh] 
+              (chops::net::tcp_io_interface io, std::size_t /* num */) mutable {
+            start_io(io, reply, delim, acc_mh);
           }
         );
 
-        std::size_t accum_msgs = 0;
-        for (auto& fut : conn_futs) {
-          accum_msgs += fut.get(); // wait for connectors to finish
+//        REQUIRE(acc_ptr->is_started());
+
+        chops::net::send_to_all<chops::net::tcp_io> sta { };
+
+        mh_type conn_mh(false);
+        std::vector<chops::net::detail::tcp_connector_ptr> connectors;
+
+std::cerr << "creating " << num_conns << " connectors and futures" << std::endl;
+        chops::repeat(num_conns, [&] () {
+
+            auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                           std::string_view(test_port), std::string_view(test_host),
+                           std::chrono::milliseconds(ReconnTime));
+//            REQUIRE_FALSE (conn_ptr->is_started());
+//            REQUIRE_FALSE (conn_ptr->is_io_started());
+
+            connectors.push_back(conn_ptr);
+
+            auto conn_fut = 
+              chops::net::make_tcp_io_interface_future(chops::net::tcp_connector_net_entity(conn_ptr));
+            auto conn_io = conn_fut.get();
+            start_io(conn_io, false, delim, conn_mh);
+//            REQUIRE (conn_io.is_io_started());
+            sta.add_io_interface(conn_io);
+          }
+        );
+        // send messages through all of the connectors
+        for (auto buf : in_msg_set) {
+          sta.send(buf);
         }
-        INFO ("All connector futures popped");
-// std::cerr << "All connector futures popped" << std::endl;
+        sta.send(empty_msg);
 
         acc_ptr->stop();
-
         INFO ("Acceptor stopped");
-// std::cerr << "Acceptor stopped" << std::endl;
+std::cerr << "Acceptor stopped" << std::endl;
 
+/*
         REQUIRE_FALSE(acc_ptr->is_started());
 
         std::size_t total_msgs = num_conns * in_msg_set.size();
-        REQUIRE (accum_msgs == total_msgs);
+        REQUIRE (acc_mh.msgs.size() == total_msgs);
+        if (reply) {
+          REQUIRE (conn_mh.msgs.size() == total_msgs);
+        }
+        else {
+          REQUIRE (conn_mh.msgs.size() == 0);
+        }
+*/
       }
     }
   } // end given
-  wk.stop();
+  wk.reset();
 
 }
 
