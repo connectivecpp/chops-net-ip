@@ -60,7 +60,7 @@ constexpr int ReconnTime = 100;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
-using mh_type = msg_hdlr<chops::net::detail::tcp_io>;
+using mh_type = msg_hdlr<chops::net::tcp_io>;
 
 void start_io (chops::net::tcp_io_interface io, bool reply, 
                std::string_view delim, mh_type& mh) {

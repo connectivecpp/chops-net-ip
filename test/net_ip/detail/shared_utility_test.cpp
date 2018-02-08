@@ -36,6 +36,7 @@
 #include "utility/shared_buffer.hpp"
 
 #include "net_ip/basic_io_interface.hpp"
+#include "net_ip/io_interface.hpp"
 #include "net_ip/component/simple_variable_len_msg_frame.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
@@ -66,7 +67,6 @@ chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& 
   auto ba = chops::make_byte_array(0x0A); // LF
   return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
 }
-
 
 std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t /* sz */) {
   // assert (sz == 2);
@@ -143,18 +143,18 @@ void make_msg_test() {
 }
 
 template <typename F>
-void make_msg_set_test(F&& f) {
+void make_msg_vec_test(F&& f) {
   using namespace chops::test;
 
   GIVEN ("A preamble and a char to repeat") {
     auto empty = make_empty_body_msg(f);
     int delta = empty.size();
     REQUIRE (delta <= 2);
-    WHEN ("make_msg_set is called") {
-      auto vb = make_msg_set(f, "Good tea!", 'Z', 20);
+    WHEN ("make_msg_vec is called") {
+      auto vb = make_msg_vec(f, "Good tea!", 'Z', 20);
       THEN ("a vector of buffers is returned") {
         REQUIRE (vb.size() == 20);
-        chops::repeat(20, [&vb, delta] (const int& i) { REQUIRE (vb[i].size() == (i+10+delta)); } );
+        chops::repeat(20, [&vb, delta] (int i) { REQUIRE (vb[i].size() == (i+10+delta)); } );
       }
     }
   } // end given
@@ -176,22 +176,21 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
   using namespace chops::test;
   using namespace std::experimental::net;
 
-  auto msgs = make_msg_set(f, pre, body_char, num_msgs);
-  auto empty = f(chops::mutable_shared_buffer());
+  auto msgs = make_msg_vec(f, pre, body_char, num_msgs);
+  auto empty = make_empty_body_msg(f);
 
   auto iohp = std::make_shared<ioh_mock>();
   ip::tcp::endpoint endp { };
 
-  std::promise<std::size_t> prom;
-  auto fut = prom.get_future();
-  msg_hdlr<ioh_mock> mh(false, std::move(prom));
+  test_counter cnt(0);
+  msg_hdlr<ioh_mock> mh(false, cnt);
 
   for (auto i : msgs) {
-    mh(const_buffer(i.data(), i.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp);
+    REQUIRE(mh(const_buffer(i.data(), i.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
   }
-  mh(const_buffer(empty.data(), empty.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp);
+  REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
 
-  return fut.get();
+  return cnt.load();
 
 }
 
@@ -212,13 +211,13 @@ SCENARIO ( "Shared Net IP test utility, make msg",
 
 }
 
-SCENARIO ( "Shared Net IP test utility, make msg set",
-           "[shared_utility] [make_msg_set]" ) {
+SCENARIO ( "Shared Net IP test utility, make msg vec",
+           "[shared_utility] [make_msg_vec]" ) {
   using namespace chops::test;
 
-  make_msg_set_test(make_variable_len_msg);
-  make_msg_set_test(make_cr_lf_text_msg);
-  make_msg_set_test(make_lf_text_msg);
+  make_msg_vec_test(make_variable_len_msg);
+  make_msg_vec_test(make_cr_lf_text_msg);
+  make_msg_vec_test(make_lf_text_msg);
 
 }
 
@@ -258,28 +257,29 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
   ip::tcp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
-  auto empty = make_variable_len_msg(chops::mutable_shared_buffer());
+  auto empty = make_empty_variable_len_msg();
 
   GIVEN ("A mock io handler, a msg with a body, and an empty body msg") {
 
-    WHEN ("a msg hdlr is created with reply true") {
-      std::promise<std::size_t> prom;
-      auto fut = prom.get_future();
-      msg_hdlr<ioh_mock> mh(true, std::move(prom));
-      THEN ("send has been called, shutdown message is handled correctly and msg container size is correct") {
+    WHEN ("a msg hdlr is created with reply true and send is called") {
+      test_counter cnt(0);
+      msg_hdlr<ioh_mock> mh(true, cnt);
+      THEN ("the shutdown message is handled correctly and count is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
         REQUIRE(iohp->send_called);
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
                       chops::net::basic_io_interface<ioh_mock>(iohp), endp));
-        REQUIRE(fut.get() == 1);
+        REQUIRE(cnt == 1);
       }
     }
-    AND_WHEN ("a msg hdlr is created with reply false and default constructed promise") {
-      msg_hdlr<ioh_mock> mh(false);
-      THEN ("shutdown message is handled correctly") {
+    AND_WHEN ("a msg hdlr is created with reply false and send is called") {
+      test_counter cnt(0);
+      msg_hdlr<ioh_mock> mh(false, cnt);
+      THEN ("the shutdown message is handled correctly and count is correct") {
         REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
                       chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(cnt == 1);
       }
     }
   } // end given
@@ -295,14 +295,14 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
 
   GIVEN ("Three types of messages and three large sizes") {
     WHEN ("a msg hdlr is created and stress tested in separate async calls") {
-      auto fut1 = std::async(std::launch::async, msg_hdlr_stress_test_variable_len_msg, "Async fun var len msg", 'A', sz1);
-      auto fut2 = std::async(std::launch::async, msg_hdlr_stress_test_cr_lf_text_msg, "Ha, hilarity cr lf text msg", 'L', sz2);
-      auto fut3 = std::async(std::launch::async, msg_hdlr_stress_test_lf_text_msg, "Nom, nom lf text msg", 'M', sz3);
+      auto cnt1 = std::async(std::launch::async, msg_hdlr_stress_test_variable_len_msg, "Async fun var len msg", 'A', sz1);
+      auto cnt2 = std::async(std::launch::async, msg_hdlr_stress_test_cr_lf_text_msg, "Ha, hilarity cr lf text msg", 'L', sz2);
+      auto cnt3 = std::async(std::launch::async, msg_hdlr_stress_test_lf_text_msg, "Nom, nom lf text msg", 'M', sz3);
 
       THEN ("the three return values match") {
-        REQUIRE(fut1.get() == sz1);
-        REQUIRE(fut2.get() == sz2);
-        REQUIRE(fut3.get() == sz3);
+        REQUIRE(cnt1.get() == sz1);
+        REQUIRE(cnt2.get() == sz2);
+        REQUIRE(cnt3.get() == sz3);
       }
     }
   } // end given
