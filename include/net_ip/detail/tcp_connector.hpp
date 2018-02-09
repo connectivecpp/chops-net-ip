@@ -188,6 +188,9 @@ private:
 
     if (err) {
       m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), err, 0);
+      if (!is_started()) {
+        return;
+      }
       try {
         auto self = shared_from_this();
         m_timer.expires_after(m_reconn_time);

@@ -34,11 +34,14 @@
 #include <atomic>
 
 #include <experimental/buffer>
+#include <experimental/internet> // ip::udp::endpoint
 
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/io_interface.hpp"
+
+#include "net_ip/component/simple_variable_len_msg_frame.hpp"
 
 namespace chops {
 namespace test {
@@ -127,6 +130,15 @@ inline void udp_start_io (chops::net::udp_io_interface io, bool reply, test_coun
   io.start_io(udp_max_buf_size, udp_msg_hdlr(reply, cnt));
 }
 
+inline void udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
+                          const std::experimental::net::ip::udp::endpoint& remote_endp) {
+  if (receiving) {
+    io.start_io(udp_max_buf_size, remote_endp, udp_msg_hdlr(false, cnt));
+  }
+  else {
+    io.start_io(remote_endp);
+  }
+}
 
 } // end namespace test
 } // end namespace chops
