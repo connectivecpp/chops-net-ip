@@ -19,6 +19,7 @@
 #include <cstddef> // std::size_t
 #include <utility> // std::move, std::pair
 #include <system_error>
+#include <memory>
 
 #include <future>
 
@@ -43,22 +44,41 @@ std::future<IO> make_io_interface_future_impl(ET entity) {
 }
 
 template <typename IO, typename ET>
-auto make_io_interface_future_pair_impl(ET entity) {
-  auto ready_prom = std::promise<IO> { };
-  auto ready_fut = ready_prom.get_future();
-  auto stop_prom = std::promise<IO> { };
-  auto stop_fut = stop_prom.get_future();
+std::pair<std::future<IO>, std::future<IO> > make_io_interface_future_pair_impl(ET entity) {
 
-  auto start_lam = [ready_p = std::move(ready_prom)] (IO io, std::size_t /* sz */) mutable {
-    ready_p.set_value(io);
-  };
+// can't get the promises to move, even though the single move works just fine
+//  auto ready_prom = std::promise<IO> { };
+//  auto ready_fut = ready_prom.get_future();
+//  auto stop_prom = std::promise<IO> { };
+//  auto stop_fut = stop_prom.get_future();
 
-  auto stop_lam = [stop_p = std::move(stop_prom)] 
-                  (IO io, std::error_code /* err */, std::size_t /* sz */) mutable {
-    stop_p.set_value(io);
-  };
+//  entity.start( [ready_p = std::move(ready_prom)] (IO io, std::size_t /* sz */) mutable {
+//      ready_p.set_value(io);
+//    },
+//                [stop_p = std::move(stop_prom)] 
+//                       (IO io, std::error_code /* err */, std::size_t /* sz */) mutable {
+//      stop_p.set_value(io);
+//    }
+//  );
 
-  entity.start(std::move(start_lam), std::move(stop_lam));
+  auto ready_prom_ptr = std::make_shared<std::promise<IO> > ();
+  auto ready_fut = ready_prom_ptr->get_future();
+  auto stop_prom_ptr = std::make_shared<std::promise<IO> > ();
+  auto stop_fut = stop_prom_ptr->get_future();
+
+  bool satisfied = false;
+  entity.start( [ready_prom_ptr] (IO io, std::size_t /* sz */) mutable {
+      ready_prom_ptr->set_value(io);
+    },
+                [stop_prom_ptr, satisfied] 
+                     (IO io, std::error_code /* err */, std::size_t /* sz */) mutable {
+      if (!satisfied) {
+        satisfied = true;
+        stop_prom_ptr->set_value(io);
+      }
+    }
+  );
+
   return std::make_pair<std::future<IO>, std::future<IO> >(std::move(ready_fut), std::move(stop_fut));
 }
 
@@ -138,7 +158,7 @@ std::future<udp_io_interface> make_udp_io_interface_future(udp_net_entity udp_en
  *
  */
 auto make_udp_io_interface_future_pair(udp_net_entity udp_entity) {
-  return std::move(detail::make_io_interface_future_pair_impl<udp_io_interface, udp_net_entity>(udp_entity));
+  return detail::make_io_interface_future_pair_impl<udp_io_interface, udp_net_entity>(udp_entity);
 }
 
 } // end net namespace

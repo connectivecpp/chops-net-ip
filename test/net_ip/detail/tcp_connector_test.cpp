@@ -90,6 +90,7 @@ std::cerr << "acceptor created" << std::endl;
         chops::net::send_to_all<chops::net::tcp_io> sta { };
 
         std::vector<chops::net::detail::tcp_connector_ptr> connectors;
+        std::vector<std::future<chops::net::tcp_io_interface> > conn_fut_vec;
 
         test_counter conn_cnt = 0;
 std::cerr << "creating " << num_conns << " connectors and futures" << std::endl;
@@ -103,12 +104,13 @@ std::cerr << "creating " << num_conns << " connectors and futures" << std::endl;
 
             connectors.push_back(conn_ptr);
 
-            auto conn_fut = 
-              chops::net::make_tcp_io_interface_future(chops::net::tcp_connector_net_entity(conn_ptr));
-            auto conn_io = conn_fut.get();
-            tcp_start_io(conn_io, false, delim, conn_cnt);
+            auto conn_futs = 
+              chops::net::make_tcp_io_interface_future_pair(chops::net::tcp_connector_net_entity(conn_ptr));
+            auto conn_start_io = conn_futs.first.get();
+            tcp_start_io(conn_start_io, false, delim, conn_cnt);
 //            REQUIRE (conn_io.is_io_started());
-            sta.add_io_interface(conn_io);
+            sta.add_io_interface(conn_start_io);
+            conn_fut_vec.emplace_back(std::move(conn_futs.second));
           }
         );
         // send messages through all of the connectors
@@ -116,6 +118,10 @@ std::cerr << "creating " << num_conns << " connectors and futures" << std::endl;
           sta.send(buf);
         }
         sta.send(empty_msg);
+
+        for (auto& fut : conn_fut_vec) {
+          auto io = fut.get();
+        }
 
         acc_ptr->stop();
         INFO ("Acceptor stopped");

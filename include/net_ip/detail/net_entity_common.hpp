@@ -19,6 +19,7 @@
 #include <atomic>
 #include <system_error>
 #include <functional> // std::function, for shutdown state change cb
+#include <utility> // std::move
 #include <memory>
 #include <cstddef> // std::size_t
 
@@ -49,7 +50,7 @@ public:
   bool start(F&& shutdown_func) {
     bool expected = false;
     if (m_started.compare_exchange_strong(expected, true)) {
-      m_shutdown_change_cb = shutdown_func;
+      m_shutdown_change_cb = (shutdown_change_cb(std::forward<F>(shutdown_func)));
       return true;
     }
     return false;
