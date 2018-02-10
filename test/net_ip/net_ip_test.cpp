@@ -4,9 +4,6 @@
  *
  *  @brief Test scenarios for @c net_ip class.
  *
- *  This test is similar to the tcp_acceptor_test code, except the Chops Net IP 
- *  tcp_connector class instead of Networking TS blocking io calls.
- *
  *  @author Cliff Green
  *  @date 2018
  *  @copyright Cliff Green, MIT License
@@ -65,16 +62,6 @@ void null_udp_stop_func (chops::net::udp_io_interface, std::error_code, std::siz
 ip::udp::endpoint make_test_udp_endpoint(int udp_port_num) {
   return ip::udp::endpoint(ip::make_address(udp_test_addr),
                            static_cast<unsigned short>(udp_port_num));
-}
-
-void start_io (chops::net::tcp_io_interface io, bool reply, std::string_view delim) {
-  if (delim.empty()) {
-    io.start_io(2, msg_hdlr<chops::net::detail::tcp_io>(reply), 
-                chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
-  }
-  else {
-    io.start_io(delim, msg_hdlr<chops::net::detail::tcp_io>(reply));
-  }
 }
 
 template <typename IOH>
