@@ -120,7 +120,10 @@ std::cerr << "creating " << num_conns << " connectors" << std::endl;
           auto io = fut.get();
         }
 
+        acc.stop();
         nip.remove(acc);
+
+        nip.stop_all();
         nip.remove_all();
     
         std::size_t total_msgs = num_conns * in_msg_vec.size();
@@ -165,7 +168,7 @@ std::cerr << "creating " << num_udp_pairs << " udp sender receiver pairs" << std
 
             io_fut = chops::net::make_udp_io_interface_future(udp_sender);
             io = io_fut.get();
-            udp_start_io(io, false, send_cnt);
+            udp_start_io(io, false, send_cnt, recv_endp);
 
             sta.add_io_interface(io);
 
@@ -187,9 +190,10 @@ std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
+        nip.stop_all();
+std::cerr << "Udp entities stopped" << std::endl;
         nip.remove_all();
 
-std::cerr << "Udp entities stopped" << std::endl;
 
         std::size_t total_msgs = num_udp_pairs * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
