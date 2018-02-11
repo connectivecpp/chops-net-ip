@@ -27,7 +27,6 @@
 #include <functional> // std::ref, std::cref
 #include <string_view>
 #include <vector>
-#include <optional>
 
 
 #include "net_ip/net_ip.hpp"
@@ -35,6 +34,8 @@
 #include "net_ip/net_entity.hpp"
 
 #include "net_ip/component/worker.hpp"
+#include "net_ip/component/send_to_all.hpp"
+#include "net_ip/component/io_interface_future.hpp"
 
 #include "../test/net_ip/detail/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
@@ -46,7 +47,7 @@
 using namespace std::experimental::net;
 using namespace chops::test;
 
-const char* tcp_test_port = "30565";
+const char* tcp_test_port = "30465";
 const char* tcp_test_host = "";
 constexpr int NumMsgs = 50;
 constexpr int ReconnTime = 500;
@@ -56,79 +57,10 @@ constexpr int udp_port_base = 31445;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
-void null_tcp_stop_func (chops::net::tcp_io_interface, std::error_code, std::size_t) { }
-void null_udp_stop_func (chops::net::udp_io_interface, std::error_code, std::size_t) { }
-
 ip::udp::endpoint make_test_udp_endpoint(int udp_port_num) {
   return ip::udp::endpoint(ip::make_address(udp_test_addr),
                            static_cast<unsigned short>(udp_port_num));
 }
-
-template <typename IOH>
-std::size_t send_func (const vec_buf& in_msg_vec, chops::net::io_interface<IOH> io,
-                       int interval, chops::const_shared_buffer empty_msg) {
-
-  std::size_t cnt = 0;
-  for (auto buf : in_msg_vec) {
-    io.send(std::move(buf));
-    ++cnt;
-    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-  }
-  io.send(empty_msg);
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
-  return cnt;
-}
-
-using udp_io_promise = std::promise<chops::net::udp_io_interface>;
-
-struct udp_start_cb {
-
-  ip::udp::endpoint  m_dest_endp;
-  std::size_t        m_sz;
-  udp_io_promise     m_io_prom;
-
-  udp_start_cb (ip::udp::endpoint dest_endp, udp_io_promise iop) : 
-      m_dest_endp(dest_endp), m_sz(0), m_io_prom(std::move(iop))  { }
-
-  udp_start_cb (std::size_t max_sz, udp_io_promise iop) : 
-      m_dest_endp(), m_sz(max_sz), m_io_prom(std::move(iop))  { }
-
-  void operator()(chops::net::udp_io_interface io, std::size_t sz) {
-// std::cerr << "In udp start chg cb, sz = " << sz << std::endl;
-    if (m_sz != 0) {
-      io.start_io(m_sz, msg_hdlr<chops::net::detail::udp_entity_io>(false));
-    }
-    else {
-      io.start_io(m_dest_endp);
-    }
-    m_io_prom.set_value(io);
-  }
-
-};
-
-using tcp_io_promise = std::promise<chops::net::tcp_io_interface>;
-
-struct tcp_start_cb {
-  bool                           m_reply;
-  std::string_view               m_delim;
-  std::optional<tcp_io_promise>  m_io_prom;
-
-  tcp_start_cb (bool reply, std::string_view delim, tcp_io_promise iop) : 
-      m_reply(reply), m_delim(delim), m_io_prom(tcp_io_promise(std::move(iop)))  { }
-
-  tcp_start_cb (bool reply, std::string_view delim) : 
-      m_reply(reply), m_delim(delim), m_io_prom()  { }
-
-  void operator() (chops::net::tcp_io_interface io, std::size_t n) {
-// std::cerr << "Start_cb invoked, num hdlrs: " << n 
-// << std::boolalpha << ", io is_valid: " << io.is_valid() << std::endl;
-    start_io(io, m_reply, m_delim);
-    if (m_io_prom) {
-      m_io_prom->set_value(io);
-    }
-  }
-};
 
 void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_conns,
                     std::string_view delim, chops::const_shared_buffer empty_msg) {
@@ -140,62 +72,60 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
   GIVEN ("An executor work guard and a message set") {
  
     WHEN ("an acceptor and one or more connectors are created") {
-      THEN ("the futures provide synchronization and data returns") {
+      THEN ("when done, the counts all match") {
 
         chops::net::net_ip nip(ioc);
 
         auto acc = nip.make_tcp_acceptor(tcp_test_port, tcp_test_host);
-        REQUIRE_FALSE(acc.is_started());
+//        REQUIRE_FALSE(acc.is_started());
 
-        acc.start( tcp_start_cb(reply, delim), null_tcp_stop_func );
-// std::cerr << "acceptor created" << std::endl;
+        test_counter acc_cnt = 0;
+        acc.start( [reply, delim, &acc_cnt] (chops::net::tcp_io_interface io, std::size_t) {
+            tcp_start_io(io, reply, delim, acc_cnt);
+          }
+        );
+std::cerr << "acceptor created and started, start_io will be called" << std::endl;
 
         REQUIRE(acc.is_started());
 
-        std::vector< chops::net::tcp_connector_net_entity > conns;
-        std::vector< std::future<std::size_t> > futs;
+        chops::net::send_to_all<chops::net::tcp_io> sta { };
 
-// std::cerr << "creating " << num_conns << " connectors" << std::endl;
+        std::vector< chops::net::tcp_connector_net_entity > connectors;
+        std::vector< std::future<chops::net::tcp_io_interface> > conn_fut_vec;
 
+        test_counter conn_cnt = 0;
+std::cerr << "creating " << num_conns << " connectors" << std::endl;
         chops::repeat(num_conns, [&] () {
+
             auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host,
                                                std::chrono::milliseconds(ReconnTime));
-            conns.push_back(conn);
-            tcp_io_promise prom;
-            auto io_fut = prom.get_future();
-            conn.start( tcp_start_cb(false, delim, std::move(prom)), null_tcp_stop_func );
-            auto io = io_fut.get();
-// std::cerr << "Connector start promise popped, passing io_interface to sender func" << std::endl;
-            futs.emplace_back(std::async(std::launch::async, send_func<chops::net::detail::tcp_io>, 
-                              std::cref(in_msg_vec), io, interval, empty_msg));
-// std::cerr << "Sender thread started" << std::endl;
-          
+            connectors.push_back(conn);
+
+            auto conn_futs = 
+              chops::net::make_tcp_io_interface_future_pair(conn);
+            auto conn_start_io = conn_futs.first.get();
+            tcp_start_io(conn_start_io, false, delim, conn_cnt);
+//            REQUIRE (conn_io.is_io_started());
+            sta.add_io_interface(conn_start_io);
+            conn_fut_vec.emplace_back(std::move(conn_futs.second));
           }
         );
 
-        std::size_t accum_msgs = 0;
-        for (auto& fut : futs) {
-          accum_msgs += fut.get(); // wait for senders to finish
+        for (auto buf : in_msg_vec) {
+          sta.send(buf);
         }
-        INFO ("All sender futures popped");
-// std::cerr << "All sender futures popped" << std::endl;
+        sta.send(empty_msg);
 
-        for (auto conn : conns) {
-          conn.stop();
-          REQUIRE_FALSE(conn.is_started());
+        for (auto& fut : conn_fut_vec) {
+          auto io = fut.get();
         }
-// std::cerr << "All connectors stopped" << std::endl;
-
-        acc.stop();
-// std::cerr << "Acceptor stopped" << std::endl;
-        REQUIRE_FALSE(acc.is_started());
-        INFO ("Acceptor stopped");
 
         nip.remove(acc);
         nip.remove_all();
     
         std::size_t total_msgs = num_conns * in_msg_vec.size();
-        REQUIRE (accum_msgs == total_msgs);
+        REQUIRE (verify_receiver_count(total_msgs, acc_cnt));
+        REQUIRE (verify_sender_count(total_msgs, conn_cnt, reply));
       }
     }
   } // end given
@@ -212,13 +142,16 @@ void udp_test (const vec_buf& in_msg_vec, int interval, int num_udp_pairs,
   GIVEN ("An executor work guard and a message set") {
  
     WHEN ("pairs of udp senders and receivers are created") {
-      THEN ("the futures provide synchronization and data returns") {
+      THEN ("when done, the counts all match") {
 
         chops::net::net_ip nip(ioc);
 
-        std::vector< std::future<std::size_t> > futs;
-
 std::cerr << "creating " << num_udp_pairs << " udp sender receiver pairs" << std::endl;
+
+        chops::net::send_to_all<chops::net::udp_io> sta { };
+
+        test_counter recv_cnt = 0;
+        test_counter send_cnt = 0;
 
         chops::repeat(num_udp_pairs, [&] (int i) {
             auto recv_endp = make_test_udp_endpoint(udp_port_base + i);
@@ -226,39 +159,43 @@ std::cerr << "creating " << num_udp_pairs << " udp sender receiver pairs" << std
             auto udp_receiver = nip.make_udp_unicast(recv_endp);
             auto udp_sender = nip.make_udp_sender();
 
-            udp_io_promise recv_prom;
-            auto recv_fut = recv_prom.get_future();
-            udp_receiver.start( udp_start_cb (udp_max_size, std::move(recv_prom)), null_udp_stop_func );
+            auto io_fut = chops::net::make_udp_io_interface_future(udp_receiver);
+            auto io = io_fut.get();
+            udp_start_io(io, false, recv_cnt);
 
-            recv_fut.get();
-            // nothing needed at this point for receiver, msg handler is ready to go
+            io_fut = chops::net::make_udp_io_interface_future(udp_sender);
+            io = io_fut.get();
+            udp_start_io(io, false, send_cnt);
 
-            udp_io_promise send_prom;
-            auto send_fut = send_prom.get_future();
-            udp_sender.start( udp_start_cb (recv_endp, std::move(send_prom)), null_udp_stop_func );
+            sta.add_io_interface(io);
 
-            auto io = send_fut.get();
-
-            futs.emplace_back(std::async(std::launch::async, send_func<chops::net::detail::udp_entity_io>, 
-                              std::cref(in_msg_vec), io, interval, empty_msg));
-std::cerr << "Sender thread started" << std::endl;
-          
           }
         );
 
-        std::size_t accum_msgs = 0;
-        for (auto& fut : futs) {
-          accum_msgs += fut.get(); // wait for senders to finish
+        // send messages through all of the senders
+        std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+        for (auto buf : in_msg_vec) {
+          sta.send(buf);
+          std::this_thread::sleep_for(std::chrono::milliseconds(interval));
         }
-        INFO ("All sender futures popped");
-std::cerr << "All sender futures popped" << std::endl;
+        // poll output queue size of all handlers until 0
+        auto qs = sta.get_total_output_queue_stats();
+        while (qs.output_queue_size > 0) {
+std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          qs = sta.get_total_output_queue_stats();
+        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         nip.remove_all();
-std::cerr << "Remove_all called" << std::endl;
-    
+
+std::cerr << "Udp entities stopped" << std::endl;
+
         std::size_t total_msgs = num_udp_pairs * in_msg_vec.size();
-        // CHECK instead of REQUIRE since UDP
-        CHECK (accum_msgs == total_msgs);
+        // CHECK instead of REQUIRE since UDP is an unreliable protocol
+        CHECK (verify_receiver_count(total_msgs, recv_cnt));
+        CHECK (verify_sender_count(total_msgs, send_cnt, false));
+
       }
     }
   } // end given
