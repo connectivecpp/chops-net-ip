@@ -140,7 +140,7 @@ std::cerr << "Acceptor stopped" << std::endl;
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector", 
+SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 50, 1 connector", 
            "[tcp_conn] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acc_conn_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
@@ -149,7 +149,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector", 
+SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 0, 1 connector", 
            "[tcp_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
   acc_conn_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
@@ -157,7 +157,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector",
                   std::string_view(), make_empty_variable_len_msg() );
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector", 
+SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 50, 1 connector", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
   acc_conn_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
@@ -166,7 +166,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
+SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
   acc_conn_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
@@ -175,7 +175,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors,
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
+SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
 
   acc_conn_test ( make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 100*NumMsgs),
@@ -184,7 +184,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors,
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors", 
+SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_conn] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs),
@@ -193,7 +193,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors"
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connectors", 
+SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 50, 10 connectors", 
            "[tcp_conn] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
   acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
@@ -202,7 +202,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connectors
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors", 
+SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 0, 20 connectors", 
            "[tcp_conn] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
   acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
@@ -211,7 +211,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors"
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connectors", 
+SCENARIO ( "Tcp connector test, CR / LF msgs, two-way, interval 30, 20 connectors", 
            "[tcp_conn] [cr_lf_msg] [two_way] [interval_30] [connectors_20]" ) {
 
   acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
@@ -220,7 +220,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connectors
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors, many msgs", 
+SCENARIO ( "Tcp connector test, CR / LF msgs, two-way, interval 0, 20 connectors, many msgs", 
            "[tcp_conn] [cr_lf_msg] [two_way] [interval_0] [connectors_20] [many]" ) {
 
   acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
@@ -229,7 +229,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors,
 
 }
 
-SCENARIO ( "Tcp acceptor test, LF msgs, one-way, interval 50, 1 connectors", 
+SCENARIO ( "Tcp connector test, LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_conn] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acc_conn_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
@@ -238,7 +238,7 @@ SCENARIO ( "Tcp acceptor test, LF msgs, one-way, interval 50, 1 connectors",
 
 }
 
-SCENARIO ( "Tcp acceptor test, LF msgs, one-way, interval 0, 25 connectors", 
+SCENARIO ( "Tcp connector test, LF msgs, one-way, interval 0, 25 connectors", 
            "[tcp_conn] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
   acc_conn_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
@@ -247,7 +247,7 @@ SCENARIO ( "Tcp acceptor test, LF msgs, one-way, interval 0, 25 connectors",
 
 }
 
-SCENARIO ( "Tcp acceptor test, LF msgs, two-way, interval 20, 25 connectors", 
+SCENARIO ( "Tcp connector test, LF msgs, two-way, interval 20, 25 connectors", 
            "[tcp_conn] [lf_msg] [two_way] [interval_20] [connectors_25]" ) {
 
   acc_conn_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs),
@@ -256,7 +256,7 @@ SCENARIO ( "Tcp acceptor test, LF msgs, two-way, interval 20, 25 connectors",
 
 }
 
-SCENARIO ( "Tcp acceptor test, LF msgs, two-way, interval 0, 25 connectors, many msgs", 
+SCENARIO ( "Tcp connector test, LF msgs, two-way, interval 0, 25 connectors, many msgs", 
            "[tcp_conn] [lf_msg] [two_way] [interval_0] [connectors_25] [many]" ) {
 
   acc_conn_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs),

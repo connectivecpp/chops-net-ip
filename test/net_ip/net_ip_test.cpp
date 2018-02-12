@@ -218,6 +218,7 @@ SCENARIO ( "Net IP test, var len msgs, one-way, interval 50, 1 connector or pair
 
 }
 
+/*
 SCENARIO ( "Net IP test, var len msgs, one-way, interval 0, 1 connector or pair", 
            "[netip_acc_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
@@ -360,3 +361,4 @@ SCENARIO ( "Net IP test,  LF msgs, two-way, interval 0, 15 connectors or pairs, 
              make_empty_lf_text_msg() );
 
 }
+*/
