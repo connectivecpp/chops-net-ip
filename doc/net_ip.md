@@ -120,7 +120,7 @@ Where to provide the customization points in the API is one of the most crucial 
 
 Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
 
-There is not any explicit mutex locking in the library. Instead, most of the internal handler classes take incoming parameters and post the data through the io context. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Networking TS code.
+Mutex locking is kept to a minimum in the library. Instead, most of the internal handler classes take incoming parameters and post the data through the io context. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Networking TS code.
 
 In the areas where data is directly accessed, it is protected by `std::atomic` wraps. For example, outgoing queue statistics and `is_started` flags are all `std::atomic`. While this guarantees that applications will not crash, it does mean that statistics might have temporary inconsistency with each other. For example, an outgoing buffer might be popped exactly between an application querying and accessing two outgoing counters. This potential inconsistency is not considered to be an issuse, since the queue counters are only meant for general congestion queries, not exact statistical gathering.
 

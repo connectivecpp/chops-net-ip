@@ -21,6 +21,8 @@
 #include <vector>
 #include <chrono>
 
+#include <mutex>
+
 #include <experimental/io_context>
 #include <experimental/executor>
 #include <experimental/internet>
@@ -114,10 +116,15 @@ namespace net {
 class net_ip {
 private:
 
-  std::experimental::net::io_context& m_ioc;
-  std::vector<detail::tcp_acceptor_ptr> m_acceptors;
+  std::experimental::net::io_context&    m_ioc;
+
+  mutable std::mutex                     m_mutex;
+  std::vector<detail::tcp_acceptor_ptr>  m_acceptors;
   std::vector<detail::tcp_connector_ptr> m_connectors;
   std::vector<detail::udp_entity_io_ptr> m_udp_entities;
+
+private:
+  using lg = std::lock_guard<std::mutex>;
 
 public:
 
@@ -188,7 +195,9 @@ public:
   tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp,
                                              bool reuse_addr = true) {
     auto p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
-    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
+//    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
+    lg g(m_mutex);
+    m_acceptors.push_back(p);
     return tcp_acceptor_net_entity(p);
   }
 
@@ -227,7 +236,9 @@ public:
 
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
                                                                   remote_host, reconn_time);
-    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+//    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+    lg g(m_mutex);
+    m_connectors.push_back(p);
     return tcp_connector_net_entity(p);
   }
 
@@ -263,7 +274,9 @@ public:
                                                std::chrono::milliseconds reconn_time = 
                                                  std::chrono::milliseconds { } ) {
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
-    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+//    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+    lg g(m_mutex);
+    m_connectors.push_back(p);
     return tcp_connector_net_entity(p);
   }
 
@@ -361,11 +374,13 @@ public:
  *
  */
   void remove(tcp_acceptor_net_entity acc) {
-    std::experimental::net::post(m_ioc.get_executor(), 
-          [acc, this] () mutable {
-        chops::erase_where(m_acceptors, acc.get_ptr());
-      }
-    );
+//    std::experimental::net::post(m_ioc.get_executor(), 
+//          [acc, this] () mutable {
+//        chops::erase_where(m_acceptors, acc.get_ptr());
+//      }
+//    );
+    lg g(m_mutex);
+    chops::erase_where(m_acceptors, acc.get_ptr());
   }
 
 /**
@@ -376,12 +391,13 @@ public:
  *
  */
   void remove(tcp_connector_net_entity conn) {
-    conn.stop();
-    std::experimental::net::post(m_ioc.get_executor(), 
-          [conn, this] () mutable {
-        chops::erase_where(m_connectors, conn.get_ptr());
-      }
-    );
+//    std::experimental::net::post(m_ioc.get_executor(), 
+//          [conn, this] () mutable {
+//        chops::erase_where(m_connectors, conn.get_ptr());
+//      }
+//    );
+    lg g(m_mutex);
+    chops::erase_where(m_connectors, conn.get_ptr());
   }
 
 /**
@@ -392,12 +408,13 @@ public:
  *
  */
   void remove(udp_net_entity udp_ent) {
-    udp_ent.stop();
-    std::experimental::net::post(m_ioc.get_executor(), 
-          [udp_ent, this] () mutable {
-        chops::erase_where(m_udp_entities, udp_ent.get_ptr());
-      }
-    );
+//    std::experimental::net::post(m_ioc.get_executor(), 
+//          [udp_ent, this] () mutable {
+//        chops::erase_where(m_udp_entities, udp_ent.get_ptr());
+//      }
+//    );
+    lg g(m_mutex);
+    chops::erase_where(m_udp_entities, udp_ent.get_ptr());
   }
 
 /**
@@ -405,12 +422,16 @@ public:
  *
  */
   void remove_all() {
-    std::experimental::net::post(m_ioc.get_executor(), [this] () {
-        m_udp_entities.clear();
-        m_connectors.clear();
-        m_acceptors.clear();
-      }
-    );
+//    std::experimental::net::post(m_ioc.get_executor(), [this] () {
+//        m_udp_entities.clear();
+//        m_connectors.clear();
+//        m_acceptors.clear();
+//      }
+//    );
+    lg g(m_mutex);
+    m_udp_entities.clear();
+    m_connectors.clear();
+    m_acceptors.clear();
   }
 
 /**
@@ -420,12 +441,16 @@ public:
  *
  */
   void stop_all() {
-    std::experimental::net::post(m_ioc.get_executor(), [this] () {
-        for (auto i : m_udp_entities) { i->stop(); }
-        for (auto i : m_connectors) { i->stop(); }
-        for (auto i : m_acceptors) { i->stop(); }
-      }
-    );
+//    std::experimental::net::post(m_ioc.get_executor(), [this] () {
+//        for (auto i : m_udp_entities) { i->stop(); }
+//        for (auto i : m_connectors) { i->stop(); }
+//        for (auto i : m_acceptors) { i->stop(); }
+//      }
+//    );
+    lg g(m_mutex);
+    for (auto i : m_udp_entities) { i->stop(); }
+    for (auto i : m_connectors) { i->stop(); }
+    for (auto i : m_acceptors) { i->stop(); }
   }
 
 };
