@@ -4,7 +4,7 @@
 
 There are two concrete classes:
 - `mutable_shared_buffer`, a reference counted modifiable buffer class with convenience methods for appending data.
-- `const_shared_buffer`, a reference counted non-modifiable buffer class. Once the object is constructed, it cannot be modified.
+- `const_shared_buffer`, a reference counted non-modifiable buffer class. Once the object is constructed, it cannot be modified. This class is used by the Chops Net IP library for asynchronous send buffer processing.
 
 Interally all data is stored in a `std::vector` of `std::byte`s. There are ordering methods so that shared buffer objects can be stored in sequential or associative containers.
 
