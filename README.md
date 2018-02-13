@@ -4,16 +4,16 @@ The Chops Medley is a collection of C++ libraries for networking and distributed
 
 This project is licensed under the terms of the MIT license.
 
-# Chops Release Status
+## Chops Release Status
 
-Release 0.1 is now (Feb 13, 2018) merged to the main branch:
+Release 0.1 is now (Feb 13, 2018) merged to the master branch:
 
-- All initial Chops Net IP planned functionality is implemented except TCP multicast (there may be API in limited areas, see next steps below).
+- All initial Chops Net IP planned functionality is implemented except TCP multicast (there may be API changes in limited areas, see next steps below).
 - All of the code builds under G++ 7.2 with "-std=c+1z" and is tested on Ubuntu 17.10.
 - All tests are built with and run under the Catch2 testing framework.
 - All code has been sanitized with "-fsanitize=address".
 
-Problems, constraints and next steps:
+### Next Steps, Problems, and Constraints:
 
 - Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the "future return io_interface, call start_io" path in some of the tests (tcp_connector_test.cpp, net_ip_test.cpp). This is being actively worked.
 - The primary author (Cliff) is not happy with the function object callback interfaces through the `net_entity.start` method (state change, error reporting callbacks). There are multiple possibilities, all of which have pros and cons. The message frame and message handler function object callback API is good and solid and is not likely to change.
