@@ -6,17 +6,19 @@ This project is licensed under the terms of the MIT license.
 
 # Chops Release Status
 
-Release 0.1 is now (Feb 12, 2018) merged to the main branch:
+Release 0.1 is now (Feb 13, 2018) merged to the main branch:
 
-- All initial Chops Net IP planned functionality is implemented except TCP multicast.
+- All initial Chops Net IP planned functionality is implemented except TCP multicast (there may be API in limited areas, see next steps below).
 - All of the code builds under G++ 7.2 with "-std=c+1z" and is tested on Ubuntu 17.10.
 - All tests are built with and run under the Catch2 testing framework.
 - All code has been sanitized with "-fsanitize=address".
 
-Constraints and next steps:
+Problems, constraints and next steps:
 
+- Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the "future return io_interface, call start_io" path in some of the tests (tcp_connector_test.cpp, net_ip_test.cpp). This is being actively worked.
+- The primary author (Cliff) is not happy with the function object callback interfaces through the `net_entity.start` method (state change, error reporting callbacks). There are multiple possibilities, all of which have pros and cons. The message frame and message handler function object callback API is good and solid and is not likely to change.
 - This is a good point to ask for project help and collaboration, which will be greatly appreciated (for many reasons).
-- There are likely to be Chops Net IP bugs, specially relating to error and shutdown scenarios.
+- There are likely to be Chops Net IP bugs (in addition to the possible memory leaks), specially relating to error and shutdown scenarios.
 - Most of the testing has been "loopback" testing on one system. This will soon expand to distributed testing among multiple systems, specially as additional operating system build and testing is performed.
 - Example code needs to be written and tested (there is a lot of code under the Catch framework, but that is not the same as stand-alone examples).
 - The code is well doxygenated, and there is a good start on the high level descriptions, but tutorials and other high-level documentation is needed. A "doxygen to markdown" procedure is needed (or an equivalent step to generate the documentation from the embedded doxygen).
