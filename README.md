@@ -15,7 +15,7 @@ Release 0.1 is now (Feb 13, 2018) merged to the master branch:
 
 ### Next Steps, Problems, and Constraints:
 
-- Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the "future return io_interface, call start_io" path in some of the tests (tcp_connector_test.cpp, net_ip_test.cpp). This is being actively worked.
+- Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the `std::vector` `resize` method on certain paths (where `start_io` is called from a different thread where most of the processing is occurring). This is being actively worked.
 - The primary author (Cliff) is not happy with the function object callback interfaces through the `net_entity.start` method (state change, error reporting callbacks). There are multiple possibilities, all of which have pros and cons. The message frame and message handler function object callback API is good and solid and is not likely to change.
 - This is a good point to ask for project help and collaboration, which will be greatly appreciated (for many reasons).
 - There are likely to be Chops Net IP bugs (in addition to the possible memory leaks), specially relating to error and shutdown scenarios.
@@ -23,7 +23,7 @@ Release 0.1 is now (Feb 13, 2018) merged to the master branch:
 - Example code needs to be written and tested (there is a lot of code under the Catch framework, but that is not the same as stand-alone examples).
 - The code is well doxygenated, and there is a good start on the high level descriptions, but tutorials and other high-level documentation is needed. A "doxygen to markdown" procedure is needed (or an equivalent step to generate the documentation from the embedded doxygen).
 - The code only compiles on one compiler, but VC++ and Clang support (with the latest C++ standard flags) is expected soon. Compiling and building on Windows 10 is also expected to be supported at that time. Once multiple compilers and desktop environments are tested, development will expand to smaller and more esoteric environments (e.g. Raspberry Pi).
-- There are likely to be areas where performance can be improved, and attention will be devoted to performance bottlenecks as the project matures.
+- Attention will be devoted to performance bottlenecks as the project matures.
 - The makefiles and build infrastructure components are not yet present. A working CMakeLists.txt is needed as well as Github continuous integration procedures (e.g. Jenkins and Travis).
 - Code coverage tools have not been used on the codebase.
 
