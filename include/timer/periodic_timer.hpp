@@ -1,5 +1,7 @@
 /** @file
  *
+ *  @defgroup timer_module Classes and functions for Chops timer functionality.
+ *
  *  @ingroup timer_module
  *
  *  @brief An asynchronous periodic timer providing both duration and timepoint 
@@ -17,12 +19,14 @@
  *  one invocation (i.e. unconditionally return @c false from the function 
  *  object).
  *
- *  Example usage:
+ *  @note This class does not perform "this" reference counting. It is up to 
+ *  the application code to guarantee that a @c periodic_timer has not been 
+ *  destructed before handlers (function object callbacks) are invoked.
  *
- *  @code
- *    // fill in here
- *  @endcode
- *
+ *  A common idiom is to use @c std::enable_shared_from_this, call 
+ *  @c std::shared_from_this, and store the result in the function object 
+ *  callback object.
+ *  
  *  @note @c std::chrono facilities seem to be underspecified on @c noexcept,
  *  very few of the functions in @c periodic_timer are @c noexcept.
  *
@@ -37,7 +41,6 @@
 
 #include <experimental/timer> // Networking TS include
 #include <experimental/io_context>
-#include <experimental/executor>
 
 #include <chrono>
 #include <system_error>
@@ -58,29 +61,33 @@ private:
 
 private:
   template <typename F>
-  void duration_handler_impl(F&& f, const time_point& last_tp, const duration& dur, const std::error_code& err) {
+  void duration_handler_impl(const time_point& last_tp, const duration& dur, 
+                             const std::error_code& err, F&& func) {
     time_point now_time { Clock::now() };
     // pass err and elapsed time to app function obj
-    if (!f(err, now_time - last_tp) || err == std::experimental::net::error::operation_aborted) {
+    if (!func(err, now_time - last_tp) || 
+        err == std::experimental::net::error::operation_aborted) {
       return; // app is finished with timer for now or timer was cancelled
     }
     m_timer.expires_after(dur);
-    m_timer.async_wait( [f = std::forward<F>(f), now_time, dur, this]
+    m_timer.async_wait( [now_time, dur, f = std::move(func), this]
             (const std::error_code& e) {
-        duration_handler_impl(f, now_time, dur, e);
+        duration_handler_impl(now_time, dur, e, std::move(f));
       }
     );
   }
   template <typename F>
-  void timepoint_handler_impl(F&& f, const time_point& last_tp, const duration& dur, const std::error_code& err) {
+  void timepoint_handler_impl(const time_point& last_tp, const duration& dur, 
+                              const std::error_code& err, F&& func) {
     // pass err and elapsed time to app function obj
-    if (!f(err, (Clock::now() - last_tp)) || err == std::experimental::net::error::operation_aborted) {
+    if (!func(err, (Clock::now() - last_tp)) || 
+        err == std::experimental::net::error::operation_aborted) {
       return; // app is finished with timer for now or timer was cancelled
     }
     m_timer.expires_at(last_tp + dur + dur);
-    m_timer.async_wait( [f = std::forward<F>(f), last_tp, dur, this]
+    m_timer.async_wait( [f = std::move(func), last_tp, dur, this]
             (const std::error_code& e) {
-        timepoint_handler_impl(f, (last_tp+dur), dur, e);
+        timepoint_handler_impl(last_tp+dur, dur, e, std::move(f));
       }
     );
   }
@@ -94,9 +101,13 @@ public:
    * Constructing a @c periodic_timer does not start the actual timer. Calling one of the 
    * @c start methods starts the timer.
    *
-   * The application supplied function object requires a signature with two parameters, 
-   * @c const @c std::error_code& and @c const @c duration&. The second parameter provides an 
-   * elapsed time from the previous callback.
+   * The application supplied function object for any of the @c start methods requires the 
+   * following signature:
+   * @code
+   *   bool (std::error_code, duration);
+   * @endcode
+   *
+   * The @c duration parameter provides an elapsed time from the previous callback.
    *
    * The clock for the asynchronous timer defaults to @c std::chrono::steady_clock.
    * Other clock types can be used if desired (e.g. @c std::chrono::high_resolution_clock 
@@ -133,15 +144,16 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
-   * @param f Function object to be invoked. 
-   *
    * @param dur Interval to be used between callback invocations.
+   *
+   * @param func Function object to be invoked. 
+   *
    */
   template <typename F>
-  void start_duration_timer(F&& f, const duration& dur) {
+  void start_duration_timer(const duration& dur, F&& func) {
     m_timer.expires_after(dur);
-    m_timer.async_wait( [f = std::forward<F>(f), dur, this] (const std::error_code& e) {
-        duration_handler_impl(f, Clock::now(), dur, e);
+    m_timer.async_wait( [dur, f = std::move(func), this] (const std::error_code& e) {
+        duration_handler_impl(Clock::now(), dur, e, std::move(f));
       }
     );
   }
@@ -152,17 +164,18 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
-   * @param f Function object to be invoked.
-   *
    * @param dur Interval to be used between callback invocations.
    *
    * @param when Time point when the first timer callback will be invoked.
+   *
+   * @param func Function object to be invoked.
+   *
    */
   template <typename F>
-  void start_duration_timer(F&& f, const duration& dur, const time_point& when) {
+  void start_duration_timer(const duration& dur, const time_point& when, F&& func) {
     m_timer.expires_at(when);
-    m_timer.async_wait( [f = std::forward<F>(f), dur, this] (const std::error_code& e) {
-        duration_handler_impl(f, Clock::now(), dur, e);
+    m_timer.async_wait( [dur, f = std::move(func), this] (const std::error_code& e) {
+        duration_handler_impl(Clock::now(), dur, e, std::move(f));
       }
     );
   }
@@ -172,13 +185,14 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
-   * @param f Function object to be invoked. 
-   *
    * @param dur Interval to be used between callback invocations.
+   *
+   * @param func Function object to be invoked. 
+   *
    */
   template <typename F>
-  void start_timepoint_timer(F&& f, const duration& dur) {
-    start_timepoint_timer(std::forward<F>(f), dur, (Clock::now() + dur));
+  void start_timepoint_timer(const duration& dur, F&& func) {
+    start_timepoint_timer(dur, (Clock::now() + dur), std::forward<F>(func));
   }
   /**
    * Start the timer on the specified timepoint, and the application supplied function object 
@@ -186,21 +200,21 @@ public:
    *
    * The function object will continue to be invoked as long as it returns @c true.
    *
-   * @param f Function object to be invoked. 
-   *
    * @param dur Interval to be used between callback invocations.
    *
    * @param when Time point when the first timer callback will be invoked.
+   *
+   * @param func Function object to be invoked. 
    *
    * @note The elapsed time for the first callback invocation is artificially set to the 
    * duration interval.
    */
   template <typename F>
-  void start_timepoint_timer(F&& f, const duration& dur, const time_point& when) {
+  void start_timepoint_timer(const duration& dur, const time_point& when, F&& func) {
     m_timer.expires_at(when);
-    m_timer.async_wait( [f = std::forward<F>(f), when, dur, this]
+    m_timer.async_wait( [when, dur, f = std::move(func), this]
             (const std::error_code& e) {
-        timepoint_handler_impl(f, (when-dur), dur, e);
+        timepoint_handler_impl((when-dur), dur, e, std::move(f));
       }
     );
   }
