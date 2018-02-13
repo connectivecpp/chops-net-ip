@@ -31,8 +31,8 @@ struct io_mock {
   int magic = 41;
 };
 
-using io_interface_mock = chops::net::basic_io_interface<io_mock>;
 using io_mock_ptr = std::shared_ptr<io_mock>;
+using io_interface_mock = chops::net::basic_io_interface<io_mock>;
 
 struct entity_mock {
 
@@ -77,7 +77,7 @@ SCENARIO ( "Testing make_io_interface_future_impl",
     auto ent = net_entity_mock (ent_ptr);
     WHEN ("make_io_interface_future_impl is called") {
       auto fut = 
-        chops::net::detail::make_io_interface_future_impl<io_interface_mock, net_entity_mock>(ent);
+        chops::net::detail::make_io_interface_future_impl<io_mock>(ent);
 
       THEN ("a future is returned, which returns a value when ready") {
           auto io = fut.get();
@@ -87,7 +87,7 @@ SCENARIO ( "Testing make_io_interface_future_impl",
     }
     AND_WHEN ("make_io_interface_future_pair_impl is called") {
       auto pair_fut = 
-        chops::net::detail::make_io_interface_future_pair_impl<io_interface_mock, net_entity_mock>(ent);
+        chops::net::detail::make_io_interface_future_pair_impl<io_mock>(ent);
 
       THEN ("two futures are returned, both of which return a value when ready") {
           auto io1 = pair_fut.first.get();

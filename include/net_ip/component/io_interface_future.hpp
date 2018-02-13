@@ -31,55 +31,58 @@ namespace net {
 
 namespace detail {
 
+template <typename IOH>
+using io_fut = std::future<basic_io_interface<IOH> >;
+template <typename IOH>
+using io_prom = std::promise<basic_io_interface<IOH> >;
+
 // this function doesn't care about the stop state change
-template <typename IO, typename ET>
-std::future<IO> make_io_interface_future_impl(ET entity) {
-  auto prom = std::promise<IO> { };
+template <typename IOH, typename ET>
+io_fut<IOH> make_io_interface_future_impl(basic_net_entity<ET> entity) {
+  auto prom = io_prom<IOH> { };
   auto fut = prom.get_future();
-  entity.start([p = std::move(prom)] (IO io, std::size_t /* sz */) mutable {
+  entity.start([p = std::move(prom)] (basic_io_interface<IOH> io, std::size_t /* sz */) mutable {
       p.set_value(io);
     }
   );
   return fut;
 }
 
-template <typename IO, typename ET>
-std::pair<std::future<IO>, std::future<IO> > make_io_interface_future_pair_impl(ET entity) {
+// the stop function object callback must be copyable since internally it is stored in
+// a std::function for later invocation
+template <typename IOH>
+struct stop_cb {
 
-// can't get the promises to move, even though the single move works just fine
-//  auto ready_prom = std::promise<IO> { };
-//  auto ready_fut = ready_prom.get_future();
-//  auto stop_prom = std::promise<IO> { };
-//  auto stop_fut = stop_prom.get_future();
+  std::shared_ptr<io_prom<IOH> >  m_prom;
+  bool                            m_satisfied;
 
-//  entity.start( [ready_p = std::move(ready_prom)] (IO io, std::size_t /* sz */) mutable {
-//      ready_p.set_value(io);
-//    },
-//                [stop_p = std::move(stop_prom)] 
-//                       (IO io, std::error_code /* err */, std::size_t /* sz */) mutable {
-//      stop_p.set_value(io);
-//    }
-//  );
+  stop_cb(io_prom<IOH> prom) : m_prom(std::make_shared<io_prom<IOH> >(std::move(prom))), 
+                               m_satisfied(false) { }
 
-  auto ready_prom_ptr = std::make_shared<std::promise<IO> > ();
-  auto ready_fut = ready_prom_ptr->get_future();
-  auto stop_prom_ptr = std::make_shared<std::promise<IO> > ();
-  auto stop_fut = stop_prom_ptr->get_future();
-
-  bool satisfied = false;
-  entity.start( [ready_prom_ptr] (IO io, std::size_t /* sz */) mutable {
-      ready_prom_ptr->set_value(io);
-    },
-                [stop_prom_ptr, satisfied] 
-                     (IO io, std::error_code /* err */, std::size_t /* sz */) mutable {
-      if (!satisfied) {
-        satisfied = true;
-        stop_prom_ptr->set_value(io);
-      }
+  void operator()(basic_io_interface<IOH> io, std::error_code /* err */, std::size_t /* sz */) {
+    if (!m_satisfied) {
+      m_satisfied = true;
+      m_prom->set_value(io);
     }
+  }
+};
+
+
+template <typename IOH, typename ET>
+std::pair<io_fut<IOH>, io_fut<IOH> > make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
+
+  auto ready_prom = io_prom<IOH> { };
+  auto ready_fut = ready_prom.get_future();
+  auto stop_prom = io_prom<IOH> { };
+  auto stop_fut = stop_prom.get_future();
+
+  entity.start( [ready_p = std::move(ready_prom)] (basic_io_interface<IOH> io, std::size_t /* sz */) mutable {
+      ready_p.set_value(io);
+    }, 
+    stop_cb<IOH>(std::move(stop_prom))
   );
 
-  return std::make_pair<std::future<IO>, std::future<IO> >(std::move(ready_fut), std::move(stop_fut));
+  return std::make_pair<io_fut<IOH>, io_fut<IOH> >(std::move(ready_fut), std::move(stop_fut));
 }
 
 } // end detail namespace
@@ -93,7 +96,7 @@ std::pair<std::future<IO>, std::future<IO> > make_io_interface_future_pair_impl(
  *  time a @c tcp_io_interface will be returned as the value from the @c std::future 
  *  and the application can call @c start_io or @c send or other methods on the 
  *  @c tcp_io_interface.
-
+ *
  *  @param conn A @c tcp_connector_net_entity object; @c start will immediately be
  *  called on it.
  *
@@ -103,8 +106,8 @@ std::pair<std::future<IO>, std::future<IO> > make_io_interface_future_pair_impl(
  *  since multiple connections can be potentially made and a @c std::promise and
  *  corresponding @c std::future can only be fulfilled once.
  */
-std::future<tcp_io_interface> make_tcp_io_interface_future(tcp_connector_net_entity conn) {
-  return detail::make_io_interface_future_impl<tcp_io_interface, tcp_connector_net_entity>(conn);
+detail::io_fut<tcp_io> make_tcp_io_interface_future(tcp_connector_net_entity conn) {
+  return detail::make_io_interface_future_impl<tcp_io>(conn);
 }
 
 /**
@@ -113,7 +116,7 @@ std::future<tcp_io_interface> make_tcp_io_interface_future(tcp_connector_net_ent
  *
  *  The two @c std::future objects returned from this function correspond to the 
  *  "IO ready" condition after start and then "connection stopped" condition.
-
+ *
  *  @param conn A @c tcp_connector_net_entity object; @c start will immediately be
  *  called on it.
  *
@@ -121,7 +124,7 @@ std::future<tcp_io_interface> make_tcp_io_interface_future(tcp_connector_net_ent
  *  second to "stop", both provide a @c tcp_io_interface object.
  */
 auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn) {
-  return detail::make_io_interface_future_pair_impl<tcp_io_interface, tcp_connector_net_entity>(conn);
+  return detail::make_io_interface_future_pair_impl<tcp_io>(conn);
 }
 
 /**
@@ -140,8 +143,8 @@ auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn) {
  *  @return A @c std::future which will provide a @c udp_io_interface when ready.
  *
  */
-std::future<udp_io_interface> make_udp_io_interface_future(udp_net_entity udp_entity) {
-  return detail::make_io_interface_future_impl<udp_io_interface, udp_net_entity>(udp_entity);
+detail::io_fut<udp_io> make_udp_io_interface_future(udp_net_entity udp_entity) {
+  return detail::make_io_interface_future_impl<udp_io>(udp_entity);
 }
 
 /**
@@ -158,7 +161,7 @@ std::future<udp_io_interface> make_udp_io_interface_future(udp_net_entity udp_en
  *
  */
 auto make_udp_io_interface_future_pair(udp_net_entity udp_entity) {
-  return detail::make_io_interface_future_pair_impl<udp_io_interface, udp_net_entity>(udp_entity);
+  return detail::make_io_interface_future_pair_impl<udp_io>(udp_entity);
 }
 
 } // end net namespace

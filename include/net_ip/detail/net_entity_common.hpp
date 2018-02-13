@@ -50,7 +50,7 @@ public:
   bool start(F&& shutdown_func) {
     bool expected = false;
     if (m_started.compare_exchange_strong(expected, true)) {
-      m_shutdown_change_cb = (shutdown_change_cb(std::move(shutdown_func)));
+      m_shutdown_change_cb = shutdown_func;
       return true;
     }
     return false;
