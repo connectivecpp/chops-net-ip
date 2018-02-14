@@ -35,11 +35,11 @@ struct basic_net_entity_mock {
 
   double& get_socket() { return dummy; }
 
-  template <typename R, typename S>
-  void start( R&&, S&& ) { started = true; }
+  template <typename F1, typename F2>
+  void start( F1&&, F2&& ) { started = true; }
 
-  template <typename R>
-  void start( R&& ) { started = true; }
+  template <typename F>
+  void start( F&& ) { started = true; }
 
   void stop() { started = false; }
 

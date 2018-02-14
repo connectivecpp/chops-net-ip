@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief Common code, factored out, for TCP acceptor, connector, and UDP net 
+ *  @brief Common code, factored out, for TCP acceptor, TCP connector, and UDP net 
  *  entity handlers.
  *
  *  @note For internal use only.
@@ -18,7 +18,7 @@
 
 #include <atomic>
 #include <system_error>
-#include <functional> // std::function, for shutdown state change cb
+#include <functional> // std::function, for state change and error callbacks
 #include <utility> // std::move
 #include <memory>
 #include <cstddef> // std::size_t
@@ -32,33 +32,42 @@ namespace detail {
 template <typename IOH>
 class net_entity_common {
 public:
-  using shutdown_change_cb = 
-    std::function<void (basic_io_interface<IOH>, std::error_code, std::size_t)>;
+  using state_chg_cb = 
+    std::function<void (basic_io_interface<IOH>, std::size_t, bool)>;
+  using error_cb = 
+    std::function<void (basic_io_interface<IOH>, std::error_code)>;
 
 private:
-  std::atomic_bool           m_started; // may be called from multiple threads concurrently
-  shutdown_change_cb         m_shutdown_change_cb;
+  std::atomic_bool     m_started; // may be called from multiple threads concurrently
+  state_chg_cb         m_state_chg_cb;
+  error_cb             m_error_cb;
 
 public:
 
-  net_entity_common() noexcept : m_started(false), m_shutdown_change_cb() { }
+  net_entity_common() noexcept : m_started(false), m_state_chg_cb(), m_error_cb() { }
 
   // following four methods can be called concurrently
   bool is_started() const noexcept { return m_started; }
 
-  template <typename F>
-  bool start(F&& shutdown_func) {
+  template <typename F1, typename F2>
+  bool start(F1&& state_chg_func, F2&& err_func) {
     bool expected = false;
     if (m_started.compare_exchange_strong(expected, true)) {
-      m_shutdown_change_cb = shutdown_func;
+      m_state_chg_cb = state_chg_func;
+      m_error_cb = err_func;
       return true;
     }
     return false;
   }
 
-  bool start() {
+  template <typename F>
+  bool start(F&& state_chg_func) {
     bool expected = false;
-    return m_started.compare_exchange_strong(expected, true);
+    if (m_started.compare_exchange_strong(expected, true)) {
+      m_state_chg_cb = state_chg_func;
+      return true;
+    }
+    return false;
   }
 
   bool stop() {
@@ -66,9 +75,13 @@ public:
     return m_started.compare_exchange_strong(expected, false); 
   }
 
-  void call_shutdown_change_cb(std::shared_ptr<IOH> p, const std::error_code& err, std::size_t sz) {
-    if (m_shutdown_change_cb) {
-      m_shutdown_change_cb(basic_io_interface<IOH>(p), err, sz);
+  void call_state_chg_cb(std::shared_ptr<IOH> p, std::size_t sz, bool starting) {
+    m_state_chg_cb(basic_io_interface<IOH>(p), sz, starting);
+  }
+
+  void call_error_cb(std::shared_ptr<IOH> p, const std::error_code& err) {
+    if (m_error_cb) {
+      m_error_cb(basic_io_interface<IOH>(p), err);
     }
   }
 

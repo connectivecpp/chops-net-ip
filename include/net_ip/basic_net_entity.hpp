@@ -136,7 +136,7 @@ public:
 
 /**
  *  @brief Start network processing on the associated net entity with the application
- *  providing state change function object callbacks.
+ *  providing state change and error function object callbacks.
  *
  *  Once a net entity (TCP acceptor, TCP connector, UDP entity) is created through 
  *  a @c net_ip @c make method, calling @c start on the @c basic_net_entity causes local port 
@@ -145,87 +145,97 @@ public:
  *  Input and output processing does not start until the @c io_interface @c start_io
  *  method is called.
  *
- *  The application provides two state change function object callbacks to @c start:
+ *  The application provides two function objects to @c start:
  *
- *  1) An "IO ready" callback which is invoked when a TCP connection is created or 
- *  a UDP entity becomes ready. An @c io_interface object is provided to the callback 
- *  which allows IO processing to commence through the @c start_io method call.
+ *  1) A state change function object which is invoked twice. The first time is when a 
+ *  TCP connection is created or UDP socket is opened, the second time is when the TCP 
+ *  connection is destroyed or the UDP socket closed. An @c io_interface object is 
+ *  provided to the callback which allows IO processing to commence through the 
+ *  @c start_io method call.
  *
- *  2) A "stop" callback which is invoked when a TCP connection is gracefully shutdown 
- *  or when the connection is taken down through an error, or a TCP or UDP entity 
- *  encounters an error and cannot continue.
+ *  2) An error function object which is invoked whenever an error occurs or when
+ *  processing is gracefully shutdown.
  *
  *  The @c start method call can be followed by a @c stop call, followed by @c start, 
  *  etc. This may be useful (for example) for a TCP connector that needs to reconnect 
  *  after a connection has been lost.
  *
- *  @param io_ready_func A function object callback with the following signature:
+ *  @param state_chg_func A function object with the following signature:
  *
  *  @code
  *    // TCP:
- *    void (chops::net::tcp_io_interface, std::size_t);
+ *    void (chops::net::tcp_io_interface, std::size_t, bool);
  *    // UDP:
- *    void (chops::net::udp_io_interface, std::size_t);
+ *    void (chops::net::udp_io_interface, std::size_t, bool);
  *  @endcode
  *
  *  The parameters are as follows:
  *
- *  1) An @c io_interface object providing @c start_io and @c stop_io access to the 
- *  underlying IO handler.
+ *  1) An @c io_interface object providing @c start_io access (and @c stop_io access if
+ *  needed) to the underlying IO handler.
  *
  *  2) A count of the underlying IO handlers associated with this net entity. For 
  *  a TCP connector or a UDP entity the number is 1, and for a TCP acceptor the number is 
  *  1 to N, depending on the number of accepted connections.
  *
- *  @param stop_func A function object callback with the following signature:
+ *  3) If @c true, the @c io_interface has just been created (i.e. a TCP connection 
+ *  has been created or a UDP socket is ready), and if @c false, the connection or socket
+ *  has been destroyed or closed.
+ *
+ *  In both invocations the @c io_interface object is valid (@c is_valid returns @c true).
+ *  For the second invocation no @c io_interface methods should be called, but the 
+ *  @c io_interface object can be used for associative lookups (if needed).
+ *
+ *  The state change function object must be copyable (it will be stored in a @c std::function).
+ *
+ *  @param err_func A function object with the following signature:
  *
  *  @code
  *    // TCP:
- *    void (chops::net::tcp_io_interface, std::error_code, std::size_t);
+ *    void (chops::net::tcp_io_interface, std::error_code);
  *    // UDP:
- *    void (chops::net::udp_io_interface, std::error_code, std::size_t);
+ *    void (chops::net::udp_io_interface, std::error_code);
  *  @endcode
  *
  *  The parameters are as follows:
  *
- *  1) An @c io_interface object, which may be empty (i.e invalid, where @c is_valid 
- *  returns @c false), depending on the context of the error. If non-empty (valid),
- *  this can be correlated with the @c io_interface provided in the @c io_ready_func 
- *  callback. No methods on the @c io_interface object should be called, as the 
- *  underlying handler is being destructed.
+ *  1) An @c io_interface object, which may or may not be valid (i.e @c is_valid may
+ *  return either @c true or @c false), depending on the context of the error. No methods 
+ *  on the @c io_interface object should be called, as the underlying handler is being 
+ *  destructed.
  *
  *  2) The error code associated with the shutdown. There are error codes associated 
  *  with graceful shutdown as well as error codes for network or system errors.
  *
- *  3) A count of the underlying IO handlers associated with this net entity, either 
- *  0 for a TCP connector or UDP entity, or 0 to N for a TCP acceptor.
- *
- *  The @c stop_func callback may be invoked in contexts other than an IO error - for
+ *  The @c err_func callback may be invoked in contexts other than an IO error - for
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
  *  code will be provided.
+ *
+ *  The error function object must be copyable (it will be stored in a @c std::function).
  *
  *  @return @c true if valid net entity association.
  *
  */
-  template <typename R, typename S>
-  bool start(R&& io_ready_func, S&& stop_func) {
+  template <typename F1, typename F2>
+  bool start(F1&& state_chg_func, F2&& err_func) {
     auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<R>(io_ready_func), std::forward<S>(stop_func)), true) : false;
+    return p ? (p->start(std::forward<F1>(state_chg_func), std::forward<F2>(err_func)), true) : false;
   }
 
 /**
  *  @brief Start network processing on the associated net entity where only an
- *  "IO ready" callback is provided.
+ *  state change function object is provided and error callbacks are not 
+ *  desired.
  *
- *  @param io_ready_func A function object callback as described in the other @c start 
+ *  @param state_chg_func A function object as described in the other @c start 
  *  method.
  *
  *  @return @c true if valid net entity association.
  */
-  template <typename R>
-  bool start(R&& io_ready_func) {
+  template <typename F>
+  bool start(F&& state_chg_func) {
     auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<R>(io_ready_func)), true) : false;
+    return p ? (p->start(std::forward<F>(state_chg_func)), true) : false;
   }
 
 /**

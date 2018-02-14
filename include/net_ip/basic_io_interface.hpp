@@ -302,6 +302,9 @@ public:
  *  Returning @c false from the message handler callback causes the connection to be 
  *  closed.
  *
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
+ *
  *  @param msg_frame A message frame function object callback. The signature of
  *  the callback is:
  *
@@ -320,7 +323,11 @@ public:
  *  use within the message handler), two options (at least) are available:
  *  1) Store a reference to the message frame object from within the message handler 
  *  object, or 2) Design a single class that provides two operator function call overloads 
- *  and use the same object for both the message handler and the message frame processing.
+ *  and use the same object (via @c std::ref) for both the message handler and the 
+ *  message frame processing.
+ *
+ *  The message frame function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
@@ -364,6 +371,9 @@ public:
  *  endpoint that sent the data. Returning @c false from the message handler callback 
  *  causes the connection to be closed.
  *
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
+ *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
  *  @note If @c is_io_started is already @c true, this method call is ignored.
@@ -381,7 +391,8 @@ public:
  *
  *  This method is implemented for both TCP and UDP IO handlers.
  *
- *  For TCP IO handlers, this reads fixed size messages.
+ *  For TCP IO handlers, this reads a fixed size message which is then passed to the
+ *  message handler function object.
  *
  *  For UDP IO handlers, this specifies the maximum size of the datagram. For IPv4 this
  *  value can be up to 65,507 (for IPv6 the maximum is larger). If the incoming datagram 
@@ -407,6 +418,9 @@ public:
  *
  *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
  *  be closed.
+ *
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
@@ -449,6 +463,9 @@ public:
  *
  *  Returning @c false from the message handler callback causes the UDP socket to 
  *  be closed.
+ *
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
  *
  *  @return @c true if IO handler association is valid, otherwise @c false.
  *
