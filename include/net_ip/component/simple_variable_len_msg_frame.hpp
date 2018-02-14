@@ -8,7 +8,12 @@
  *  length body. The @c make_simple_variable_len_msg_frame function creates a function
  *  object that is supplied to the @c basic_io_interface @c start_io method. The 
  *  application provides a function that decodes the message header and returns the size 
- *  of the following message body.
+ *  of the following message body. The @c make_simple_variable_len_msg_frame_state_change
+ *  function creates a function object that can be used with a @c net_entity @c start 
+ *  method, and will call @c start_io with appropriate parameters.
+ *
+ *  @note These functions are not a necessary dependency of the @c net_ip library,
+ *  but are useful components in many use cases.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -20,8 +25,11 @@
 #define SIMPLE_VARIABLE_LEN_MSG_FRAME_HPP_INCLUDED
 
 #include <cstddef> // std::size_t, std::byte
+#include <utility> // std::move
 
 #include <experimental/buffer>
+
+#include "net_ip/io_interface.hpp"
 
 namespace chops {
 namespace net {
@@ -30,17 +38,15 @@ namespace net {
  *  @brief Signature for a variable length message header decoder function.
  *
  *  Given a buffer of @c std::bytes corresponding to a header on a variable length
- *  message, decode the header and return the length of the message body.
+ *  message, decode the header and return the length in bytes of the message body.
  *
  *  @param ptr A pointer to the beginning of the variable len message header.
  *
- *  @param sz The size of the header buffer, which should be the same for every call 
- *  and match the parameter given to the @c io_interface @c start_io call.
+ *  @param sz The size of the header buffer, in bytes, which should be the same for 
+ *  every call and match the parameter given to the @c io_interface @c start_io call.
  *
  *  @relates make_simple_variable_len_msg_frame
  *
- *  @note These functions are not a necessary dependency of the @c net_ip library,
- *  but are useful components in many use cases.
  */
 using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
 
@@ -62,6 +68,31 @@ inline auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
   };
 }
 
+/**
+ *  @brief Create a state change function object that can be passed in to the 
+ *  @c net_entity @c start method, later calling @c start_io with appropriate parameters.
+ *
+ *  @param hdr_size Size in bytes of message header.
+ *
+ *  @param func Header decoder function pointer, as described in @c hdr_decoder_func.
+ *
+ *  @param msg_hdlr A function object that can be used as a message handler in the 
+ *  @c start_io method.
+ *
+ *  @return A function object that can be used with the @c start method.
+ */
+
+template <typename MH>
+auto make_simple_variable_len_msg_frame_state_change (std::size_t hdr_size, 
+                                                      hdr_decoder_func func,
+                                                      MH&& msg_hdlr) {
+  return [hdr_size, func, mh = std::move(msg_hdlr)] 
+                  (tcp_io_interface io, std::size_t num, bool starting) mutable {
+    if (starting) {
+      io.start_io(hdr_size, std::move(mh), make_simple_variable_len_msg_frame(func));
+    }
+  };
+}
 
 } // end net namespace
 } // end chops namespace

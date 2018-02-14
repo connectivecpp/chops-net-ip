@@ -34,9 +34,9 @@ namespace net {
  *  to send data to all.
  *
  *  In addition to providing "send to all" functionality, this class overloads
- *  the function call operator so that it can be used as a "stop function" in
- *  the @c net_entity @c start method. If used in this manner, the functional
- *  operator deletes the @c basic_io_interface object from the collection.
+ *  the function call operator so that it can be used as a state change function
+ *  object in the @c net_entity @c start method. If used in this manner, the functional
+ *  operator adds and deletes the @c basic_io_interface object from the collection.
  *
  */
 template <typename IOH>
@@ -60,8 +60,11 @@ public:
     chops::erase_where(m_io_intfs, io);
   }
 
-  void operator() (basic_io_interface<IOH> io, std::error_code /* err */, std::size_t /* num */ ) {
-    if (io.is_valid()) {
+  void operator() (basic_io_interface<IOH> io, std::size_t /* num */, bool starting) {
+    if (starting) {
+      add_io_interface(io);
+    }
+    else {
       remove_io_interface(io);
     }
   }
