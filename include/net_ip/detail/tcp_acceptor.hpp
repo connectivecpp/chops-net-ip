@@ -67,22 +67,22 @@ public:
 
   socket_type& get_socket() noexcept { return m_acceptor; }
 
-  template <typename R, typename S>
-  void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_common.start(std::forward<S>(shutdown_chg))) {
+  template <typename F1, typename F2>
+  void start(F1&& state_chg, F2&& err_cb) {
+    if (!m_entity_common.start(std::forward<F1>(state_chg), std::forward<F2>(err_cb))) {
       // already started
       return;
     }
-    open_acceptor(std::forward<R>(start_chg));
+    open_acceptor();
   }
 
-  template <typename R>
-  void start(R&& start_chg) {
-    if (!m_entity_common.start()) {
+  template <typename F>
+  void start(F&& state_chg) {
+    if (!m_entity_common.start(std::forward<F>(state_chg))) {
       // already started
       return;
     }
-    open_acceptor(std::forward<R>(start_chg));
+    open_acceptor();
   }
 
   void stop() {
@@ -94,50 +94,42 @@ public:
       i->stop_io();
     }
     // m_io_handlers.clear(); // the stop_io on each tcp_io handler should clear the container
-    m_entity_common.call_shutdown_change_cb(tcp_io_ptr(),
-                                          std::make_error_code(net_ip_errc::tcp_acceptor_stopped), 
-                                          0);
+    m_entity_common.call_error_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
     std::error_code ec;
     m_acceptor.close(ec);
   }
 
 private:
 
-  template <typename R>
-  void open_acceptor(R&& start_chg) {
+  void open_acceptor() {
     try {
       m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
                                m_reuse_addr);
     }
     catch (const std::system_error& se) {
-      m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), se.code(), 0);
+      m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
       stop();
       return;
     }
-    start_accept(std::forward<R>(start_chg));
+    start_accept();
   }
 
-  template <typename R>
-  void start_accept(R&& start_chg) {
+  void start_accept() {
     using namespace std::placeholders;
 
     auto self = shared_from_this();
     m_acceptor.async_accept( [this, self, strt = std::move(start_chg)] 
             (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) mutable {
         if (err) {
-          m_entity_common.call_shutdown_change_cb(tcp_io_ptr(), err, m_io_handlers.size());
+          m_entity_common.call_error_cb(tcp_io_ptr(), err);
           stop(); // is this the right thing to do? what are possible causes of errors?
           return;
         }
         tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
-        // auto s = shared_from_this();
-        post(m_acceptor.get_executor(), [this, self, iop, st = std::move(strt)] () mutable {
-            st(tcp_io_interface(iop), m_io_handlers.size());
-          }
-        );
-        start_accept(std::move(strt));
+        m_entity_common.call_state_chg_cb(iop, m_io_handlers.size(), true);
+        start_accept();
       }
     );
   }
@@ -153,7 +145,7 @@ private:
   void remove_handler(std::error_code err, tcp_io_ptr iop) {
     iop->close();
     chops::erase_where(m_io_handlers, iop);
-    m_entity_common.call_shutdown_change_cb(iop, err, m_io_handlers.size());
+    m_entity_common.call_state_chg_cb(iop, m_io_handlers.size(), false);
   }
 
 };

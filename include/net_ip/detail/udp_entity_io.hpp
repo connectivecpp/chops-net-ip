@@ -90,22 +90,22 @@ public:
     return m_io_common.get_output_queue_stats();
   }
 
-  template <typename R, typename S>
-  void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_common.start(std::forward<S>(shutdown_chg))) {
+  template <typename F1, typename F2>
+  void start(F1&& state_chg, F2&& err_cb) {
+    if (!m_entity_common.start(std::forward<F1>(state_chg), std::forward<F2>(err_cb))) {
       // already started
       return;
     }
-    open_udp(std::forward<R>(start_chg));
+    open_udp();
   }
 
-  template <typename R>
-  void start(R&& start_chg) {
-    if (!m_entity_common.start()) {
+  template <typename F>
+  void start(F&& state_chg) {
+    if (!m_entity_common.start(std::forward<F>(state_chg))) {
       // already started
       return;
     }
-    open_udp(std::forward<R>(start_chg));
+    open_udp();
   }
 
   template <typename MH>
@@ -145,6 +145,7 @@ public:
     std::error_code ec;
     m_socket.close(ec);
     err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
+    m_entity_common.call_state_chg_cb(shared_from_this(), 0, false);
   }
 
   void stop() {
@@ -179,8 +180,7 @@ public:
 
 private:
 
-  template <typename R>
-  void open_udp(R&& start_chg) {
+  void open_udp() {
     try {
       // assume default constructed endpoints compare equal
       if (m_local_endp == endpoint_type()) {
@@ -196,11 +196,7 @@ private:
       stop();
       return;
     }
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] () mutable {
-        strt(udp_io_interface(self), 1);
-      }
-    );
+    m_entity_common.call_state_chg_cb(shared_from_this(), 1, true);
   }
 
   template <typename MH>
@@ -218,7 +214,7 @@ private:
   }
 
   void err_notify (const std::error_code& err) {
-    m_entity_common.call_shutdown_change_cb(shared_from_this(), err, 0);
+    m_entity_common.call_error_cb(shared_from_this(), err);
   }
 
   template <typename MH>
