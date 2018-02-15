@@ -2,10 +2,8 @@
  *
  *  @ingroup net_ip_component_module
  *
- *  @brief Functions that provide a @c std::future that will pull an @c io_interface
- *  object ready for use after a @c net_entity @c start, or two @c io_interface
- *  objects, the first for when @c io_interface is ready and the next for when it is
- *  stopped.
+ *  @brief Functions that provide an @c io_interface object, either through @c std::future 
+ *  objects or through other mechanisms, such as a @c wait_queue.
  *
  *  @author Cliff Green
  *  @date 2018
@@ -13,8 +11,8 @@
  *
  */
 
-#ifndef IO_INTERFACE_FUTURE_HPP_INCLUDED
-#define IO_INTERFACE_FUTURE_HPP_INCLUDED
+#ifndef IO_INTERFACE_DELIVERY_HPP_INCLUDED
+#define IO_INTERFACE_DELIVERY_HPP_INCLUDED
 
 #include <cstddef> // std::size_t
 #include <utility> // std::move, std::pair
@@ -29,10 +27,21 @@
 namespace chops {
 namespace net {
 
+
+template <typename IOH>
+struct io_interface_future_pair {
+  std::future<basic_io_interface<IOH> > start_fut;
+  std::future<basic_io_interface<IOH> > stop_fut;
+};
+
+using tcp_io_interface_future_pair = io_interface_future_pair<tcp_io>;
+using udp_io_interface_future_pair = io_interface_future_pair<udp_io>;
+
 namespace detail {
 
 template <typename IOH>
 using io_fut = std::future<basic_io_interface<IOH> >;
+
 template <typename IOH>
 using io_prom = std::promise<basic_io_interface<IOH> >;
 
@@ -48,13 +57,13 @@ io_fut<IOH> make_io_interface_future_impl(basic_net_entity<ET> entity) {
   return fut;
 }
 
-// the stop function object callback must be copyable since internally it is stored in
+// the state change function object must be copyable since internally it is stored in
 // a std::function for later invocation
 template <typename IOH>
-struct stop_cb {
+struct fut_state_chg_cb {
 
-  std::shared_ptr<io_prom<IOH> >  m_prom;
-  bool                            m_satisfied;
+  std::shared_ptr<io_prom<IOH> >  m_start_prom;
+  std::shared_ptr<io_prom<IOH> >  m_stop_prom;
 
   stop_cb(io_prom<IOH> prom) : m_prom(std::make_shared<io_prom<IOH> >(std::move(prom))), 
                                m_satisfied(false) { }
@@ -88,17 +97,18 @@ std::pair<io_fut<IOH>, io_fut<IOH> > make_io_interface_future_pair_impl(basic_ne
 } // end detail namespace
 
 /**
- *  @brief Return a @c std::future for a @c tcp_io_interface after calling @c start on 
- *  the passed in @c tcp_connector_net_entity.
+ *  @brief Return a pair of @c std::future objects instantiated on @c tcp_io_interface,
+ *  which will become available after @c start is called on the passed in 
+ *  @c tcp_connector_net_entity.
  *
- *  The @c std::future returned from this function can be used in an application to 
- *  block until a TCP connection has completed, the "IO ready" condition. At that 
- *  time a @c tcp_io_interface will be returned as the value from the @c std::future 
- *  and the application can call @c start_io or @c send or other methods on the 
- *  @c tcp_io_interface.
+ *  This function returns two @c std::future objects. The first allows the application to
+ *  block until a TCP connection is created and ready and a @c tcp_io_interface object
+ *  is returned from the @c std::future. At this point @c start_io can be called, and then 
+ *  @c send or other methods called as needed. 
  *
- *  @param conn A @c tcp_connector_net_entity object; @c start will immediately be
- *  called on it.
+ *  The second @c std::future will pop when the corresponding TCP connection is closed.
+ *
+ *  @param conn A @c tcp_connector_net_entity object; @c start is immediately called.
  *
  *  @return A @c std::future which will provide a @c tcp_io_interface when ready.
  *
