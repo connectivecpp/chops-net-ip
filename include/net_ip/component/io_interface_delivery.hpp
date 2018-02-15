@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_component_module
  *
- *  @brief Functions that provide an @c io_interface object, either through @c std::future 
+ *  @brief Functions that deliver an @c io_interface object, either through @c std::future 
  *  objects or through other mechanisms, such as a @c wait_queue.
  *
  *  @author Cliff Green
@@ -27,35 +27,39 @@
 namespace chops {
 namespace net {
 
+/**
+ *  @brief A @c std::future containing an @c io_interface.
+ */
+template <typename IOH>
+using io_interface_future = std::future<basic_io_interface<IOH> >;
 
+/**
+ *  @brief A @c struct containing two @c std::future objects that deliver an @c io_interface 
+ *  corresponding to the creation and destruction of an IO handler (TCP connection, UDP socket).
+ *
+ *  @note A @c std::pair could be used, but this provides a name for each element.
+ */
 template <typename IOH>
 struct io_interface_future_pair {
-  std::future<basic_io_interface<IOH> > start_fut;
-  std::future<basic_io_interface<IOH> > stop_fut;
+  io_interface_future<IOH>   start_fut;
+  io_interface_future<IOH>   stop_fut;
 };
 
+/**
+ *  @brief @c io_interface_future_pair for TCP IO handlers.
+ */
 using tcp_io_interface_future_pair = io_interface_future_pair<tcp_io>;
+/**
+ *  @brief @c io_interface_future_pair for UDP IO handlers.
+ */
 using udp_io_interface_future_pair = io_interface_future_pair<udp_io>;
+
+
 
 namespace detail {
 
 template <typename IOH>
-using io_fut = std::future<basic_io_interface<IOH> >;
-
-template <typename IOH>
 using io_prom = std::promise<basic_io_interface<IOH> >;
-
-// this function doesn't care about the stop state change
-template <typename IOH, typename ET>
-io_fut<IOH> make_io_interface_future_impl(basic_net_entity<ET> entity) {
-  auto prom = io_prom<IOH> { };
-  auto fut = prom.get_future();
-  entity.start([p = std::move(prom)] (basic_io_interface<IOH> io, std::size_t /* sz */) mutable {
-      p.set_value(io);
-    }
-  );
-  return fut;
-}
 
 // the state change function object must be copyable since internally it is stored in
 // a std::function for later invocation
@@ -65,33 +69,50 @@ struct fut_state_chg_cb {
   std::shared_ptr<io_prom<IOH> >  m_start_prom;
   std::shared_ptr<io_prom<IOH> >  m_stop_prom;
 
-  stop_cb(io_prom<IOH> prom) : m_prom(std::make_shared<io_prom<IOH> >(std::move(prom))), 
-                               m_satisfied(false) { }
+  fut_state_chg_cb(io_prom<IOH> start_prom, io_prom<IOH> stop_prom) : 
+        m_start_prom(std::make_shared<io_prom<IOH> >(std::move(start_prom))), 
+        m_stop_prom(std::make_shared<io_prom<IOH> >(std::move(stop_prom)))     { }
 
-  void operator()(basic_io_interface<IOH> io, std::error_code /* err */, std::size_t /* sz */) {
-    if (!m_satisfied) {
-      m_satisfied = true;
-      m_prom->set_value(io);
+  fut_state_chg_cb(io_prom<IOH> start_prom) : 
+        m_start_prom(std::make_shared<io_prom<IOH> >(std::move(start_prom))), 
+        m_stop_prom()     { }
+
+
+  void operator()(basic_io_interface<IOH> io, std::size_t /* sz */, bool started) {
+    if (started) {
+      m_start_prom->set_value(io);
+    }
+    else {
+      if (m_stop_prom) {
+        m_stop_prom->set_value(io);
+      }
     }
   }
 };
 
-
+// this function doesn't care about the stop state change or the error callback
 template <typename IOH, typename ET>
-std::pair<io_fut<IOH>, io_fut<IOH> > make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
+io_fut<IOH> make_io_interface_future_impl(basic_net_entity<ET> entity) {
+  auto start_prom = io_prom<IOH> { };
+  auto start_fut = start_prom.get_future();
 
-  auto ready_prom = io_prom<IOH> { };
-  auto ready_fut = ready_prom.get_future();
+  entity.start( fut_state_chg_cb<IOH>(std::move(start_prom)) );
+
+  return start_fut;
+}
+
+// this function doesn't care about the error callback
+template <typename IOH, typename ET>
+auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
+
+  auto start_prom = io_prom<IOH> { };
   auto stop_prom = io_prom<IOH> { };
-  auto stop_fut = stop_prom.get_future();
 
-  entity.start( [ready_p = std::move(ready_prom)] (basic_io_interface<IOH> io, std::size_t /* sz */) mutable {
-      ready_p.set_value(io);
-    }, 
-    stop_cb<IOH>(std::move(stop_prom))
-  );
+  io_interface_future_pair<IOH> fp { start_prom.get_future(), stop_prom.get_future() };
 
-  return std::make_pair<io_fut<IOH>, io_fut<IOH> >(std::move(ready_fut), std::move(stop_fut));
+  entity.start( fut_state_chg_cb<IOH>(std::move(start_prom), std::move(stop_prom)) );
+
+  return fp;
 }
 
 } // end detail namespace
@@ -102,18 +123,18 @@ std::pair<io_fut<IOH>, io_fut<IOH> > make_io_interface_future_pair_impl(basic_ne
  *  @c tcp_connector_net_entity.
  *
  *  This function returns two @c std::future objects. The first allows the application to
- *  block until a TCP connection is created and ready and a @c tcp_io_interface object
- *  is returned from the @c std::future. At this point @c start_io can be called, and then 
- *  @c send or other methods called as needed. 
+ *  block until a TCP connection is created and ready. At that point the @c std::future will 
+ *  return a @c tcp_io_interface object, and @c start_io and other methods can be called
+ *  as needed.
  *
  *  The second @c std::future will pop when the corresponding TCP connection is closed.
  *
  *  @param conn A @c tcp_connector_net_entity object; @c start is immediately called.
  *
- *  @return A @c std::future which will provide a @c tcp_io_interface when ready.
+ *  @return A @c tcp_io_interface_future_pair.
  *
  *  @note There is not an equivalent function for a @c tcp_acceptor_net_entity, 
- *  since multiple connections can be potentially made and a @c std::promise and
+ *  since multiple connections are typically created and a @c std::promise and
  *  corresponding @c std::future can only be fulfilled once.
  */
 detail::io_fut<tcp_io> make_tcp_io_interface_future(tcp_connector_net_entity conn) {
