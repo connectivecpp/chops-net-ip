@@ -40,8 +40,6 @@ namespace net {
 namespace detail {
 
 std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexcept;
-bool null_msg_hdlr (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
-                    std::experimental::net::ip::tcp::endpoint) noexcept;
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
@@ -116,8 +114,15 @@ public:
   }
 
   void start_io() {
-    start_io(1, null_msg_hdlr, null_msg_frame);
+    start_io(1, 
+             [] (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
+                 std::experimental::net::ip::tcp::endpoint) mutable {
+                   return true;
+             }, 
+             null_msg_frame
+    );
   }
+
 
   void stop_io() {
     // causes net entity to eventually call close
@@ -294,11 +299,6 @@ using tcp_io_ptr = std::shared_ptr<tcp_io>;
 
 inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexcept {
   return 0;
-}
-
-inline bool null_msg_hdlr (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
-                           std::experimental::net::ip::tcp::endpoint) noexcept {
-  return true;
 }
 
 } // end detail namespace
