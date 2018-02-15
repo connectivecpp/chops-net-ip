@@ -88,8 +88,8 @@ struct fut_state_chg_cb {
         m_stop_prom()     { }
 
 
-  void operator()(basic_io_interface<IOH> io, std::size_t /* sz */, bool started) {
-    if (started) {
+  void operator()(basic_io_interface<IOH> io, std::size_t /* sz */, bool starting) {
+    if (starting) {
       m_start_prom->set_value(io);
     }
     else {
