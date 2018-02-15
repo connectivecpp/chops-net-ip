@@ -83,7 +83,7 @@ auto make_simple_variable_len_msg_frame_state_change (std::size_t hdr_size,
  */
 
 template <typename MH>
-auto make_delimiter_state_change (std::string_view delim, MH&& msg_hdlr) {
+auto make_delimiter_read_state_change (std::string_view delim, MH&& msg_hdlr) {
   return [delim, mh = std::move(msg_hdlr)] 
                   (tcp_io_interface io, std::size_t num, bool starting) mutable {
     if (starting) {
@@ -112,11 +112,33 @@ auto make_delimiter_state_change (std::string_view delim, MH&& msg_hdlr) {
  */
 
 template <typename MH, typename IOH = udp_io>
-auto make_udp_read_state_change (std::size_t rd_size, MH&& msg_hdlr) {
+auto make_read_state_change (std::size_t rd_size, MH&& msg_hdlr) {
   return [rd_size, mh = std::move(msg_hdlr)] 
                   (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
     if (starting) {
       io.start_io(rd_size, std::move(mh));
+    }
+  };
+}
+
+/**
+ *  @brief Create a state change function object that can be passed in to the 
+ *  @c net_entity @c start method, later calling @c start_io with parameters for
+ *  sending only, whether UDP or TCP.
+ *
+ *  The state change function object created does not perform any actions on IO stop.
+ *
+ *  @param msg_hdlr A function object that can be used as a message handler in the 
+ *  @c start_io method.
+ *
+ *  @return A function object that can be used with the @c start method.
+ *
+ */
+template <typename IOH>
+auto make_send_only_state_change () {
+  return [] (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+    if (starting) {
+      io.start_io();
     }
   };
 }
