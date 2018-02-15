@@ -103,9 +103,6 @@ namespace net {
  *  @endcode
  *
  *  The @c net_ip class is safe for multiple threads to use concurrently. 
- *  (Internally function objects are posted through the 
- *  @c std::experimental::net::io_context for handling within a single thread 
- *  or strand context.)
  *
  *  It should be noted, however, that race conditions are possible, specially for 
  *  similar operations invoked between @c net_entity and @c io_interface 
@@ -368,7 +365,10 @@ public:
 
 /**
  *  @brief Remove a TCP acceptor @c net_entity from the internal list of TCP 
- *  acceptors; @c stop is not called.
+ *  acceptors. 
+ *
+ *  @c stop should first be called by the application, or the @c stop_all 
+ *  method can be called to stop all net entities.
  *
  *  @param acc TCP acceptor @c net_entity to be removed.
  *
@@ -376,16 +376,19 @@ public:
   void remove(tcp_acceptor_net_entity acc) {
 //    std::experimental::net::post(m_ioc.get_executor(), 
 //          [acc, this] () mutable {
-//        chops::erase_where(m_acceptors, acc.get_ptr());
+//        chops::erase_where(m_acceptors, acc.get_shared_ptr());
 //      }
 //    );
     lg g(m_mutex);
-    chops::erase_where(m_acceptors, acc.get_ptr());
+    chops::erase_where(m_acceptors, acc.get_shared_ptr());
   }
 
 /**
  *  @brief Remove a TCP connector @c net_entity from the internal list of TCP 
- *  connectors; @c stop is not called.
+ *  connectors.
+ *
+ *  @c stop should first be called by the application, or the @c stop_all 
+ *  method can be called to stop all net entities.
  *
  *  @param conn TCP connector @c net_entity to be removed.
  *
@@ -393,16 +396,18 @@ public:
   void remove(tcp_connector_net_entity conn) {
 //    std::experimental::net::post(m_ioc.get_executor(), 
 //          [conn, this] () mutable {
-//        chops::erase_where(m_connectors, conn.get_ptr());
+//        chops::erase_where(m_connectors, conn.get_shared_ptr());
 //      }
 //    );
     lg g(m_mutex);
-    chops::erase_where(m_connectors, conn.get_ptr());
+    chops::erase_where(m_connectors, conn.get_shared_ptr());
   }
 
 /**
- *  @brief Remove a UDP @c net_entity from the internal list of UDP entities;
- *  @c stop is not called.
+ *  @brief Remove a UDP @c net_entity from the internal list of UDP entities.
+ *
+ *  @c stop should first be called by the application, or the @c stop_all 
+ *  method can be called to stop all net entities.
  *
  *  @param udp_ent UDP @c net_entity to be removed.
  *
@@ -410,15 +415,18 @@ public:
   void remove(udp_net_entity udp_ent) {
 //    std::experimental::net::post(m_ioc.get_executor(), 
 //          [udp_ent, this] () mutable {
-//        chops::erase_where(m_udp_entities, udp_ent.get_ptr());
+//        chops::erase_where(m_udp_entities, udp_ent.get_shared_ptr());
 //      }
 //    );
     lg g(m_mutex);
-    chops::erase_where(m_udp_entities, udp_ent.get_ptr());
+    chops::erase_where(m_udp_entities, udp_ent.get_shared_ptr());
   }
 
 /**
  *  @brief Remove all acceptors, connectors, and UDP entities.
+ *
+ *  @c stop_all (or the equivalent) should first be called to
+ *  stop all net entities.
  *
  */
   void remove_all() {

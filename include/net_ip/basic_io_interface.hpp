@@ -579,42 +579,17 @@ public:
     return (lp && rp && lp < rp) || (!lp && rp);
   }
 
+/**
+ *  @brief Return a @c std::shared_ptr to the actual io handler object, meant to be used
+ *  for internal purposes only.
+ *
+ *  @return As described in the comments.
+ */
+  auto get_shared_ptr() const noexcept {
+    return m_ioh_wptr.lock();
+  }
+
 };
-
-namespace detail {
-  class tcp_io;
-  class udp_entity_io;
-}
-
-/**
- *  @brief Using declaration for TCP based io, used to instantiate an @c basic_io_interface
- *  type.
- *
- *  @relates basic_io_interface
- */
-using tcp_io = detail::tcp_io;
-
-/**
- *  @brief Using declaration for UDP based io, used to instantiate an @c basic_io_interface
- *  type.
- *
- *  @relates basic_io_interface
- */
-using udp_io = detail::udp_entity_io;
-
-/**
- *  @brief Using declaration for a TCP based @c basic_io_interface type.
- *
- *  @relates basic_io_interface
- */
-using tcp_io_interface = basic_io_interface<tcp_io>;
-
-/**
- *  @brief Using declaration for a UDP based @c basic_io_interface type.
- *
- *  @relates basic_io_interface
- */
-using udp_io_interface = basic_io_interface<udp_io>;
 
 } // end net namespace
 } // end chops namespace
