@@ -34,6 +34,16 @@ template <typename IOH>
 using io_interface_future = std::future<basic_io_interface<IOH> >;
 
 /**
+ *  @brief @c io_interface_future for TCP IO handlers.
+ */
+using tcp_io_interface_future = io_interface_future<tcp_io>;
+/**
+ *  @brief @c io_interface_future for UDP IO handlers.
+ */
+using udp_io_interface_future = io_interface_future<udp_io>;
+
+
+/**
  *  @brief A @c struct containing two @c std::future objects that deliver an @c io_interface 
  *  corresponding to the creation and destruction of an IO handler (TCP connection, UDP socket).
  *
@@ -92,7 +102,7 @@ struct fut_state_chg_cb {
 
 // this function doesn't care about the stop state change or the error callback
 template <typename IOH, typename ET>
-io_fut<IOH> make_io_interface_future_impl(basic_net_entity<ET> entity) {
+io_interface_future<IOH> make_io_interface_future_impl(basic_net_entity<ET> entity) {
   auto start_prom = io_prom<IOH> { };
   auto start_fut = start_prom.get_future();
 
@@ -117,8 +127,29 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
 
 } // end detail namespace
 
+
 /**
- *  @brief Return a pair of @c std::future objects instantiated on @c tcp_io_interface,
+ *  @brief Return a @c std::future object containing a @c tcp_io_interface,
+ *  which will become available after @c start is called on the passed in 
+ *  @c tcp_connector_net_entity.
+ *
+ *  This function returns a single @c std::future object corresponding to when
+ *  a TCP is created and ready. The @c std::future will return a @c tcp_io_interface 
+ *  object, and @c start_io and other methods can be called as needed.
+ *
+ *  @param conn A @c tcp_connector_net_entity object; @c start is immediately called.
+ *
+ *  @return A @c tcp_io_interface_future.
+ *
+ *  @note There is not an equivalent function for a @c tcp_acceptor_net_entity, 
+ *  since multiple connections are typically created and a @c std::promise and
+ *  corresponding @c std::future can only be fulfilled once.
+ */
+tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity conn) {
+  return detail::make_io_interface_future_impl<tcp_io>(conn);
+}
+/**
+ *  @brief Return a pair of @c std::future objects containing @c tcp_io_interface,
  *  which will become available after @c start is called on the passed in 
  *  @c tcp_connector_net_entity.
  *
@@ -133,34 +164,16 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
  *
  *  @return A @c tcp_io_interface_future_pair.
  *
- *  @note There is not an equivalent function for a @c tcp_acceptor_net_entity, 
- *  since multiple connections are typically created and a @c std::promise and
- *  corresponding @c std::future can only be fulfilled once.
  */
-detail::io_fut<tcp_io> make_tcp_io_interface_future(tcp_connector_net_entity conn) {
-  return detail::make_io_interface_future_impl<tcp_io>(conn);
-}
 
-/**
- *  @brief Return a @c std::pair of @c std::future objects for a @c tcp_io_interface after 
- *  calling @c start on the passed in @c tcp_connector_net_entity.
- *
- *  The two @c std::future objects returned from this function correspond to the 
- *  "IO ready" condition after start and then "connection stopped" condition.
- *
- *  @param conn A @c tcp_connector_net_entity object; @c start will immediately be
- *  called on it.
- *
- *  @return A @c std::pair of @c std::future objects, first corresponds to "IO ready", the
- *  second to "stop", both provide a @c tcp_io_interface object.
- */
 auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn) {
   return detail::make_io_interface_future_pair_impl<tcp_io>(conn);
 }
 
 /**
- *  @brief Return a @c std::future for a @c udp_io_interface after calling @c start on 
- *  the passed in @c udp_net_entity.
+ *  @brief Return a @c std::future object containing a @c udp_io_interface,
+ *  which will become available after @c start is called on the passed in 
+ *  @c udp_net_entity.
  *
  *  The @c std::future returned from this function can be used in an application to 
  *  block until UDP processing is ready (typically a local bind, if needed). At that 
@@ -174,21 +187,21 @@ auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn) {
  *  @return A @c std::future which will provide a @c udp_io_interface when ready.
  *
  */
-detail::io_fut<udp_io> make_udp_io_interface_future(udp_net_entity udp_entity) {
+udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity) {
   return detail::make_io_interface_future_impl<udp_io>(udp_entity);
 }
 
 /**
- *  @brief Return a @c std::pair of @c std::future objects for a @c udp_io_interface after 
- *  calling @c start on the passed in @c udp_net_entity.
+ *  @brief Return a pair of @c std::future objects containing @c udp_io_interface,
+ *  which will become available after @c start is called on the passed in 
+ *  @c udp_net_entity.
  *
  *  See comments for @c make_tcp_io_interface_future_pair.
  *
  *  @param udp_entity A @c udp_net_entity object; @c start will immediately be
  *  called on it.
  *
- *  @return A @c std::pair of @c std::future objects, first corresponds to "IO ready", the
- *  second to "stop", both provide a @c udp_io_interface object.
+ *  @return A @c udp_io_interface_future_pair.
  *
  */
 auto make_udp_io_interface_future_pair(udp_net_entity udp_entity) {

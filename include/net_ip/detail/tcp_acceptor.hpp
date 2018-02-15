@@ -118,7 +118,7 @@ private:
     using namespace std::placeholders;
 
     auto self = shared_from_this();
-    m_acceptor.async_accept( [this, self, strt = std::move(start_chg)] 
+    m_acceptor.async_accept( [this, self] 
             (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) mutable {
         if (err) {
           m_entity_common.call_error_cb(tcp_io_ptr(), err);

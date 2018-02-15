@@ -112,7 +112,7 @@ public:
 
   template <typename F>
   void start(F&& state_chg) {
-    if (!m_entity_common.start(std::forward<F1>(state_chg))) {
+    if (!m_entity_common.start(std::forward<F>(state_chg))) {
       // already started
       return;
     }
