@@ -6,7 +6,7 @@
  *  common use cases.
  *
  *  Most of these functions are templated on the message handler class, which is
- *  different for every application. The common part logic is calling @c start on a 
+ *  different for every application. The common logic is calling @c start on a 
  *  @c net_entity with a state change function object and then calling @c start_io on 
  *  an @c io_interface.
  *
