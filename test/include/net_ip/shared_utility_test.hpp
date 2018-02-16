@@ -36,8 +36,12 @@
 #include <experimental/buffer>
 #include <experimental/internet> // ip::udp::endpoint
 
+#include <boost/endian/conversion.hpp>
+
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
+#include "utility/make_byte_array.hpp"
+
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/io_interface.hpp"
 
@@ -46,11 +50,40 @@
 namespace chops {
 namespace test {
 
-chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char, std::size_t num_body_chars);
+inline chops::mutable_shared_buffer make_body_buf(std::string_view pre, 
+                                                  char body_char, 
+                                                  std::size_t num_body_chars) {
+  chops::mutable_shared_buffer buf(pre.data(), pre.size());
+  std::string body(num_body_chars, body_char);
+  return buf.append(body.data(), body.size());
+}
 
-chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body);
-chops::const_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body);
-chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body);
+inline chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
+  std::uint16_t hdr = boost::endian::native_to_big(static_cast<std::uint16_t>(body.size()));
+  chops::mutable_shared_buffer msg(static_cast<const void*>(&hdr), 2);
+  return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
+}
+
+inline chops::const_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body) {
+  chops::mutable_shared_buffer msg(body.data(), body.size());
+  auto ba = chops::make_byte_array(0x0D, 0x0A); // CR, LF
+  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
+}
+
+inline chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body) {
+  chops::mutable_shared_buffer msg(body.data(), body.size());
+  auto ba = chops::make_byte_array(0x0A); // LF
+  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
+}
+
+inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t /* sz */) {
+  // assert (sz == 2);
+  std::uint16_t hdr;
+  std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
+  *(hdr_ptr+0) = *(buf_ptr+0);
+  *(hdr_ptr+1) = *(buf_ptr+1);
+  return boost::endian::big_to_native(hdr);
+}
 
 template <typename F>
 chops::const_shared_buffer make_empty_body_msg(F&& func) {
@@ -72,8 +105,6 @@ vec_buf make_msg_vec(F&& func, std::string_view pre, char body_char, int num_msg
   );
   return vec;
 }
-
-std::size_t decode_variable_len_msg_hdr(const std::byte*, std::size_t);
 
 using test_counter = std::atomic_size_t;
 

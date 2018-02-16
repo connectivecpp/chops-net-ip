@@ -42,7 +42,7 @@
 #include "net_ip/component/io_interface_future.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "../test/net_ip/detail/shared_utility_test.hpp"
+#include "net_ip/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 

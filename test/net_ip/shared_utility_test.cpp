@@ -27,8 +27,6 @@
 #include <memory> // std::shared_ptr, std::make_shared
 #include <future>
 
-#include <boost/endian/conversion.hpp>
-
 #include <experimental/buffer>
 #include <experimental/internet>
 
@@ -39,46 +37,7 @@
 #include "net_ip/io_interface.hpp"
 #include "net_ip/component/simple_variable_len_msg_frame.hpp"
 
-#include "../test/net_ip/detail/shared_utility_test.hpp"
-
-namespace chops {
-namespace test {
-
-chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char, std::size_t num_body_chars) {
-  chops::mutable_shared_buffer buf(pre.data(), pre.size());
-  std::string body(num_body_chars, body_char);
-  return buf.append(body.data(), body.size());
-}
-
-chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
-  std::uint16_t hdr = boost::endian::native_to_big(static_cast<std::uint16_t>(body.size()));
-  chops::mutable_shared_buffer msg(static_cast<const void*>(&hdr), 2);
-  return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
-}
-
-chops::const_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body) {
-  chops::mutable_shared_buffer msg(body.data(), body.size());
-  auto ba = chops::make_byte_array(0x0D, 0x0A); // CR, LF
-  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
-}
-
-chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body) {
-  chops::mutable_shared_buffer msg(body.data(), body.size());
-  auto ba = chops::make_byte_array(0x0A); // LF
-  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
-}
-
-std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t /* sz */) {
-  // assert (sz == 2);
-  std::uint16_t hdr;
-  std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
-  *(hdr_ptr+0) = *(buf_ptr+0);
-  *(hdr_ptr+1) = *(buf_ptr+1);
-  return boost::endian::big_to_native(hdr);
-}
-
-} // end namespace test
-} // end namespace chops
+#include "net_ip/shared_utility_test.hpp"
 
 void make_msg_test() {
   using namespace chops::test;
