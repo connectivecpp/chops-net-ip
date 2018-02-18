@@ -12,93 +12,17 @@
 
 #include "catch.hpp"
 
-#include <experimental/internet> // endpoint declarations
-#include <experimental/socket>
-
 #include <memory> // std::shared_ptr
-#include <system_error> // std::error_code
-#include <string_view>
-#include <string>
 #include <set>
 #include <cstddef> // std::size_t
 
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/basic_io_interface.hpp"
 
+#include "net_ip/shared_utility_test.hpp"
+
 #include "utility/shared_buffer.hpp"
 #include "utility/make_byte_array.hpp"
-
-using namespace std::experimental::net;
-
-constexpr int qs_base = 42;
-
-struct io_handler_base_mock {
-  bool started = false;
-
-  bool is_io_started() const { return started; }
-
-  chops::net::output_queue_stats get_output_queue_stats() const { 
-    return chops::net::output_queue_stats { qs_base, qs_base +1 };
-  }
-
-  template <typename MH, typename MF>
-  void start_io(std::size_t, MH&&, MF&&) { started = true; }
-
-  template <typename MH>
-  void start_io(std::string_view, MH&&) { started = true; }
-
-  template <typename MH>
-  void start_io(std::size_t, MH&&) { started = true; }
-
-  template <typename MH>
-  void start_io(std::size_t, const ip::tcp::endpoint&, MH&&) { started = true; }
-
-  template <typename MH>
-  void start_io(std::size_t, const ip::udp::endpoint&, MH&&) { started = true; }
-
-  void start_io() { started = true; }
-
-  void start_io(const ip::tcp::endpoint&) { started = true; }
-
-  void start_io(const ip::udp::endpoint&) { started = true; }
-
-  void stop_io() { started = false; }
-
-
-
-};
-
-struct tcp_io_handler_mock : public io_handler_base_mock {
-
-  using socket_type = ip::tcp::socket;
-  using endpoint_type = ip::tcp::endpoint;
-
-  socket_type sock;
-
-  tcp_io_handler_mock (io_context& ioc) : io_handler_base_mock(), sock(ioc) { }
-
-  socket_type& get_socket() { return sock; }
-
-  void send(chops::const_shared_buffer) { }
-  void send(chops::const_shared_buffer, const endpoint_type&) { }
-
-};
-
-struct udp_io_handler_mock : public io_handler_base_mock {
-
-  using socket_type = ip::udp::socket;
-  using endpoint_type = ip::udp::endpoint;
-
-  socket_type sock;
-
-  udp_io_handler_mock (io_context& ioc) : io_handler_base_mock(), sock(ioc) { }
-
-  socket_type& get_socket() { return sock; }
-
-  void send(chops::const_shared_buffer) { }
-  void send(chops::const_shared_buffer, const endpoint_type&) { }
-
-};
 
 template <typename IOH>
 void basic_io_interface_test_default_constructed() {
@@ -150,8 +74,7 @@ void basic_io_interface_test_two() {
 
   chops::net::basic_io_interface<IOH> io_intf { };
 
-  io_context ioc;
-  auto ioh = std::make_shared<IOH>(ioc);
+  auto ioh = std::make_shared<IOH>();
   io_intf = chops::net::basic_io_interface<IOH>(ioh);
 
   GIVEN ("A default constructed basic_io_interface and an io handler") {
@@ -164,8 +87,8 @@ void basic_io_interface_test_two() {
       THEN ("values are returned") {
         REQUIRE_FALSE (io_intf.is_io_started());
         chops::net::output_queue_stats s = io_intf.get_output_queue_stats();
-        REQUIRE (s.output_queue_size == qs_base);
-        REQUIRE (s.bytes_in_output_queue == (qs_base + 1));
+        REQUIRE (s.output_queue_size == chops::test::io_handler_mock::qs_base);
+        REQUIRE (s.bytes_in_output_queue == (chops::test::io_handler_mock::qs_base + 1));
       }
     }
     AND_WHEN ("send or start_io or stop_io is called") {
@@ -203,13 +126,12 @@ void basic_io_interface_test_compare() {
 
   chops::net::basic_io_interface<IOH> io_intf1 { };
 
-  io_context ioc;
-  auto ioh1 = std::make_shared<IOH>(ioc);
+  auto ioh1 = std::make_shared<IOH>();
   chops::net::basic_io_interface<IOH> io_intf2(ioh1);
 
   chops::net::basic_io_interface<IOH> io_intf3 { };
 
-  auto ioh2 = std::make_shared<IOH>(ioc);
+  auto ioh2 = std::make_shared<IOH>();
   chops::net::basic_io_interface<IOH> io_intf4(ioh2);
 
   chops::net::basic_io_interface<IOH> io_intf5 { };
@@ -253,17 +175,10 @@ void basic_io_interface_test_compare() {
 
 }
 
-SCENARIO ( "Basic io interface test, udp",
-           "[basic_io_interface] [udp]" ) {
-  basic_io_interface_test_default_constructed<udp_io_handler_mock>();
-  basic_io_interface_test_two<udp_io_handler_mock>();
-  basic_io_interface_test_compare<udp_io_handler_mock>();
-}
-
-SCENARIO ( "Basic io interface test, tcp",
-           "[basic_io_interface] [tcp]" ) {
-  basic_io_interface_test_default_constructed<tcp_io_handler_mock>();
-  basic_io_interface_test_two<tcp_io_handler_mock>();
-  basic_io_interface_test_compare<tcp_io_handler_mock>();
+SCENARIO ( "Basic io interface test, io_handler_mock used for IO handler type",
+           "[basic_io_interface] [io_handler_mock]" ) {
+  basic_io_interface_test_default_constructed<chops::test::io_handler_mock>();
+  basic_io_interface_test_two<chops::test::io_handler_mock>();
+  basic_io_interface_test_compare<chops::test::io_handler_mock>();
 }
 

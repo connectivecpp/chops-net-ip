@@ -171,6 +171,66 @@ inline void udp_start_io (chops::net::udp_io_interface io, bool receiving, test_
   }
 }
 
+struct io_handler_mock {
+  using socket_type = int;
+  using endpoint_type = double;
+  using io_type = short;
+
+  socket_type sock = 3;
+  bool started = false;
+  constexpr static std::size_t qs_base = 42;
+
+  bool is_io_started() const { return started; }
+
+  socket_type& get_socket() { return sock; }
+
+  chops::net::output_queue_stats get_output_queue_stats() const { 
+    return chops::net::output_queue_stats { qs_base, qs_base +1 };
+  }
+
+  void send(chops::const_shared_buffer) { }
+  void send(chops::const_shared_buffer, const endpoint_type&) { }
+
+  template <typename MH, typename MF>
+  void start_io(std::size_t, MH&&, MF&&) { started = true; }
+
+  template <typename MH>
+  void start_io(std::string_view, MH&&) { started = true; }
+
+  template <typename MH>
+  void start_io(std::size_t, MH&&) { started = true; }
+
+  template <typename MH>
+  void start_io(std::size_t, const endpoint_type&, MH&&) { started = true; }
+
+  void start_io() { started = true; }
+
+  void start_io(const endpoint_type&) { started = true; }
+
+  void stop_io() { started = false; }
+
+};
+
+struct net_entity_mock {
+  using socket_type = double;
+
+  constexpr static double special_val = 42.0;
+  double dummy = special_val;
+
+  bool started = false;
+
+  bool is_started() const { return started; }
+
+  double& get_socket() { return dummy; }
+
+  template <typename F1, typename F2>
+  void start( F1&&, F2&& ) { started = true; }
+
+  void stop() { started = false; }
+
+};
+
+
 } // end namespace test
 } // end namespace chops
 

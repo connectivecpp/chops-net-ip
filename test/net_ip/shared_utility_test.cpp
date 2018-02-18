@@ -271,3 +271,95 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
   } // end given
 }
 
+SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
+           "[shared_utility] [io_handler_mock]" ) {
+  using namespace chops::test;
+
+  io_handler_mock io_mock { };
+
+  auto t = io_mock.sock;
+
+  GIVEN ("A default constructed io_handler_mock") {
+    WHEN ("is_io_started is called") {
+      THEN ("the return is false") {
+        REQUIRE_FALSE (io_mock.is_io_started());
+      }
+    }
+    AND_WHEN ("get_socket is called") {
+      THEN ("the correct value is returned") {
+        REQUIRE (io_mock.get_socket() == t);
+      }
+    }
+    AND_WHEN ("get_socket is used as a modifying call") {
+      THEN ("the correct value is returned") {
+        io_mock.get_socket() += 2;
+        REQUIRE (io_mock.get_socket() == (t+2));
+      }
+    }
+    AND_WHEN ("get_output_queue_stats is called") {
+      THEN ("the correct value is returned") {
+        auto qs = io_mock.get_output_queue_stats();
+        REQUIRE (qs.output_queue_size == io_mock.qs_base);
+        REQUIRE (qs.bytes_in_output_queue == (io_mock.qs_base+1));
+      }
+    }
+    AND_WHEN ("start_io is called") {
+      THEN ("is_io_started is true") {
+        io_mock.start_io(0, [] { }, [] { });
+        REQUIRE (io_mock.is_io_started());
+      }
+    }
+    AND_WHEN ("stop_io is called") {
+      THEN ("is_io_started is false") {
+        io_mock.start_io(std::string_view(), [] { });
+        REQUIRE (io_mock.is_io_started());
+        io_mock.stop_io();
+        REQUIRE_FALSE (io_mock.is_io_started());
+      }
+    }
+  } // end given
+}
+
+SCENARIO ( "Shared Net IP test utility, net_entity_mock test",
+           "[shared_utility] [net_entity_mock]" ) {
+  using namespace chops::test;
+
+  net_entity_mock ne_mock { };
+  REQUIRE_FALSE (ne_mock.is_started());
+
+  auto t = ne_mock.special_val;
+
+  GIVEN ("A default constructed net_entity_mock") {
+    WHEN ("is_started is called") {
+      THEN ("the return is false") {
+        REQUIRE_FALSE (ne_mock.is_started());
+      }
+    }
+    AND_WHEN ("get_socket is called") {
+      THEN ("the correct value is returned") {
+        REQUIRE (ne_mock.get_socket() == t);
+      }
+    }
+    AND_WHEN ("get_socket is used as a modifying call") {
+      THEN ("the correct value is returned") {
+        ne_mock.get_socket() += 1.0;
+        REQUIRE (ne_mock.get_socket() == (t+1.0));
+      }
+    }
+    AND_WHEN ("start is called") {
+      THEN ("is_started is true") {
+        ne_mock.start([] { }, [] { });
+        REQUIRE (ne_mock.is_started());
+      }
+    }
+    AND_WHEN ("stop is called") {
+      THEN ("is_started is false") {
+        ne_mock.start([] { }, [] { });
+        REQUIRE (ne_mock.is_started());
+        ne_mock.stop();
+        REQUIRE_FALSE (ne_mock.is_started());
+      }
+    }
+  } // end given
+}
+

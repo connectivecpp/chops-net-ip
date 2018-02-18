@@ -29,6 +29,7 @@
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
 #include "net_ip/detail/output_queue.hpp"
+
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/basic_io_interface.hpp"
@@ -42,6 +43,7 @@ class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
   using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
+  using io_type = udp_entity_io;
 
 private:
   using byte_vec = chops::mutable_shared_buffer::byte_vec;

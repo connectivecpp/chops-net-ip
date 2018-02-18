@@ -31,6 +31,8 @@
 #include "net_ip/detail/net_entity_common.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
+#include "net_ip/io_interface.hpp"
+
 
 namespace chops {
 namespace net {
@@ -40,6 +42,7 @@ class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
 public:
   using socket_type = std::experimental::net::ip::tcp::socket;
   using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using io_type = tcp_io;
 
 private:
   using resolver_type = chops::net::endpoints_resolver<std::experimental::net::ip::tcp>;

@@ -17,12 +17,25 @@
 #include <memory> // std::shared_ptr, std::weak_ptr
 #include <cstddef> // std::size_t 
 #include <utility> // std::move, std::forward
-#include <system_error> // std::make_error
+#include <system_error> // std::make_error, std::error_code
 
 #include "net_ip/net_ip_error.hpp"
 
+#include "net_ip/basic_io_interface.hpp"
+
 namespace chops {
 namespace net {
+
+/**
+ *  @brief A function object that does nothing and that can be used for the IO error 
+ *  function in the @c basic_net_entity @c start method.
+ *
+ *  @relates basic_net_entity
+ */
+template <typename IOH>
+auto make_empty_io_error_func() {
+  return [] (basic_io_interface<IOH>, std::error_code) { };
+}
 
 /**
  *  @brief The @c basic_net_entity class template provides the application interface 
@@ -116,7 +129,7 @@ public:
  *
  *  The socket reference returned from this method allows direct access to the
  *  @c basic_net_entity socket. This socket may be different from the socket that is
- *  accessible hrough the @c basic_io_interface object. In particular, a TCP acceptor
+ *  accessible through the @c basic_io_interface object. In particular, a TCP acceptor
  *  socket reference is of type @c ip::tcp::acceptor (in the namespace
  *  @c std::experimental::net), a TCP connector socket reference is of type
  *  @c ip::tcp::socket, and a UDP entity socket reference is of type 
@@ -136,31 +149,31 @@ public:
 
 /**
  *  @brief Start network processing on the associated net entity with the application
- *  providing state change and error function object callbacks.
+ *  providing IO state change and IO error function objects.
  *
  *  Once a net entity (TCP acceptor, TCP connector, UDP entity) is created through 
  *  a @c net_ip @c make method, calling @c start on the @c basic_net_entity causes local port 
  *  binding and other processing (e.g. TCP listen, TCP connect) to occur.
  *
- *  Input and output processing does not start until the @c io_interface @c start_io
+ *  Input and output processing does not start until the @c basic_io_interface @c start_io
  *  method is called.
  *
  *  The application provides two function objects to @c start:
  *
- *  1) A state change function object which is invoked twice. The first time is when a 
+ *  1) An IO state change function object which is invoked twice. The first time is when a 
  *  TCP connection is created or UDP socket is opened, the second time is when the TCP 
- *  connection is destroyed or the UDP socket closed. An @c io_interface object is 
+ *  connection is destroyed or the UDP socket closed. A @c basic_io_interface object is 
  *  provided to the callback which allows IO processing to commence through the 
  *  @c start_io method call.
  *
- *  2) An error function object which is invoked whenever an error occurs or when
+ *  2) An IO error function object which is invoked whenever an error occurs or when
  *  processing is gracefully shutdown.
  *
  *  The @c start method call can be followed by a @c stop call, followed by @c start, 
  *  etc. This may be useful (for example) for a TCP connector that needs to reconnect 
  *  after a connection has been lost.
  *
- *  @param state_chg_func A function object with the following signature:
+ *  @param io_state_chg_func A function object with the following signature:
  *
  *  @code
  *    // TCP:
@@ -171,24 +184,26 @@ public:
  *
  *  The parameters are as follows:
  *
- *  1) An @c io_interface object providing @c start_io access (and @c stop_io access if
+ *  1) A @c basic_io_interface object providing @c start_io access (and @c stop_io access if
  *  needed) to the underlying IO handler.
  *
  *  2) A count of the underlying IO handlers associated with this net entity. For 
  *  a TCP connector or a UDP entity the number is 1, and for a TCP acceptor the number is 
  *  1 to N, depending on the number of accepted connections.
  *
- *  3) If @c true, the @c io_interface has just been created (i.e. a TCP connection 
+ *  3) If @c true, the @c basic_io_interface has just been created (i.e. a TCP connection 
  *  has been created or a UDP socket is ready), and if @c false, the connection or socket
  *  has been destroyed or closed.
  *
- *  In both invocations the @c io_interface object is valid (@c is_valid returns @c true).
- *  For the second invocation no @c io_interface methods should be called, but the 
- *  @c io_interface object can be used for associative lookups (if needed).
+ *  In both function object callback invocations the @c basic_io_interface object is valid 
+ *  (@c is_valid returns @c true). For the second invocation no @c basic_io_interface methods 
+ *  should be called, but the @c basic_io_interface object can be used for associative lookups 
+ *  (if needed).
  *
- *  The state change function object must be copyable (it will be stored in a @c std::function).
+ *  The IO state change function object must be copyable (it will be stored in a 
+ *  @c std::function).
  *
- *  @param err_func A function object with the following signature:
+ *  @param io_err_func A function object with the following signature:
  *
  *  @code
  *    // TCP:
@@ -199,43 +214,29 @@ public:
  *
  *  The parameters are as follows:
  *
- *  1) An @c io_interface object, which may or may not be valid (i.e @c is_valid may
+ *  1) A @c basic_io_interface object, which may or may not be valid (i.e @c is_valid may
  *  return either @c true or @c false), depending on the context of the error. No methods 
- *  on the @c io_interface object should be called, as the underlying handler is being 
+ *  on the @c basic_io_interface object should be called, as the underlying handler is being 
  *  destructed.
  *
  *  2) The error code associated with the shutdown. There are error codes associated 
  *  with graceful shutdown as well as error codes for network or system errors.
  *
- *  The @c err_func callback may be invoked in contexts other than an IO error - for
+ *  The @c io_err_func callback may be invoked in contexts other than a network IO error - for
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
  *  code will be provided.
  *
- *  The error function object must be copyable (it will be stored in a @c std::function).
+ *  The IO error function object must be copyable (it will be stored in a @c std::function).
+ *
+ *  This parameter can be omitted and defaults to an empty ("do nothing") function object.
  *
  *  @return @c true if valid net entity association.
  *
  */
   template <typename F1, typename F2>
-  bool start(F1&& state_chg_func, F2&& err_func) {
+  bool start(F1&& io_state_chg_func, F2&& io_err_func = make_empty_io_error_func<typename ET::io_type>()) {
     auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<F1>(state_chg_func), std::forward<F2>(err_func)), true) : false;
-  }
-
-/**
- *  @brief Start network processing on the associated net entity where only an
- *  state change function object is provided and error callbacks are not 
- *  desired.
- *
- *  @param state_chg_func A function object as described in the other @c start 
- *  method.
- *
- *  @return @c true if valid net entity association.
- */
-  template <typename F>
-  bool start(F&& state_chg_func) {
-    auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<F>(state_chg_func)), true) : false;
+    return p ? (p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(io_err_func)), true) : false;
   }
 
 /**
