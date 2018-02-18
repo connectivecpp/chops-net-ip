@@ -69,21 +69,21 @@ public:
   socket_type& get_socket() noexcept { return m_acceptor; }
 
   template <typename F1, typename F2>
-  void start(F1&& state_chg, F2&& err_cb) {
-    if (!m_entity_common.start(std::forward<F1>(state_chg), std::forward<F2>(err_cb))) {
+  void start(F1&& io_state_chg, F2&& err_func) {
+    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func))) {
       // already started
       return;
     }
-    open_acceptor();
-  }
-
-  template <typename F>
-  void start(F&& state_chg) {
-    if (!m_entity_common.start(std::forward<F>(state_chg))) {
-      // already started
+    try {
+      m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
+                               m_reuse_addr);
+    }
+    catch (const std::system_error& se) {
+      m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
+      stop();
       return;
     }
-    open_acceptor();
+    start_accept();
   }
 
   void stop() {
@@ -102,19 +102,6 @@ public:
 
 private:
 
-  void open_acceptor() {
-    try {
-      m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
-                               m_reuse_addr);
-    }
-    catch (const std::system_error& se) {
-      m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
-      stop();
-      return;
-    }
-    start_accept();
-  }
-
   void start_accept() {
     using namespace std::placeholders;
 
@@ -129,7 +116,7 @@ private:
         tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
-        m_entity_common.call_state_chg_cb(iop, m_io_handlers.size(), true);
+        m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true);
         start_accept();
       }
     );
@@ -146,7 +133,7 @@ private:
   void remove_handler(std::error_code err, tcp_io_ptr iop) {
     iop->close();
     chops::erase_where(m_io_handlers, iop);
-    m_entity_common.call_state_chg_cb(iop, m_io_handlers.size(), false);
+    m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
   }
 
 };

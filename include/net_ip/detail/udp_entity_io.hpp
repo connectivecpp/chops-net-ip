@@ -93,21 +93,27 @@ public:
   }
 
   template <typename F1, typename F2>
-  void start(F1&& state_chg, F2&& err_cb) {
-    if (!m_entity_common.start(std::forward<F1>(state_chg), std::forward<F2>(err_cb))) {
+  void start(F1&& io_state_chg, F2&& err_cb) {
+    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
       return;
     }
-    open_udp();
-  }
-
-  template <typename F>
-  void start(F&& state_chg) {
-    if (!m_entity_common.start(std::forward<F>(state_chg))) {
-      // already started
+    try {
+      // assume default constructed endpoints compare equal
+      if (m_local_endp == endpoint_type()) {
+// TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
+        m_socket.open(std::experimental::net::ip::udp::v4());
+      }
+      else {
+        m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
+      }
+    }
+    catch (const std::system_error& se) {
+      err_notify(se.code());
+      stop();
       return;
     }
-    open_udp();
+    m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true);
   }
 
   template <typename MH>
@@ -147,7 +153,7 @@ public:
     std::error_code ec;
     m_socket.close(ec);
     err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
-    m_entity_common.call_state_chg_cb(shared_from_this(), 0, false);
+    m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
   }
 
   void stop() {
@@ -181,25 +187,6 @@ public:
   }
 
 private:
-
-  void open_udp() {
-    try {
-      // assume default constructed endpoints compare equal
-      if (m_local_endp == endpoint_type()) {
-// TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
-        m_socket.open(std::experimental::net::ip::udp::v4());
-      }
-      else {
-        m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
-      }
-    }
-    catch (const std::system_error& se) {
-      err_notify(se.code());
-      stop();
-      return;
-    }
-    m_entity_common.call_state_chg_cb(shared_from_this(), 1, true);
-  }
 
   template <typename MH>
   void start_read(MH&& msg_hdlr) {

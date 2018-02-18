@@ -105,32 +105,11 @@ public:
   socket_type& get_socket() noexcept { return m_socket; }
 
   template <typename F1, typename F2>
-  void start(F1&& state_chg, F1&& err_cb) {
-    if (!m_entity_common.start(std::forward<F1>(state_chg), std::forward<F2>(err_cb))) {
+  void start(F1&& io_state_chg, F1&& err_cb) {
+    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
       return;
     }
-    open_connector();
-  }
-
-  template <typename F>
-  void start(F&& state_chg) {
-    if (!m_entity_common.start(std::forward<F>(state_chg))) {
-      // already started
-      return;
-    }
-    open_connector();
-  }
-
-  void stop() {
-    close();
-    m_entity_common.call_error_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped));
-  }
-
-
-private:
-
-  void open_connector() {
     // empty endpoints container is the flag that a resolve is needed
     if (m_endpoints.empty()) {
       auto self = shared_from_this();
@@ -144,6 +123,14 @@ private:
     }
     start_connect();
   }
+
+  void stop() {
+    close();
+    m_entity_common.call_error_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped));
+  }
+
+
+private:
 
   void close() {
     if (!m_entity_common.stop()) {
@@ -209,14 +196,14 @@ private:
     }
     m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
       tcp_io::entity_notifier_cb(std::bind(&tcp_connector::notify_me, shared_from_this(), _1, _2)));
-    m_entity_common.call_state_chg_cb(m_io_handler, 1, true);
+    m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true);
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
     auto self { shared_from_this() };
     post(m_socket.get_executor(), [this, self, err, iop] () mutable {
         iop->close();
-        m_entity_common.call_state_chg_cb(iop, 0, false);
+        m_entity_common.call_io_state_chg_cb(iop, 0, false);
         stop();
       }
     );

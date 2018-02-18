@@ -27,13 +27,13 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief A function object that does nothing and that can be used for the IO error 
+ *  @brief A function object that does nothing and that can be used for the error 
  *  function in the @c basic_net_entity @c start method.
  *
  *  @relates basic_net_entity
  */
 template <typename IOH>
-auto make_empty_io_error_func() {
+auto make_empty_error_func() {
   return [] (basic_io_interface<IOH>, std::error_code) { };
 }
 
@@ -149,7 +149,7 @@ public:
 
 /**
  *  @brief Start network processing on the associated net entity with the application
- *  providing IO state change and IO error function objects.
+ *  providing IO state change and error function objects.
  *
  *  Once a net entity (TCP acceptor, TCP connector, UDP entity) is created through 
  *  a @c net_ip @c make method, calling @c start on the @c basic_net_entity causes local port 
@@ -158,7 +158,8 @@ public:
  *  Input and output processing does not start until the @c basic_io_interface @c start_io
  *  method is called.
  *
- *  The application provides two function objects to @c start:
+ *  The application provides two function objects to @c start (the second can be defaulted
+ *  to a "do nothing" function object):
  *
  *  1) An IO state change function object which is invoked twice. The first time is when a 
  *  TCP connection is created or UDP socket is opened, the second time is when the TCP 
@@ -166,7 +167,7 @@ public:
  *  provided to the callback which allows IO processing to commence through the 
  *  @c start_io method call.
  *
- *  2) An IO error function object which is invoked whenever an error occurs or when
+ *  2) An error function object which is invoked whenever an error occurs or when
  *  processing is gracefully shutdown.
  *
  *  The @c start method call can be followed by a @c stop call, followed by @c start, 
@@ -203,7 +204,7 @@ public:
  *  The IO state change function object must be copyable (it will be stored in a 
  *  @c std::function).
  *
- *  @param io_err_func A function object with the following signature:
+ *  @param err_func A function object with the following signature:
  *
  *  @code
  *    // TCP:
@@ -222,11 +223,11 @@ public:
  *  2) The error code associated with the shutdown. There are error codes associated 
  *  with graceful shutdown as well as error codes for network or system errors.
  *
- *  The @c io_err_func callback may be invoked in contexts other than a network IO error - for
+ *  The @c err_func callback may be invoked in contexts other than a network IO error - for
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
  *  code will be provided.
  *
- *  The IO error function object must be copyable (it will be stored in a @c std::function).
+ *  The error function object must be copyable (it will be stored in a @c std::function).
  *
  *  This parameter can be omitted and defaults to an empty ("do nothing") function object.
  *
@@ -234,9 +235,9 @@ public:
  *
  */
   template <typename F1, typename F2>
-  bool start(F1&& io_state_chg_func, F2&& io_err_func = make_empty_io_error_func<typename ET::io_type>()) {
+  bool start(F1&& io_state_chg_func, F2&& err_func = make_empty_error_func<typename ET::io_type>()) {
     auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(io_err_func)), true) : false;
+    return p ? (p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func)), true) : false;
   }
 
 /**
