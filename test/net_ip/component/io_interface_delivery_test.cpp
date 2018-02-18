@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Test scenario for @c io_interface delivery functions.
+ *  @brief Test scenarios for @c io_interface delivery functions.
  *
  *  @author Cliff Green
  *  @date 2018
@@ -18,9 +18,13 @@
 #include <future>
 
 #include "net_ip/component/io_interface_delivery.hpp"
+#include "net_ip/component/io_state_change.hpp"
+
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/net_ip_error.hpp"
+
+#include "net_ip/shared_utility_test.hpp"
 
 
 struct io_mock {

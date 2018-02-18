@@ -13,6 +13,12 @@
  *  then call @c start on the @c basic_net_entity using the @c start_io function object and then
  *  return an @c io_interface object through various mechanisms.
  *
+ *  An error function object can be passed in which will be used in the @c start call, but it
+ *  can also be defaulted to a "do nothing" function.
+ *
+ *  The @c io_state_change.hpp header provides a collection of functions that create @c start_io
+ *  function objects, each packaged with the logic and data needed to call @c start_io.
+ *
  *  There are two ways the @c io_interface can be delivered - 1) by @c std::future, or 2) by a
  *  @c wait_queue. Futures are appropriate for TCP connectors and UDP entities, since there is
  *  only a single state change for IO start and a single state change for IO stop. Futures are
@@ -137,58 +143,51 @@ namespace detail {
 template <typename IOH>
 using io_prom = std::promise<basic_io_interface<IOH> >;
 
-// the state change function object must be copyable since internally it is stored in
-// a std::function for later invocation
-template <typename IOH>
-struct fut_io_state_chg_cb {
+// io state change function object must be copyable since it will
+// be stored in a std::function, therefore wrap promise in shared ptr
+template <typename IOH, typename ET, typename IOS, typename EF>
+auto make_io_interface_future_impl(basic_net_entity<ET> entity,
+                                   IOS&& io_start,
+                                   EF&& err_func = make_empty_error_func<IOH>()) {
+  auto start_prom_ptr = std::make_shared<io_prom<IOH> >();
+  auto start_fut = start_prom_ptr->get_future();
 
-  std::shared_ptr<io_prom<IOH> >  m_start_prom;
-  std::shared_ptr<io_prom<IOH> >  m_stop_prom;
-
-  fut_io_state_chg_cb(io_prom<IOH> start_prom, io_prom<IOH> stop_prom) : 
-        m_start_prom(std::make_shared<io_prom<IOH> >(std::move(start_prom))), 
-        m_stop_prom(std::make_shared<io_prom<IOH> >(std::move(stop_prom)))     { }
-
-  fut_io_state_chg_cb(io_prom<IOH> start_prom) : 
-        m_start_prom(std::make_shared<io_prom<IOH> >(std::move(start_prom))), 
-        m_stop_prom()     { }
-
-
-  void operator()(basic_io_interface<IOH> io, std::size_t /* sz */, bool starting) {
-    if (starting) {
-      m_start_prom->set_value(io);
-    }
-    else {
-      if (m_stop_prom) {
-        m_stop_prom->set_value(io);
+  entity.start( [ios = std::move(io_start), start_prom_ptr] 
+                    (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+      if (starting) {
+        ios(io, num, starting);
+        start_prom_ptr->set_value(io);
       }
-    }
-  }
-};
-
-// this function doesn't care about the stop state change or the error callback
-template <typename IOH, typename ET>
-io_interface_future<IOH> make_io_interface_future_impl(basic_net_entity<ET> entity) {
-  auto start_prom = io_prom<IOH> { };
-  auto start_fut = start_prom.get_future();
-
-  entity.start( fut_io_state_chg_cb<IOH>(std::move(start_prom)) );
-
+    }, err_func
+  );
   return start_fut;
 }
 
-// this function doesn't care about the error callback
-template <typename IOH, typename ET>
-auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
+template <typename IOH, typename ET, typename IOS, typename EF>
+auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
+                                        IOS&& io_start,
+                                        EF&& err_func = make_empty_error_func<IOH>()) {
 
-  auto start_prom = io_prom<IOH> { };
-  auto stop_prom = io_prom<IOH> { };
-
-  io_interface_future_pair<IOH> fp { start_prom.get_future(), stop_prom.get_future() };
+  auto start_prom_ptr = std::make_shared<io_prom<IOH> >();
+  auto start_fut = start_prom_ptr->get_future();
+  auto stop_prom_ptr = std::make_shared<io_prom<IOH> >();
+  auto stop_fut = stop_prom_ptr->get_future();
 
   entity.start( fut_io_state_chg_cb<IOH>(std::move(start_prom), std::move(stop_prom)) );
 
-  return fp;
+  entity.start( [ios = std::move(io_start), start_prom_ptr, stop_prom_ptr] 
+                    (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+      if (starting) {
+        ios(io, num, starting);
+        start_prom_ptr->set_value(io);
+      }
+      else {
+        stop_prom_ptr->set_value(io);
+      }
+    }, err_func
+  );
+
+  return io_interface_future_pair<IOH> { std::move(start_fut), std::move(stop_fut) };
 }
 
 } // end detail namespace
@@ -200,10 +199,16 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
  *  @c tcp_connector_net_entity.
  *
  *  This function returns a single @c std::future object corresponding to when
- *  a TCP is created and ready. The @c std::future will return a @c tcp_io_interface 
- *  object, and @c start_io and other methods can be called as needed.
+ *  a TCP connection is created and ready. The @c std::future will return a 
+ *  @c tcp_io_interface object which can be used for sends and other operations.
  *
  *  @param conn A @c tcp_connector_net_entity object; @c start is immediately called.
+ *
+ *  @param io_start A function object which will invoke @c start_io on an 
+ *  @c io_interface object.
+ *
+ *  @param err_func Error function object, which defaults to a "do nothing"
+ *  function.
  *
  *  @return A @c tcp_io_interface_future.
  *
@@ -211,9 +216,16 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity) {
  *  since multiple connections are typically created and a @c std::promise and
  *  corresponding @c std::future can only be fulfilled once.
  */
-tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity conn) {
-  return detail::make_io_interface_future_impl<tcp_io>(conn);
+template <typename IOS, typename EF>
+tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity conn,
+                                                     IOS&& io_start,
+                                                     EF&& err_func = make_empty_error_func<tcp_io>()) {
+  return detail::make_io_interface_future_impl<tcp_io, 
+                        detail::tcp_connector, IOS, EF>(conn,
+                                                        std::forward<IOS>(io_start),
+                                                        std::forward<EF>(err_func));
 }
+
 /**
  *  @brief Return a pair of @c std::future objects containing @c tcp_io_interface,
  *  which will become available after @c start is called on the passed in 
@@ -221,19 +233,33 @@ tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity co
  *
  *  This function returns two @c std::future objects. The first allows the application to
  *  block until a TCP connection is created and ready. At that point the @c std::future will 
- *  return a @c tcp_io_interface object, and @c start_io and other methods can be called
+ *  return a @c tcp_io_interface object, and sends and other operations can be invoked
  *  as needed.
  *
  *  The second @c std::future will pop when the corresponding TCP connection is closed.
  *
  *  @param conn A @c tcp_connector_net_entity object; @c start is immediately called.
  *
+ *  @param io_start A function object which will invoke @c start_io on an 
+ *  @c io_interface object.
+ *
+ *  @param err_func Error function object, which defaults to a "do nothing"
+ *  function.
+ *
  *  @return A @c tcp_io_interface_future_pair.
  *
  */
 
-auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn) {
-  return detail::make_io_interface_future_pair_impl<tcp_io>(conn);
+template <typename IOS, typename EF>
+auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn,
+                                       IOS&& io_start,
+                                       EF&& err_func = make_empty_error_func<tcp_io>()) {
+  return detail::make_io_interface_future_pair_impl<tcp_io,
+                        detail::tcp_connector, IOS, EF>(conn,
+                                                        std::forward<IOS>(io_start),
+                                                        std::forward<EF>(err_func));
+
+
 }
 
 /**
@@ -244,17 +270,28 @@ auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn) {
  *  The @c std::future returned from this function can be used in an application to 
  *  block until UDP processing is ready (typically a local bind, if needed). At that 
  *  time a @c udp_io_interface will be returned as the value from the @c std::future and 
- *  the application can call @c start_io or @c send or other methods on the 
- *  @c udp_io_interface.
+ *  the application can performs sends and other operations as needed.
  *
  *  @param udp_entity A @c udp_net_entity object; @c start will immediately be
  *  called on it.
  *
+ *  @param io_start A function object which will invoke @c start_io on an 
+ *  @c io_interface object.
+ *
+ *  @param err_func Error function object, which defaults to a "do nothing"
+ *  function.
+ *
  *  @return A @c std::future which will provide a @c udp_io_interface when ready.
  *
  */
-udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity) {
-  return detail::make_io_interface_future_impl<udp_io>(udp_entity);
+template <typename IOS, typename EF>
+udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity,
+                                                     IOS&& io_start,
+                                                     EF&& err_func = make_empty_error_func<udp_io>()) {
+  return detail::make_io_interface_future_impl<udp_io, 
+                        detail::udp_entity_io, IOS, EF>(udp_entity,
+                                                        std::forward<IOS>(io_start),
+                                                        std::forward<EF>(err_func));
 }
 
 /**
@@ -264,14 +301,19 @@ udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity) 
  *
  *  See comments for @c make_tcp_io_interface_future_pair.
  *
- *  @param udp_entity A @c udp_net_entity object; @c start will immediately be
- *  called on it.
- *
  *  @return A @c udp_io_interface_future_pair.
  *
  */
-auto make_udp_io_interface_future_pair(udp_net_entity udp_entity) {
-  return detail::make_io_interface_future_pair_impl<udp_io>(udp_entity);
+template <typename IOS, typename EF>
+auto make_udp_io_interface_future_pair(udp_net_entity udp_entity,
+                                       IOS&& io_start,
+                                       EF&& err_func = make_empty_error_func<udp_io>()) {
+  return detail::make_io_interface_future_pair_impl<udp_io,
+                        detail::udp_entity_io, IOS, EF>(udp_entity,
+                                                        std::forward<IOS>(io_start),
+                                                        std::forward<EF>(err_func));
+
+
 }
 
 } // end net namespace
