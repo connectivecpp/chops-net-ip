@@ -19,7 +19,6 @@
 #include "catch.hpp"
 
 #include <string_view>
-#include <string>
 #include <cstddef> // std::size_t, std::byte
 #include <cstdint> // std::uint16_t
 #include <vector>
@@ -274,8 +273,16 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
 SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
            "[shared_utility] [io_handler_mock]" ) {
   using namespace chops::test;
+  using namespace std::experimental::net;
 
   io_handler_mock io_mock { };
+
+  REQUIRE_FALSE (io_mock.mf_sio_called);
+  REQUIRE_FALSE (io_mock.delim_sio_called);
+  REQUIRE_FALSE (io_mock.rd_sio_called);
+  REQUIRE_FALSE (io_mock.rd_endp_sio_called);
+  REQUIRE_FALSE (io_mock.send_sio_called);
+  REQUIRE_FALSE (io_mock.send_endp_sio_called);
 
   auto t = io_mock.sock;
 
@@ -303,10 +310,41 @@ SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
         REQUIRE (qs.bytes_in_output_queue == (io_mock.qs_base+1));
       }
     }
-    AND_WHEN ("start_io is called") {
-      THEN ("is_io_started is true") {
+    AND_WHEN ("first start_io overload is called") {
+      THEN ("is_io_started and related flag is true") {
         io_mock.start_io(0, [] { }, [] { });
         REQUIRE (io_mock.is_io_started());
+        REQUIRE (io_mock.mf_sio_called);
+      }
+    }
+    AND_WHEN ("second start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(std::string_view(), [] { });
+        REQUIRE (io_mock.delim_sio_called);
+      }
+    }
+    AND_WHEN ("third start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(0, [] { });
+        REQUIRE (io_mock.rd_sio_called);
+      }
+    }
+    AND_WHEN ("fourth start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(ip::udp::endpoint(), 0, [] { });
+        REQUIRE (io_mock.rd_endp_sio_called);
+      }
+    }
+    AND_WHEN ("fifth start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io();
+        REQUIRE (io_mock.send_sio_called);
+      }
+    }
+    AND_WHEN ("sixth start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(ip::udp::endpoint());
+        REQUIRE (io_mock.send_endp_sio_called);
       }
     }
     AND_WHEN ("stop_io is called") {

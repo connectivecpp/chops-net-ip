@@ -126,7 +126,7 @@ public:
   }
 
   template <typename MH>
-  void start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
+  void start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
     if (!m_io_common.set_io_started()) { // concurrency protected
       return;
     }

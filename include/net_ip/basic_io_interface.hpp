@@ -448,9 +448,9 @@ public:
  *
  *  Sends (writes) are enabled after this call.
  *
- *  @param max_size Maximum UDP datagram size.
- *
  *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *
+ *  @param max_size Maximum UDP datagram size.
  *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
@@ -474,9 +474,9 @@ public:
  */
 
   template <typename MH>
-  bool start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
+  bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
     auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(max_size, endp, std::forward<MH>(msg_handler)), true) : false;
+    return p ? (p->start_io(endp, max_size, std::forward<MH>(msg_handler)), true) : false;
   }
 
 /**

@@ -164,7 +164,7 @@ inline void udp_start_io (chops::net::udp_io_interface io, bool reply, test_coun
 inline void udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
                           const std::experimental::net::ip::udp::endpoint& remote_endp) {
   if (receiving) {
-    io.start_io(udp_max_buf_size, remote_endp, udp_msg_hdlr(false, cnt));
+    io.start_io(remote_endp, udp_max_buf_size, udp_msg_hdlr(false, cnt));
   }
   else {
     io.start_io(remote_endp);
@@ -173,7 +173,7 @@ inline void udp_start_io (chops::net::udp_io_interface io, bool receiving, test_
 
 struct io_handler_mock {
   using socket_type = int;
-  using endpoint_type = double;
+  using endpoint_type = std::experimental::net::ip::udp::endpoint;
   using io_type = short;
 
   socket_type sock = 3;
@@ -191,21 +191,28 @@ struct io_handler_mock {
   void send(chops::const_shared_buffer) { }
   void send(chops::const_shared_buffer, const endpoint_type&) { }
 
+  bool mf_sio_called = false;
+  bool delim_sio_called = false;
+  bool rd_sio_called = false;
+  bool rd_endp_sio_called = false;
+  bool send_sio_called = false;
+  bool send_endp_sio_called = false;
+
   template <typename MH, typename MF>
-  void start_io(std::size_t, MH&&, MF&&) { started = true; }
+  void start_io(std::size_t, MH&&, MF&&) { started = true; mf_sio_called = true; }
 
   template <typename MH>
-  void start_io(std::string_view, MH&&) { started = true; }
+  void start_io(std::string_view, MH&&) { started = true; delim_sio_called = true; }
 
   template <typename MH>
-  void start_io(std::size_t, MH&&) { started = true; }
+  void start_io(std::size_t, MH&&) { started = true; rd_sio_called = true; }
 
   template <typename MH>
-  void start_io(std::size_t, const endpoint_type&, MH&&) { started = true; }
+  void start_io(const endpoint_type&, std::size_t, MH&&) { started = true; rd_endp_sio_called = true; }
 
-  void start_io() { started = true; }
+  void start_io() { started = true; send_sio_called = true; }
 
-  void start_io(const endpoint_type&) { started = true; }
+  void start_io(const endpoint_type&) { started = true; send_endp_sio_called = true; }
 
   void stop_io() { started = false; }
 
