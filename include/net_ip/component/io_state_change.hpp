@@ -174,9 +174,9 @@ auto make_send_only_io_state_change () {
  *
  *  The IO state change function object created does not perform any actions on IO stop.
  *
- *  @param max_size Maximum buffer size for UDP reads.
- *
  *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *
+ *  @param max_size Maximum buffer size for UDP reads.
  *
  *  @param msg_hdlr A function object that can be used as a message handler in the 
  *  @c start_io method.
@@ -187,13 +187,13 @@ auto make_send_only_io_state_change () {
  */
 
 template <typename MH>
-auto make_default_endp_io_state_change (std::size_t max_size, 
-                                        std::experimental::net::ip::udp::endpoint endp,
+auto make_default_endp_io_state_change (std::experimental::net::ip::udp::endpoint endp,
+                                        std::size_t max_size,
                                         MH&& msg_hdlr) {
   return [max_size, endp, mh = std::move(msg_hdlr)] 
                   (udp_io_interface io, std::size_t num, bool starting) mutable {
     if (starting) {
-      io.start_io(max_size, endp, std::move(mh));
+      io.start_io(endp, max_size, std::move(mh));
     }
   };
 }
