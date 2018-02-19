@@ -32,6 +32,9 @@
 #include <vector>
 #include <utility> // std::forward, std::move
 #include <atomic>
+#include <memory> // std::shared_ptr
+#include <thread>
+#include <system_error>
 
 #include <experimental/buffer>
 #include <experimental/internet> // ip::udp::endpoint
@@ -218,8 +221,19 @@ struct io_handler_mock {
 
 };
 
+using io_handler_mock_ptr = std::shared_ptr<io_handler_mock>;
+using io_interface_mock = chops::net::basic_io_interface<io_handler_mock>;
+
 struct net_entity_mock {
+
+  io_handler_mock_ptr  iop;
+  std::thread          thr;
+  
+  net_entity_mock() : iop(std::make_shared<io_handler_mock>()) { }
+
   using socket_type = double;
+  using endpoint_type = int;
+  using io_type = float;
 
   constexpr static double special_val = 42.0;
   double dummy = special_val;
@@ -231,12 +245,27 @@ struct net_entity_mock {
   double& get_socket() { return dummy; }
 
   template <typename F1, typename F2>
-  void start( F1&&, F2&& ) { started = true; }
+  void start(F1&& io_state_chg_func, F2&& err_func ) {
+    started = true;
+    thr = std::thread([ this, ios = std::move(io_state_chg_func), ef = std::move(err_func)] () mutable {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        ios(io_interface_mock(iop), 1, true);
+        ef(io_interface_mock(iop), 
+                 std::make_error_code(chops::net::net_ip_errc::message_handler_terminated));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        ios(io_interface_mock(iop), 0, false);
+      }
+    );
+  }
 
-  void stop() { started = false; }
+  void stop() { started = false; join_thr(); }
+
+  void join_thr() { thr.join(); }
 
 };
 
+inline void io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
+inline void err_func_mock(io_interface_mock, std::error_code) { }
 
 } // end namespace test
 } // end namespace chops

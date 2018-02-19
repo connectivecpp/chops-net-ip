@@ -27,57 +27,6 @@
 #include "net_ip/shared_utility_test.hpp"
 
 
-struct io_mock {
-  using socket_type = int;
-  using endpoint_type = long;
-
-  socket_type& get_socket() { ++magic; return magic; }
-
-  int magic = 41;
-};
-
-using io_mock_ptr = std::shared_ptr<io_mock>;
-using io_interface_mock = chops::net::basic_io_interface<io_mock>;
-
-struct entity_mock {
-
-  using socket_type = int;
-  using endpoint_type = double;
-
-  io_mock_ptr  iop;
-  std::thread  thr;
-  
-  entity_mock() : iop(std::make_shared<io_mock>()) { }
-
-  void join_thr() { thr.join(); }
-
-  template <typename F>
-  void start(F&& state_chg_func) {
-    thr = std::thread([ this, state_chg_func ] () mutable {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        state_chg_func(io_interface_mock(iop), 1, true);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        state_chg_func(io_interface_mock(iop), 0, false);
-      }
-    );
-  }
-
-  template <typename F1, typename F2>
-  void start(F1&& state_chg_func, F2&& err_func ) {
-    thr = std::thread([ this, state_chg_func, err_func ] () mutable {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        state_chg_func(io_interface_mock(iop), 1, true);
-        err_func(io_interface_mock(iop), 
-                 std::make_error_code(chops::net::net_ip_errc::message_handler_terminated));
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        state_chg_func(io_interface_mock(iop), 0, false);
-      }
-    );
-  }
-};
-
-using net_entity_mock = chops::net::basic_net_entity<entity_mock>;
-
 SCENARIO ( "Testing make_io_interface_future_impl",
            "[io_interface_future]" ) {
 

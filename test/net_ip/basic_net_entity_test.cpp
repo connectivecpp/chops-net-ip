@@ -43,7 +43,7 @@ void basic_net_entity_test_default_constructed() {
     AND_WHEN ("start or stop is called on an invalid basic_net_entity") {
       THEN ("false is returned") {
 
-        REQUIRE_FALSE (net_ent.start([] { }, [] { } ));
+        REQUIRE_FALSE (net_ent.start(chops::test::io_state_chg_mock, chops::test::err_func_mock));
         REQUIRE_FALSE (net_ent.stop());
       }
     }
@@ -72,7 +72,7 @@ void basic_net_entity_test_two() {
     }
     AND_WHEN ("start or stop is called") {
       THEN ("true is returned") {
-        REQUIRE (net_ent.start([] { }, [] { }));
+        REQUIRE (net_ent.start(chops::test::io_state_chg_mock, chops::test::err_func_mock));
         REQUIRE (net_ent.is_started());
         REQUIRE (net_ent.stop());
         REQUIRE_FALSE (net_ent.is_started());

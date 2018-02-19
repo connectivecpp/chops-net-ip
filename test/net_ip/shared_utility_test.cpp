@@ -384,15 +384,9 @@ SCENARIO ( "Shared Net IP test utility, net_entity_mock test",
         REQUIRE (ne_mock.get_socket() == (t+1.0));
       }
     }
-    AND_WHEN ("start is called") {
-      THEN ("is_started is true") {
-        ne_mock.start([] { }, [] { });
-        REQUIRE (ne_mock.is_started());
-      }
-    }
-    AND_WHEN ("stop is called") {
-      THEN ("is_started is false") {
-        ne_mock.start([] { }, [] { });
+    AND_WHEN ("start and then stop is called") {
+      THEN ("is_started is set appropriately") {
+        ne_mock.start(io_state_chg_mock, err_func_mock);
         REQUIRE (ne_mock.is_started());
         ne_mock.stop();
         REQUIRE_FALSE (ne_mock.is_started());
