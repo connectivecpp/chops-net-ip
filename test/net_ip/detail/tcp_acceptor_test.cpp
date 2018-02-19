@@ -104,8 +104,17 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         REQUIRE_FALSE(acc_ptr->is_started());
 
         test_counter cnt = 0;
-        acc_ptr->start( [reply, delim, &cnt] (chops::net::tcp_io_interface io, std::size_t /* num */) {
-            tcp_start_io(io, reply, delim, cnt);
+        acc_ptr->start(
+          [reply, delim, &cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
+// std::cerr << std::boolalpha << "acceptor state chg, starting flag: " << starting <<
+// ", count: " << num << ", io state valid: " << io.is_valid() << std::endl;
+            if (starting) {
+              tcp_start_io(io, reply, delim, cnt);
+            }
+          },
+          [] (chops::net::tcp_io_interface io, std::error_code err) {
+// std::cerr << std::boolalpha << "err func, err: " << err <<
+// ", " << err.message() << ", io state valid: " << io.is_valid() << std::endl;
           }
         );
 
@@ -127,7 +136,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         for (auto& fut : conn_futs) {
           conn_cnt += fut.get(); // wait for connectors to finish
         }
-        INFO ("All connector futures popped");
+//         INFO ("All connector futures popped");
 // std::cerr << "All connector futures popped" << std::endl;
 
         acc_ptr->stop();
