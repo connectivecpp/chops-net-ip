@@ -30,29 +30,35 @@
 SCENARIO ( "Testing make_io_interface_future_impl",
            "[io_interface_future]" ) {
 
+  using namespace chops::test;
+  using basic_net_mock = chops::net::basic_net_entity<net_entity_mock>;
+
   GIVEN ("A entity object") {
-    auto ent_ptr = std::make_shared<entity_mock>();
-    auto ent = net_entity_mock (ent_ptr);
+    auto ent_ptr = std::make_shared<net_entity_mock>();
+    auto ent = basic_net_mock (ent_ptr);
     WHEN ("make_io_interface_future_impl is called") {
       auto fut = 
-        chops::net::detail::make_io_interface_future_impl<io_mock>(ent);
+        chops::net::detail::make_io_interface_future_impl<io_handler_mock>(ent,
+                                                                           io_state_chg_mock,
+                                                                           err_func_mock);
 
       THEN ("a future is returned, which returns a value when ready") {
           auto io = fut.get();
-          REQUIRE (io.get_socket() == 42);
-          ent_ptr->join_thr();
+          REQUIRE (ent.is_started());
+          ent.stop();
+          REQUIRE_FALSE (ent.is_started());
       }
     }
     AND_WHEN ("make_io_interface_future_pair_impl is called") {
       auto pair_fut = 
-        chops::net::detail::make_io_interface_future_pair_impl<io_mock>(ent);
+        chops::net::detail::make_io_interface_future_pair_impl<io_handler_mock>(ent,
+                                                                           io_state_chg_mock,
+                                                                           err_func_mock);
 
       THEN ("two futures are returned, both of which return a value when ready") {
           auto io1 = pair_fut.start_fut.get();
-          REQUIRE (io1.get_socket() == 42);
           auto io2 = pair_fut.stop_fut.get();
-          REQUIRE (io2.get_socket() == 43);
-          ent_ptr->join_thr();
+          ent.stop();
       }
     }
   } // end given

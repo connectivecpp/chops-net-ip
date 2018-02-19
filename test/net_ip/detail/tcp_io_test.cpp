@@ -99,9 +99,6 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
   chops::net::worker wk;
   wk.start();
   auto& ioc = wk.get_io_context();
-//  io_context ioc;
-//  auto wg = make_work_guard(ioc);
-//  std::thread thr( [&ioc] { ioc.run(); } );
 
   GIVEN ("An executor work guard and a message set") {
  
@@ -136,8 +133,6 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
     }
   } // end given
 
-//  wg.reset();
-//  thr.join();
   wk.reset();
 //  wk.stop();
 

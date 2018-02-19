@@ -7,7 +7,8 @@
  *
  *  When all of the IO processing can be performed in the message handler object, there is
  *  not a need to keep a separate @c io_interface object for sending data. But when there is a
- *  need for non-reply sends, these component functions package up much of the needed logic.
+ *  need for non-reply sends, component functions in this header package up much of the needed 
+ *  logic.
  *
  *  All of these functions take a @c basic_net_entity object and a @c start_io function object,
  *  then call @c start on the @c basic_net_entity using the @c start_io function object and then
@@ -101,7 +102,7 @@ void start_with_wait_queue (basic_net_entity<ET> entity,
 }
 
 /**
- *  @brief An alias for a @c std::future containing an @c io_interface.
+ *  @brief An alias for a @c std::future containing an @c basic_io_interface.
  */
 template <typename IOH>
 using io_interface_future = std::future<basic_io_interface<IOH> >;
@@ -118,7 +119,8 @@ using udp_io_interface_future = io_interface_future<udp_io>;
 
 /**
  *  @brief A @c struct containing two @c std::future objects that deliver an @c io_interface 
- *  corresponding to the creation and destruction of an IO handler (TCP connection, UDP socket).
+ *  corresponding to the creation and destruction (start, stop) of an IO handler (TCP connection, 
+ *  UDP socket).
  *
  *  @note A @c std::pair could be used, but this provides a name for each element.
  */
@@ -172,8 +174,6 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
   auto start_fut = start_prom_ptr->get_future();
   auto stop_prom_ptr = std::make_shared<io_prom<IOH> >();
   auto stop_fut = stop_prom_ptr->get_future();
-
-  entity.start( fut_io_state_chg_cb<IOH>(std::move(start_prom), std::move(stop_prom)) );
 
   entity.start( [ios = std::move(io_start), start_prom_ptr, stop_prom_ptr] 
                     (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
