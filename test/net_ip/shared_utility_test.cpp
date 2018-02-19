@@ -118,17 +118,6 @@ void make_msg_vec_test(F&& f) {
   } // end given
 }
 
-struct ioh_mock {
-  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
-  using socket_type = std::experimental::net::ip::tcp::socket;
-
-  bool send_called = false;
-
-  void send(chops::const_shared_buffer) { send_called = true; }
-  void send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; }
-};
-
-
 template <typename F>
 std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, int num_msgs) {
   using namespace chops::test;
@@ -137,20 +126,20 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
   auto msgs = make_msg_vec(f, pre, body_char, num_msgs);
   auto empty = make_empty_body_msg(f);
 
-  auto iohp = std::make_shared<ioh_mock>();
-  ip::tcp::endpoint endp { };
+  auto iohp = std::make_shared<io_handler_mock>();
+  ip::udp::endpoint endp { };
 
   test_counter cnt(0);
-  msg_hdlr<ioh_mock> mh(false, cnt);
+  msg_hdlr<io_handler_mock> mh(false, cnt);
 
   int m = 0;
   for (auto i : msgs) {
-    auto ret = mh(const_buffer(i.data(), i.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp);
+    auto ret = mh(const_buffer(i.data(), i.size()), io_interface_mock(iohp), endp);
     if (++m % 1000 == 0) {
       REQUIRE(ret);
     }
   }
-  REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+  REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), io_interface_mock(iohp), endp));
 
   return cnt.load();
 
@@ -214,9 +203,9 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
   using namespace chops::test;
   using namespace std::experimental::net;
 
-  auto iohp = std::make_shared<ioh_mock>();
+  auto iohp = std::make_shared<io_handler_mock>();
   REQUIRE_FALSE(iohp->send_called);
-  ip::tcp::endpoint endp { };
+  ip::udp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
   auto empty = make_empty_variable_len_msg();
@@ -225,22 +214,22 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
 
     WHEN ("a msg hdlr is created with reply true and send is called") {
       test_counter cnt(0);
-      msg_hdlr<ioh_mock> mh(true, cnt);
+      msg_hdlr<io_handler_mock> mh(true, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
         REQUIRE(iohp->send_called);
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
-                      chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+                      io_interface_mock(iohp), endp));
         REQUIRE(cnt == 1);
       }
     }
     AND_WHEN ("a msg hdlr is created with reply false and send is called") {
       test_counter cnt(0);
-      msg_hdlr<ioh_mock> mh(false, cnt);
+      msg_hdlr<io_handler_mock> mh(false, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
-                      chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+                      io_interface_mock(iohp), endp));
         REQUIRE(cnt == 1);
       }
     }

@@ -153,9 +153,6 @@ auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
  *  @brief Create an IO state change function object with parameters for sending only, 
  *  whether UDP or TCP.
  *
- *  @param msg_hdlr A function object that can be used as a message handler in the 
- *  @c start_io method.
- *
  *  @return A function object that can be used with the @c start method.
  *
  */
@@ -171,8 +168,6 @@ auto make_send_only_io_state_change () {
 /**
  *  @brief Create an IO state change function object parameters for UDP senders and
  *  receivers with a default destination endpoint.
- *
- *  The IO state change function object created does not perform any actions on IO stop.
  *
  *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
  *
@@ -201,8 +196,6 @@ auto make_default_endp_io_state_change (std::experimental::net::ip::udp::endpoin
 /**
  *  @brief Create an IO state change function object parameters for UDP sending only
  *  with a default destination endpoint.
- *
- *  The IO state change function object created does not perform any actions on IO stop.
  *
  *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
  *

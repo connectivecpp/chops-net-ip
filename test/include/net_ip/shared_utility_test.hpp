@@ -191,8 +191,10 @@ struct io_handler_mock {
     return chops::net::output_queue_stats { qs_base, qs_base +1 };
   }
 
-  void send(chops::const_shared_buffer) { }
-  void send(chops::const_shared_buffer, const endpoint_type&) { }
+  bool send_called = false;
+
+  void send(chops::const_shared_buffer) { send_called = true; }
+  void send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; }
 
   bool mf_sio_called = false;
   bool delim_sio_called = false;
