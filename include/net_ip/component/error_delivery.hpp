@@ -98,18 +98,19 @@ auto make_error_func_with_wait_queue(err_wait_q<IOT>& wq) {
 template <typename IOT>
 std::size_t ostream_error_sink_with_wait_queue (err_wait_q<IOT>& wq, std::ostream& os) {
   std::size_t cnt = 0;
-  bool open = true;
-  while (open) {
+  bool loop = true;
+  while (loop) {
     auto elem = wq.wait_and_pop();
     if (!elem) {
-      open = false;
+      loop = false;
     }
     else {
       os << "io_addr: " << (*elem).io_intf.get_shared_ptr() << " err: " << 
-          (*elem).err << ", " << (*elem).err.message() << '\n';
+            (*elem).err << ", " << (*elem).err.message() << '\n';
       ++cnt;
     }
   }
+  os.flush();
   return cnt;
 }
 
