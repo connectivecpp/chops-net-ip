@@ -43,6 +43,19 @@ inline auto get_tcp_io_futures(chops::net::tcp_connector_net_entity conn,
            chops::net::tcp_empty_error_func);
 }
 
+inline void start_tcp_acceptor(chops::net::tcp_acceptor_net_entity acc, tcp_err_wait_q&,
+                               bool reply, std::string_view delim, test_counter& cnt) {
+
+  if (delim.empty()) {
+    acc.start(chops::net::make_simple_variable_len_msg_frame_io_state_change(2, decode_variable_len_msg_hdr,
+                                                                          tcp_msg_hdlr(reply, cnt)),
+           chops::net::tcp_empty_error_func);
+  }
+  return chops::net::make_tcp_io_interface_future_pair(conn,
+           chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
+           chops::net::tcp_empty_error_func);
+}
+
 inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity,
                                bool reply, test_counter& cnt) {
   return chops::net::make_udp_io_interface_future_pair(udp_entity,

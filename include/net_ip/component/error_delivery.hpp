@@ -70,6 +70,15 @@ template <typename IOT>
 using err_wait_q = chops::wait_queue<error_data<IOT> >;
 
 /**
+ *  @brief @c err_wait_q for @c tcp_io_interface objects.
+ */
+using tcp_err_wait_q = err_wait_q<chops::net::tcp_io>;
+/**
+ *  @brief @c err_wait_q for @c udp_io_interface objects.
+ */
+using udp_err_wait_q = err_wait_q<chops::net::udp_io>;
+
+/**
  *  @brief Create an error function object that uses a @c wait_queue for error data.
  */
 template <typename IOT>

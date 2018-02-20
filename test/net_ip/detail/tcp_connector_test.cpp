@@ -39,12 +39,12 @@
 
 #include "net_ip/component/worker.hpp"
 #include "net_ip/component/send_to_all.hpp"
-#include "net_ip/component/io_interface_delivery.hpp"
-#include "net_ip/component/io_state_change.hpp"
+
+#include "net_ip/shared_utility_test.hpp"
+#include "net_ip/shared_utility_func_test.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 
@@ -79,11 +79,17 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 
+        chops::net::tcp_acceptor_net_entity acc_ent(acc_ptr);
+
 std::cerr << "acceptor created" << std::endl;
 
 //        REQUIRE_FALSE(acc_ptr->is_started());
 
+        tcp_err_wait_q wq;
+
         test_counter acc_cnt = 0;
+
+
         acc_ptr->start(
           [reply, delim, &acc_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
 std::cerr << std::boolalpha << "acceptor state chg, starting flag: " << starting <<

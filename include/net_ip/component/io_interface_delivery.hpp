@@ -73,6 +73,15 @@ template <typename IOT>
 using io_wait_q = chops::wait_queue<io_state_chg_data<IOT> >;
 
 /**
+ *  @brief @c io_wait_q for @c tcp_io_interface objects.
+ */
+using tcp_io_wait_q = io_wait_q<chops::net::tcp_io>;
+/**
+ *  @brief @c io_wait_q for @c udp_io_interface objects.
+ */
+using udp_io_wait_q = io_wait_q<chops::net::udp_io>;
+
+/**
  *  @brief Start the entity with an IO state change function object that
  *  calls @c start_io and also passes @c io_interface data through a 
  *  @c wait_queue.
