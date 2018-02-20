@@ -28,7 +28,7 @@
 
 
 SCENARIO ( "Testing make_io_interface_future_impl",
-           "[io_interface_future]" ) {
+           "[io_interface_delivery]" ) {
 
   using namespace chops::test;
   using basic_net_mock = chops::net::basic_net_entity<net_entity_mock>;
@@ -63,4 +63,33 @@ SCENARIO ( "Testing make_io_interface_future_impl",
     }
   } // end given
 }
+
+SCENARIO ( "Testing start_with_wait_queue",
+           "[io_interface_delivery]" ) {
+
+  using namespace chops::test;
+  using basic_net_mock = chops::net::basic_net_entity<net_entity_mock>;
+
+  GIVEN ("An entity object and a wait_queue") {
+    auto ent_ptr = std::make_shared<net_entity_mock>();
+    auto ent = basic_net_mock (ent_ptr);
+    chops::net::io_wait_q<io_handler_mock> wq;
+    WHEN ("start_with_wait_queue is called") {
+      chops::net::start_with_wait_queue<io_handler_mock>(ent, io_state_chg_mock, 
+                                                         wq, err_func_mock);
+      THEN ("io interface objects are delivered through the wait_queue") {
+          auto elem1 = wq.wait_and_pop();
+          REQUIRE (elem1);
+          REQUIRE ((*elem1).starting);
+          REQUIRE ((*elem1).num_handlers == 1);
+          auto elem2 = wq.wait_and_pop();
+          REQUIRE (elem2);
+          REQUIRE_FALSE ((*elem2).starting);
+          REQUIRE ((*elem2).num_handlers == 0);
+          ent.stop();
+      }
+    }
+  } // end given
+}
+
 

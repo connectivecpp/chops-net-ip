@@ -14,8 +14,8 @@
  *  then call @c start on the @c basic_net_entity using the @c start_io function object and then
  *  return an @c io_interface object through various mechanisms.
  *
- *  An error function object can be passed in which will be used in the @c start call, but it
- *  can also be defaulted to a "do nothing" function.
+ *  Empty ("do nothing") error functions are available in the @c error_delivery.hpp header. These
+ *  can be used for the error function object parameters.
  *
  *  The @c io_state_change.hpp header provides a collection of functions that create @c start_io
  *  function objects, each packaged with the logic and data needed to call @c start_io.
@@ -48,8 +48,6 @@
 #include "net_ip/net_entity.hpp"
 #include "net_ip/io_interface.hpp"
 
-#include "net_ip/component/error_delivery.hpp"
-
 #include "queue/wait_queue.hpp"
 
 namespace chops {
@@ -63,6 +61,9 @@ struct io_state_chg_data {
   basic_io_interface<IOT> io_intf;
   std::size_t             num_handlers;
   bool                    starting;
+
+  io_state_chg_data(basic_io_interface<IOT> io, std::size_t num, bool s) :
+      io_intf(std::move(io)), num_handlers(num), starting(s) { }
 };
 
 /**
@@ -83,15 +84,14 @@ using io_wait_q = chops::wait_queue<io_state_chg_data<IOT> >;
  *
  *  @param wq A @c wait_queue which is used to pass the IO state change data.
  *
- *  @param err_func Error function object, which defaults to a "do nothing"
- *  function.
+ *  @param err_func Error function object.
  *
  */
 template <typename IOT, typename ET, typename IOS, typename EF>
 void start_with_wait_queue (basic_net_entity<ET> entity, 
                             IOS&& io_start,
                             io_wait_q<IOT>& wq, 
-                            EF&& err_func = empty_error_func<IOT> ) {
+                            EF&& err_func) {
   entity.start( [ios = std::move(io_start), &wq]
                    (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
@@ -209,8 +209,7 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
  *  @param io_start A function object which will invoke @c start_io on an 
  *  @c io_interface object.
  *
- *  @param err_func Error function object, which defaults to a "do nothing"
- *  function.
+ *  @param err_func Error function object.
  *
  *  @return A @c tcp_io_interface_future.
  *
@@ -221,7 +220,7 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
 template <typename IOS, typename EF>
 tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity conn,
                                                      IOS&& io_start,
-                                                     EF&& err_func = tcp_empty_error_func) {
+                                                     EF&& err_func) {
   return detail::make_io_interface_future_impl<tcp_io, 
                         detail::tcp_connector, IOS, EF>(conn,
                                                         std::forward<IOS>(io_start),
@@ -245,8 +244,7 @@ tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity co
  *  @param io_start A function object which will invoke @c start_io on an 
  *  @c io_interface object.
  *
- *  @param err_func Error function object, which defaults to a "do nothing"
- *  function.
+ *  @param err_func Error function object.
  *
  *  @return A @c tcp_io_interface_future_pair.
  *
@@ -255,7 +253,7 @@ tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity co
 template <typename IOS, typename EF>
 auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn,
                                        IOS&& io_start,
-                                       EF&& err_func = tcp_empty_error_func) {
+                                       EF&& err_func) {
   return detail::make_io_interface_future_pair_impl<tcp_io,
                         detail::tcp_connector, IOS, EF>(conn,
                                                         std::forward<IOS>(io_start),
@@ -280,8 +278,7 @@ auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn,
  *  @param io_start A function object which will invoke @c start_io on an 
  *  @c io_interface object.
  *
- *  @param err_func Error function object, which defaults to a "do nothing"
- *  function.
+ *  @param err_func Error function object.
  *
  *  @return A @c std::future which will provide a @c udp_io_interface when ready.
  *
@@ -289,7 +286,7 @@ auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn,
 template <typename IOS, typename EF>
 udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity,
                                                      IOS&& io_start,
-                                                     EF&& err_func = udp_empty_error_func) {
+                                                     EF&& err_func) {
   return detail::make_io_interface_future_impl<udp_io, 
                         detail::udp_entity_io, IOS, EF>(udp_entity,
                                                         std::forward<IOS>(io_start),
@@ -309,7 +306,7 @@ udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity,
 template <typename IOS, typename EF>
 auto make_udp_io_interface_future_pair(udp_net_entity udp_entity,
                                        IOS&& io_start,
-                                       EF&& err_func = udp_empty_error_func) {
+                                       EF&& err_func) {
   return detail::make_io_interface_future_pair_impl<udp_io,
                         detail::udp_entity_io, IOS, EF>(udp_entity,
                                                         std::forward<IOS>(io_start),

@@ -80,8 +80,8 @@ auto make_error_func_with_wait_queue(err_wait_q<IOT>& wq) {
 }
 
 /**
- *  @brief A sink function uses a @c wait_queue for error data and places the data into 
- *  an @c std::ostream.
+ *  @brief A sink function that uses a @c wait_queue for error data and streams the data 
+ *  into an @c std::ostream.
  *
  *  A @c std::cerr or @c std::cout or @c std::stringstream or similar object can be
  *  used with this function. This function exits when the @c wait_queue closes.

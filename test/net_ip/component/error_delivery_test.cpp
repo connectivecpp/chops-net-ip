@@ -55,9 +55,11 @@ SCENARIO ( "Testing ostream_error_sink_with_wait_queue function",
   err_func(io3, std::make_error_code(chops::net::net_ip_errc::message_handler_terminated));
   err_func(io2, std::make_error_code(chops::net::net_ip_errc::tcp_connector_stopped));
   err_func(io1, std::make_error_code(chops::net::net_ip_errc::tcp_acceptor_stopped));
-
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  while (!wq.empty()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
   wq.close();
+  
 
   auto cnt = sink_fut.get();
   REQUIRE (cnt == 5);
