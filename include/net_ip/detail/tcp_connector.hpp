@@ -104,7 +104,7 @@ public:
   socket_type& get_socket() noexcept { return m_socket; }
 
   template <typename F1, typename F2>
-  void start(F1&& io_state_chg, F1&& err_cb) {
+  void start(F1&& io_state_chg, F2&& err_cb) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
       return;

@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Utility code shared between @c net_ip tests.
+ *  @brief Test the lower level utility code shared between @c net_ip tests.
  *
  *  The body of a msg is constructed of a preamble followed by a repeated 
  *  char. There are three forms of messages:
