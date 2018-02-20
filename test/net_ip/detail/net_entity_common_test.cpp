@@ -24,51 +24,51 @@
 
 #include "net_ip/shared_utility_test.hpp"
 
-template<typename IOH>
+template<typename IOT>
 struct io_state_change {
 
   bool called = false;
   std::size_t num = 0;
   bool ioh_valid = false;
 
-  void operator() (chops::net::basic_io_interface<IOH> ioh, std::size_t n, bool starting) {
+  void operator() (chops::net::basic_io_interface<IOT> ioh, std::size_t n, bool starting) {
     called = true;
     num = n;
     ioh_valid = ioh.is_valid();
   }
 };
 
-template<typename IOH>
+template<typename IOT>
 struct err_callback {
 
   bool called = false;
   bool ioh_valid = false;
   std::error_code err;
 
-  void operator() (chops::net::basic_io_interface<IOH> ioh, std::error_code e) {
+  void operator() (chops::net::basic_io_interface<IOT> ioh, std::error_code e) {
     called = true;
     err = e;
     ioh_valid = ioh.is_valid();
   }
 };
 
-template <typename IOH>
+template <typename IOT>
 void net_entity_common_test() {
 
   using namespace chops::net;
 
-  io_state_change<IOH> io_state_chg;
+  io_state_change<IOT> io_state_chg;
   REQUIRE_FALSE (io_state_chg.called);
   REQUIRE_FALSE (io_state_chg.ioh_valid);
 
-  err_callback<IOH> err_cb;
+  err_callback<IOT> err_cb;
   REQUIRE_FALSE (err_cb.called);
   REQUIRE_FALSE (err_cb.ioh_valid);
 
-  detail::net_entity_common<IOH> ne { };
+  detail::net_entity_common<IOT> ne { };
   REQUIRE_FALSE (ne.is_started());
 
-  auto iohp = std::make_shared<IOH>();
+  auto iohp = std::make_shared<IOT>();
 
   GIVEN ("A default constructed net_entity_common and a state change object") {
 

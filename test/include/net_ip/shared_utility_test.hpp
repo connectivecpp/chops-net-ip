@@ -111,9 +111,9 @@ vec_buf make_msg_vec(F&& func, std::string_view pre, char body_char, int num_msg
 
 using test_counter = std::atomic_size_t;
 
-template <typename IOH>
+template <typename IOT>
 struct msg_hdlr {
-  using endp_type = typename IOH::endpoint_type;
+  using endp_type = typename IOT::endpoint_type;
   using const_buf = std::experimental::net::const_buffer;
 
   bool               reply;
@@ -121,7 +121,7 @@ struct msg_hdlr {
 
   msg_hdlr(bool rep, test_counter& c) : reply(rep), cnt(c) { }
 
-  bool operator()(const_buf buf, chops::net::basic_io_interface<IOH> io_intf, endp_type endp) {
+  bool operator()(const_buf buf, chops::net::basic_io_interface<IOT> io_intf, endp_type endp) {
     chops::const_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       ++cnt;

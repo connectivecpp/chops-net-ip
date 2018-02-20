@@ -71,13 +71,13 @@ namespace net {
  *
  */
 
-template <typename IOH>
+template <typename IOT>
 class basic_io_interface {
 private:
-  std::weak_ptr<IOH> m_ioh_wptr;
+  std::weak_ptr<IOT> m_ioh_wptr;
 
 public:
-  using endpoint_type = typename IOH::endpoint_type;
+  using endpoint_type = typename IOT::endpoint_type;
 
 public:
 
@@ -93,15 +93,15 @@ public:
   basic_io_interface(const basic_io_interface&) = default;
   basic_io_interface(basic_io_interface&&) = default;
 
-  basic_io_interface<IOH>& operator=(const basic_io_interface&) = default;
-  basic_io_interface<IOH>& operator=(basic_io_interface&&) = default;
+  basic_io_interface<IOT>& operator=(const basic_io_interface&) = default;
+  basic_io_interface<IOT>& operator=(basic_io_interface&&) = default;
   
 /**
  *  @brief Construct with a shared weak pointer to an internal IO handler, this is an
  *  internal constructor only and not to be used by application code.
  *
  */
-  explicit basic_io_interface(std::weak_ptr<IOH> p) noexcept : m_ioh_wptr(p) { }
+  explicit basic_io_interface(std::weak_ptr<IOT> p) noexcept : m_ioh_wptr(p) { }
 
 /**
  *  @brief Query whether an IO handler is associated with this object.
@@ -135,7 +135,7 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  typename IOH::socket_type& get_socket() const {
+  typename IOT::socket_type& get_socket() const {
     if (auto p = m_ioh_wptr.lock()) {
       return p->get_socket();
     }
@@ -554,7 +554,7 @@ public:
  *  @return As described in the comments.
  */
 
-  bool operator==(const basic_io_interface<IOH>& rhs) const noexcept {
+  bool operator==(const basic_io_interface<IOT>& rhs) const noexcept {
     auto lp = m_ioh_wptr.lock();
     auto rp = rhs.m_ioh_wptr.lock();
     return (lp && rp && lp == rp) || (!lp && !rp);
@@ -573,7 +573,7 @@ public:
  *
  *  @return As described in the comments.
  */
-  bool operator<(const basic_io_interface<IOH>& rhs) const noexcept {
+  bool operator<(const basic_io_interface<IOT>& rhs) const noexcept {
     auto lp = m_ioh_wptr.lock();
     auto rp = rhs.m_ioh_wptr.lock();
     return (lp && rp && lp < rp) || (!lp && rp);

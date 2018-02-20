@@ -48,11 +48,11 @@ namespace net {
  *  This class is thread-safe for concurrent access.
  *
  */
-template <typename IOH>
+template <typename IOT>
 class send_to_all {
 private:
   using lock_guard = std::lock_guard<std::mutex>;
-  using io_intf    = basic_io_interface<IOH>;
+  using io_intf    = basic_io_interface<IOT>;
   using io_intfs   = std::vector<io_intf>;
 
 private:

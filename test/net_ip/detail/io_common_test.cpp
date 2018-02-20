@@ -26,20 +26,20 @@
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 
-template <typename IOH>
+template <typename IOT>
 void io_common_test(chops::const_shared_buffer buf, int num_bufs,
-                    typename IOH::endpoint_type endp) {
+                    typename IOT::endpoint_type endp) {
 
   using namespace std::experimental::net;
   using namespace std::placeholders;
 
   REQUIRE (num_bufs > 1);
 
-  IOH ioh;
+  IOT ioh;
 
   GIVEN ("An io_common and a buf and endpoint") {
 
-    chops::net::detail::io_common<IOH> iocommon { };
+    chops::net::detail::io_common<IOT> iocommon { };
 
     auto qs = iocommon.get_output_queue_stats();
     REQUIRE (qs.output_queue_size == 0);

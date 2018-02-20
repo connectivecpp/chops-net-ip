@@ -58,9 +58,9 @@ namespace net {
 /**
  *  @brief Data provided through an IO state change.
  */
-template <typename IOH>
+template <typename IOT>
 struct io_state_chg_data {
-  basic_io_interface<IOH> io_intf;
+  basic_io_interface<IOT> io_intf;
   std::size_t             num_handlers;
   bool                    starting;
 };
@@ -68,8 +68,8 @@ struct io_state_chg_data {
 /**
  *  @brief @c wait_queue declaration that provides IO state change data.
  */
-template <typename IOH>
-using io_wait_q = chops::wait_queue<io_state_chg_data<IOH> >;
+template <typename IOT>
+using io_wait_q = chops::wait_queue<io_state_chg_data<IOT> >;
 
 /**
  *  @brief Start the entity with an IO state change function object that
@@ -87,13 +87,13 @@ using io_wait_q = chops::wait_queue<io_state_chg_data<IOH> >;
  *  function.
  *
  */
-template <typename IOH, typename ET, typename IOS, typename EF>
+template <typename IOT, typename ET, typename IOS, typename EF>
 void start_with_wait_queue (basic_net_entity<ET> entity, 
                             IOS&& io_start,
-                            io_wait_q<IOH>& wq, 
-                            EF&& err_func = empty_error_func<IOH> ) {
+                            io_wait_q<IOT>& wq, 
+                            EF&& err_func = empty_error_func<IOT> ) {
   entity.start( [ios = std::move(io_start), &wq]
-                   (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+                   (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
         ios(io, num, starting);
       }
@@ -106,8 +106,8 @@ void start_with_wait_queue (basic_net_entity<ET> entity,
 /**
  *  @brief An alias for a @c std::future containing an @c basic_io_interface.
  */
-template <typename IOH>
-using io_interface_future = std::future<basic_io_interface<IOH> >;
+template <typename IOT>
+using io_interface_future = std::future<basic_io_interface<IOT> >;
 
 /**
  *  @brief @c io_interface_future for TCP IO handlers.
@@ -126,10 +126,10 @@ using udp_io_interface_future = io_interface_future<udp_io>;
  *
  *  @note A @c std::pair could be used, but this provides a name for each element.
  */
-template <typename IOH>
+template <typename IOT>
 struct io_interface_future_pair {
-  io_interface_future<IOH>   start_fut;
-  io_interface_future<IOH>   stop_fut;
+  io_interface_future<IOT>   start_fut;
+  io_interface_future<IOT>   stop_fut;
 };
 
 /**
@@ -144,20 +144,20 @@ using udp_io_interface_future_pair = io_interface_future_pair<udp_io>;
 
 namespace detail {
 
-template <typename IOH>
-using io_prom = std::promise<basic_io_interface<IOH> >;
+template <typename IOT>
+using io_prom = std::promise<basic_io_interface<IOT> >;
 
 // io state change function object must be copyable since it will
 // be stored in a std::function, therefore wrap promise in shared ptr
-template <typename IOH, typename ET, typename IOS, typename EF>
+template <typename IOT, typename ET, typename IOS, typename EF>
 auto make_io_interface_future_impl(basic_net_entity<ET> entity,
                                    IOS&& io_start,
                                    EF&& err_func) {
-  auto start_prom_ptr = std::make_shared<io_prom<IOH> >();
+  auto start_prom_ptr = std::make_shared<io_prom<IOT> >();
   auto start_fut = start_prom_ptr->get_future();
 
   entity.start( [ios = std::move(io_start), start_prom_ptr] 
-                    (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+                    (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
         ios(io, num, starting);
         start_prom_ptr->set_value(io);
@@ -167,18 +167,18 @@ auto make_io_interface_future_impl(basic_net_entity<ET> entity,
   return start_fut;
 }
 
-template <typename IOH, typename ET, typename IOS, typename EF>
+template <typename IOT, typename ET, typename IOS, typename EF>
 auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
                                         IOS&& io_start,
                                         EF&& err_func) {
 
-  auto start_prom_ptr = std::make_shared<io_prom<IOH> >();
+  auto start_prom_ptr = std::make_shared<io_prom<IOT> >();
   auto start_fut = start_prom_ptr->get_future();
-  auto stop_prom_ptr = std::make_shared<io_prom<IOH> >();
+  auto stop_prom_ptr = std::make_shared<io_prom<IOT> >();
   auto stop_fut = stop_prom_ptr->get_future();
 
   entity.start( [ios = std::move(io_start), start_prom_ptr, stop_prom_ptr] 
-                    (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+                    (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
         ios(io, num, starting);
         start_prom_ptr->set_value(io);
@@ -189,7 +189,7 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
     }, std::forward<EF>(err_func)
   );
 
-  return io_interface_future_pair<IOH> { std::move(start_fut), std::move(stop_fut) };
+  return io_interface_future_pair<IOT> { std::move(start_fut), std::move(stop_fut) };
 }
 
 } // end detail namespace

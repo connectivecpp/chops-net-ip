@@ -29,13 +29,13 @@ namespace chops {
 namespace net {
 namespace detail {
 
-template <typename IOH>
+template <typename IOT>
 class net_entity_common {
 public:
   using io_state_chg_cb = 
-    std::function<void (basic_io_interface<IOH>, std::size_t, bool)>;
+    std::function<void (basic_io_interface<IOT>, std::size_t, bool)>;
   using error_cb = 
-    std::function<void (basic_io_interface<IOH>, std::error_code)>;
+    std::function<void (basic_io_interface<IOT>, std::error_code)>;
 
 private:
   std::atomic_bool     m_started; // may be called from multiple threads concurrently
@@ -65,12 +65,12 @@ public:
     return m_started.compare_exchange_strong(expected, false); 
   }
 
-  void call_io_state_chg_cb(std::shared_ptr<IOH> p, std::size_t sz, bool starting) {
-    m_io_state_chg_cb(basic_io_interface<IOH>(p), sz, starting);
+  void call_io_state_chg_cb(std::shared_ptr<IOT> p, std::size_t sz, bool starting) {
+    m_io_state_chg_cb(basic_io_interface<IOT>(p), sz, starting);
   }
 
-  void call_error_cb(std::shared_ptr<IOH> p, const std::error_code& err) {
-    m_error_cb(basic_io_interface<IOH>(p), err);
+  void call_error_cb(std::shared_ptr<IOT> p, const std::error_code& err) {
+    m_error_cb(basic_io_interface<IOT>(p), err);
   }
 
 

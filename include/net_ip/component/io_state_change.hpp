@@ -139,10 +139,10 @@ auto make_delimiter_read_io_state_change (std::string_view delim, MH&& msg_hdlr)
  *
  */
 
-template <typename MH, typename IOH = udp_io>
+template <typename MH, typename IOT = udp_io>
 auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
   return [rd_size, mh = std::move(msg_hdlr)] 
-                  (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+                  (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
     if (starting) {
       io.start_io(rd_size, std::move(mh));
     }
@@ -156,9 +156,9 @@ auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
  *  @return A function object that can be used with the @c start method.
  *
  */
-template <typename IOH>
+template <typename IOT>
 auto make_send_only_io_state_change () {
-  return [] (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
+  return [] (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
     if (starting) {
       io.start_io();
     }

@@ -31,13 +31,13 @@ namespace chops {
 namespace net {
 namespace detail {
 
-template <typename IOH>
+template <typename IOT>
 class io_common {
 private:
-  using endp_type = typename IOH::endpoint_type;
+  using endp_type = typename IOT::endpoint_type;
 
 public:
-  using outq_type = output_queue<typename IOH::endpoint_type>;
+  using outq_type = output_queue<typename IOT::endpoint_type>;
   using outq_opt_el = typename outq_type::opt_queue_element;
   using queue_stats = chops::net::output_queue_stats;
 
@@ -79,8 +79,8 @@ public:
 
 };
 
-template <typename IOH>
-bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
+template <typename IOT>
+bool io_common<IOT>::start_write_setup(const chops::const_shared_buffer& buf) {
   if (!m_io_started) {
     return false; // shutdown happening or not io_started, don't start a write
   }
@@ -92,8 +92,8 @@ bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf) {
   return true;
 }
 
-template <typename IOH>
-bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf, 
+template <typename IOT>
+bool io_common<IOT>::start_write_setup(const chops::const_shared_buffer& buf, 
                                      const endp_type& endp) {
   if (!m_io_started) {
     return false; // shutdown happening or not io_started, don't start a write
@@ -106,8 +106,8 @@ bool io_common<IOH>::start_write_setup(const chops::const_shared_buffer& buf,
   return true;
 }
 
-template <typename IOH>
-typename io_common<IOH>::outq_opt_el io_common<IOH>::get_next_element() {
+template <typename IOT>
+typename io_common<IOT>::outq_opt_el io_common<IOT>::get_next_element() {
   if (!m_io_started) { // shutting down
     return outq_opt_el { };
   }

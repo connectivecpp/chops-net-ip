@@ -24,10 +24,10 @@
 #include "utility/shared_buffer.hpp"
 #include "utility/make_byte_array.hpp"
 
-template <typename IOH>
+template <typename IOT>
 void basic_io_interface_test_default_constructed() {
 
-  chops::net::basic_io_interface<IOH> io_intf { };
+  chops::net::basic_io_interface<IOT> io_intf { };
 
   GIVEN ("A default constructed basic_io_interface") {
     WHEN ("is_valid is called") {
@@ -46,7 +46,7 @@ void basic_io_interface_test_default_constructed() {
       THEN ("false is returned") {
 
         chops::const_shared_buffer buf(nullptr, 0);
-        typename IOH::endpoint_type endp;
+        typename IOT::endpoint_type endp;
 
         REQUIRE_FALSE (io_intf.send(nullptr, 0));
         REQUIRE_FALSE (io_intf.send(buf));
@@ -69,13 +69,13 @@ void basic_io_interface_test_default_constructed() {
 
 }
 
-template <typename IOH>
+template <typename IOT>
 void basic_io_interface_test_two() {
 
-  chops::net::basic_io_interface<IOH> io_intf { };
+  chops::net::basic_io_interface<IOT> io_intf { };
 
-  auto ioh = std::make_shared<IOH>();
-  io_intf = chops::net::basic_io_interface<IOH>(ioh);
+  auto ioh = std::make_shared<IOT>();
+  io_intf = chops::net::basic_io_interface<IOT>(ioh);
 
   GIVEN ("A default constructed basic_io_interface and an io handler") {
     WHEN ("an basic_io_interface with a weak ptr to the io handler is assigned to it") {
@@ -95,7 +95,7 @@ void basic_io_interface_test_two() {
       THEN ("true is returned") {
 
         chops::const_shared_buffer buf(nullptr, 0);
-        typename IOH::endpoint_type endp;
+        typename IOT::endpoint_type endp;
 
         REQUIRE (io_intf.send(nullptr, 0));
         REQUIRE (io_intf.send(buf));
@@ -121,24 +121,24 @@ void basic_io_interface_test_two() {
 
 }
 
-template <typename IOH>
+template <typename IOT>
 void basic_io_interface_test_compare() {
 
-  chops::net::basic_io_interface<IOH> io_intf1 { };
+  chops::net::basic_io_interface<IOT> io_intf1 { };
 
-  auto ioh1 = std::make_shared<IOH>();
-  chops::net::basic_io_interface<IOH> io_intf2(ioh1);
+  auto ioh1 = std::make_shared<IOT>();
+  chops::net::basic_io_interface<IOT> io_intf2(ioh1);
 
-  chops::net::basic_io_interface<IOH> io_intf3 { };
+  chops::net::basic_io_interface<IOT> io_intf3 { };
 
-  auto ioh2 = std::make_shared<IOH>();
-  chops::net::basic_io_interface<IOH> io_intf4(ioh2);
+  auto ioh2 = std::make_shared<IOT>();
+  chops::net::basic_io_interface<IOT> io_intf4(ioh2);
 
-  chops::net::basic_io_interface<IOH> io_intf5 { };
+  chops::net::basic_io_interface<IOT> io_intf5 { };
 
   GIVEN ("Three default constructed basic_io_interfaces and two with io handlers") {
     WHEN ("all three are inserted in a multiset") {
-      std::multiset<chops::net::basic_io_interface<IOH> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
+      std::multiset<chops::net::basic_io_interface<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
       THEN ("the invalid basic_io_interfaces are first in the set") {
         REQUIRE (a_set.size() == 5);
         auto i = a_set.cbegin();
