@@ -2,7 +2,8 @@
  *
  *  @ingroup test_module
  *
- *  @brief Declarations for utility code shared between @c net_ip tests.
+ *  @brief Declarations and implementations for utility code shared between 
+ *  @c net_ip tests.
  *
  *  The general Chops Net IP test strategy is to have message senders and message 
  *  receivers, with a flag specifying whether the receiver is to loop back the
@@ -45,7 +46,6 @@
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 
-#include "net_ip/basic_io_interface.hpp"
 #include "net_ip/io_interface.hpp"
 
 #include "net_ip/component/simple_variable_len_msg_frame.hpp"
@@ -177,7 +177,6 @@ inline void udp_start_io (chops::net::udp_io_interface io, bool receiving, test_
 struct io_handler_mock {
   using socket_type = int;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
-  using io_type = short;
 
   socket_type sock = 3;
   bool started = false;
@@ -235,7 +234,6 @@ struct net_entity_mock {
 
   using socket_type = double;
   using endpoint_type = int;
-  using io_type = float;
 
   constexpr static double special_val = 42.0;
   double dummy = special_val;

@@ -58,6 +58,9 @@ template <typename IOT>
 struct error_data {
   basic_io_interface<IOT> io_intf;
   std::error_code         err;
+
+  error_data(basic_io_interface<IOT> io, std::error_code e) : 
+      io_intf(std::move(io)), err(std::move(e)) { }
 };
 
 /**

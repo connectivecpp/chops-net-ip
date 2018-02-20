@@ -43,7 +43,6 @@ class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
   using socket_type = std::experimental::net::ip::udp::socket;
   using endpoint_type = std::experimental::net::ip::udp::endpoint;
-  using io_type = udp_entity_io;
 
 private:
   using byte_vec = chops::mutable_shared_buffer::byte_vec;

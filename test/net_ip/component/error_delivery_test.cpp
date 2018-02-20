@@ -16,6 +16,8 @@
 #include <system_error>
 #include <future>
 #include <functional> // std::ref
+#include <thread>
+#include <chrono>
 
 #include <iostream>
 
@@ -40,27 +42,26 @@ SCENARIO ( "Testing ostream_error_sink_with_wait_queue function",
   auto io2 = io_interface_mock(ioh2);
   auto io3 = io_interface_mock(ioh3);
 
-  err_wait_q<io_handler_mock> wq;
+  chops::net::err_wait_q<io_handler_mock> wq;
 
-  auto sink_fut = std::async(std::launch::async, ostream_error_sink_with_wait_queue,
+  auto sink_fut = std::async(std::launch::async, 
+                             chops::net::ostream_error_sink_with_wait_queue<io_handler_mock>,
                              std::ref(wq), std::ref(std::cerr));
 
-  auto err_func = make_error_func_with_wait_queue<io_handler_mock>(wq);
+  auto err_func = chops::net::make_error_func_with_wait_queue<io_handler_mock>(wq);
 
-  GIVEN ("A wait_queue, three io interface objects, a source func and a sink thread") {
-    WHEN ("the source func is called") {
-      err_func(io1, std::make_error_code(chops::net::net_ip_errc::udp_io_handler_stopped));
-      err_func(io2, std::make_error_code(chops::net::net_ip_errc::tcp_io_handler_stopped));
-      err_func(io3, std::make_error_code(chops::net::net_ip_errc::message_handler_terminated));
-      err_func(io2, std::make_error_code(chops::net::net_ip_errc::tcp_connector_stopped));
-      err_func(io1, std::make_error_code(chops::net::net_ip_errc::tcp_acceptor_stopped));
-      THEN ("the elements are passed through the queue and the count is correct") {
-        wq.close();
-        auto cnt = sink_fut.get();
-        REQUIRE (cnt == 5);
-      }
-    }
-  } // end given
+  err_func(io1, std::make_error_code(chops::net::net_ip_errc::udp_io_handler_stopped));
+  err_func(io2, std::make_error_code(chops::net::net_ip_errc::tcp_io_handler_stopped));
+  err_func(io3, std::make_error_code(chops::net::net_ip_errc::message_handler_terminated));
+  err_func(io2, std::make_error_code(chops::net::net_ip_errc::tcp_connector_stopped));
+  err_func(io1, std::make_error_code(chops::net::net_ip_errc::tcp_acceptor_stopped));
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  wq.close();
+
+  auto cnt = sink_fut.get();
+  REQUIRE (cnt == 5);
+
 }
 
 

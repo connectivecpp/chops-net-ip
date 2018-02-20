@@ -48,6 +48,8 @@
 #include "net_ip/net_entity.hpp"
 #include "net_ip/io_interface.hpp"
 
+#include "net_ip/component/error_delivery.hpp"
+
 #include "queue/wait_queue.hpp"
 
 namespace chops {
@@ -89,7 +91,7 @@ template <typename IOH, typename ET, typename IOS, typename EF>
 void start_with_wait_queue (basic_net_entity<ET> entity, 
                             IOS&& io_start,
                             io_wait_q<IOH>& wq, 
-                            EF&& err_func = make_empty_error_func<IOH>()) {
+                            EF&& err_func = empty_error_func<IOH> ) {
   entity.start( [ios = std::move(io_start), &wq]
                    (basic_io_interface<IOH> io, std::size_t num, bool starting) mutable {
       if (starting) {
@@ -150,7 +152,7 @@ using io_prom = std::promise<basic_io_interface<IOH> >;
 template <typename IOH, typename ET, typename IOS, typename EF>
 auto make_io_interface_future_impl(basic_net_entity<ET> entity,
                                    IOS&& io_start,
-                                   EF&& err_func = make_empty_error_func<IOH>()) {
+                                   EF&& err_func) {
   auto start_prom_ptr = std::make_shared<io_prom<IOH> >();
   auto start_fut = start_prom_ptr->get_future();
 
@@ -160,7 +162,7 @@ auto make_io_interface_future_impl(basic_net_entity<ET> entity,
         ios(io, num, starting);
         start_prom_ptr->set_value(io);
       }
-    }, err_func
+    }, std::forward<EF>(err_func)
   );
   return start_fut;
 }
@@ -168,7 +170,7 @@ auto make_io_interface_future_impl(basic_net_entity<ET> entity,
 template <typename IOH, typename ET, typename IOS, typename EF>
 auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
                                         IOS&& io_start,
-                                        EF&& err_func = make_empty_error_func<IOH>()) {
+                                        EF&& err_func) {
 
   auto start_prom_ptr = std::make_shared<io_prom<IOH> >();
   auto start_fut = start_prom_ptr->get_future();
@@ -184,7 +186,7 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
       else {
         stop_prom_ptr->set_value(io);
       }
-    }, err_func
+    }, std::forward<EF>(err_func)
   );
 
   return io_interface_future_pair<IOH> { std::move(start_fut), std::move(stop_fut) };
@@ -219,7 +221,7 @@ auto make_io_interface_future_pair_impl(basic_net_entity<ET> entity,
 template <typename IOS, typename EF>
 tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity conn,
                                                      IOS&& io_start,
-                                                     EF&& err_func = make_empty_error_func<tcp_io>()) {
+                                                     EF&& err_func = tcp_empty_error_func) {
   return detail::make_io_interface_future_impl<tcp_io, 
                         detail::tcp_connector, IOS, EF>(conn,
                                                         std::forward<IOS>(io_start),
@@ -253,7 +255,7 @@ tcp_io_interface_future make_tcp_io_interface_future(tcp_connector_net_entity co
 template <typename IOS, typename EF>
 auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn,
                                        IOS&& io_start,
-                                       EF&& err_func = make_empty_error_func<tcp_io>()) {
+                                       EF&& err_func = tcp_empty_error_func) {
   return detail::make_io_interface_future_pair_impl<tcp_io,
                         detail::tcp_connector, IOS, EF>(conn,
                                                         std::forward<IOS>(io_start),
@@ -287,7 +289,7 @@ auto make_tcp_io_interface_future_pair(tcp_connector_net_entity conn,
 template <typename IOS, typename EF>
 udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity,
                                                      IOS&& io_start,
-                                                     EF&& err_func = make_empty_error_func<udp_io>()) {
+                                                     EF&& err_func = udp_empty_error_func) {
   return detail::make_io_interface_future_impl<udp_io, 
                         detail::udp_entity_io, IOS, EF>(udp_entity,
                                                         std::forward<IOS>(io_start),
@@ -307,7 +309,7 @@ udp_io_interface_future make_udp_io_interface_future(udp_net_entity udp_entity,
 template <typename IOS, typename EF>
 auto make_udp_io_interface_future_pair(udp_net_entity udp_entity,
                                        IOS&& io_start,
-                                       EF&& err_func = make_empty_error_func<udp_io>()) {
+                                       EF&& err_func = udp_empty_error_func) {
   return detail::make_io_interface_future_pair_impl<udp_io,
                         detail::udp_entity_io, IOS, EF>(udp_entity,
                                                         std::forward<IOS>(io_start),

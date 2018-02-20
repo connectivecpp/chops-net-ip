@@ -39,7 +39,9 @@
 
 #include "net_ip/component/worker.hpp"
 #include "net_ip/component/send_to_all.hpp"
-#include "net_ip/component/io_interface_future.hpp"
+#include "net_ip/component/io_interface_delivery.hpp"
+#include "net_ip/component/io_state_change.hpp"
+
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip/shared_utility_test.hpp"
@@ -80,17 +82,28 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
 std::cerr << "acceptor created" << std::endl;
 
 //        REQUIRE_FALSE(acc_ptr->is_started());
+
         test_counter acc_cnt = 0;
-        acc_ptr->start( [reply, delim, &acc_cnt] (chops::net::tcp_io_interface io, std::size_t /* num */) {
-            tcp_start_io(io, reply, delim, acc_cnt);
+        acc_ptr->start(
+          [reply, delim, &acc_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
+std::cerr << std::boolalpha << "acceptor state chg, starting flag: " << starting <<
+", count: " << num << ", io state valid: " << io.is_valid() << std::endl;
+            if (starting) {
+              tcp_start_io(io, reply, delim, cnt);
+            }
+          },
+          [] (chops::net::tcp_io_interface io, std::error_code err) {
+std::cerr << std::boolalpha << "err func, err: " << err <<
+", " << err.message() << ", io state valid: " << io.is_valid() << std::endl;
           }
         );
-//        REQUIRE(acc_ptr->is_started());
+
+        REQUIRE(acc_ptr->is_started());
 
         chops::net::send_to_all<chops::net::tcp_io> sta { };
 
         std::vector<chops::net::detail::tcp_connector_ptr> connectors;
-        std::vector<std::future<chops::net::tcp_io_interface> > conn_fut_vec;
+        std::vector<chops::net::tcp_io_interface_future> conn_fut_vec;
 
         test_counter conn_cnt = 0;
 std::cerr << "creating " << num_conns << " connectors and futures" << std::endl;
@@ -99,13 +112,16 @@ std::cerr << "creating " << num_conns << " connectors and futures" << std::endl;
             auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
                            std::string_view(test_port), std::string_view(test_host),
                            std::chrono::milliseconds(ReconnTime));
-//            REQUIRE_FALSE (conn_ptr->is_started());
-//            REQUIRE_FALSE (conn_ptr->is_io_started());
 
             connectors.push_back(conn_ptr);
 
             auto conn_futs = 
-              chops::net::make_tcp_io_interface_future_pair(chops::net::tcp_connector_net_entity(conn_ptr));
+              chops::net::make_tcp_io_interface_future_pair(chops::net::tcp_connector_net_entity(conn_ptr),
+                                                            chops::net::make_
+
+
+
+);
             auto conn_start_io = conn_futs.first.get();
             tcp_start_io(conn_start_io, false, delim, conn_cnt);
 //            REQUIRE (conn_io.is_io_started());

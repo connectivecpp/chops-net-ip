@@ -27,17 +27,6 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief A function object that does nothing and that can be used for the error 
- *  function in the @c basic_net_entity @c start method.
- *
- *  @relates basic_net_entity
- */
-template <typename IOH>
-auto make_empty_error_func() {
-  return [] (basic_io_interface<IOH>, std::error_code) { };
-}
-
-/**
  *  @brief The @c basic_net_entity class template provides the application interface 
  *  into the TCP acceptor, TCP connector, and UDP entity functionality.
  *
@@ -229,13 +218,14 @@ public:
  *
  *  The error function object must be copyable (it will be stored in a @c std::function).
  *
- *  This parameter can be omitted and defaults to an empty ("do nothing") function object.
+ *  For uses cases that don't care about error codes, a component "don't care" function
+ *  is available.
  *
  *  @return @c true if valid net entity association.
  *
  */
   template <typename F1, typename F2>
-  bool start(F1&& io_state_chg_func, F2&& err_func = make_empty_error_func<typename ET::io_type>()) {
+  bool start(F1&& io_state_chg_func, F2&& err_func) {
     auto p = m_eh_wptr.lock();
     return p ? (p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func)), true) : false;
   }
