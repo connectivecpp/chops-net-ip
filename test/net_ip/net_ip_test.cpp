@@ -72,15 +72,17 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         chops::net::net_ip nip(ioc);
 
         auto acc = nip.make_tcp_acceptor(tcp_test_port, tcp_test_host);
-//        REQUIRE_FALSE(acc.is_started());
+
+        chops::net::tcp_err_wait_q err_wq;
+
+        auto err_fut = std::async(std::launch::async, 
+          chops::net::ostream_error_sink_with_wait_queue<chops::net::tcp_io>, 
+          std::ref(err_wq), std::ref(std::cerr));
 
         test_counter acc_cnt = 0;
-        acc.start( [reply, delim, &acc_cnt] (chops::net::tcp_io_interface io, std::size_t) {
-            tcp_start_io(io, reply, delim, acc_cnt);
-          }
-        );
-std::cerr << "acceptor created and started, start_io will be called" << std::endl;
 
+        start_tcp_acceptor(acc, err_wq, reply, delim, acc_cnt);
+        INFO ("Acceptor created");
         REQUIRE(acc.is_started());
 
         chops::net::send_to_all<chops::net::tcp_io> sta { };
@@ -89,20 +91,21 @@ std::cerr << "acceptor created and started, start_io will be called" << std::end
         std::vector< std::future<chops::net::tcp_io_interface> > conn_fut_vec;
 
         test_counter conn_cnt = 0;
-std::cerr << "creating " << num_conns << " connectors" << std::endl;
+        INFO("Creating connectors and futures, num: " << num_conns);
+
         chops::repeat(num_conns, [&] () {
 
             auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host,
                                                std::chrono::milliseconds(ReconnTime));
             connectors.push_back(conn);
 
-            auto conn_futs = 
-              chops::net::make_tcp_io_interface_future_pair(conn);
-            auto conn_start_io = conn_futs.first.get();
-            tcp_start_io(conn_start_io, false, delim, conn_cnt);
-//            REQUIRE (conn_io.is_io_started());
+            auto conn_futs = get_tcp_io_futures(conn, err_wq,
+                                                reply, delim, conn_cnt);
+
+            auto conn_start_io = conn_futs.start_fut.get();
             sta.add_io_interface(conn_start_io);
-            conn_fut_vec.emplace_back(std::move(conn_futs.second));
+            conn_fut_vec.emplace_back(std::move(conn_futs.stop_fut));
+
           }
         );
 
@@ -117,10 +120,19 @@ std::cerr << "creating " << num_conns << " connectors" << std::endl;
 
         acc.stop();
         nip.remove(acc);
+        INFO ("Acceptor stopped and removed");
 
         nip.stop_all();
         nip.remove_all();
-    
+        INFO ("Connectors stopped and removed");
+
+        while (!err_wq.empty()) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        err_wq.close();
+        auto err_cnt = err_fut.get();
+        INFO ("Num err messages in sink: " << err_cnt);
+
         std::size_t total_msgs = num_conns * in_msg_vec.size();
         REQUIRE (verify_receiver_count(total_msgs, acc_cnt));
         REQUIRE (verify_sender_count(total_msgs, conn_cnt, reply));
@@ -144,7 +156,12 @@ void udp_test (const vec_buf& in_msg_vec, int interval, int num_udp_pairs,
 
         chops::net::net_ip nip(ioc);
 
-std::cerr << "creating " << num_udp_pairs << " udp sender receiver pairs" << std::endl;
+        INFO ("Creating " << num_udp_pairs << " udp sender receiver pairs");
+
+        chops::net::udp_err_wait_q err_wq;
+        auto err_fut = std::async(std::launch::async,
+          chops::net::ostream_error_sink_with_wait_queue<chops::net::udp_io>,
+          std::ref(err_wq), std::ref(std::cerr));
 
         chops::net::send_to_all<chops::net::udp_io> sta { };
 
@@ -155,18 +172,14 @@ std::cerr << "creating " << num_udp_pairs << " udp sender receiver pairs" << std
             auto recv_endp = make_udp_endpoint(udp_test_addr, udp_port_base + i);
 
             auto udp_receiver = nip.make_udp_unicast(recv_endp);
+            auto recv_futs = get_udp_io_futures(udp_receiver, err_wq,
+                                                  false, recv_cnt );
             auto udp_sender = nip.make_udp_sender();
 
-            auto io_fut = chops::net::make_udp_io_interface_future(udp_receiver);
-            auto io = io_fut.get();
-            udp_start_io(io, false, recv_cnt);
-
-            io_fut = chops::net::make_udp_io_interface_future(udp_sender);
-            io = io_fut.get();
-            udp_start_io(io, false, send_cnt, recv_endp);
-
-            sta.add_io_interface(io);
-
+            auto sender_futs = get_udp_io_futures(udp_sender, err_wq,
+                                                  false, send_cnt, recv_endp );
+            auto send_io = sender_futs.start_fut.get();
+            sta.add_io_interface(send_io);
           }
         );
 
@@ -186,9 +199,15 @@ std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
         nip.stop_all();
-std::cerr << "Udp entities stopped" << std::endl;
         nip.remove_all();
+        INFO("All UDP entities stopped and removed");
 
+        while (!err_wq.empty()) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        err_wq.close();
+        auto err_cnt = err_fut.get();
+        INFO ("Num err messages in sink: " << err_cnt);
 
         std::size_t total_msgs = num_udp_pairs * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
@@ -198,7 +217,7 @@ std::cerr << "Udp entities stopped" << std::endl;
       }
     }
   } // end given
-  wk.stop();
+  wk.reset();
 }
 
 
