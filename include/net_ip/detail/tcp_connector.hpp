@@ -115,7 +115,15 @@ public:
       m_resolver.make_endpoints(false, m_remote_host, m_remote_port,
         [this, self] 
              (std::error_code err, resolver_results res) mutable {
-          handle_resolve(err, std::move(res));
+          if (err) {
+            m_entity_common.call_error_cb(tcp_io_ptr(), err);
+            stop();
+            return;
+          }
+          for (const auto& e : res) {
+            m_endpoints.push_back(e.endpoint());
+          }
+          start_connect();
         }
       );
       return;
@@ -141,21 +149,6 @@ private:
     m_timer.cancel();
     m_resolver.cancel();
     // socket should already be closed or moved from
-  }
-
-  void handle_resolve(std::error_code err, resolver_results res) {
-    if (err) {
-      m_entity_common.call_error_cb(tcp_io_ptr(), err);
-      stop();
-      return;
-    }
-    if (!is_started()) {
-      return;
-    }
-    for (const auto& e : res) {
-      m_endpoints.push_back(e.endpoint());
-    }
-    start_connect();
   }
 
   void start_connect() {
