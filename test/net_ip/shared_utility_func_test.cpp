@@ -27,8 +27,9 @@ SCENARIO ( "Shared Net IP test utility, get_tcp_io_futures",
            "[shared_utility] [tcp_io_futures]" ) {
   using namespace chops::test;
 
+  chops::net::tcp_err_wait_q wq;
   test_counter cnt;
-  auto futs = get_tcp_io_futures(chops::net::tcp_connector_net_entity(), 
+  auto futs = get_tcp_io_futures(chops::net::tcp_connector_net_entity(), wq,
                                  true, std::string_view(), cnt);
 }
 
@@ -36,9 +37,21 @@ SCENARIO ( "Shared Net IP test utility, get_udp_io_futures",
            "[shared_utility] [udp_io_futures]" ) {
   using namespace chops::test;
 
+  chops::net::udp_err_wait_q wq;
   test_counter cnt;
-  auto futs1 = get_udp_io_futures(chops::net::udp_net_entity(), 
+  auto futs1 = get_udp_io_futures(chops::net::udp_net_entity(), wq,
                                   true, cnt);
-  auto futs2 = get_udp_io_futures(chops::net::udp_net_entity(), 
+  auto futs2 = get_udp_io_futures(chops::net::udp_net_entity(), wq,
                                   true, cnt, std::experimental::net::ip::udp::endpoint());
 }
+
+SCENARIO ( "Shared Net IP test utility, start TCP acceptor",
+           "[shared_utility] [start_tcp_acceptor]" ) {
+  using namespace chops::test;
+
+  chops::net::tcp_err_wait_q wq;
+  test_counter cnt;
+  start_tcp_acceptor(chops::net::tcp_acceptor_net_entity(), wq, 
+                     false, std::string_view(), cnt);
+}
+
