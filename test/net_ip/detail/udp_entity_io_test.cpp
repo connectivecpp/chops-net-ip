@@ -82,6 +82,10 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
         INFO ("Receiving UDP entity created");
 
         chops::net::udp_err_wait_q err_wq;
+        auto err_fut = std::async(std::launch::async,
+          chops::net::ostream_error_sink_with_wait_queue<chops::net::udp_io>,
+          std::ref(err_wq), std::ref(std::cerr));
+
         test_counter recv_cnt = 0;
         auto recv_io_futs = get_udp_io_futures(chops::net::udp_net_entity(recv_ptr), err_wq,
                                                reply, recv_cnt);
@@ -136,6 +140,13 @@ std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
         }
         INFO ("All UDP entities stopped");
 
+        while (!err_wq.empty()) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        err_wq.close();
+        auto err_cnt = err_fut.get();
+        INFO ("Num err messages in sink: " << err_cnt);
+
         std::size_t total_msgs = num_senders * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
         CHECK (verify_receiver_count(total_msgs, recv_cnt));
@@ -189,6 +200,7 @@ SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 50, senders 1",
 
 }
 
+/*
 SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
            "[udp_io] [var_len_msg] [one-way] [interval_0] [senders_1]" ) {
 
@@ -260,4 +272,6 @@ SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 50, senders 2, many 
              true, 50, 2);
 
 }
+
+*/
 
