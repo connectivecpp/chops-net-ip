@@ -38,15 +38,16 @@
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip/component/worker.hpp"
-#include "net_ip/component/io_interface_future.hpp"
 #include "net_ip/component/send_to_all.hpp"
 
 #include "net_ip/shared_utility_test.hpp"
+#include "net_ip/shared_utility_func_test.hpp"
+
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 
-#include <iostream>
+#include <iostream> // std::err for error sink
 
 using namespace std::experimental::net;
 using namespace chops::test;
@@ -57,11 +58,6 @@ using namespace chops::test;
 const char*   test_addr = "127.0.0.1";
 constexpr int test_port_base = 30665;
 constexpr int NumMsgs = 50;
-
-ip::udp::endpoint make_test_endpoint(int port_num) {
-  return ip::udp::endpoint(ip::make_address(test_addr),
-                           static_cast<unsigned short>(port_num));
-}
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
@@ -80,47 +76,38 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
     WHEN ("UDP senders and a receiver are created") {
       THEN ("the futures provide synchronization") {
 
-        auto recv_endp = make_test_endpoint(test_port_base);
-        auto recv_ep = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
+        auto recv_endp = make_udp_endpoint(test_addr, test_port_base);
+        auto recv_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
 
-//        REQUIRE_FALSE (recv_ep->is_started());
-//        REQUIRE_FALSE (recv_ep->is_io_started());
+        INFO ("Receiving UDP entity created");
 
-        auto recv_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_net_entity(recv_ep));
-        auto recv_io = recv_io_fut.get(); // UDP receiver is started
-
-//        REQUIRE (recv_ep->is_started());
-
+        chops::net::udp_err_wait_q err_wq;
         test_counter recv_cnt = 0;
-        udp_start_io(recv_io, reply, recv_cnt);
+        auto recv_io_futs = get_udp_io_futures(chops::net::udp_net_entity(recv_ptr), err_wq,
+                                               reply, recv_cnt);
 
-//        REQUIRE (recv_io.is_io_started());
+        auto recv_io = recv_io_futs.start_fut.get(); // UDP receiver is started
 
         chops::net::send_to_all<chops::net::udp_io> send_to_all_ios { };
 
         std::vector<chops::net::detail::udp_entity_io_ptr> senders;
+        std::vector<chops::net::udp_io_interface_future> sender_fut_vec;
 
         test_counter send_cnt = 0;
-std::cerr << "creating " << num_senders << " senders" << std::endl;
+        INFO ("Creating UDP senders, num: " << num_senders);
         chops::repeat(num_senders, [&] (int i) {
             ip::udp::endpoint send_endp = reply ? 
                 ip::udp::endpoint(ip::udp::v4(), static_cast<unsigned short>(test_port_base + i + 1)) :
                 ip::udp::endpoint();
 
-            auto send_ep = std::make_shared<chops::net::detail::udp_entity_io>(ioc, send_endp);
-//            REQUIRE_FALSE (send_ep->is_started());
-//            REQUIRE_FALSE (send_ep->is_io_started());
+            auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, send_endp);
+            senders.push_back(send_ptr);
 
-            senders.push_back(send_ep);
-
-            auto send_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_net_entity(send_ep));
-            auto send_io = send_io_fut.get();
-
-            udp_start_io(send_io, reply, send_cnt, recv_endp);
-
-//            REQUIRE (send_io.is_io_started());
-
+            auto sender_futs = get_udp_io_futures(chops::net::udp_net_entity(send_ptr), err_wq,
+                                                  false, send_cnt);
+            auto send_io = sender_futs.start_fut.get();
             send_to_all_ios.add_io_interface(send_io);
+            sender_fut_vec.emplace_back(std::move(sender_futs.stop_fut));
           }
         );
         // send messages through all of the senders
@@ -140,14 +127,14 @@ std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
         // stop all handlers
         for (auto p : senders) {
           p->stop();
-//          REQUIRE_FALSE (p->is_started());
-//          REQUIRE_FALSE (p->is_io_started());
         }
-        recv_ep->stop();
-//        REQUIRE_FALSE (recv_ep->is_started());
-//        REQUIRE_FALSE (recv_ep->is_io_started());
+        recv_ptr->stop();
+        recv_io_futs.stop_fut.get();
 
-std::cerr << "Udp entities stopped" << std::endl;
+        for (auto& fut : sender_fut_vec) {
+          auto io = fut.get();
+        }
+        INFO ("All UDP entities stopped");
 
         std::size_t total_msgs = num_senders * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
@@ -168,7 +155,7 @@ std::cerr << "Udp entities stopped" << std::endl;
 SCENARIO ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
            "[udp_io] ") {
 
-  auto ipv4_endp = make_test_endpoint(test_port_base);
+  auto ipv4_endp = make_udp_endpoint(test_addr, test_port_base);
   auto ipv6_endp = ip::udp::endpoint(ip::make_address("::1"), 
                                      static_cast<unsigned short>(test_port_base));
 

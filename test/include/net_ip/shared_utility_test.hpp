@@ -267,6 +267,12 @@ struct net_entity_mock {
 inline void io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
 inline void err_func_mock(io_interface_mock, std::error_code) { }
 
+std::experimental::net::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
+  return std::experimental::net::ip::udp::endpoint(std::experimental::net::ip::make_address(addr),
+                           static_cast<unsigned short>(port_num));
+}
+
+
 } // end namespace test
 } // end namespace chops
 

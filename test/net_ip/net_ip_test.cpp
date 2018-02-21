@@ -57,11 +57,6 @@ constexpr int udp_port_base = 31445;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
-ip::udp::endpoint make_test_udp_endpoint(int udp_port_num) {
-  return ip::udp::endpoint(ip::make_address(udp_test_addr),
-                           static_cast<unsigned short>(udp_port_num));
-}
-
 void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_conns,
                     std::string_view delim, chops::const_shared_buffer empty_msg) {
 
@@ -157,7 +152,7 @@ std::cerr << "creating " << num_udp_pairs << " udp sender receiver pairs" << std
         test_counter send_cnt = 0;
 
         chops::repeat(num_udp_pairs, [&] (int i) {
-            auto recv_endp = make_test_udp_endpoint(udp_port_base + i);
+            auto recv_endp = make_udp_endpoint(udp_test_addr, udp_port_base + i);
 
             auto udp_receiver = nip.make_udp_unicast(recv_endp);
             auto udp_sender = nip.make_udp_sender();
