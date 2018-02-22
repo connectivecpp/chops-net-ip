@@ -92,10 +92,10 @@ public:
   }
 
   template <typename F1, typename F2>
-  void start(F1&& io_state_chg, F2&& err_cb) {
+  bool start(F1&& io_state_chg, F2&& err_cb) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
-      return;
+      return false;
     }
     try {
       // assume default constructed endpoints compare equal
@@ -110,57 +110,66 @@ public:
     catch (const std::system_error& se) {
       err_notify(se.code());
       stop();
-      return;
+      return false;
     }
     m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true);
+    return true;
   }
 
   template <typename MH>
-  void start_io(std::size_t max_size, MH&& msg_handler) {
+  bool start_io(std::size_t max_size, MH&& msg_handler) {
     if (!m_io_common.set_io_started()) { // concurrency protected
-      return;
+      return false;
     }
     m_max_size = max_size;
     start_read(std::forward<MH>(msg_handler));
+    return true;
   }
 
   template <typename MH>
-  void start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
+  bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
     if (!m_io_common.set_io_started()) { // concurrency protected
-      return;
+      return false;
     }
     m_max_size = max_size;
     m_default_dest_endp = endp;
     start_read(std::forward<MH>(msg_handler));
+    return true;
   }
 
-  void start_io() {
-    m_io_common.set_io_started();
-  }
-
-  void start_io(const endpoint_type& endp) {
+  bool start_io() {
     if (!m_io_common.set_io_started()) { // concurrency protected
-      return;
+      return false;
+    }
+    return true;
+  }
+
+  bool start_io(const endpoint_type& endp) {
+    if (!m_io_common.set_io_started()) { // concurrency protected
+      return false;
     }
     m_default_dest_endp = endp;
+    return true;
   }
 
-  void stop_io() {
+  bool stop_io() {
     if (!m_io_common.stop()) {
-      return;
+      return false;
     }
     std::error_code ec;
     m_socket.close(ec);
     err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
     m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
+    return true;
   }
 
-  void stop() {
+  bool stop() {
     if (!m_entity_common.stop()) {
-      return; // stop already called
+      return false; // stop already called
     }
     stop_io();
     err_notify(std::make_error_code(net_ip_errc::udp_entity_stopped));
+    return true;
   }
 
   void send(chops::const_shared_buffer buf) {

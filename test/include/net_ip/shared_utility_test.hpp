@@ -125,7 +125,10 @@ struct msg_hdlr {
     chops::const_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       ++cnt;
-      return reply ? io_intf.send(sh_buf, endp) : true;
+      if (reply) {
+        io_intf.send(sh_buf, endp);
+      }
+      return true;
     }
     if (reply) {
       // may not make it back to sender, depending on TCP connection or UDP reliability
@@ -147,31 +150,27 @@ inline bool verify_sender_count (std::size_t total_sent, std::size_t recvd, bool
   return reply ? total_sent == recvd : recvd == 0;
 }
 
-inline void tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
+inline bool tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
                    std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
-    io.start_io(2, tcp_msg_hdlr(reply, cnt), 
-                chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
+    return io.start_io(2, tcp_msg_hdlr(reply, cnt), 
+                       chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
   }
-  else {
-    io.start_io(delim, tcp_msg_hdlr(reply, cnt));
-  }
+  return io.start_io(delim, tcp_msg_hdlr(reply, cnt));
 }
 
 constexpr int udp_max_buf_size = 65507;
 
-inline void udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
-  io.start_io(udp_max_buf_size, udp_msg_hdlr(reply, cnt));
+inline bool udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
+  return io.start_io(udp_max_buf_size, udp_msg_hdlr(reply, cnt));
 }
 
-inline void udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
+inline bool udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
                           const std::experimental::net::ip::udp::endpoint& remote_endp) {
   if (receiving) {
-    io.start_io(remote_endp, udp_max_buf_size, udp_msg_hdlr(false, cnt));
+    return io.start_io(remote_endp, udp_max_buf_size, udp_msg_hdlr(false, cnt));
   }
-  else {
-    io.start_io(remote_endp);
-  }
+  return io.start_io(remote_endp);
 }
 
 struct io_handler_mock {
@@ -203,22 +202,36 @@ struct io_handler_mock {
   bool send_endp_sio_called = false;
 
   template <typename MH, typename MF>
-  void start_io(std::size_t, MH&&, MF&&) { started = true; mf_sio_called = true; }
+  bool start_io(std::size_t, MH&&, MF&&) {
+    return started ? false : started = true, mf_sio_called = true, true;
+  }
 
   template <typename MH>
-  void start_io(std::string_view, MH&&) { started = true; delim_sio_called = true; }
+  bool start_io(std::string_view, MH&&) {
+    return started ? false : started = true, delim_sio_called = true, true;
+  }
 
   template <typename MH>
-  void start_io(std::size_t, MH&&) { started = true; rd_sio_called = true; }
+  bool start_io(std::size_t, MH&&) {
+    return started ? false : started = true, rd_sio_called = true, true;
+  }
 
   template <typename MH>
-  void start_io(const endpoint_type&, std::size_t, MH&&) { started = true; rd_endp_sio_called = true; }
+  bool start_io(const endpoint_type&, std::size_t, MH&&) {
+    return started ? false : started = true, rd_endp_sio_called = true, true;
+  }
 
-  void start_io() { started = true; send_sio_called = true; }
+  bool start_io() {
+    return started ? false : started = true, send_sio_called = true, true;
+  }
 
-  void start_io(const endpoint_type&) { started = true; send_endp_sio_called = true; }
+  bool start_io(const endpoint_type&) {
+    return started ? false : started = true, send_endp_sio_called = true, true;
+  }
 
-  void stop_io() { started = false; }
+  bool stop_io() {
+    return started ? started = false, true : false;
+  }
 
 };
 
@@ -245,7 +258,10 @@ struct net_entity_mock {
   double& get_socket() { return dummy; }
 
   template <typename F1, typename F2>
-  void start(F1&& io_state_chg_func, F2&& err_func ) {
+  bool start(F1&& io_state_chg_func, F2&& err_func ) {
+    if (started) {
+      return false;
+    }
     started = true;
     thr = std::thread([ this, ios = std::move(io_state_chg_func), ef = std::move(err_func)] () mutable {
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -256,9 +272,17 @@ struct net_entity_mock {
         ios(io_interface_mock(iop), 0, false);
       }
     );
+    return true;
   }
 
-  void stop() { started = false; join_thr(); }
+  bool stop() {
+    if (!started) {
+      return false;
+    }
+    started = false;
+    join_thr();
+    return true;
+  }
 
   void join_thr() { thr.join(); }
 

@@ -49,39 +49,39 @@ namespace net {
  *  A @c net_ip object creates and manages network related objects. It is
  *  the initial API point for creating a TCP acceptor, TCP connector,
  *  UDP unicast, or UDP multicast network entity. Once one of these
- *  network objects is created internal to the @c net_ip object, a @c net_entity 
+ *  network objects is created internal to the @c net_ip object, a @c basic_net_entity 
  *  object is returned to the application, allowing further operations to occur.
  *
- *  Applications perform most operations with either a @c net_entity or a 
- *  @c io_interface object. The @c net_ip object creates facade-like objects of 
- *  type @c net_entity, which allow further operations.
+ *  Applications perform most operations with either a @c basic_net_entity or a 
+ *  @c basic_io_interface object. The @c net_ip object creates facade-like objects of 
+ *  type @c basic_net_entity, which allow further operations.
  *
- *  The general application usage pattern for the @ net_ip, @ net_entity, and
- *  @c io_interface classes is:
+ *  The general application usage pattern for the @ net_ip, @ basic_net_entity, and
+ *  @c basic_io_interface classes is:
  *
  *  1. Instantiate a @c net_ip object.
  *
- *  2. Create a @c net_entity object, through one of the @c net_ip @c make 
- *  methods. A @c net_entity interacts with one of a TCP acceptor, TCP 
+ *  2. Create a @c basic_net_entity object, through one of the @c net_ip @c make 
+ *  methods. A @c basic_net_entity interacts with one of a TCP acceptor, TCP 
  *  connector, UDP unicast receiver or sender, or UDP multicast receiver (a
  *  UDP multicast sender is the same as a UDP unicast sender).
  *
- *  3. Call the @c start method on the @c net_entity object. This performs
+ *  3. Call the @c start method on the @c basic_net_entity object. This performs
  *  name resolution (if needed), a local bind (if needed) and (for TCP) a 
  *  connect or a listen. 
  *
  *  Local host and port and interface name lookups are performed immediately 
  *  using direct (synchronous) lookups. Remote host and port name lookups are 
  *  performed asynchronously (since these may take longer) and are started when 
- *  the @c net_entity @c start is called (this is only needed for TCP connectors).
+ *  the @c basic_net_entity @c start is called (this is only needed for TCP connectors).
  *  If this is not acceptable, the application can perform the lookup and the 
  *  endpoint (or endpoint sequence) can be passed in through the @c make method.
  *
  *  State change function objects are invoked when network IO can be started as
  *  well as when an error or shutdown occurs.
  *
- *  4. When an @c io_interface object is supplied to the application through
- *  the start state change callback, input processing is started through a 
+ *  4. When a @c basic_io_interface object is supplied to the application through
+ *  the IO state change callback, input processing is started through a 
  *  @c start_io call, and outbound data is sent through @c send methods.
  *
  *  There are no executor operations available through the @c net_ip class. In 
@@ -90,9 +90,9 @@ namespace net {
  *  application code will use the Networking TS executor methods for invoking
  *  the underlying asynchronous operations.
  *
- *  For convenience, a class named @c worker combines an executor with a work
- *  guard and creates a thread to invoke the asynchronous operations. Example
- *  usage:
+ *  For convenience, a class named @c worker in the @c component directory combines 
+ *  an executor with a work guard and creates a thread to invoke the asynchronous 
+ *  operations. Example usage:
  *
  *  @code
  *    chops::net::worker wk;

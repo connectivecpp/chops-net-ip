@@ -68,10 +68,10 @@ public:
   socket_type& get_socket() noexcept { return m_acceptor; }
 
   template <typename F1, typename F2>
-  void start(F1&& io_state_chg, F2&& err_func) {
+  bool start(F1&& io_state_chg, F2&& err_func) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func))) {
       // already started
-      return;
+      return false;
     }
     try {
       m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
@@ -80,14 +80,15 @@ public:
     catch (const std::system_error& se) {
       m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
       stop();
-      return;
+      return false;
     }
     start_accept();
+    return true;
   }
 
-  void stop() {
+  bool stop() {
     if (!m_entity_common.stop()) {
-      return; // stop already called
+      return false; // stop already called
     }
     auto iohs = m_io_handlers;
     for (auto i : iohs) {
@@ -97,6 +98,7 @@ public:
     m_entity_common.call_error_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
     std::error_code ec;
     m_acceptor.close(ec);
+    return true;
   }
 
 private:

@@ -35,34 +35,31 @@ void basic_io_interface_test_default_constructed() {
         REQUIRE_FALSE (io_intf.is_valid());
       }
     }
-    AND_WHEN ("is_io_started or get_socket or get_output_queue_stats is called on an invalid basic_io_interface") {
+    AND_WHEN ("any method but comparison is called on an invalid basic_io_interface") {
       THEN ("an exception is thrown") {
+
+        chops::const_shared_buffer buf(nullptr, 0);
+        using endp_t = typename IOT::endpoint_type;
+
         REQUIRE_THROWS (io_intf.is_io_started());
         REQUIRE_THROWS (io_intf.get_socket());
         REQUIRE_THROWS (io_intf.get_output_queue_stats());
-      }
-    }
-    AND_WHEN ("send or start_io or stop_io is called on an invalid basic_io_interface") {
-      THEN ("false is returned") {
 
-        chops::const_shared_buffer buf(nullptr, 0);
-        typename IOT::endpoint_type endp;
+        REQUIRE_THROWS (io_intf.send(nullptr, 0));
+        REQUIRE_THROWS (io_intf.send(buf));
+        REQUIRE_THROWS (io_intf.send(chops::mutable_shared_buffer()));
+        REQUIRE_THROWS (io_intf.send(nullptr, 0, endp_t()));
+        REQUIRE_THROWS (io_intf.send(buf, endp_t()));
+        REQUIRE_THROWS (io_intf.send(chops::mutable_shared_buffer(), endp_t()));
 
-        REQUIRE_FALSE (io_intf.send(nullptr, 0));
-        REQUIRE_FALSE (io_intf.send(buf));
-        REQUIRE_FALSE (io_intf.send(chops::mutable_shared_buffer()));
-        REQUIRE_FALSE (io_intf.send(nullptr, 0, endp));
-        REQUIRE_FALSE (io_intf.send(buf, endp));
-        REQUIRE_FALSE (io_intf.send(chops::mutable_shared_buffer(), endp));
+        REQUIRE_THROWS (io_intf.start_io(0, [] { }, [] { }));
+        REQUIRE_THROWS (io_intf.start_io("testing, hah!", [] { }));
+        REQUIRE_THROWS (io_intf.start_io(0, [] { }));
+        REQUIRE_THROWS (io_intf.start_io(endp_t(), 0, [] { }));
+        REQUIRE_THROWS (io_intf.start_io());
+        REQUIRE_THROWS (io_intf.start_io(endp_t()));
 
-        REQUIRE_FALSE (io_intf.start_io(0, [] { }, [] { }));
-        REQUIRE_FALSE (io_intf.start_io("testing, hah!", [] { }));
-        REQUIRE_FALSE (io_intf.start_io(0, [] { }));
-        REQUIRE_FALSE (io_intf.start_io(0, endp, [] { }));
-        REQUIRE_FALSE (io_intf.start_io());
-        REQUIRE_FALSE (io_intf.start_io(endp));
-
-        REQUIRE_FALSE (io_intf.stop_io());
+        REQUIRE_THROWS (io_intf.stop_io());
       }
     }
   } // end given
@@ -70,7 +67,7 @@ void basic_io_interface_test_default_constructed() {
 }
 
 template <typename IOT>
-void basic_io_interface_test_two() {
+void basic_io_interface_test_methods() {
 
   chops::net::basic_io_interface<IOT> io_intf { };
 
@@ -78,13 +75,13 @@ void basic_io_interface_test_two() {
   io_intf = chops::net::basic_io_interface<IOT>(ioh);
 
   GIVEN ("A default constructed basic_io_interface and an io handler") {
-    WHEN ("an basic_io_interface with a weak ptr to the io handler is assigned to it") {
-      THEN ("the return is true") {
+    WHEN ("a basic_io_interface with a weak ptr to the io handler is assigned to it") {
+      THEN ("is_valid returns true") {
         REQUIRE (io_intf.is_valid());
       }
     }
     AND_WHEN ("is_io_started or get_output_queue_stats is called") {
-      THEN ("values are returned") {
+      THEN ("correct values are returned") {
         REQUIRE_FALSE (io_intf.is_io_started());
         chops::net::output_queue_stats s = io_intf.get_output_queue_stats();
         REQUIRE (s.output_queue_size == chops::test::io_handler_mock::qs_base);
@@ -92,27 +89,39 @@ void basic_io_interface_test_two() {
       }
     }
     AND_WHEN ("send or start_io or stop_io is called") {
-      THEN ("true is returned") {
+      THEN ("appropriate values are set or returned") {
 
         chops::const_shared_buffer buf(nullptr, 0);
-        typename IOT::endpoint_type endp;
+        using endp_t = typename IOT::endpoint_type;
 
-        REQUIRE (io_intf.send(nullptr, 0));
-        REQUIRE (io_intf.send(buf));
-        REQUIRE (io_intf.send(chops::mutable_shared_buffer()));
-        REQUIRE (io_intf.send(nullptr, 0, endp));
-        REQUIRE (io_intf.send(buf, endp));
-        REQUIRE (io_intf.send(chops::mutable_shared_buffer(), endp));
+        REQUIRE (io_intf.is_valid());
+
+        io_intf.send(nullptr, 0);
+        io_intf.send(buf);
+        io_intf.send(chops::mutable_shared_buffer());
+        io_intf.send(nullptr, 0, endp_t());
+        io_intf.send(buf, endp_t());
+        io_intf.send(chops::mutable_shared_buffer(), endp_t());
+        REQUIRE(ioh->send_called);
 
         REQUIRE (io_intf.start_io(0, [] { }, [] { }));
-        REQUIRE (io_intf.start_io("testing, hah!", [] { }));
-        REQUIRE (io_intf.start_io(0, [] { }));
-        REQUIRE (io_intf.start_io(0, endp, [] { }));
-        REQUIRE (io_intf.start_io(endp));
-        REQUIRE (io_intf.start_io());
-
         REQUIRE (io_intf.is_io_started());
-
+        REQUIRE (io_intf.stop_io());
+        REQUIRE_FALSE (io_intf.is_io_started());
+        REQUIRE (io_intf.start_io("testing, hah!", [] { }));
+        REQUIRE (io_intf.is_io_started());
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io(0, [] { }));
+        REQUIRE (io_intf.is_io_started());
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io(endp_t(), 0, [] { }));
+        REQUIRE (io_intf.is_io_started());
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io(endp_t()));
+        REQUIRE (io_intf.is_io_started());
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io());
+        REQUIRE (io_intf.is_io_started());
         REQUIRE (io_intf.stop_io());
         REQUIRE_FALSE (io_intf.is_io_started());
       }
@@ -178,7 +187,7 @@ void basic_io_interface_test_compare() {
 SCENARIO ( "Basic io interface test, io_handler_mock used for IO handler type",
            "[basic_io_interface] [io_handler_mock]" ) {
   basic_io_interface_test_default_constructed<chops::test::io_handler_mock>();
-  basic_io_interface_test_two<chops::test::io_handler_mock>();
+  basic_io_interface_test_methods<chops::test::io_handler_mock>();
   basic_io_interface_test_compare<chops::test::io_handler_mock>();
 }
 

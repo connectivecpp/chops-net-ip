@@ -178,8 +178,8 @@ public:
  *  needed) to the underlying IO handler.
  *
  *  2) A count of the underlying IO handlers associated with this net entity. For 
- *  a TCP connector or a UDP entity the number is 1, and for a TCP acceptor the number is 
- *  1 to N, depending on the number of accepted connections.
+ *  a TCP connector or a UDP entity the number is 1 when starting and 0 when stopping, and for 
+ *  a TCP acceptor the number is 0 to N, depending on the number of accepted connections.
  *
  *  3) If @c true, the @c basic_io_interface has just been created (i.e. a TCP connection 
  *  has been created or a UDP socket is ready), and if @c false, the connection or socket
@@ -221,13 +221,16 @@ public:
  *  For uses cases that don't care about error codes, a component "don't care" function
  *  is available.
  *
- *  @return @c true if valid net entity association.
+ *  @return @c false if already started, otherwise @c true.
  *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
   template <typename F1, typename F2>
   bool start(F1&& io_state_chg_func, F2&& err_func) {
-    auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func)), true) : false;
+    if (auto p = m_eh_wptr.lock()) {
+      return p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func));
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -238,12 +241,16 @@ public:
  *  resources, unbinding from ports, and invoking application provided state change function 
  *  object callbacks. 
  *
- *  @return @c true if valid net entity association.
+ *  @return @c false if already stopped, otherwise @c true.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  *
  */
   bool stop() {
-    auto p = m_eh_wptr.lock();
-    return p ? (p->stop(), true) : false;
+    if (auto p = m_eh_wptr.lock()) {
+      return p->stop();
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 /**
  *  @brief Compare two @c basic_net_entity objects for equality.
@@ -285,7 +292,8 @@ public:
  *  @brief Return a @c std::shared_ptr to the actual net entity object, meant to be used
  *  for internal purposes only.
  *
- *  @return As described in the comments.
+ *  @return A @c std::shared_ptr, which may be empty if there is not an associated net
+ *  entity.
  */
   auto get_shared_ptr() const noexcept {
     return m_eh_wptr.lock();

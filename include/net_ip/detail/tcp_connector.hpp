@@ -104,10 +104,10 @@ public:
   socket_type& get_socket() noexcept { return m_socket; }
 
   template <typename F1, typename F2>
-  void start(F1&& io_state_chg, F2&& err_cb) {
+  bool start(F1&& io_state_chg, F2&& err_cb) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
-      return;
+      return false;
     }
     // empty endpoints container is the flag that a resolve is needed
     if (m_endpoints.empty()) {
@@ -126,22 +126,26 @@ public:
           start_connect();
         }
       );
-      return;
+      return true;
     }
     start_connect();
+    return true;
   }
 
-  void stop() {
-    close();
+  bool stop() {
+    if (!close()) {
+      return false;
+    }
     m_entity_common.call_error_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped));
+    return true;
   }
 
 
 private:
 
-  void close() {
+  bool close() {
     if (!m_entity_common.stop()) {
-      return; // stop already called
+      return false; // stop already called
     }
     if (m_io_handler) {
       m_io_handler->close();
@@ -149,6 +153,7 @@ private:
     m_timer.cancel();
     m_resolver.cancel();
     // socket should already be closed or moved from
+    return true;
   }
 
   void start_connect() {

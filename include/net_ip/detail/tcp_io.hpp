@@ -89,45 +89,51 @@ public:
   bool is_io_started() const noexcept { return m_io_common.is_io_started(); }
 
   template <typename MH, typename MF>
-  void start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
+  bool start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
     if (!start_io_setup()) {
-      return;
+      return false;
     }
     m_read_size = header_size;
     m_byte_vec.resize(m_read_size);
     start_read(std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
                std::forward<MH>(msg_handler), std::forward<MF>(msg_frame));
+    return true;
   }
 
   template <typename MH>
-  void start_io(std::string_view delimiter, MH&& msg_handler) {
+  bool start_io(std::string_view delimiter, MH&& msg_handler) {
     if (!start_io_setup()) {
-      return;
+      return false;
     }
     m_delimiter = delimiter;
     start_read_until(std::forward<MH>(msg_handler));
+    return true;
   }
 
   template <typename MH>
-  void start_io(std::size_t read_size, MH&& msg_handler) {
-    start_io(read_size, std::forward<MH>(msg_handler), null_msg_frame);
+  bool start_io(std::size_t read_size, MH&& msg_handler) {
+    return start_io(read_size, std::forward<MH>(msg_handler), null_msg_frame);
   }
 
-  void start_io() {
-    start_io(1, 
-             [] (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
-                 std::experimental::net::ip::tcp::endpoint) mutable {
-                   return true;
-             }, 
-             null_msg_frame
+  bool start_io() {
+    return start_io(1, 
+                    [] (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
+                        std::experimental::net::ip::tcp::endpoint) mutable {
+                          return true;
+                    }, 
+                    null_msg_frame
     );
   }
 
 
-  void stop_io() {
-    // causes net entity to eventually call close
-    m_notifier_cb(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
-                  shared_from_this());
+  bool stop_io() {
+    if (is_io_started()) {
+      // causes net entity to eventually call close
+      m_notifier_cb(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
+                    shared_from_this());
+      return true;
+    }
+    return false;
   }
 
   // use post for thread safety, multiple threads can call this method
