@@ -161,7 +161,6 @@ SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 50, 1 connector"
 
 }
 
-/*
 SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 0, 1 connector", 
            "[tcp_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
@@ -188,6 +187,7 @@ SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors
 
 }
 
+/*
 SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
 

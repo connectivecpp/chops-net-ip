@@ -117,7 +117,7 @@ public:
              (std::error_code err, resolver_results res) mutable {
           if (err) {
             m_entity_common.call_error_cb(tcp_io_ptr(), err);
-            stop();
+            m_entity_common.stop();
             return;
           }
           for (const auto& e : res) {
@@ -150,6 +150,7 @@ private:
     if (m_io_handler) {
       m_io_handler->close();
     }
+    m_io_handler.reset();
     m_timer.cancel();
     m_resolver.cancel();
     // socket should already be closed or moved from
@@ -171,6 +172,7 @@ private:
 
     if (err) {
       m_entity_common.call_error_cb(tcp_io_ptr(), err);
+      // if (err == operation_aborted
       if (!is_started()) {
         return;
       }
