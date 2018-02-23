@@ -113,20 +113,22 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
                                                 reply, delim, conn_cnt);
 
             auto conn_start_io = conn_futs.start_fut.get();
+std::cerr << "Conn start io addr: " << conn_start_io.get_shared_ptr() << std::endl;
             sta.add_io_interface(conn_start_io);
             conn_fut_vec.emplace_back(std::move(conn_futs.stop_fut));
           }
         );
         // send messages through all of the connectors
-        for (auto buf : in_msg_vec) {
+        for (const auto& buf : in_msg_vec) {
           sta.send(buf);
         }
         sta.send(empty_msg);
 
         for (auto& fut : conn_fut_vec) {
           auto io = fut.get();
+std::cerr << "Conn stop io addr: " << io.get_shared_ptr() << std::endl;
         }
-        for (auto conn_ptr : connectors) {
+        for (auto& conn_ptr : connectors) {
           conn_ptr->stop();
         }
 

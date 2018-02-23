@@ -33,6 +33,7 @@
 #include "net_ip/endpoints_resolver.hpp"
 #include "net_ip/io_interface.hpp"
 
+#include <cassert>
 
 namespace chops {
 namespace net {
@@ -202,6 +203,8 @@ private:
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
+    assert (iop == m_io_handler);
+
     iop->close();
 //    auto self { shared_from_this() };
 //    post(m_socket.get_executor(), [this, self, err, iop] () mutable {
