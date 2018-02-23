@@ -146,8 +146,10 @@ std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
 
         std::size_t total_msgs = num_senders * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
-        CHECK (verify_receiver_count(total_msgs, recv_cnt));
-        CHECK (verify_sender_count(total_msgs, send_cnt, reply));
+        CHECK (total_msgs == recv_cnt);
+        if (reply) {
+          CHECK (total_msgs == send_cnt);
+        }
       }
     }
   } // end given

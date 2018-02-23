@@ -148,7 +148,9 @@ private:
       return false; // stop already called
     }
     if (m_io_handler) {
-      m_io_handler->close();
+      if (m_io_handler->is_io_started()) {
+        m_io_handler->close();
+      }
     }
     m_io_handler.reset();
     m_timer.cancel();
@@ -172,25 +174,26 @@ private:
 
     if (err) {
       m_entity_common.call_error_cb(tcp_io_ptr(), err);
-      // if (err == operation_aborted
+      // if (err == operation_aborted?
       if (!is_started()) {
         return;
       }
       try {
-        auto self = shared_from_this();
         m_timer.expires_after(m_reconn_time);
-        m_timer.async_wait( [this, self] 
-                            (const std::error_code& err) mutable {
-            if (!err) {
-              start_connect();
-            }
-          }
-        );
       }
       catch (const std::system_error& se) {
         m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
-        stop();
+        m_entity_common.stop();
+        return;
       }
+      auto self = shared_from_this();
+      m_timer.async_wait( [this, self] 
+                          (const std::error_code& err) mutable {
+          if (!err) {
+            start_connect();
+          }
+        }
+      );
       return;
     }
     m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
@@ -199,13 +202,14 @@ private:
   }
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, err, iop] () mutable {
-        iop->close();
+    iop->close();
+//    auto self { shared_from_this() };
+//    post(m_socket.get_executor(), [this, self, err, iop] () mutable {
+        m_entity_common.call_error_cb(iop, err);
         m_entity_common.call_io_state_chg_cb(iop, 0, false);
         stop();
-      }
-    );
+//      }
+//    );
   }
 
 };

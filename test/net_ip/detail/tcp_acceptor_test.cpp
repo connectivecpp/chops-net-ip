@@ -147,8 +147,10 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         REQUIRE_FALSE(acc_ptr->is_started());
 
         std::size_t total_msgs = num_conns * in_msg_vec.size();
-        REQUIRE (verify_receiver_count(total_msgs, cnt));
-        REQUIRE (verify_sender_count(total_msgs, conn_cnt, reply));
+        REQUIRE (total_msgs == cnt);
+        if (reply) {
+          REQUIRE (total_msgs == conn_cnt);
+        }
       }
     }
   } // end given

@@ -142,8 +142,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         INFO ("Num err messages in sink: " << err_cnt);
 
         std::size_t total_msgs = num_conns * in_msg_vec.size();
-        REQUIRE (verify_receiver_count(total_msgs, acc_cnt));
-        REQUIRE (verify_sender_count(total_msgs, conn_cnt, reply));
+        REQUIRE (total_msgs == acc_cnt);
+        if (reply) {
+          REQUIRE (total_msgs == conn_cnt);
+        }
   
       }
     }

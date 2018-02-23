@@ -127,8 +127,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
 
         auto conn_cnt = conn_fut.get();
 
-        REQUIRE (verify_receiver_count(in_msg_vec.size(), cnt));
-        REQUIRE (verify_sender_count(in_msg_vec.size(), conn_cnt, reply));
+        REQUIRE (in_msg_vec.size() == cnt);
+        if (reply) {
+          REQUIRE (in_msg_vec.size() == conn_cnt);
+        }
       }
     }
   } // end given

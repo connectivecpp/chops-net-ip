@@ -142,14 +142,6 @@ struct msg_hdlr {
 using tcp_msg_hdlr = msg_hdlr<chops::net::tcp_io>;
 using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
 
-inline bool verify_receiver_count (std::size_t expected, std::size_t actual) {
-  return expected == actual;
-}
-
-inline bool verify_sender_count (std::size_t total_sent, std::size_t recvd, bool reply) {
-  return reply ? total_sent == recvd : recvd == 0;
-}
-
 inline bool tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
                    std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {

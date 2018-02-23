@@ -159,9 +159,15 @@ public:
     if (!m_io_common.stop()) {
       return; // already stopped
     }
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self] { handle_close(); } );
-//    handle_close();
+//    auto self { shared_from_this() };
+//    post(m_socket.get_executor(), [this, self] {
+    // attempt graceful shutdown
+    std::error_code ec;
+    m_socket.shutdown(std::experimental::net::ip::tcp::socket::shutdown_both, ec);
+//    auto self { shared_from_this() };
+//  post(m_socket.get_executor(), [this, self, ec] () mutable { 
+    m_socket.close(ec); 
+//    } );
   }
 
 private:
@@ -215,19 +221,9 @@ private:
 
   void handle_write(const std::error_code&, std::size_t);
 
-  void handle_close();
-
 };
 
 // method implementations, just to make the class declaration a little more readable
-
-inline void tcp_io::handle_close() {
-  // attempt graceful shutdown
-  std::error_code ec;
-  m_socket.shutdown(std::experimental::net::ip::tcp::socket::shutdown_both, ec);
-  auto self { shared_from_this() };
-  post(m_socket.get_executor(), [this, self, ec] () mutable { m_socket.close(ec); } );
-}
 
 template <typename MH, typename MF>
 void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf, 

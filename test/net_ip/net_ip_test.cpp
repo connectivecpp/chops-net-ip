@@ -134,8 +134,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         INFO ("Num err messages in sink: " << err_cnt);
 
         std::size_t total_msgs = num_conns * in_msg_vec.size();
-        REQUIRE (verify_receiver_count(total_msgs, acc_cnt));
-        REQUIRE (verify_sender_count(total_msgs, conn_cnt, reply));
+        REQUIRE (total_msgs == acc_cnt);
+        if (reply) {
+          REQUIRE (total_msgs == conn_cnt);
+        }
       }
     }
   } // end given
@@ -211,9 +213,8 @@ std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
 
         std::size_t total_msgs = num_udp_pairs * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
-        CHECK (verify_receiver_count(total_msgs, recv_cnt));
-        CHECK (verify_sender_count(total_msgs, send_cnt, false));
-
+        CHECK (total_msgs == recv_cnt);
+        CHECK (send_cnt == 0); // no reply
       }
     }
   } // end given
