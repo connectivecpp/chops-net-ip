@@ -17,9 +17,11 @@
 #include <memory> // std::shared_ptr, std::weak_ptr
 #include <cstddef> // std::size_t 
 #include <utility> // std::move, std::forward
-#include <system_error> // std::make_error
+#include <system_error> // std::make_error, std::error_code
 
 #include "net_ip/net_ip_error.hpp"
+
+#include "net_ip/basic_io_interface.hpp"
 
 namespace chops {
 namespace net {
@@ -116,7 +118,7 @@ public:
  *
  *  The socket reference returned from this method allows direct access to the
  *  @c basic_net_entity socket. This socket may be different from the socket that is
- *  accessible hrough the @c basic_io_interface object. In particular, a TCP acceptor
+ *  accessible through the @c basic_io_interface object. In particular, a TCP acceptor
  *  socket reference is of type @c ip::tcp::acceptor (in the namespace
  *  @c std::experimental::net), a TCP connector socket reference is of type
  *  @c ip::tcp::socket, and a UDP entity socket reference is of type 
@@ -136,96 +138,99 @@ public:
 
 /**
  *  @brief Start network processing on the associated net entity with the application
- *  providing state change function object callbacks.
+ *  providing IO state change and error function objects.
  *
  *  Once a net entity (TCP acceptor, TCP connector, UDP entity) is created through 
  *  a @c net_ip @c make method, calling @c start on the @c basic_net_entity causes local port 
  *  binding and other processing (e.g. TCP listen, TCP connect) to occur.
  *
- *  Input and output processing does not start until the @c io_interface @c start_io
+ *  Input and output processing does not start until the @c basic_io_interface @c start_io
  *  method is called.
  *
- *  The application provides two state change function object callbacks to @c start:
+ *  The application provides two function objects to @c start (the second can be defaulted
+ *  to a "do nothing" function object):
  *
- *  1) An "IO ready" callback which is invoked when a TCP connection is created or 
- *  a UDP entity becomes ready. An @c io_interface object is provided to the callback 
- *  which allows IO processing to commence through the @c start_io method call.
+ *  1) An IO state change function object which is invoked twice. The first time is when a 
+ *  TCP connection is created or UDP socket is opened, the second time is when the TCP 
+ *  connection is destroyed or the UDP socket closed. A @c basic_io_interface object is 
+ *  provided to the callback which allows IO processing to commence through the 
+ *  @c start_io method call.
  *
- *  2) A "stop" callback which is invoked when a TCP connection is gracefully shutdown 
- *  or when the connection is taken down through an error, or a TCP or UDP entity 
- *  encounters an error and cannot continue.
+ *  2) An error function object which is invoked whenever an error occurs or when
+ *  processing is gracefully shutdown.
  *
  *  The @c start method call can be followed by a @c stop call, followed by @c start, 
  *  etc. This may be useful (for example) for a TCP connector that needs to reconnect 
  *  after a connection has been lost.
  *
- *  @param io_ready_func A function object callback with the following signature:
+ *  @param io_state_chg_func A function object with the following signature:
  *
  *  @code
  *    // TCP:
- *    void (chops::net::tcp_io_interface, std::size_t);
+ *    void (chops::net::tcp_io_interface, std::size_t, bool);
  *    // UDP:
- *    void (chops::net::udp_io_interface, std::size_t);
+ *    void (chops::net::udp_io_interface, std::size_t, bool);
  *  @endcode
  *
  *  The parameters are as follows:
  *
- *  1) An @c io_interface object providing @c start_io and @c stop_io access to the 
- *  underlying IO handler.
+ *  1) A @c basic_io_interface object providing @c start_io access (and @c stop_io access if
+ *  needed) to the underlying IO handler.
  *
  *  2) A count of the underlying IO handlers associated with this net entity. For 
- *  a TCP connector or a UDP entity the number is 1, and for a TCP acceptor the number is 
- *  1 to N, depending on the number of accepted connections.
+ *  a TCP connector or a UDP entity the number is 1 when starting and 0 when stopping, and for 
+ *  a TCP acceptor the number is 0 to N, depending on the number of accepted connections.
  *
- *  @param stop_func A function object callback with the following signature:
+ *  3) If @c true, the @c basic_io_interface has just been created (i.e. a TCP connection 
+ *  has been created or a UDP socket is ready), and if @c false, the connection or socket
+ *  has been destroyed or closed.
+ *
+ *  In both function object callback invocations the @c basic_io_interface object is valid 
+ *  (@c is_valid returns @c true). For the second invocation no @c basic_io_interface methods 
+ *  should be called, but the @c basic_io_interface object can be used for associative lookups 
+ *  (if needed).
+ *
+ *  The IO state change function object must be copyable (it will be stored in a 
+ *  @c std::function).
+ *
+ *  @param err_func A function object with the following signature:
  *
  *  @code
  *    // TCP:
- *    void (chops::net::tcp_io_interface, std::error_code, std::size_t);
+ *    void (chops::net::tcp_io_interface, std::error_code);
  *    // UDP:
- *    void (chops::net::udp_io_interface, std::error_code, std::size_t);
+ *    void (chops::net::udp_io_interface, std::error_code);
  *  @endcode
  *
  *  The parameters are as follows:
  *
- *  1) An @c io_interface object, which may be empty (i.e invalid, where @c is_valid 
- *  returns @c false), depending on the context of the error. If non-empty (valid),
- *  this can be correlated with the @c io_interface provided in the @c io_ready_func 
- *  callback. No methods on the @c io_interface object should be called, as the 
- *  underlying handler is being destructed.
+ *  1) A @c basic_io_interface object, which may or may not be valid (i.e @c is_valid may
+ *  return either @c true or @c false), depending on the context of the error. No methods 
+ *  on the @c basic_io_interface object should be called, as the underlying handler is being 
+ *  destructed.
  *
  *  2) The error code associated with the shutdown. There are error codes associated 
  *  with graceful shutdown as well as error codes for network or system errors.
  *
- *  3) A count of the underlying IO handlers associated with this net entity, either 
- *  0 for a TCP connector or UDP entity, or 0 to N for a TCP acceptor.
- *
- *  The @c stop_func callback may be invoked in contexts other than an IO error - for
+ *  The @c err_func callback may be invoked in contexts other than a network IO error - for
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
  *  code will be provided.
  *
- *  @return @c true if valid net entity association.
+ *  The error function object must be copyable (it will be stored in a @c std::function).
  *
+ *  For uses cases that don't care about error codes, a component "don't care" function
+ *  is available.
+ *
+ *  @return @c false if already started, otherwise @c true.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
-  template <typename R, typename S>
-  bool start(R&& io_ready_func, S&& stop_func) {
-    auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<R>(io_ready_func), std::forward<S>(stop_func)), true) : false;
-  }
-
-/**
- *  @brief Start network processing on the associated net entity where only an
- *  "IO ready" callback is provided.
- *
- *  @param io_ready_func A function object callback as described in the other @c start 
- *  method.
- *
- *  @return @c true if valid net entity association.
- */
-  template <typename R>
-  bool start(R&& io_ready_func) {
-    auto p = m_eh_wptr.lock();
-    return p ? (p->start(std::forward<R>(io_ready_func)), true) : false;
+  template <typename F1, typename F2>
+  bool start(F1&& io_state_chg_func, F2&& err_func) {
+    if (auto p = m_eh_wptr.lock()) {
+      return p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func));
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -236,12 +241,16 @@ public:
  *  resources, unbinding from ports, and invoking application provided state change function 
  *  object callbacks. 
  *
- *  @return @c true if valid net entity association.
+ *  @return @c false if already stopped, otherwise @c true.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  *
  */
   bool stop() {
-    auto p = m_eh_wptr.lock();
-    return p ? (p->stop(), true) : false;
+    if (auto p = m_eh_wptr.lock()) {
+      return p->stop();
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 /**
  *  @brief Compare two @c basic_net_entity objects for equality.
@@ -280,12 +289,13 @@ public:
   }
 
 /**
- *  @brief Return a @c shared_ptr to the actual net entity object, meant to be used
+ *  @brief Return a @c std::shared_ptr to the actual net entity object, meant to be used
  *  for internal purposes only.
  *
- *  @return As described in the comments.
+ *  @return A @c std::shared_ptr, which may be empty if there is not an associated net
+ *  entity.
  */
-  auto get_ptr() const noexcept {
+  auto get_shared_ptr() const noexcept {
     return m_eh_wptr.lock();
   }
 

@@ -71,13 +71,13 @@ namespace net {
  *
  */
 
-template <typename IOH>
+template <typename IOT>
 class basic_io_interface {
 private:
-  std::weak_ptr<IOH> m_ioh_wptr;
+  std::weak_ptr<IOT> m_ioh_wptr;
 
 public:
-  using endpoint_type = typename IOH::endpoint_type;
+  using endpoint_type = typename IOT::endpoint_type;
 
 public:
 
@@ -93,15 +93,15 @@ public:
   basic_io_interface(const basic_io_interface&) = default;
   basic_io_interface(basic_io_interface&&) = default;
 
-  basic_io_interface<IOH>& operator=(const basic_io_interface&) = default;
-  basic_io_interface<IOH>& operator=(basic_io_interface&&) = default;
+  basic_io_interface<IOT>& operator=(const basic_io_interface&) = default;
+  basic_io_interface<IOT>& operator=(basic_io_interface&&) = default;
   
 /**
  *  @brief Construct with a shared weak pointer to an internal IO handler, this is an
  *  internal constructor only and not to be used by application code.
  *
  */
-  explicit basic_io_interface(std::weak_ptr<IOH> p) noexcept : m_ioh_wptr(p) { }
+  explicit basic_io_interface(std::weak_ptr<IOT> p) noexcept : m_ioh_wptr(p) { }
 
 /**
  *  @brief Query whether an IO handler is associated with this object.
@@ -135,7 +135,7 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  typename IOH::socket_type& get_socket() const {
+  typename IOT::socket_type& get_socket() const {
     if (auto p = m_ioh_wptr.lock()) {
       return p->get_socket();
     }
@@ -167,9 +167,9 @@ public:
  *
  *  @param sz Size of buffer.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool send(const void* buf, std::size_t sz) const { return send(chops::const_shared_buffer(buf, sz)); }
+  void send(const void* buf, std::size_t sz) const { send(chops::const_shared_buffer(buf, sz)); }
 
 /**
  *  @brief Send a reference counted buffer through the associated network IO handler.
@@ -178,11 +178,14 @@ public:
  *
  *  @param buf @c chops::const_shared_buffer containing data.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool send(chops::const_shared_buffer buf) const {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->send(buf), true) : false;
+  void send(chops::const_shared_buffer buf) const {
+    if (auto p = m_ioh_wptr.lock()) {
+      p->send(buf);
+      return;
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -203,10 +206,10 @@ public:
  *
  *  @param buf @c chops::mutable_shared_buffer containing data.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool send(chops::mutable_shared_buffer&& buf) const { 
-    return send(chops::const_shared_buffer(std::move(buf)));
+  void send(chops::mutable_shared_buffer&& buf) const { 
+    send(chops::const_shared_buffer(std::move(buf)));
   }
 
 /**
@@ -224,10 +227,10 @@ public:
  *
  *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
-    return send(chops::const_shared_buffer(buf, sz), endp);
+  void send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
+    send(chops::const_shared_buffer(buf, sz), endp);
   }
 
 /**
@@ -240,11 +243,14 @@ public:
  *
  *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->send(buf, endp), true) : false;
+  void send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
+    if (auto p = m_ioh_wptr.lock()) {
+      p->send(buf, endp);
+      return;
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -258,10 +264,10 @@ public:
  *
  *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
-    return send(chops::const_shared_buffer(std::move(buf)), endp);
+  void send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
+    send(chops::const_shared_buffer(std::move(buf)), endp);
   }
 
 
@@ -302,6 +308,9 @@ public:
  *  Returning @c false from the message handler callback causes the connection to be 
  *  closed.
  *
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
+ *
  *  @param msg_frame A message frame function object callback. The signature of
  *  the callback is:
  *
@@ -320,18 +329,22 @@ public:
  *  use within the message handler), two options (at least) are available:
  *  1) Store a reference to the message frame object from within the message handler 
  *  object, or 2) Design a single class that provides two operator function call overloads 
- *  and use the same object for both the message handler and the message frame processing.
+ *  and use the same object (via @c std::ref) for both the message handler and the 
+ *  message frame processing.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  The message frame function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
  *
- *  @note If @c is_io_started is already @c true, this method call is ignored.
+ *  @return @c false if already started, otherwise @c true.
  *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
   template <typename MH, typename MF>
   bool start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(header_size, std::forward<MH>(msg_handler), 
-                            std::forward<MF>(msg_frame)), true) : false;
+    if (auto p = m_ioh_wptr.lock()) {
+      return p->start_io(header_size, std::forward<MH>(msg_handler), std::forward<MF>(msg_frame));
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -364,15 +377,20 @@ public:
  *  endpoint that sent the data. Returning @c false from the message handler callback 
  *  causes the connection to be closed.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
  *
- *  @note If @c is_io_started is already @c true, this method call is ignored.
+ *  @return @c false if already started, otherwise @c true.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  *
  */
   template <typename MH>
   bool start_io(std::string_view delimiter, MH&& msg_handler) {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(delimiter, std::forward<MH>(msg_handler)), true) : false;
+    if (auto p = m_ioh_wptr.lock()) {
+      return p->start_io(delimiter, std::forward<MH>(msg_handler));
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -381,7 +399,8 @@ public:
  *
  *  This method is implemented for both TCP and UDP IO handlers.
  *
- *  For TCP IO handlers, this reads fixed size messages.
+ *  For TCP IO handlers, this reads a fixed size message which is then passed to the
+ *  message handler function object.
  *
  *  For UDP IO handlers, this specifies the maximum size of the datagram. For IPv4 this
  *  value can be up to 65,507 (for IPv6 the maximum is larger). If the incoming datagram 
@@ -408,16 +427,21 @@ public:
  *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
  *  be closed.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
  *
- *  @note If @c is_io_started is already @c true, this method call is ignored.
+ *  @return @c false if already started, otherwise @c true.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  *
  */
 
   template <typename MH>
   bool start_io(std::size_t read_size, MH&& msg_handler) {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(read_size, std::forward<MH>(msg_handler)), true) : false;
+    if (auto p = m_ioh_wptr.lock()) {
+      return p->start_io(read_size, std::forward<MH>(msg_handler));
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -434,9 +458,9 @@ public:
  *
  *  Sends (writes) are enabled after this call.
  *
- *  @param max_size Maximum UDP datagram size.
- *
  *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *
+ *  @param max_size Maximum UDP datagram size.
  *
  *  @param msg_handler A message handler function object callback. The signature of
  *  the callback is:
@@ -450,16 +474,21 @@ public:
  *  Returning @c false from the message handler callback causes the UDP socket to 
  *  be closed.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  The message handler function object is moved if possible, otherwise it is copied. 
+ *  State data should be movable or copyable.
  *
- *  @note If @c is_io_started is already @c true, this method call is ignored.
+ *  @return @c false if already started, otherwise @c true.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  *
  */
 
   template <typename MH>
-  bool start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(max_size, endp, std::forward<MH>(msg_handler)), true) : false;
+  bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
+    if (auto p = m_ioh_wptr.lock()) {
+      return p->start_io(endp, max_size, std::forward<MH>(msg_handler));
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -475,15 +504,16 @@ public:
  *  the read completes it is due to an error condition). For UDP IO handlers, no
  *  reads are started.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @return @c false if already started, otherwise @c true.
  *
- *  @note If @c is_io_started is already @c true, this method call is ignored.
- *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
 
   bool start_io() {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(), true) : false;
+    if (auto p = m_ioh_wptr.lock()) {
+      return p->start_io();
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -499,15 +529,16 @@ public:
  *
  *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @return @c false if already started, otherwise @c true.
  *
- *  @note If @c is_io_started is already @c true, this method call is ignored.
- *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
 
   bool start_io(const endpoint_type& endp) {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->start_io(endp), true) : false;
+    if (auto p = m_ioh_wptr.lock()) {
+      return p->start_io(endp);
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
  
 /**
@@ -518,11 +549,15 @@ public:
  *  @c start_io cannot be called after @c stop_io (in other words, @c start_io followed by 
  *  @c stop_io followed by @c start_io, etc is not supported).
  *
- *  @return @c true if IO handler association is valid, otherwise @c false.
+ *  @return @c false if already stopped, otherwise @c true.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
   bool stop_io() {
-    auto p = m_ioh_wptr.lock();
-    return p ? (p->stop_io(), true) : false;
+    if (auto p = m_ioh_wptr.lock()) {
+      return p->stop_io();
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 
@@ -537,7 +572,7 @@ public:
  *  @return As described in the comments.
  */
 
-  bool operator==(const basic_io_interface<IOH>& rhs) const noexcept {
+  bool operator==(const basic_io_interface<IOT>& rhs) const noexcept {
     auto lp = m_ioh_wptr.lock();
     auto rp = rhs.m_ioh_wptr.lock();
     return (lp && rp && lp == rp) || (!lp && !rp);
@@ -556,48 +591,23 @@ public:
  *
  *  @return As described in the comments.
  */
-  bool operator<(const basic_io_interface<IOH>& rhs) const noexcept {
+  bool operator<(const basic_io_interface<IOT>& rhs) const noexcept {
     auto lp = m_ioh_wptr.lock();
     auto rp = rhs.m_ioh_wptr.lock();
     return (lp && rp && lp < rp) || (!lp && rp);
   }
 
+/**
+ *  @brief Return a @c std::shared_ptr to the actual io handler object, meant to be used
+ *  for internal purposes only.
+ *
+ *  @return A @c std::shared_ptr, which may be empty if there is not an associated IO handler.
+ */
+  auto get_shared_ptr() const noexcept {
+    return m_ioh_wptr.lock();
+  }
+
 };
-
-namespace detail {
-  class tcp_io;
-  class udp_entity_io;
-}
-
-/**
- *  @brief Using declaration for TCP based io, used to instantiate an @c basic_io_interface
- *  type.
- *
- *  @relates basic_io_interface
- */
-using tcp_io = detail::tcp_io;
-
-/**
- *  @brief Using declaration for UDP based io, used to instantiate an @c basic_io_interface
- *  type.
- *
- *  @relates basic_io_interface
- */
-using udp_io = detail::udp_entity_io;
-
-/**
- *  @brief Using declaration for a TCP based @c basic_io_interface type.
- *
- *  @relates basic_io_interface
- */
-using tcp_io_interface = basic_io_interface<tcp_io>;
-
-/**
- *  @brief Using declaration for a UDP based @c basic_io_interface type.
- *
- *  @relates basic_io_interface
- */
-using udp_io_interface = basic_io_interface<udp_io>;
 
 } // end net namespace
 } // end chops namespace

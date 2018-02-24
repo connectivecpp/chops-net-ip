@@ -23,7 +23,7 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief Using declaration for TCP based io, used to instantiate an @c basic_io_interface
+ *  @brief Using declaration for TCP based io, used to instantiate a @c basic_io_interface
  *  type.
  *
  *  @relates basic_io_interface
@@ -31,7 +31,7 @@ namespace net {
 using tcp_io = detail::tcp_io;
 
 /**
- *  @brief Using declaration for UDP based io, used to instantiate an @c basic_io_interface
+ *  @brief Using declaration for UDP based io, used to instantiate a @c basic_io_interface
  *  type.
  *
  *  @relates basic_io_interface

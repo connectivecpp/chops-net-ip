@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Utility code shared between @c net_ip tests.
+ *  @brief Test the lower level utility code shared between @c net_ip tests.
  *
  *  The body of a msg is constructed of a preamble followed by a repeated 
  *  char. There are three forms of messages:
@@ -19,15 +19,12 @@
 #include "catch.hpp"
 
 #include <string_view>
-#include <string>
 #include <cstddef> // std::size_t, std::byte
 #include <cstdint> // std::uint16_t
 #include <vector>
 #include <algorithm>
 #include <memory> // std::shared_ptr, std::make_shared
 #include <future>
-
-#include <boost/endian/conversion.hpp>
 
 #include <experimental/buffer>
 #include <experimental/internet>
@@ -39,46 +36,7 @@
 #include "net_ip/io_interface.hpp"
 #include "net_ip/component/simple_variable_len_msg_frame.hpp"
 
-#include "../test/net_ip/detail/shared_utility_test.hpp"
-
-namespace chops {
-namespace test {
-
-chops::mutable_shared_buffer make_body_buf(std::string_view pre, char body_char, std::size_t num_body_chars) {
-  chops::mutable_shared_buffer buf(pre.data(), pre.size());
-  std::string body(num_body_chars, body_char);
-  return buf.append(body.data(), body.size());
-}
-
-chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
-  std::uint16_t hdr = boost::endian::native_to_big(static_cast<std::uint16_t>(body.size()));
-  chops::mutable_shared_buffer msg(static_cast<const void*>(&hdr), 2);
-  return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
-}
-
-chops::const_shared_buffer make_cr_lf_text_msg(const chops::mutable_shared_buffer& body) {
-  chops::mutable_shared_buffer msg(body.data(), body.size());
-  auto ba = chops::make_byte_array(0x0D, 0x0A); // CR, LF
-  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
-}
-
-chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_buffer& body) {
-  chops::mutable_shared_buffer msg(body.data(), body.size());
-  auto ba = chops::make_byte_array(0x0A); // LF
-  return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
-}
-
-std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t /* sz */) {
-  // assert (sz == 2);
-  std::uint16_t hdr;
-  std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
-  *(hdr_ptr+0) = *(buf_ptr+0);
-  *(hdr_ptr+1) = *(buf_ptr+1);
-  return boost::endian::big_to_native(hdr);
-}
-
-} // end namespace test
-} // end namespace chops
+#include "net_ip/shared_utility_test.hpp"
 
 void make_msg_test() {
   using namespace chops::test;
@@ -160,17 +118,6 @@ void make_msg_vec_test(F&& f) {
   } // end given
 }
 
-struct ioh_mock {
-  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
-  using socket_type = std::experimental::net::ip::tcp::socket;
-
-  bool send_called = false;
-
-  void send(chops::const_shared_buffer) { send_called = true; }
-  void send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; }
-};
-
-
 template <typename F>
 std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, int num_msgs) {
   using namespace chops::test;
@@ -179,20 +126,20 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
   auto msgs = make_msg_vec(f, pre, body_char, num_msgs);
   auto empty = make_empty_body_msg(f);
 
-  auto iohp = std::make_shared<ioh_mock>();
-  ip::tcp::endpoint endp { };
+  auto iohp = std::make_shared<io_handler_mock>();
+  ip::udp::endpoint endp { };
 
   test_counter cnt(0);
-  msg_hdlr<ioh_mock> mh(false, cnt);
+  msg_hdlr<io_handler_mock> mh(false, cnt);
 
   int m = 0;
   for (auto i : msgs) {
-    auto ret = mh(const_buffer(i.data(), i.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp);
+    auto ret = mh(const_buffer(i.data(), i.size()), io_interface_mock(iohp), endp);
     if (++m % 1000 == 0) {
       REQUIRE(ret);
     }
   }
-  REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+  REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), io_interface_mock(iohp), endp));
 
   return cnt.load();
 
@@ -256,9 +203,9 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
   using namespace chops::test;
   using namespace std::experimental::net;
 
-  auto iohp = std::make_shared<ioh_mock>();
+  auto iohp = std::make_shared<io_handler_mock>();
   REQUIRE_FALSE(iohp->send_called);
-  ip::tcp::endpoint endp { };
+  ip::udp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
   auto empty = make_empty_variable_len_msg();
@@ -267,22 +214,22 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
 
     WHEN ("a msg hdlr is created with reply true and send is called") {
       test_counter cnt(0);
-      msg_hdlr<ioh_mock> mh(true, cnt);
+      msg_hdlr<io_handler_mock> mh(true, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
         REQUIRE(iohp->send_called);
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
-                      chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+                      io_interface_mock(iohp), endp));
         REQUIRE(cnt == 1);
       }
     }
     AND_WHEN ("a msg hdlr is created with reply false and send is called") {
       test_counter cnt(0);
-      msg_hdlr<ioh_mock> mh(false, cnt);
+      msg_hdlr<io_handler_mock> mh(false, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+        REQUIRE(mh(const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
         REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
-                      chops::net::basic_io_interface<ioh_mock>(iohp), endp));
+                      io_interface_mock(iohp), endp));
         REQUIRE(cnt == 1);
       }
     }
@@ -307,6 +254,131 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
         REQUIRE(cnt1.get() == sz1);
         REQUIRE(cnt2.get() == sz2);
         REQUIRE(cnt3.get() == sz3);
+      }
+    }
+  } // end given
+}
+
+SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
+           "[shared_utility] [io_handler_mock]" ) {
+  using namespace chops::test;
+  using namespace std::experimental::net;
+
+  io_handler_mock io_mock { };
+
+  REQUIRE_FALSE (io_mock.mf_sio_called);
+  REQUIRE_FALSE (io_mock.delim_sio_called);
+  REQUIRE_FALSE (io_mock.rd_sio_called);
+  REQUIRE_FALSE (io_mock.rd_endp_sio_called);
+  REQUIRE_FALSE (io_mock.send_sio_called);
+  REQUIRE_FALSE (io_mock.send_endp_sio_called);
+
+  auto t = io_mock.sock;
+
+  GIVEN ("A default constructed io_handler_mock") {
+    WHEN ("is_io_started is called") {
+      THEN ("the return is false") {
+        REQUIRE_FALSE (io_mock.is_io_started());
+      }
+    }
+    AND_WHEN ("get_socket is called") {
+      THEN ("the correct value is returned") {
+        REQUIRE (io_mock.get_socket() == t);
+      }
+    }
+    AND_WHEN ("get_socket is used as a modifying call") {
+      THEN ("the correct value is returned") {
+        io_mock.get_socket() += 2;
+        REQUIRE (io_mock.get_socket() == (t+2));
+      }
+    }
+    AND_WHEN ("get_output_queue_stats is called") {
+      THEN ("the correct value is returned") {
+        auto qs = io_mock.get_output_queue_stats();
+        REQUIRE (qs.output_queue_size == io_mock.qs_base);
+        REQUIRE (qs.bytes_in_output_queue == (io_mock.qs_base+1));
+      }
+    }
+    AND_WHEN ("first start_io overload is called") {
+      THEN ("is_io_started and related flag is true") {
+        io_mock.start_io(0, [] { }, [] { });
+        REQUIRE (io_mock.is_io_started());
+        REQUIRE (io_mock.mf_sio_called);
+      }
+    }
+    AND_WHEN ("second start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(std::string_view(), [] { });
+        REQUIRE (io_mock.delim_sio_called);
+      }
+    }
+    AND_WHEN ("third start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(0, [] { });
+        REQUIRE (io_mock.rd_sio_called);
+      }
+    }
+    AND_WHEN ("fourth start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(ip::udp::endpoint(), 0, [] { });
+        REQUIRE (io_mock.rd_endp_sio_called);
+      }
+    }
+    AND_WHEN ("fifth start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io();
+        REQUIRE (io_mock.send_sio_called);
+      }
+    }
+    AND_WHEN ("sixth start_io overload is called") {
+      THEN ("the related flag is true") {
+        io_mock.start_io(ip::udp::endpoint());
+        REQUIRE (io_mock.send_endp_sio_called);
+      }
+    }
+    AND_WHEN ("stop_io is called") {
+      THEN ("is_io_started is false") {
+        io_mock.start_io(std::string_view(), [] { });
+        REQUIRE (io_mock.is_io_started());
+        io_mock.stop_io();
+        REQUIRE_FALSE (io_mock.is_io_started());
+      }
+    }
+  } // end given
+}
+
+SCENARIO ( "Shared Net IP test utility, net_entity_mock test",
+           "[shared_utility] [net_entity_mock]" ) {
+  using namespace chops::test;
+
+  net_entity_mock ne_mock { };
+  REQUIRE_FALSE (ne_mock.is_started());
+
+  auto t = ne_mock.special_val;
+
+  GIVEN ("A default constructed net_entity_mock") {
+    WHEN ("is_started is called") {
+      THEN ("the return is false") {
+        REQUIRE_FALSE (ne_mock.is_started());
+      }
+    }
+    AND_WHEN ("get_socket is called") {
+      THEN ("the correct value is returned") {
+        REQUIRE (ne_mock.get_socket() == t);
+      }
+    }
+    AND_WHEN ("get_socket is used as a modifying call") {
+      THEN ("the correct value is returned") {
+        ne_mock.get_socket() += 1.0;
+        REQUIRE (ne_mock.get_socket() == (t+1.0));
+      }
+    }
+    AND_WHEN ("start and then stop is called") {
+      THEN ("is_started is set appropriately") {
+        ne_mock.start(io_state_chg_mock, err_func_mock);
+        REQUIRE (ne_mock.is_started());
+        ne_mock.stop();
+        REQUIRE_FALSE (ne_mock.is_started());
       }
     }
   } // end given

@@ -29,9 +29,10 @@
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
 #include "net_ip/detail/output_queue.hpp"
+
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 #include "utility/shared_buffer.hpp"
 
 namespace chops {
@@ -90,69 +91,85 @@ public:
     return m_io_common.get_output_queue_stats();
   }
 
-  template <typename R, typename S>
-  void start(R&& start_chg, S&& shutdown_chg) {
-    if (!m_entity_common.start(std::forward<S>(shutdown_chg))) {
+  template <typename F1, typename F2>
+  bool start(F1&& io_state_chg, F2&& err_cb) {
+    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
-      return;
+      return false;
     }
-    open_udp(std::forward<R>(start_chg));
-  }
-
-  template <typename R>
-  void start(R&& start_chg) {
-    if (!m_entity_common.start()) {
-      // already started
-      return;
+    try {
+      // assume default constructed endpoints compare equal
+      if (m_local_endp == endpoint_type()) {
+// TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
+        m_socket.open(std::experimental::net::ip::udp::v4());
+      }
+      else {
+        m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
+      }
     }
-    open_udp(std::forward<R>(start_chg));
+    catch (const std::system_error& se) {
+      err_notify(se.code());
+      stop();
+      return false;
+    }
+    m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true);
+    return true;
   }
 
   template <typename MH>
-  void start_io(std::size_t max_size, MH&& msg_handler) {
+  bool start_io(std::size_t max_size, MH&& msg_handler) {
     if (!m_io_common.set_io_started()) { // concurrency protected
-      return;
+      return false;
     }
     m_max_size = max_size;
     start_read(std::forward<MH>(msg_handler));
+    return true;
   }
 
   template <typename MH>
-  void start_io(std::size_t max_size, const endpoint_type& endp, MH&& msg_handler) {
+  bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
     if (!m_io_common.set_io_started()) { // concurrency protected
-      return;
+      return false;
     }
     m_max_size = max_size;
     m_default_dest_endp = endp;
     start_read(std::forward<MH>(msg_handler));
+    return true;
   }
 
-  void start_io() {
-    m_io_common.set_io_started();
-  }
-
-  void start_io(const endpoint_type& endp) {
+  bool start_io() {
     if (!m_io_common.set_io_started()) { // concurrency protected
-      return;
+      return false;
+    }
+    return true;
+  }
+
+  bool start_io(const endpoint_type& endp) {
+    if (!m_io_common.set_io_started()) { // concurrency protected
+      return false;
     }
     m_default_dest_endp = endp;
+    return true;
   }
 
-  void stop_io() {
+  bool stop_io() {
     if (!m_io_common.stop()) {
-      return;
+      return false;
     }
     std::error_code ec;
     m_socket.close(ec);
     err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
+    m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
+    return true;
   }
 
-  void stop() {
+  bool stop() {
     if (!m_entity_common.stop()) {
-      return; // stop already called
+      return false; // stop already called
     }
     stop_io();
     err_notify(std::make_error_code(net_ip_errc::udp_entity_stopped));
+    return true;
   }
 
   void send(chops::const_shared_buffer buf) {
@@ -179,30 +196,6 @@ public:
 
 private:
 
-  template <typename R>
-  void open_udp(R&& start_chg) {
-    try {
-      // assume default constructed endpoints compare equal
-      if (m_local_endp == endpoint_type()) {
-// TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
-        m_socket.open(std::experimental::net::ip::udp::v4());
-      }
-      else {
-        m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
-      }
-    }
-    catch (const std::system_error& se) {
-      err_notify(se.code());
-      stop();
-      return;
-    }
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, strt = std::move(start_chg)] () mutable {
-        strt(udp_io_interface(self), 1);
-      }
-    );
-  }
-
   template <typename MH>
   void start_read(MH&& msg_hdlr) {
     auto self { shared_from_this() };
@@ -218,7 +211,7 @@ private:
   }
 
   void err_notify (const std::error_code& err) {
-    m_entity_common.call_shutdown_change_cb(shared_from_this(), err, 0);
+    m_entity_common.call_error_cb(shared_from_this(), err);
   }
 
   template <typename MH>
@@ -241,9 +234,10 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     return;
   }
   if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
-                udp_io_interface(weak_from_this()), m_sender_endp)) {
+                basic_io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
+    stop();
     return;
   }
   start_read(std::forward<MH>(msg_hdlr));

@@ -31,7 +31,7 @@
 #include "net_ip/component/worker.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "../test/net_ip/detail/shared_utility_test.hpp"
+#include "net_ip/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
 
 // #include <iostream>
@@ -99,9 +99,6 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
   chops::net::worker wk;
   wk.start();
   auto& ioc = wk.get_io_context();
-//  io_context ioc;
-//  auto wg = make_work_guard(ioc);
-//  std::thread thr( [&ioc] { ioc.run(); } );
 
   GIVEN ("An executor work guard and a message set") {
  
@@ -130,14 +127,14 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
 
         auto conn_cnt = conn_fut.get();
 
-        REQUIRE (verify_receiver_count(in_msg_vec.size(), cnt));
-        REQUIRE (verify_sender_count(in_msg_vec.size(), conn_cnt, reply));
+        REQUIRE (in_msg_vec.size() == cnt);
+        if (reply) {
+          REQUIRE (in_msg_vec.size() == conn_cnt);
+        }
       }
     }
   } // end given
 
-//  wg.reset();
-//  thr.join();
   wk.reset();
 //  wk.stop();
 

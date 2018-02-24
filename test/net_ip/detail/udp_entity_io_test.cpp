@@ -38,15 +38,16 @@
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip/component/worker.hpp"
-#include "net_ip/component/io_interface_future.hpp"
 #include "net_ip/component/send_to_all.hpp"
 
-#include "../test/net_ip/detail/shared_utility_test.hpp"
+#include "net_ip/shared_utility_test.hpp"
+#include "net_ip/shared_utility_func_test.hpp"
+
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 
-#include <iostream>
+#include <iostream> // std::err for error sink
 
 using namespace std::experimental::net;
 using namespace chops::test;
@@ -58,13 +59,52 @@ const char*   test_addr = "127.0.0.1";
 constexpr int test_port_base = 30665;
 constexpr int NumMsgs = 50;
 
-ip::udp::endpoint make_test_endpoint(int port_num) {
-  return ip::udp::endpoint(ip::make_address(test_addr),
-                           static_cast<unsigned short>(port_num));
-}
-
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
+
+void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int num_senders,
+                       test_counter& send_cnt, io_context& ioc, 
+                       chops::net::err_wait_q& err_wq, const ip::udp::endpoint& recv_endp) {
+
+  chops::net::send_to_all<chops::net::udp_io> sta { };
+
+  std::vector<chops::net::detail::udp_entity_io_ptr> senders;
+  std::vector<chops::net::udp_io_interface_future> sender_fut_vec;
+
+  chops::repeat(num_senders, [&] (int i) {
+      auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
+                                     make_udp_endpoint(test_addr, test_port_base+i+1));
+      senders.push_back(send_ptr);
+
+      auto sender_futs = get_udp_io_futures(chops::net::udp_net_entity(send_ptr), err_wq,
+                                            reply, send_cnt, recv_endp );
+      auto send_io = sender_futs.start_fut.get();
+      sta.add_io_interface(send_io);
+      sender_fut_vec.emplace_back(std::move(sender_futs.stop_fut));
+    }
+  );
+  // send messages through all of the senders
+  std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  for (auto buf : in_msg_vec) {
+    sta.send(buf);
+    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  }
+  // poll output queue size of all handlers until 0
+  auto qs = sta.get_total_output_queue_stats();
+  while (qs.output_queue_size > 0) {
+std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    qs = sta.get_total_output_queue_stats();
+  }
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  // stop all handlers
+  for (auto p : senders) {
+    p->stop();
+  }
+  for (auto& fut : sender_fut_vec) {
+    auto io = fut.get();
+  }
+}
 
 void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_senders) {
 
@@ -80,79 +120,50 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
     WHEN ("UDP senders and a receiver are created") {
       THEN ("the futures provide synchronization") {
 
-        auto recv_endp = make_test_endpoint(test_port_base);
-        auto recv_ep = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
+        auto recv_endp = make_udp_endpoint(test_addr, test_port_base);
+        auto recv_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
 
-//        REQUIRE_FALSE (recv_ep->is_started());
-//        REQUIRE_FALSE (recv_ep->is_io_started());
+        INFO ("Receiving UDP entity created");
 
-        auto recv_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_net_entity(recv_ep));
-        auto recv_io = recv_io_fut.get(); // UDP receiver is started
-
-//        REQUIRE (recv_ep->is_started());
+        chops::net::err_wait_q err_wq;
+        auto err_fut = std::async(std::launch::async,
+          chops::net::ostream_error_sink_with_wait_queue,
+          std::ref(err_wq), std::ref(std::cerr));
 
         test_counter recv_cnt = 0;
-        udp_start_io(recv_io, reply, recv_cnt);
+        auto recv_io_futs = get_udp_io_futures(chops::net::udp_net_entity(recv_ptr), err_wq,
+                                               reply, recv_cnt);
 
-//        REQUIRE (recv_io.is_io_started());
-
-        chops::net::send_to_all<chops::net::udp_io> send_to_all_ios { };
-
-        std::vector<chops::net::detail::udp_entity_io_ptr> senders;
+        auto recv_io = recv_io_futs.start_fut.get(); // UDP receiver is started
 
         test_counter send_cnt = 0;
-std::cerr << "creating " << num_senders << " senders" << std::endl;
-        chops::repeat(num_senders, [&] (int i) {
-            ip::udp::endpoint send_endp = reply ? 
-                ip::udp::endpoint(ip::udp::v4(), static_cast<unsigned short>(test_port_base + i + 1)) :
-                ip::udp::endpoint();
 
-            auto send_ep = std::make_shared<chops::net::detail::udp_entity_io>(ioc, send_endp);
-//            REQUIRE_FALSE (send_ep->is_started());
-//            REQUIRE_FALSE (send_ep->is_io_started());
+        INFO ("Starting first iteration of UDP senders, num: " << num_senders);
+        start_udp_senders(in_msg_vec, reply, interval, num_senders,
+                          send_cnt, ioc, err_wq, recv_endp);
+        INFO ("Starting second iteration of UDP senders");
+        start_udp_senders(in_msg_vec, reply, interval, num_senders,
+                          send_cnt, ioc, err_wq, recv_endp);
 
-            senders.push_back(send_ep);
 
-            auto send_io_fut = chops::net::make_udp_io_interface_future(chops::net::udp_net_entity(send_ep));
-            auto send_io = send_io_fut.get();
+        INFO ("Stopping receiver");
+        recv_ptr->stop();
+        recv_io_futs.stop_fut.get();
 
-            udp_start_io(send_io, reply, send_cnt, recv_endp);
 
-//            REQUIRE (send_io.is_io_started());
-
-            send_to_all_ios.add_io_interface(send_io);
-          }
-        );
-        // send messages through all of the senders
-        std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-        for (auto buf : in_msg_vec) {
-          send_to_all_ios.send(buf);
-          std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-        }
-        // poll output queue size of all handlers until 0
-        auto qs = send_to_all_ios.get_total_output_queue_stats();
-        while (qs.output_queue_size > 0) {
-std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
+        while (!err_wq.empty()) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
-          qs = send_to_all_ios.get_total_output_queue_stats();
         }
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        // stop all handlers
-        for (auto p : senders) {
-          p->stop();
-//          REQUIRE_FALSE (p->is_started());
-//          REQUIRE_FALSE (p->is_io_started());
-        }
-        recv_ep->stop();
-//        REQUIRE_FALSE (recv_ep->is_started());
-//        REQUIRE_FALSE (recv_ep->is_io_started());
+        err_wq.close();
+        auto err_cnt = err_fut.get();
+        INFO ("Num err messages in sink: " << err_cnt);
 
-std::cerr << "Udp entities stopped" << std::endl;
-
-        std::size_t total_msgs = num_senders * in_msg_vec.size();
+        std::size_t total_msgs = 2 * num_senders * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
-        CHECK (verify_receiver_count(total_msgs, recv_cnt));
-        CHECK (verify_sender_count(total_msgs, send_cnt, reply));
+        CHECK (total_msgs == recv_cnt);
+        if (reply) {
+          CHECK (total_msgs == send_cnt);
+        }
       }
     }
   } // end given
@@ -168,7 +179,7 @@ std::cerr << "Udp entities stopped" << std::endl;
 SCENARIO ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
            "[udp_io] ") {
 
-  auto ipv4_endp = make_test_endpoint(test_port_base);
+  auto ipv4_endp = make_udp_endpoint(test_addr, test_port_base);
   auto ipv6_endp = ip::udp::endpoint(ip::make_address("::1"), 
                                      static_cast<unsigned short>(test_port_base));
 
@@ -194,11 +205,11 @@ SCENARIO ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 50, senders 1",
-           "[udp_io] [var_len_msg] [one_way] [interval_50] [senders_1]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 30, senders 1",
+           "[udp_io] [var_len_msg] [one_way] [interval_30] [senders_1]" ) {
 
   udp_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
-             false, 50, 1);
+             false, 30, 1);
 
 }
 
@@ -210,27 +221,27 @@ SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 30, senders 10",
-           "[udp_io] [var_len_msg] [two-way] [interval_30] [senders_10]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 10",
+           "[udp_io] [var_len_msg] [two-way] [interval_20] [senders_10]" ) {
 
   udp_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
-             true, 30, 10);
+             true, 20, 10);
 
 }
 
 SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 5, many msgs",
            "[udp_io] [var_len_msg] [two_way] [interval_20] [senders_5] [many]" ) {
 
-  udp_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
+  udp_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 40*NumMsgs),
              true, 20, 5);
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 50, senders 5",
-           "[udp_io] [cr_lf_msg] [one-way] [interval_50] [senders_5]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 30, senders 5",
+           "[udp_io] [cr_lf_msg] [one-way] [interval_30] [senders_5]" ) {
 
   udp_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
-             false, 50, 5);
+             false, 30, 5);
 
 }
 
@@ -273,4 +284,5 @@ SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 50, senders 2, many 
              true, 50, 2);
 
 }
+
 

@@ -38,7 +38,7 @@
 #include "net_ip/component/worker.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "../test/net_ip/detail/shared_utility_test.hpp"
+#include "net_ip/shared_utility_test.hpp"
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 
@@ -77,10 +77,28 @@ std::size_t connector_func (const vec_buf& in_msg_vec, io_context& ioc,
   char c;
   std::error_code ec;
   auto sz = read(sock, mutable_buffer(&c, 1), ec); // block on read until connection is closed
-// std::cerr << "Single byte read completed, sz: " << sz << ", err: " << ec << ", " 
-// << ec.message() << std::endl;
   return cnt;
 }
+
+std::size_t start_connector_funcs (const vec_buf& in_msg_vec, io_context& ioc,
+                                   bool reply, int interval, int num_conns,
+                                   std::string_view delim, chops::const_shared_buffer empty_msg) {
+
+  std::size_t conn_cnt = 0;
+  std::vector<std::future<std::size_t> > conn_futs;
+
+  chops::repeat(num_conns, [&] () {
+      conn_futs.emplace_back(std::async(std::launch::async, connector_func, std::cref(in_msg_vec), 
+                             std::ref(ioc), reply, interval, empty_msg));
+
+    }
+  );
+  for (auto& fut : conn_futs) {
+    conn_cnt += fut.get(); // wait for connectors to finish
+  }
+  return conn_cnt;
+}
+
 
 void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_conns,
                     std::string_view delim, chops::const_shared_buffer empty_msg) {
@@ -99,47 +117,42 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 
-// std::cerr << "acceptor created" << std::endl;
-
         REQUIRE_FALSE(acc_ptr->is_started());
 
-        test_counter cnt = 0;
-        acc_ptr->start( [reply, delim, &cnt] (chops::net::tcp_io_interface io, std::size_t /* num */) {
-            tcp_start_io(io, reply, delim, cnt);
+        test_counter recv_cnt = 0;
+        acc_ptr->start(
+          [reply, delim, &recv_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
+            if (starting) {
+              tcp_start_io(io, reply, delim, recv_cnt);
+            }
+          },
+          [] (chops::net::tcp_io_interface io, std::error_code err) {
+// std::cerr << std::boolalpha << "err func, err: " << err <<
+// ", " << err.message() << ", io state valid: " << io.is_valid() << std::endl;
           }
         );
-
-// std::cerr << "acceptor started" << std::endl;
 
         REQUIRE(acc_ptr->is_started());
 
-        std::vector<std::future<std::size_t> > conn_futs;
+        auto conn_cnt = start_connector_funcs(in_msg_vec, ioc, reply, interval, num_conns,
+                                                     delim, empty_msg);
+        INFO ("First iteration of connector futures popped, starting second iteration");
 
-// std::cerr << "creating " << num_conns << " async futures and threads" << std::endl;
-        chops::repeat(num_conns, [&] () {
-            conn_futs.emplace_back(std::async(std::launch::async, connector_func, std::cref(in_msg_vec), 
-                                   std::ref(ioc), reply, interval, empty_msg));
-
-          }
-        );
-
-        std::size_t conn_cnt = 0;
-        for (auto& fut : conn_futs) {
-          conn_cnt += fut.get(); // wait for connectors to finish
-        }
-        INFO ("All connector futures popped");
-// std::cerr << "All connector futures popped" << std::endl;
+        conn_cnt += start_connector_funcs(in_msg_vec, ioc, reply, interval, num_conns,
+                                          delim, empty_msg);
+        INFO ("Second iteration of connector futures popped");
 
         acc_ptr->stop();
 
         INFO ("Acceptor stopped");
-// std::cerr << "Acceptor stopped" << std::endl;
 
         REQUIRE_FALSE(acc_ptr->is_started());
 
-        std::size_t total_msgs = num_conns * in_msg_vec.size();
-        REQUIRE (verify_receiver_count(total_msgs, cnt));
-        REQUIRE (verify_sender_count(total_msgs, conn_cnt, reply));
+        std::size_t total_msgs = 2 * num_conns * in_msg_vec.size();
+        REQUIRE (total_msgs == recv_cnt);
+        if (reply) {
+          REQUIRE (total_msgs == conn_cnt);
+        }
       }
     }
   } // end given

@@ -22,28 +22,7 @@
 
 #include "net_ip/basic_net_entity.hpp"
 
-constexpr double special_val = 42.0;
-
-struct basic_net_entity_mock {
-  using socket_type = double;
-
-  double dummy = special_val;
-
-  bool started = false;
-
-  bool is_started() const { return started; }
-
-  double& get_socket() { return dummy; }
-
-  template <typename R, typename S>
-  void start( R&&, S&& ) { started = true; }
-
-  template <typename R>
-  void start( R&& ) { started = true; }
-
-  void stop() { started = false; }
-
-};
+#include "net_ip/shared_utility_test.hpp"
 
 template <typename EH>
 void basic_net_entity_test_default_constructed() {
@@ -56,17 +35,11 @@ void basic_net_entity_test_default_constructed() {
         REQUIRE_FALSE (net_ent.is_valid());
       }
     }
-    AND_WHEN ("is_started on an invalid basic_net_entity") {
+    AND_WHEN ("methods are called on an invalid basic_net_entity") {
       THEN ("an exception is thrown") {
         REQUIRE_THROWS (net_ent.is_started());
-      }
-    }
-    AND_WHEN ("start or stop is called on an invalid basic_net_entity") {
-      THEN ("false is returned") {
-
-        REQUIRE_FALSE (net_ent.start([] { }, [] { } ));
-        REQUIRE_FALSE (net_ent.start([] { }));
-        REQUIRE_FALSE (net_ent.stop());
+        REQUIRE_THROWS (net_ent.start(chops::test::io_state_chg_mock, chops::test::err_func_mock));
+        REQUIRE_THROWS (net_ent.stop());
       }
     }
   } // end given
@@ -74,7 +47,7 @@ void basic_net_entity_test_default_constructed() {
 }
 
 template <typename EH>
-void basic_net_entity_test_two() {
+void basic_net_entity_test_methods() {
 
   chops::net::basic_net_entity<EH> net_ent { };
 
@@ -83,22 +56,18 @@ void basic_net_entity_test_two() {
 
   GIVEN ("A default constructed basic_net_entity and an io handler") {
     WHEN ("a basic_net_entity with a weak ptr to the io handler is assigned to it") {
-      THEN ("the return is true") {
+      THEN ("is_valid is true") {
         REQUIRE (net_ent.is_valid());
       }
     }
-    AND_WHEN ("is_started or get_output_queue_stats is called") {
-      THEN ("values are returned") {
+    AND_WHEN ("is_started is called") {
+      THEN ("false is returned") {
         REQUIRE_FALSE (net_ent.is_started());
       }
     }
     AND_WHEN ("start or stop is called") {
       THEN ("true is returned") {
-        REQUIRE (net_ent.start([] { }, [] { }));
-        REQUIRE (net_ent.is_started());
-        REQUIRE (net_ent.stop());
-        REQUIRE_FALSE (net_ent.is_started());
-        REQUIRE (net_ent.start([] { }));
+        REQUIRE (net_ent.start(chops::test::io_state_chg_mock, chops::test::err_func_mock));
         REQUIRE (net_ent.is_started());
         REQUIRE (net_ent.stop());
         REQUIRE_FALSE (net_ent.is_started());
@@ -106,7 +75,7 @@ void basic_net_entity_test_two() {
     }
     AND_WHEN ("get_socket is called") {
       THEN ("a reference is returned") {
-        REQUIRE (net_ent.get_socket() == special_val);
+        REQUIRE (net_ent.get_socket() == chops::test::net_entity_mock::special_val);
       }
     }
   } // end given
@@ -164,8 +133,8 @@ void basic_net_entity_test_compare() {
 }
 
 SCENARIO ( "Basic net entity test", "[basic_net_entity]" ) {
-  basic_net_entity_test_default_constructed<basic_net_entity_mock>();
-  basic_net_entity_test_two<basic_net_entity_mock>();
-  basic_net_entity_test_compare<basic_net_entity_mock>();
+  basic_net_entity_test_default_constructed<chops::test::net_entity_mock>();
+  basic_net_entity_test_methods<chops::test::net_entity_mock>();
+  basic_net_entity_test_compare<chops::test::net_entity_mock>();
 }
 

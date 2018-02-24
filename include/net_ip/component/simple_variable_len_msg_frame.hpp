@@ -8,7 +8,10 @@
  *  length body. The @c make_simple_variable_len_msg_frame function creates a function
  *  object that is supplied to the @c basic_io_interface @c start_io method. The 
  *  application provides a function that decodes the message header and returns the size 
- *  of the following message body.
+ *  of the following message body. 
+ *
+ *  @note These functions are not a necessary dependency of the @c net_ip library,
+ *  but are useful components in many use cases.
  *
  *  @author Cliff Green
  *  @date 2017, 2018
@@ -30,17 +33,15 @@ namespace net {
  *  @brief Signature for a variable length message header decoder function.
  *
  *  Given a buffer of @c std::bytes corresponding to a header on a variable length
- *  message, decode the header and return the length of the message body.
+ *  message, decode the header and return the length in bytes of the message body.
  *
  *  @param ptr A pointer to the beginning of the variable len message header.
  *
- *  @param sz The size of the header buffer, which should be the same for every call 
- *  and match the parameter given to the @c io_interface @c start_io call.
+ *  @param sz The size of the header buffer, in bytes, which should be the same for 
+ *  every call and match the parameter given to the @c io_interface @c start_io call.
  *
  *  @relates make_simple_variable_len_msg_frame
  *
- *  @note These functions are not a necessary dependency of the @c net_ip library,
- *  but are useful components in many use cases.
  */
 using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
 
@@ -61,7 +62,6 @@ inline auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
         (hdr_processed = true, func(static_cast<const std::byte*>(buf.data()), buf.size()));
   };
 }
-
 
 } // end net namespace
 } // end chops namespace
