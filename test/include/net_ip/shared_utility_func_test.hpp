@@ -30,41 +30,41 @@ namespace chops {
 namespace test {
 
 
-inline auto get_tcp_io_futures(chops::net::tcp_connector_net_entity conn, chops::net::tcp_err_wait_q& wq,
+inline auto get_tcp_io_futures(chops::net::tcp_connector_net_entity conn, chops::net::err_wait_q& wq,
                                bool reply, std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
     return chops::net::make_tcp_io_interface_future_pair(conn,
            chops::net::make_simple_variable_len_msg_frame_io_state_change(2, decode_variable_len_msg_hdr,
                                                                           tcp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue(wq));
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
   }
   return chops::net::make_tcp_io_interface_future_pair(conn,
            chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue(wq));
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
 }
 
-inline void start_tcp_acceptor(chops::net::tcp_acceptor_net_entity acc, chops::net::tcp_err_wait_q& wq,
+inline void start_tcp_acceptor(chops::net::tcp_acceptor_net_entity acc, chops::net::err_wait_q& wq,
                                bool reply, std::string_view delim, test_counter& cnt) {
 
   if (delim.empty()) {
     acc.start(chops::net::make_simple_variable_len_msg_frame_io_state_change(2, decode_variable_len_msg_hdr,
                                                                              tcp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue(wq));
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
   }
   else {
     acc.start(chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue(wq));
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
   }
 }
 
-inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net::udp_err_wait_q& wq,
+inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net::err_wait_q& wq,
                                bool reply, test_counter& cnt) {
   return chops::net::make_udp_io_interface_future_pair(udp_entity,
            chops::net::make_read_io_state_change(udp_max_buf_size, udp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue(wq));
+           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
 
-inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net::udp_err_wait_q& wq,
+inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net::err_wait_q& wq,
                                bool receiving, test_counter& cnt,
                                const std::experimental::net::ip::udp::endpoint& remote_endp) {
 
@@ -73,11 +73,11 @@ inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net
              chops::net::make_default_endp_io_state_change(remote_endp, 
                                                            udp_max_buf_size, 
                                                            udp_msg_hdlr(false, cnt)),
-             chops::net::make_error_func_with_wait_queue(wq));
+             chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
   }
   return chops::net::make_udp_io_interface_future_pair(udp_entity,
            chops::net::make_send_only_default_endp_io_state_change(remote_endp),
-           chops::net::make_error_func_with_wait_queue(wq));
+           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
 
 } // end namespace test

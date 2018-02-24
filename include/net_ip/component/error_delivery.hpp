@@ -18,6 +18,8 @@
 
 #include <system_error>
 #include <ostream>
+#include <string>
+#include <chrono>
 
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/io_interface.hpp"
@@ -53,38 +55,37 @@ inline void udp_empty_error_func(udp_io_interface, std::error_code) { }
 
 /**
  *  @brief Data provided through an error function callbacks.
+ *
+ *  This @c struct of data can be passed through a queue or other mechanism for logging
+ *  or other error analysis purposes.
+ *
+ *  A @c basic_io_interface is not part of the data since the referenced handler
+ *  is likely to soon go away. Instead, a @c void pointer of the underlying
+ *  handler is used. Another reason for not storing a @c basic_io_interface is that
+ *  the IO handler type parameterization is no longer needed, so this can be used for
+ *  both TCP and UDP error data.
  */
-template <typename IOT>
 struct error_data {
-  basic_io_interface<IOT> io_intf;
-  std::error_code         err;
+  std::chrono::steady_clock::time_point   time_p;
+  const void*                             io_intf_ptr;
+  std::error_code                         err;
 
-  error_data(basic_io_interface<IOT> io, std::error_code e) : 
-      io_intf(std::move(io)), err(std::move(e)) { }
+  error_data(const void* iop, std::error_code e) : 
+      time_p(std::chrono::steady_clock::now()), io_intf_ptr(iop), err(std::move(e)) { }
 };
 
 /**
  *  @brief @c wait_queue declaration that provides error data.
  */
-template <typename IOT>
-using err_wait_q = chops::wait_queue<error_data<IOT> >;
-
-/**
- *  @brief @c err_wait_q for @c tcp_io_interface objects.
- */
-using tcp_err_wait_q = err_wait_q<chops::net::tcp_io>;
-/**
- *  @brief @c err_wait_q for @c udp_io_interface objects.
- */
-using udp_err_wait_q = err_wait_q<chops::net::udp_io>;
+using err_wait_q = chops::wait_queue<error_data>;
 
 /**
  *  @brief Create an error function object that uses a @c wait_queue for error data.
  */
 template <typename IOT>
-auto make_error_func_with_wait_queue(err_wait_q<IOT>& wq) {
+auto make_error_func_with_wait_queue(err_wait_q& wq) {
   return [&wq] (basic_io_interface<IOT> io, std::error_code e) {
-    wq.emplace_push(io, e);
+    wq.emplace_push(static_cast<const void *>(io.get_shared_ptr().get()), e);
   };
 }
 
@@ -104,20 +105,20 @@ auto make_error_func_with_wait_queue(err_wait_q<IOT>& wq) {
  *  @return The total number of entries processed by the function before the queue is 
  *  closed.
  */
-template <typename IOT>
-std::size_t ostream_error_sink_with_wait_queue (err_wait_q<IOT>& wq, std::ostream& os) {
+inline std::size_t ostream_error_sink_with_wait_queue (err_wait_q& wq, std::ostream& os) {
   std::size_t cnt = 0;
-  bool loop = true;
-  while (loop) {
+  while (true) {
     auto elem = wq.wait_and_pop();
     if (!elem) {
-      loop = false;
+      break;
     }
-    else {
-      os << "io_addr: " << (*elem).io_intf.get_shared_ptr() << " err: " << 
-            (*elem).err << ", " << (*elem).err.message() << '\n';
-      ++cnt;
-    }
+
+    auto t =
+      std::chrono::duration_cast<std::chrono::milliseconds>((*elem).time_p.time_since_epoch()).count();
+
+    os << '[' << t << "] io_addr: " << elem->io_intf_ptr << " err: " << 
+          elem->err << ", " << (*elem).err.message() << '\n';
+    ++cnt;
   }
   os.flush();
   return cnt;

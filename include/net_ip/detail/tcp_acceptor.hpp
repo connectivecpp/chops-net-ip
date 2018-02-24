@@ -125,13 +125,9 @@ private:
 
   void notify_me(std::error_code err, tcp_io_ptr iop) {
     iop->close();
-//    auto self { shared_from_this() };
-//    post(m_acceptor.get_executor(), [this, self, err, iop] {
-        m_entity_common.call_error_cb(iop, err);
-        chops::erase_where(m_io_handlers, iop);
-        m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
-//      }
-//    );
+    m_entity_common.call_error_cb(iop, err);
+    chops::erase_where(m_io_handlers, iop);
+    m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
   }
 
 };

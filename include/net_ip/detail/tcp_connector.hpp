@@ -62,6 +62,11 @@ private:
   std::string                           m_remote_host;
   std::string                           m_remote_port;
 
+  // TODO: currently this flag is needed to distinguish whether a connect
+  // handler can't connect or whether the operation is cancelled and it's
+  // time to shutdown
+  bool                                  m_shutting_down;
+
 public:
   template <typename Iter>
   tcp_connector(std::experimental::net::io_context& ioc, 
@@ -74,7 +79,8 @@ public:
       m_timer(ioc),
       m_reconn_time(reconn_time),
       m_remote_host(),
-      m_remote_port()
+      m_remote_port(),
+      m_shutting_down(false)
     { }
 
   tcp_connector(std::experimental::net::io_context& ioc,
@@ -88,7 +94,8 @@ public:
       m_timer(ioc),
       m_reconn_time(reconn_time),
       m_remote_host(remote_host),
-      m_remote_port(remote_port)
+      m_remote_port(remote_port),
+      m_shutting_down(false)
     { }
 
 private:
@@ -110,6 +117,7 @@ public:
       // already started
       return false;
     }
+    m_shutting_down = false;
     // empty endpoints container is the flag that a resolve is needed
     if (m_endpoints.empty()) {
       auto self = shared_from_this();
@@ -148,15 +156,23 @@ private:
     if (!m_entity_common.stop()) {
       return false; // stop already called
     }
+    m_shutting_down = true;
+    if (m_endpoints.empty()) { // may be in middle of resolve
+      m_resolver.cancel();
+    }
     if (m_io_handler) {
       if (m_io_handler->is_io_started()) {
         m_io_handler->close();
       }
+      m_io_handler.reset();
     }
-    m_io_handler.reset();
-    m_timer.cancel();
-    m_resolver.cancel();
-    // socket should already be closed or moved from
+    else {
+      // IO handler not created, may be waiting on timer
+      // or in middle of an async connect
+      m_timer.cancel();
+    }
+    std::error_code ec;
+    m_socket.close(ec);
     return true;
   }
 
@@ -175,8 +191,8 @@ private:
 
     if (err) {
       m_entity_common.call_error_cb(tcp_io_ptr(), err);
-      // if (err == operation_aborted?
-      if (!is_started()) {
+      if (!is_started() || m_shutting_down ) {
+//      if (!is_started() || err.value() == something) {
         return;
       }
       try {
@@ -206,13 +222,9 @@ private:
     assert (iop == m_io_handler);
 
     iop->close();
-//    auto self { shared_from_this() };
-//    post(m_socket.get_executor(), [this, self, err, iop] () mutable {
-        m_entity_common.call_error_cb(iop, err);
-        m_entity_common.call_io_state_chg_cb(iop, 0, false);
-        stop();
-//      }
-//    );
+    m_entity_common.call_error_cb(iop, err);
+    m_entity_common.call_io_state_chg_cb(iop, 0, false);
+    stop();
   }
 
 };

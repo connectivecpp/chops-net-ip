@@ -73,10 +73,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
 
         auto acc = nip.make_tcp_acceptor(tcp_test_port, tcp_test_host);
 
-        chops::net::tcp_err_wait_q err_wq;
+        chops::net::err_wait_q err_wq;
 
         auto err_fut = std::async(std::launch::async, 
-          chops::net::ostream_error_sink_with_wait_queue<chops::net::tcp_io>, 
+          chops::net::ostream_error_sink_with_wait_queue,
           std::ref(err_wq), std::ref(std::cerr));
 
         test_counter acc_cnt = 0;
@@ -160,9 +160,9 @@ void udp_test (const vec_buf& in_msg_vec, int interval, int num_udp_pairs,
 
         INFO ("Creating " << num_udp_pairs << " udp sender receiver pairs");
 
-        chops::net::udp_err_wait_q err_wq;
+        chops::net::err_wait_q err_wq;
         auto err_fut = std::async(std::launch::async,
-          chops::net::ostream_error_sink_with_wait_queue<chops::net::udp_io>,
+          chops::net::ostream_error_sink_with_wait_queue,
           std::ref(err_wq), std::ref(std::cerr));
 
         chops::net::send_to_all<chops::net::udp_io> sta { };

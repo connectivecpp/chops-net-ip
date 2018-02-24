@@ -42,10 +42,10 @@ SCENARIO ( "Testing ostream_error_sink_with_wait_queue function",
   auto io2 = io_interface_mock(ioh2);
   auto io3 = io_interface_mock(ioh3);
 
-  chops::net::err_wait_q<io_handler_mock> wq;
+  chops::net::err_wait_q wq;
 
   auto sink_fut = std::async(std::launch::async, 
-                             chops::net::ostream_error_sink_with_wait_queue<io_handler_mock>,
+                             chops::net::ostream_error_sink_with_wait_queue,
                              std::ref(wq), std::ref(std::cerr));
 
   auto err_func = chops::net::make_error_func_with_wait_queue<io_handler_mock>(wq);

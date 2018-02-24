@@ -62,6 +62,50 @@ constexpr int NumMsgs = 50;
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
 
+void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int num_senders,
+                       test_counter& send_cnt, io_context& ioc, 
+                       chops::net::err_wait_q& err_wq, const ip::udp::endpoint& recv_endp) {
+
+  chops::net::send_to_all<chops::net::udp_io> sta { };
+
+  std::vector<chops::net::detail::udp_entity_io_ptr> senders;
+  std::vector<chops::net::udp_io_interface_future> sender_fut_vec;
+
+  chops::repeat(num_senders, [&] (int i) {
+      auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
+                                     make_udp_endpoint(test_addr, test_port_base+i+1));
+      senders.push_back(send_ptr);
+
+      auto sender_futs = get_udp_io_futures(chops::net::udp_net_entity(send_ptr), err_wq,
+                                            reply, send_cnt, recv_endp );
+      auto send_io = sender_futs.start_fut.get();
+      sta.add_io_interface(send_io);
+      sender_fut_vec.emplace_back(std::move(sender_futs.stop_fut));
+    }
+  );
+  // send messages through all of the senders
+  std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  for (auto buf : in_msg_vec) {
+    sta.send(buf);
+    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  }
+  // poll output queue size of all handlers until 0
+  auto qs = sta.get_total_output_queue_stats();
+  while (qs.output_queue_size > 0) {
+std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    qs = sta.get_total_output_queue_stats();
+  }
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  // stop all handlers
+  for (auto p : senders) {
+    p->stop();
+  }
+  for (auto& fut : sender_fut_vec) {
+    auto io = fut.get();
+  }
+}
+
 void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_senders) {
 
   chops::net::worker wk;
@@ -81,9 +125,9 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
 
         INFO ("Receiving UDP entity created");
 
-        chops::net::udp_err_wait_q err_wq;
+        chops::net::err_wait_q err_wq;
         auto err_fut = std::async(std::launch::async,
-          chops::net::ostream_error_sink_with_wait_queue<chops::net::udp_io>,
+          chops::net::ostream_error_sink_with_wait_queue,
           std::ref(err_wq), std::ref(std::cerr));
 
         test_counter recv_cnt = 0;
@@ -92,50 +136,20 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
 
         auto recv_io = recv_io_futs.start_fut.get(); // UDP receiver is started
 
-        chops::net::send_to_all<chops::net::udp_io> send_to_all_ios { };
-
-        std::vector<chops::net::detail::udp_entity_io_ptr> senders;
-        std::vector<chops::net::udp_io_interface_future> sender_fut_vec;
-
         test_counter send_cnt = 0;
-        INFO ("Creating UDP senders, num: " << num_senders);
-        chops::repeat(num_senders, [&] (int i) {
-            auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
-                                           make_udp_endpoint(test_addr, test_port_base+i+1));
-            senders.push_back(send_ptr);
 
-            auto sender_futs = get_udp_io_futures(chops::net::udp_net_entity(send_ptr), err_wq,
-                                                  reply, send_cnt, recv_endp );
-            auto send_io = sender_futs.start_fut.get();
-            send_to_all_ios.add_io_interface(send_io);
-            sender_fut_vec.emplace_back(std::move(sender_futs.stop_fut));
-          }
-        );
-        // send messages through all of the senders
-        std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-        for (auto buf : in_msg_vec) {
-          send_to_all_ios.send(buf);
-          std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-        }
-        // poll output queue size of all handlers until 0
-        auto qs = send_to_all_ios.get_total_output_queue_stats();
-        while (qs.output_queue_size > 0) {
-std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-          qs = send_to_all_ios.get_total_output_queue_stats();
-        }
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        // stop all handlers
-        for (auto p : senders) {
-          p->stop();
-        }
+        INFO ("Starting first iteration of UDP senders, num: " << num_senders);
+        start_udp_senders(in_msg_vec, reply, interval, num_senders,
+                          send_cnt, ioc, err_wq, recv_endp);
+        INFO ("Starting second iteration of UDP senders");
+        start_udp_senders(in_msg_vec, reply, interval, num_senders,
+                          send_cnt, ioc, err_wq, recv_endp);
+
+
+        INFO ("Stopping receiver");
         recv_ptr->stop();
         recv_io_futs.stop_fut.get();
 
-        for (auto& fut : sender_fut_vec) {
-          auto io = fut.get();
-        }
-        INFO ("All UDP entities stopped");
 
         while (!err_wq.empty()) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -144,7 +158,7 @@ std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
         auto err_cnt = err_fut.get();
         INFO ("Num err messages in sink: " << err_cnt);
 
-        std::size_t total_msgs = num_senders * in_msg_vec.size();
+        std::size_t total_msgs = 2 * num_senders * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
         CHECK (total_msgs == recv_cnt);
         if (reply) {

@@ -237,6 +237,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
                 basic_io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
+    stop();
     return;
   }
   start_read(std::forward<MH>(msg_hdlr));
