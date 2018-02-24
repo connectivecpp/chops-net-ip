@@ -233,7 +233,6 @@ SCENARIO ( "Net IP test, var len msgs, one-way, interval 50, 1 connector or pair
 
 }
 
-/*
 SCENARIO ( "Net IP test, var len msgs, one-way, interval 0, 1 connector or pair", 
            "[netip_acc_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
@@ -267,6 +266,7 @@ SCENARIO ( "Net IP test, var len msgs, two-way, interval 0, 10 connectors or pai
 
 }
 
+/*
 SCENARIO ( "Net IP test, var len msgs, two-way, interval 0, 40 connectors or pairs", 
            "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_40] [many]" ) {
 
