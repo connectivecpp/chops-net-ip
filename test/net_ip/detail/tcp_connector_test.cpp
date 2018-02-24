@@ -185,6 +185,25 @@ SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 50, 1 connector"
 
 }
 
+SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 0, 2 connectors", 
+           "[tcp_conn] [var_len_msg] [one_way] [interval_0] [connectors_2]" ) {
+
+  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
+                  false, 0, 2,
+                  std::string_view(), make_empty_variable_len_msg() );
+
+}
+
+SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 2 connectors", 
+           "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_2]" ) {
+
+  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
+                  true, 0, 2,
+                  std::string_view(), make_empty_variable_len_msg() );
+
+}
+
+/*
 SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
@@ -194,7 +213,6 @@ SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors
 
 }
 
-/*
 SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
 

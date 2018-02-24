@@ -64,9 +64,7 @@ public:
 
   bool stop() noexcept {
     bool expected = true;
-    bool ret = m_io_started.compare_exchange_strong(expected, false); 
-    m_write_in_progress = false;
-    return ret;
+    return m_io_started.compare_exchange_strong(expected, false); 
   }
 
   // rest of these method called only from within run thread
@@ -94,7 +92,7 @@ bool io_common<IOT>::start_write_setup(const chops::const_shared_buffer& buf) {
 
 template <typename IOT>
 bool io_common<IOT>::start_write_setup(const chops::const_shared_buffer& buf, 
-                                     const endp_type& endp) {
+                                       const endp_type& endp) {
   if (!m_io_started) {
     return false; // shutdown happening or not io_started, don't start a write
   }
