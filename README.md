@@ -10,7 +10,7 @@ Release 0.2 is now (Feb 25, 2018) merged to the master branch:
 
 - Significant changes have been made to the `start` method function parameters of the `basic_net_entity` class. There are two function object parameters for callbacks, the first corresponding to an IO state change, and the second to errors. This makes better conceptual sense and cleans up logical inconsistencies in the callback interface. Specifically:
   - IO state change callbacks correspond to a TCP connection being created or destroyed, or a UDP socket being opened or closed. There is one state change callback invocation for creation or open and one state change callback invocation for destruction or close. In both cases the `basic_io_interface` is tied to a valid IO handler. This allows for simpler state management and consistent associative container usage.
-  - Error callbacks correspond to errors or shutdowns. These can happen in either the IO handling or in the higher level net entity handling. There may or may not be a valid IO handler relation in the `basic_io_interface` object.
+  - Error callbacks correspond to errors or shutdowns. These can happen in either the IO handling or in the higher level net entity handling. There may or may not be a valid IO handler referred to in the `basic_io_interface` object.
 - The indirect memory leaks reported by address sanitizer have been fixed.
 - A more consistent approach to exceptions and error returns is now in place for the `basic_io_interface` and `basic_net_entity` methods.
 
@@ -28,7 +28,7 @@ Known problems in release 0.1:
 - Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the `std::vector` `resize` method on certain paths (where `start_io` is called from a different thread where most of the processing is occurring). This is being actively worked.
 - The primary author (Cliff) is not happy with the function object callback interfaces through the `basic_net_entity.start` method (state change, error reporting callbacks). There are multiple possibilities, all of which have pros and cons. The message frame and message handler function object callback API is good and solid and is not likely to change.
 
-### Next Steps, Problems, and Constraints:
+### Next Steps, ToDo's, Problems, and Constraints:
 
 - This is a good point to ask for project help and collaboration, which will be greatly appreciated (for many reasons).
 - There are likely to be Chops Net IP bugs, specially relating to error and shutdown scenarios.
@@ -39,6 +39,10 @@ Known problems in release 0.1:
 - Attention will be devoted to performance bottlenecks as the project matures.
 - The makefiles and build infrastructure components are not yet present. A working CMakeLists.txt is needed as well as Github continuous integration procedures (e.g. Jenkins and Travis).
 - Code coverage tools have not been used on the codebase.
+- The "to do's" that are relatively small and short-term (and mentioned in code comments):
+  - Implement multicast support
+  - Investigate specific error logic on TCP connect errors - since timer support is part of a TCP connector, determine which errors are "whoah, something bad happened, bail out", and which errors are "hey, set timer, let's try again a little bit later"
+  - UDP sockets are opened in the "start" method with a ipv4 flag when there is not an endpoint available (i.e. "send only" UDP entities) - this needs to be re-thought, possibly leaving the socket closed and opening it when the first send is called (interrogate the first endpoint to see if it is v4 or v6)
 
 # Chops Major Components
 
@@ -158,7 +162,7 @@ The libraries and API's have minimal (as possible) library dependencies (there a
 - Version 0.00 (or later) of Martin's Ring Span Lite is required for some test scenarios.
 - Version 1.65.1 or 1.66.0 of the Boost library (specific usages below).
 
-See [Reference Section](#references)) for additional details on the above libraries.
+See [Reference Section](#references) for additional details on the above libraries.
 
 Specific dependencies:
 
