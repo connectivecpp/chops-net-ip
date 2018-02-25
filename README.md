@@ -6,7 +6,7 @@ This project is licensed under the terms of the MIT license.
 
 ## Chops Release Status
 
-Release 0.2 is now (Feb 23, 2018) merged to the master branch:
+Release 0.2 is now (Feb 25, 2018) merged to the master branch:
 
 - Significant changes have been made to the `start` method function parameters of the `basic_net_entity` class. There are two function object parameters for callbacks, the first corresponding to an IO state change, and the second to errors. This makes better conceptual sense and cleans up logical inconsistencies in the callback interface. Specifically:
   - IO state change callbacks correspond to a TCP connection being created or destroyed, or a UDP socket being opened or closed. There is one state change callback invocation for creation or open and one state change callback invocation for destruction or close. In both cases the `basic_io_interface` is tied to a valid IO handler. This allows for simpler state management and consistent associative container usage.
@@ -14,7 +14,7 @@ Release 0.2 is now (Feb 23, 2018) merged to the master branch:
 - The indirect memory leaks reported by address sanitizer have been fixed.
 - A more consistent approach to exceptions and error returns is now in place for the `basic_io_interface` and `basic_net_entity` methods.
 
-There are still bugs, and while the indirect memory leaks appear to have been cleaned up, there is still shutdown or cleanup (or other) logic problems.
+All tests run, although they are still limited (see next steps and constraints).
 
 Release 0.1 is now (Feb 13, 2018) merged to the master branch:
 
