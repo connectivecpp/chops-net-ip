@@ -100,7 +100,7 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
             connectors.push_back(conn);
 
             auto conn_futs = get_tcp_io_futures(conn, err_wq,
-                                                reply, delim, conn_cnt);
+                                                false, delim, conn_cnt);
 
             auto conn_start_io = conn_futs.start_fut.get();
             sta.add_io_interface(conn_start_io);
@@ -193,10 +193,11 @@ void udp_test (const vec_buf& in_msg_vec, int interval, int num_udp_pairs,
         }
         // poll output queue size of all handlers until 0
         auto qs = sta.get_total_output_queue_stats();
+std::cerr << "UDP senders total output queue size: " << qs.output_queue_size << std::endl;
         while (qs.output_queue_size > 0) {
-std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
           qs = sta.get_total_output_queue_stats();
+std::cerr << "UDP senders total output queue size: " << qs.output_queue_size << std::endl;
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -266,7 +267,6 @@ SCENARIO ( "Net IP test, var len msgs, two-way, interval 0, 10 connectors or pai
 
 }
 
-/*
 SCENARIO ( "Net IP test, var len msgs, two-way, interval 0, 40 connectors or pairs", 
            "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_40] [many]" ) {
 
@@ -376,4 +376,3 @@ SCENARIO ( "Net IP test,  LF msgs, two-way, interval 0, 15 connectors or pairs, 
              make_empty_lf_text_msg() );
 
 }
-*/
