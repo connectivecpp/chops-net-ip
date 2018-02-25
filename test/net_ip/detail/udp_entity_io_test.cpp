@@ -91,12 +91,12 @@ void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int 
   }
   // poll output queue size of all handlers until 0
   auto qs = sta.get_total_output_queue_stats();
+std::cerr << "****** Senders total output queue size: " << qs.output_queue_size << std::endl;
   while (qs.output_queue_size > 0) {
-std::cerr << "Output queue size: " << qs.output_queue_size << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
     qs = sta.get_total_output_queue_stats();
+std::cerr << "****** Senders total output queue size: " << qs.output_queue_size << std::endl;
   }
-  std::this_thread::sleep_for(std::chrono::seconds(1));
   // stop all handlers
   for (auto p : senders) {
     p->stop();

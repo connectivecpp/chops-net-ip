@@ -30,12 +30,16 @@
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
+#include <cstdint> // std::uint16_t
 #include <vector>
 #include <utility> // std::forward, std::move
 #include <atomic>
 #include <memory> // std::shared_ptr
 #include <thread>
 #include <system_error>
+
+#include <cassert>
+#include <limits>
 
 #include <experimental/buffer>
 #include <experimental/internet> // ip::udp::endpoint
@@ -62,6 +66,7 @@ inline chops::mutable_shared_buffer make_body_buf(std::string_view pre,
 }
 
 inline chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
+  assert(body.size() < std::numeric_limits<std::uint16_t>::max());
   std::uint16_t hdr = boost::endian::native_to_big(static_cast<std::uint16_t>(body.size()));
   chops::mutable_shared_buffer msg(static_cast<const void*>(&hdr), 2);
   return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
@@ -79,8 +84,8 @@ inline chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_b
   return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
 }
 
-inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t /* sz */) {
-  // assert (sz == 2);
+inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
+  assert (sz == 2);
   std::uint16_t hdr;
   std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
   *(hdr_ptr+0) = *(buf_ptr+0);
