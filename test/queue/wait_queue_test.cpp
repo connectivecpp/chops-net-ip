@@ -67,7 +67,7 @@ void non_threaded_arithmetic_test(Q& wq, const T& base_val, int count, const T& 
     WHEN ("Apply is called against all elements to compute a sum") {
       chops::repeat(count, [&wq, &base_val] (const int& i) { REQUIRE(wq.push(base_val+i)); } );
       T sum { 0 };
-      wq.apply( [&sum] (const int& i) { sum += i; } );
+      wq.apply( [&sum] (const T& i) { sum += i; } );
       THEN ("the sum should match the expected sum") {
         REQUIRE (sum == expected_sum);
       }
