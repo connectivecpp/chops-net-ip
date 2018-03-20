@@ -14,6 +14,11 @@ Release 0.2 is now (Feb 25, 2018) merged to the master branch:
 - The indirect memory leaks reported by address sanitizer have been fixed.
 - A more consistent approach to exceptions and error returns is now in place for the `basic_io_interface` and `basic_net_entity` methods.
 
+- UDP multicast support is the top priority for the next feature to be implemented.
+- Strand design and support is under consideration.
+- Multiple compiler support is under way.
+- CMake file support is under way.
+
 All tests run, although they are still limited (see next steps and constraints).
 
 Release 0.1 is now (Feb 13, 2018) merged to the master branch:
@@ -43,6 +48,8 @@ Known problems in release 0.1:
   - Implement multicast support
   - Investigate specific error logic on TCP connect errors - since timer support is part of a TCP connector, determine which errors are "whoah, something bad happened, bail out", and which errors are "hey, set timer, let's try again a little bit later"
   - UDP sockets are opened in the "start" method with a ipv4 flag when there is not an endpoint available (i.e. "send only" UDP entities) - this needs to be re-thought, possibly leaving the socket closed and opening it when the first send is called (interrogate the first endpoint to see if it is v4 or v6)
+  - CMake file support is being expanded
+  - Strand design and implementation is being considered
 
 # Chops Major Components
 
