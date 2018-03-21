@@ -14,6 +14,11 @@ Release 0.2 is now (Feb 25, 2018) merged to the master branch:
 - The indirect memory leaks reported by address sanitizer have been fixed.
 - A more consistent approach to exceptions and error returns is now in place for the `basic_io_interface` and `basic_net_entity` methods.
 
+- UDP multicast support is the top priority for the next feature to be implemented.
+- Strand design and support is under consideration.
+- Multiple compiler support is under way, VC++ first.
+- CMake file improvement is under way.
+
 All tests run, although they are still limited (see next steps and constraints).
 
 Release 0.1 is now (Feb 13, 2018) merged to the master branch:
