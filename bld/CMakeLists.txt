@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (ChopsTests VERSION 0.8 LANGUAGES CXX)
+project (Chops VERSION 0.2 LANGUAGES CXX)
 
 include_directories("${PROJECT_BINARY_DIR}")
  
