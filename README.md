@@ -88,7 +88,7 @@ Chops Net IP:
 
 Chops Net IP is designed to make it easy and efficient for an application to create hundreds (or thousands) of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net IP, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
-A detailed overview is [available here](doc/net_ip/net_ip_overview.md).
+A detailed overview, a C++ socket library comparison, and a FAQ is [available here](doc/net_ip/net_ip_overview.md).
 
 ## Future Components
 
