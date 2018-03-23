@@ -1,6 +1,7 @@
 # Chops Net IP Detailed Overview
 
 A comparison of C++ socket libraries with Chops Net IP is [available here](lib_comparison.md).
+
 A FAQ is [available here](faq.md).
 
 ## Motivation
