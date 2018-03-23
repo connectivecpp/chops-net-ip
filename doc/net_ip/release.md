@@ -17,19 +17,6 @@ Release 0.2 is now (Feb 25, 2018) merged to the master branch:
 
 All tests run, although they are still limited (see next steps and constraints).
 
-## Release 0.1
-
-Release 0.1 is now (Feb 13, 2018) merged to the master branch:
-
-- All initial Chops Net IP planned functionality is implemented except TCP multicast (there may be API changes in limited areas, see next steps below).
-- All of the code builds under G++ 7.2 with "-std=c+1z" and is tested on Ubuntu 17.10.
-- All tests are built with and run under the Catch2 testing framework.
-- All code has been sanitized with "-fsanitize=address".
-
-Known problems in release 0.1:
-
-- Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the `std::vector` `resize` method on certain paths (where `start_io` is called from a different thread where most of the processing is occurring). This is being actively worked.
-- The primary author (Cliff) is not happy with the function object callback interfaces through the `basic_net_entity.start` method (state change, error reporting callbacks). There are multiple possibilities, all of which have pros and cons. The message frame and message handler function object callback API is good and solid and is not likely to change.
 
 ## Next Steps, ToDo's, Problems, and Constraints:
 
@@ -47,3 +34,18 @@ Known problems in release 0.1:
   - Investigate specific error logic on TCP connect errors - since timer support is part of a TCP connector, determine which errors are "whoah, something bad happened, bail out", and which errors are "hey, set timer, let's try again a little bit later"
   - UDP sockets are opened in the "start" method with a ipv4 flag when there is not an endpoint available (i.e. "send only" UDP entities) - this needs to be re-thought, possibly leaving the socket closed and opening it when the first send is called (interrogate the first endpoint to see if it is v4 or v6)
 
+## Older Releases
+
+### Release 0.1
+
+Release 0.1 is now (Feb 13, 2018) merged to the master branch:
+
+- All initial Chops Net IP planned functionality is implemented except TCP multicast (there may be API changes in limited areas, see next steps below).
+- All of the code builds under G++ 7.2 with "-std=c+1z" and is tested on Ubuntu 17.10.
+- All tests are built with and run under the Catch2 testing framework.
+- All code has been sanitized with "-fsanitize=address".
+
+Known problems in release 0.1:
+
+- Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the `std::vector` `resize` method on certain paths (where `start_io` is called from a different thread where most of the processing is occurring). This is being actively worked.
+- The primary author (Cliff) is not happy with the function object callback interfaces through the `basic_net_entity.start` method (state change, error reporting callbacks). There are multiple possibilities, all of which have pros and cons. The message frame and message handler function object callback API is good and solid and is not likely to change.
