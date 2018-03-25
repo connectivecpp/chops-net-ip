@@ -55,7 +55,7 @@ Even though an implicit state transition table exists within the Chops Net IP li
 Pro tip - Chops Net IP follows the implicit state model of the Networking TS and Asio (and similar) libraries where state transitions are implemented through chaining function objects on asynchronous operations. Developers familiar with implicit or explicit state transition models will be familiar with the application model defined for Chops Net IP. Chops Net IP insulates the application from the intricacies of the Networking TS API and simplifies the state transition details.
 
 
-(State transition diagram to be inserted here.)
+[](object_states_diagram.svg)
 
 ## Constraints
 
