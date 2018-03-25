@@ -8,7 +8,7 @@ This project is licensed under the terms of the MIT license.
 
 Release 0.2 is now (Feb 25, 2018) merged to the master branch.
 
-Additional release notes, as well as upcoming development plans is [available here](doc/net_ip/release.md).
+Additional release notes, as well as upcoming development plans is [available here](doc/release.md).
 
 # Chops Major Components
 
