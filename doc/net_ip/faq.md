@@ -9,7 +9,7 @@
 - Why not provide a configuration API for a table-driven network application?
   - There are many different formats and types of configurations, including dynamically generated configurations. Configuration should be a separate concern from the Chops Net IP library. Configuration parsing for common formats (e.g. JSON) may be added to the `component` directory (non-dependent convenience classes and functions) in the future.
 - Is Chops Net IP a complete wrapper over the C++ Networking TS?
-  - No. There are access points that expose Networking TS internals, and Networking TS `endpoints` are used in the Chops Net IP API. In particular, Chops Net IP provides an interface to access the underlying Networking TS socket and the application can directly set (or query) socket options (versus wrapping and exactly duplicating the functionality).
+  - No. There are access points that expose various Networking TS facilities, and Networking TS `endpoints` are used in the Chops Net IP API. In particular, Chops Net IP provides an interface to access the underlying Networking TS socket and the application can directly set (or query) socket options (versus wrapping and exactly duplicating the functionality).
 - What are some of the subtle design challenges in the implementation?
   - Passing application supplied function objects through the library layers is central to the design. Since these are passed across thread boundaries at certain points, knowing when to call `std::move` versus `std::forward<F>` is crucial (and has been the source of more than one bug).
   - The shutdown notification logic is tricky and hard to get correct, specially between the TCP connection object and the TCP acceptor and TCP connector objects.
