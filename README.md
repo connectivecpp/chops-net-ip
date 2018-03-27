@@ -171,6 +171,9 @@ Specific dependencies:
 
 - Anders Schau Knatten has a C++ blog at https://blog.knatten.org/ and is the creator and main editor of the C++ quiz site http://cppquiz.org/. One of the best overviews of lvalues, rvalues, glvalues, prvalues, and xvalues is on his blog at https://blog.knatten.org/2018/03/09/lvalues-rvalues-glvalues-prvalues-xvalues-help/.
 
+- Jonathan Muller  - testing &#252;mlaut
+
+
 # Supported Compilers and Platforms
 
 Chops has been compiled and tests run on:
