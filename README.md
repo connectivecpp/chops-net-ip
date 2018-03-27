@@ -171,7 +171,7 @@ Specific dependencies:
 
 - Anders Schau Knatten has a C++ blog at https://blog.knatten.org/ and is the creator and main editor of the C++ quiz site http://cppquiz.org/. One of the best overviews of lvalues, rvalues, glvalues, prvalues, and xvalues is on his blog at https://blog.knatten.org/2018/03/09/lvalues-rvalues-glvalues-prvalues-xvalues-help/.
 
-- Jonathan Muller  - testing &#252;mlaut
+- Jonathan M&#252;ller is very active in the C++ universe and is well known as "foonathan". His blog is at https://foonathan.net/ and his article at http://foonathan.net/blog/2018/03/26/rvalue-references-api-guidelines.html is a must read for library designers.
 
 
 # Supported Compilers and Platforms
