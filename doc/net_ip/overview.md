@@ -128,6 +128,8 @@ Most of the Chops Net IP public classes use `std::weak_ptr` references to the in
 
 ![Image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.svg)
 
+![Image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.svg)
+
 Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`.
 
 Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
