@@ -126,11 +126,13 @@ Future versions of the library may have more move semantics and less reference c
 
 Most of the Chops Net IP public classes use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have an exception thrown by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
 
+![Image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.svg)
+
 Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`.
 
 Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
 
-Mutex locking is kept to a minimum in the library. Instead, most of the internal handler classes take incoming parameters and post the data through the `io context`. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Networking TS executor and posting queue code.
+Mutex locking is kept to a minimum in the library. Alternatively, some of the internal handler classes take incoming parameters and post the data through the `io context`. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Networking TS executor and posting queue code.
 
 In the areas where data is potentially accessed concurrently, it is typically protected by `std::atomic` wraps. For example, outgoing queue statistics and `is_started` flags are all `std::atomic`. While this guarantees runtime integrity (i.e. no crashes), it does mean that statistics might have temporary inconsistency with each other. For example, an outgoing buffer might be popped from the queue exactly between an application querying and accessing two outgoing counters. This potential inconsistency is not considered to be an issue, since the queue counters are only meant for general congestion queries, not exact statistical gathering.
 
