@@ -6,48 +6,9 @@ This project is licensed under the terms of the MIT license.
 
 ## Chops Release Status
 
-Release 0.2 is now (Feb 25, 2018) merged to the master branch:
+Release 0.2 is now (Feb 25, 2018) merged to the master branch.
 
-- Significant changes have been made to the `start` method function parameters of the `basic_net_entity` class. There are two function object parameters for callbacks, the first corresponding to an IO state change, and the second to errors. This makes better conceptual sense and cleans up logical inconsistencies in the callback interface. Specifically:
-  - IO state change callbacks correspond to a TCP connection being created or destroyed, or a UDP socket being opened or closed. There is one state change callback invocation for creation or open and one state change callback invocation for destruction or close. In both cases the `basic_io_interface` is tied to a valid IO handler. This allows for simpler state management and consistent associative container usage.
-  - Error callbacks correspond to errors or shutdowns. These can happen in either the IO handling or in the higher level net entity handling. There may or may not be a valid IO handler referred to in the `basic_io_interface` object.
-- The indirect memory leaks reported by address sanitizer have been fixed.
-- A more consistent approach to exceptions and error returns is now in place for the `basic_io_interface` and `basic_net_entity` methods.
-
-- UDP multicast support is the top priority for the next feature to be implemented.
-- Strand design and support is under consideration.
-- Multiple compiler support is under way, VC++ first.
-- CMake file improvement is under way.
-
-All tests run, although they are still limited (see next steps and constraints).
-
-Release 0.1 is now (Feb 13, 2018) merged to the master branch:
-
-- All initial Chops Net IP planned functionality is implemented except TCP multicast (there may be API changes in limited areas, see next steps below).
-- All of the code builds under G++ 7.2 with "-std=c+1z" and is tested on Ubuntu 17.10.
-- All tests are built with and run under the Catch2 testing framework.
-- All code has been sanitized with "-fsanitize=address".
-
-Known problems in release 0.1:
-
-- Address sanitizer (Asan) is reporting indirect memory leaks, which appear to be going through the `std::vector` `resize` method on certain paths (where `start_io` is called from a different thread where most of the processing is occurring). This is being actively worked.
-- The primary author (Cliff) is not happy with the function object callback interfaces through the `basic_net_entity.start` method (state change, error reporting callbacks). There are multiple possibilities, all of which have pros and cons. The message frame and message handler function object callback API is good and solid and is not likely to change.
-
-### Next Steps, ToDo's, Problems, and Constraints:
-
-- This is a good point to ask for project help and collaboration, which will be greatly appreciated (for many reasons).
-- There are likely to be Chops Net IP bugs, specially relating to error and shutdown scenarios.
-- Most of the testing has been "loopback" testing on one system. This will soon expand to distributed testing among multiple systems, specially as additional operating system build and testing is performed.
-- Example code needs to be written and tested (there is a lot of code under the Catch framework, but that is not the same as stand-alone examples).
-- The code is well doxygenated, and there is a good start on the high level descriptions, but tutorials and other high-level documentation is needed. A "doxygen to markdown" procedure is needed (or an equivalent step to generate the documentation from the embedded doxygen).
-- The code only compiles on one compiler, but VC++ and Clang support (with the latest C++ standard flags) is expected soon. Compiling and building on Windows 10 is also expected to be supported at that time. Once multiple compilers and desktop environments are tested, development will expand to smaller and more esoteric environments (e.g. Raspberry Pi).
-- Attention will be devoted to performance bottlenecks as the project matures.
-- The makefiles and build infrastructure components are not yet present. A working CMakeLists.txt is needed as well as Github continuous integration procedures (e.g. Jenkins and Travis).
-- Code coverage tools have not been used on the codebase.
-- The "to do's" that are relatively small and short-term (and mentioned in code comments):
-  - Implement multicast support
-  - Investigate specific error logic on TCP connect errors - since timer support is part of a TCP connector, determine which errors are "whoah, something bad happened, bail out", and which errors are "hey, set timer, let's try again a little bit later"
-  - UDP sockets are opened in the "start" method with a ipv4 flag when there is not an endpoint available (i.e. "send only" UDP entities) - this needs to be re-thought, possibly leaving the socket closed and opening it when the first send is called (interrogate the first endpoint to see if it is v4 or v6)
+Release notes and upcoming development plans are [available here](doc/release.md).
 
 # Chops Major Components
 
@@ -88,7 +49,7 @@ Chops Net IP:
 
 Chops Net IP is designed to make it easy and efficient for an application to create hundreds (or thousands) of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net IP, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
-A detailed overview is [available here](doc/net_ip.md).
+A detailed overview, a C++ socket library comparison, and a FAQ is [available here](doc/net_ip/overview.md).
 
 ## Future Components
 
@@ -156,8 +117,6 @@ A significant number of C++ 11 features are in the implementation and API. There
 
 Using Boost libraries instead of `std::optional` (and similar C++ 17 features) is also an option, and should require minimal porting.
 
-
-
 While the main production branch of Chops will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
 
 # External Dependencies
@@ -209,6 +168,9 @@ Specific dependencies:
 - Blitz Rakete is a student software developer who has the user id of Rakete1111 on many forums and sites (including Stackoverflow). His Github site is https://github.com/Rakete1111.
 
 - Anders Schau Knatten has a C++ blog at https://blog.knatten.org/ and is the creator and main editor of the C++ quiz site http://cppquiz.org/. One of the best overviews of lvalues, rvalues, glvalues, prvalues, and xvalues is on his blog at https://blog.knatten.org/2018/03/09/lvalues-rvalues-glvalues-prvalues-xvalues-help/.
+
+- Jonathan Müller is very active in the C++ universe and is well known as "foonathan". His blog is at https://foonathan.net/ and his article at http://foonathan.net/blog/2018/03/26/rvalue-references-api-guidelines.html is a must read for library designers.
+
 
 # Supported Compilers and Platforms
 

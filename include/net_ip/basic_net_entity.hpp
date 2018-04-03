@@ -210,7 +210,8 @@ public:
  *  destructed.
  *
  *  2) The error code associated with the shutdown. There are error codes associated 
- *  with graceful shutdown as well as error codes for network or system errors.
+ *  with application initiated closes and graceful shutdown as well as error codes for 
+ *  network or system errors.
  *
  *  The @c err_func callback may be invoked in contexts other than a network IO error - for
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
@@ -218,8 +219,8 @@ public:
  *
  *  The error function object must be copyable (it will be stored in a @c std::function).
  *
- *  For uses cases that don't care about error codes, a component "don't care" function
- *  is available.
+ *  For use cases that don't care about error codes, a function named @c empty_error_func 
+ *  is available in the @c component directory.
  *
  *  @return @c false if already started, otherwise @c true.
  *

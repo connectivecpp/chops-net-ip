@@ -1,5 +1,7 @@
-cmake_minimum_required (VERSION 2.8)
-project (ChopsTests VERSION 0.8 LANGUAGES CXX)
+cmake_minimum_required (VERSION 3.1)
+project (chops)
+
+target_compile_features(chops PUBLIC cxx_std_17)
 
 include_directories("${PROJECT_BINARY_DIR}")
  
