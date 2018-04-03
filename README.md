@@ -8,7 +8,7 @@ This project is licensed under the terms of the MIT license.
 
 Release 0.2 is now (Feb 25, 2018) merged to the master branch.
 
-Additional release notes, as well as upcoming development plans is [available here](doc/release.md).
+Release notes and upcoming development plans are [available here](doc/release.md).
 
 # Chops Major Components
 
@@ -117,8 +117,6 @@ A significant number of C++ 11 features are in the implementation and API. There
 
 Using Boost libraries instead of `std::optional` (and similar C++ 17 features) is also an option, and should require minimal porting.
 
-
-
 While the main production branch of Chops will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
 
 # External Dependencies
@@ -171,7 +169,7 @@ Specific dependencies:
 
 - Anders Schau Knatten has a C++ blog at https://blog.knatten.org/ and is the creator and main editor of the C++ quiz site http://cppquiz.org/. One of the best overviews of lvalues, rvalues, glvalues, prvalues, and xvalues is on his blog at https://blog.knatten.org/2018/03/09/lvalues-rvalues-glvalues-prvalues-xvalues-help/.
 
-- Jonathan M&#252;ller is very active in the C++ universe and is well known as "foonathan". His blog is at https://foonathan.net/ and his article at http://foonathan.net/blog/2018/03/26/rvalue-references-api-guidelines.html is a must read for library designers.
+- Jonathan Müller is very active in the C++ universe and is well known as "foonathan". His blog is at https://foonathan.net/ and his article at http://foonathan.net/blog/2018/03/26/rvalue-references-api-guidelines.html is a must read for library designers.
 
 
 # Supported Compilers and Platforms
