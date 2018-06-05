@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 3.4)
 project (chops)
 
 target_compile_features(chops PUBLIC cxx_std_17)
