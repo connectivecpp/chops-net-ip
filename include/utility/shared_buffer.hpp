@@ -605,7 +605,7 @@ inline bool operator== (const mutable_shared_buffer& lhs, const const_shared_buf
 namespace std {
 
 template <>
-void swap(chops::mutable_shared_buffer& lhs, chops::mutable_shared_buffer& rhs) noexcept {
+inline void swap(chops::mutable_shared_buffer& lhs, chops::mutable_shared_buffer& rhs) noexcept {
   lhs.swap(rhs);
 }
 
