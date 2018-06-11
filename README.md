@@ -2,7 +2,7 @@
 
 The Chops Medley is a collection of C++ libraries for networking and distributed processing and simulation. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
-This project is licensed under the terms of the MIT license.
+This project is distributed under the [Boost Software License](LICENSE.txt).
 
 ## Chops Release Status
 
@@ -171,6 +171,7 @@ Specific dependencies:
 
 - Jonathan Müller is very active in the C++ universe and is well known as "foonathan". His blog is at https://foonathan.net/ and his article at http://foonathan.net/blog/2018/03/26/rvalue-references-api-guidelines.html is a must read for library designers.
 
+- Diagrams in the documentation are created using the draw.io site at https://www.draw.io/.
 
 # Supported Compilers and Platforms
 

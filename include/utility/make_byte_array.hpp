@@ -1,29 +1,32 @@
 /** @file
  *
- * @ingroup utility_module
+ *  @ingroup utility_module
  *
- * @brief A utility function that constructs a std::array of std::byte objects.
+ *  @brief A utility function that constructs a std::array of std::byte objects.
  *
- * A @c std::byte is defined as an enum and there are no implicit conversions from int
- * to an enum class. Instead of writing:
+ *  A @c std::byte is defined as an enum and there are no implicit conversions from int
+ *  to an enum class. Instead of writing:
  *
- * @code
- * std::array<std::byte, 5> arr = 
- *   { std::byte{0x36}, std::byte{0xd0}, std::byte{0x42}, std::byte{0xbe}, std::byte{0xef} };
- * @endcode
- * it is easier (specially for larger arrays) to write:
- * @code
- * auto arr = make_byte_array(0x36, 0xd0, 0x42, 0xbe, 0xef);
- * @endcode
+ *  @code
+ *  std::array<std::byte, 5> arr = 
+ *    { std::byte{0x36}, std::byte{0xd0}, std::byte{0x42}, std::byte{0xbe}, std::byte{0xef} };
+ *  @endcode
+ *  it is easier (specially for larger arrays) to write:
+ *  @code
+ *  auto arr = make_byte_array(0x36, 0xd0, 0x42, 0xbe, 0xef);
+ *  @endcode
  *
- * This code is taken from an example by Blitz Rakete from an answer on Stackoverflow 
- * (Blitz is user Rakete1111 on SO). The @c static_cast was added to eliminate
- * "narrowing" warnings (since typically integer values are used to initialize the
- * @c std::byte values, which would be a narrowing conversion).
+ *  This code is taken from an example by Blitz Rakete from an answer on Stackoverflow 
+ *  (Blitz is user Rakete1111 on SO). The @c static_cast was added to eliminate
+ *  "narrowing" warnings (since typically integer values are used to initialize the
+ *  @c std::byte values, which would be a narrowing conversion).
  * 
- * @authors Blitz Rakete, Cliff Green
- * @date 2017
- * @copyright Cliff Green, MIT License
+ *  @authors Blitz Rakete, Cliff Green
+ *
+ *  Copyright (c) 2017-2018 by Cliff Green
+ *
+ *  Distributed under the Boost Software License, Version 1.0. 
+ *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  * 
  */
 

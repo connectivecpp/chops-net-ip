@@ -1,18 +1,21 @@
 /** @file
  *
- * @ingroup utility_module
+ *  @ingroup utility_module
  *
- * @brief Convenience functions for the erase-remove idiom in C++.
+ *  @brief Convenience functions for the erase-remove idiom in C++.
  *
- * It's a common error to forget to erase an element from a container after
- * calling @c remove. This wraps the two calls together.
+ *  It's a common error to forget to erase an element from a container after
+ *  calling @c remove. This wraps the two calls together.
  *
- * @note Thanks goes to Richard Hodges. Most of this code is copied directly 
- * from a post of his on StackOverflow.
+ *  @note Thanks goes to Richard Hodges. Most of this code is copied directly 
+ *  from a post of his on StackOverflow.
  *
- * @authors Richard Hodges, Cliff Green
- * @date 2018
- * @copyright Cliff Green, MIT License
+ *  @authors Richard Hodges, Cliff Green
+ *
+ *  Copyright (c) 2017-2018 by Cliff Green
+ *
+ *  Distributed under the Boost Software License, Version 1.0. 
+ *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  * 
  */
 
