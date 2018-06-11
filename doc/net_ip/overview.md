@@ -54,7 +54,7 @@ Even though an implicit state transition table exists within the Chops Net IP li
 
 Pro tip - Chops Net IP follows the implicit state model of the Networking TS and Asio (and similar) libraries where state transitions are implemented through chaining function objects on asynchronous operations. Developers familiar with implicit or explicit state transition models will be familiar with the application model defined for Chops Net IP. Chops Net IP insulates the application from the intricacies of the Networking TS API and simplifies the state transition details.
 
-![Image of Chops Net IP objects and states](object_states_diagram.svg)
+![Image of Chops Net IP objects and states](object_states_diagram.png)
 
 ## Constraints
 
@@ -126,9 +126,9 @@ Future versions of the library may have more move semantics and less reference c
 
 Most of the Chops Net IP public classes use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have an exception thrown by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
 
-![Image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.svg)
+![Image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.png)
 
-![Image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.svg)
+![Image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.png)
 
 Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`.
 

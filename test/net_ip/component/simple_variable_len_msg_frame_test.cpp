@@ -5,8 +5,11 @@
  *  @brief Test scenario for @c make_simple_variable_len_msg_frame.
  *
  *  @author Cliff Green
- *  @date 2018
- *  @copyright Cliff Green, MIT License
+ *
+ *  Copyright (c) 2018 by Cliff Green
+ *
+ *  Distributed under the Boost Software License, Version 1.0. 
+ *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
