@@ -45,7 +45,7 @@
 #include <vector>
 #include <memory> // std::shared_ptr
 
-#include <utility> // std::move
+#include <utility> // std::move, std::swap
 #include <cstring> // std::memcpy
 
 namespace chops {
@@ -252,7 +252,10 @@ public:
 /**
  *  @brief Swap with the contents of another @c mutable_shared_buffer object.
  */
-  void swap(mutable_shared_buffer& rhs) noexcept { m_data.swap(rhs.m_data); }
+  void swap(mutable_shared_buffer& rhs) noexcept {
+    using std::swap; // swap idiom
+    swap(m_data, rhs.m_data);
+  }
 
 /**
  *  @brief Append a @c std::byte buffer to the end of the internal buffer.
@@ -597,6 +600,17 @@ inline bool operator== (const mutable_shared_buffer& lhs, const const_shared_buf
 }  
 
 } // end namespace
+
+// swap idiom
+namespace std {
+
+template <>
+void swap(chops::mutable_shared_buffer& lhs, chops::mutable_shared_buffer& rhs) noexcept {
+  lhs.swap(rhs);
+}
+
+}
+
 
 #endif
 
