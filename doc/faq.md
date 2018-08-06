@@ -1,4 +1,4 @@
-# FAQ
+# Chops Net IP FAQ
 
 - Is Chops Net IP a framework?
   - No. It is a general purpose library. There are no specific network protocols required by the library and no wire protocols added by the library. It can communicate with any TCP or UDP application. Obviously the wire protocols and communication semantics need to be appropriately implemented by the application using the Chops Net IP library.
