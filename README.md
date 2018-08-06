@@ -1,12 +1,10 @@
-# Chops - Connective Handcrafted Openwork Software Medley
+# Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
 The Chops Medley is a collection of C++ libraries for networking and distributed processing and simulation. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 This project is distributed under the [Boost Software License](LICENSE.txt).
 
 ## Chops Release Status
-
-Release 0.2 is now (Feb 25, 2018) merged to the master branch.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
@@ -68,48 +66,6 @@ A detailed overview, a C++ socket library comparison, and a FAQ is [available he
 ### Serial
 
 (More info to be added.)
-
-# Chops Minor Components
-
-## Timer
-
-### Periodic Timer
-
-The Periodic Timer class is an asynchronous periodic timer that wraps and simplifies C++ Networking Technical Standard (TS) timers when periodic callbacks are needed. The periodicity can be based on either a simple duration or on timepoints based on a duration.
-
-Asynchronous timers from the C++ Networking Technical Specification (TS) are relatively easy to use. However, there are no timers that are periodic. This class simplifies the usage, using application supplied function object callbacks. When the timer is started, the application specifies whether each callback is invoked based on a duration (e.g. one second after the last callback), or on timepoints (e.g. a callback will be invoked each second according to the clock).
-
-A detailed overview is [available here](doc/timer.md).
-
-## Queue
-
-### Wait Queue
-
-Wait Queue is a multi-reader, multi-writer FIFO queue for transferring data between threads. It is templatized on the type of data passed through the queue as well as the queue container type. Data is passed with value semantics, either by copying or by moving (as opposed to a queue that transfers data by pointer or reference). The wait queue has both wait and no-wait pop semantics, as well as simple "close" and "open" capabilities (to allow graceful shutdown or restart of thread or process communication). A fixed size container (e.g. a `ring_span`) can be used, eliminating any and all dynamic memory management (useful in embedded or performance constrained environments). Similarly, a circular buffer that only allocates on construction can be used, which eliminates dynamic memory management when pushing or popping values on or off the queue.
-
-Wait Queue is inspired by code from Anthony Williams' Concurrency in Action book (see [References Section](#references)), although heavily modified.
-
-A detailed overview is [available here](doc/queue.md).
-
-## Utilities
-
-### Shared Buffer
-
-Reference counted byte buffer classes are used within Chops Net IP, but can be useful in other contexts. These classes are based on example code inside Chris Kohlhoff's Asio library (see [References Section](#references)).
-
-### Repeat
-
-Repeat is a function template to abstract and simplify loops that repeat N times, from Vittorio Romeo (see [References Section](#references)). The C++ range based `for` doesn't directly allow N repetitions of code. Vittorio's utility fills that gap.
-
-### Erase Where
-
-A common mistake in C++ is to forget to call `std::erase` after calling `std::remove`. This utility wraps the two together allowing either a value to be directly removed from a container, or a set of values to be removed using a predicate. This utility code is copied from a StackOverflow post by Richard Hodges (see [References Section](#references)).
-
-### Make Byte Array
-
-Since `std::byte` pointers are used as a general buffer interface, a small utility function from Blitz Rakete as posted on Stackoverflow (see [References Section](#references)) is useful to simplify creation of byte buffers, specially for testing purposes.
-
-A detailed overview of the utility classes is [available here](doc/utility.md).
 
 # C++ Language Requirements and Alternatives
 
