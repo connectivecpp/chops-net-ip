@@ -2,7 +2,7 @@
 
 ## Release 0.3
 
-Release 0.3 (or 0.x) is under development. The main change will be using the future standard C++ facility `std::expected` for all public error handling returns (instead of throwing exceptions), using Martin Moene's "expected-lite" library.
+Release 0.3 (or 0.x) is under development. The main change will be using the future standard C++ facility `std::expected` for all public error handling returns (instead of throwing exceptions), using Martin Moene's `expected-lite` library.
 
 Additional platform and compiler testing will be performed, and some of the minor internal "TODOs" will be implemented.
 
