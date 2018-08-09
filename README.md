@@ -59,7 +59,7 @@ Example environments where Chops Net IP is a good fit:
 
 ## Want More?
 
-A detailed overview, a C++ socket library comparison, and a FAQ is [available here](doc/net_ip/overview.md).
+A detailed overview, a C++ socket library comparison, and a FAQ is [available here](doc/overview.md).
 
 # C++ Language Requirements and Alternatives
 
