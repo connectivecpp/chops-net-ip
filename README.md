@@ -1,18 +1,14 @@
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
-The Chops Medley is a collection of C++ libraries for networking and distributed processing and simulation. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or if not fun, it makes network programming easier and safer without significantly sacrificing performance. It is built on top of the C++ Networking Technical Standard (TS) and handles Internet Protocol (IP) communications. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 This project is distributed under the [Boost Software License](LICENSE.txt).
 
-## Chops Release Status
+## Release Status
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
-# Chops Major Components
-
-## Chops Net IP
-
-### Overview
+# Overview
 
 Chops Net IP is an asynchronous general purpose networking library layered on top of the C++ Networking Technical Standard (TS) handling Internet Protocol (IP) communications. It is designed to simplify application code for processing data on multiple simultaneous TCP connections or UDP endpoints in an asynchronous, efficient manner. Every application interaction with Chops Net IP operations is no-wait (i.e. there are no blocking methods) and all network processing operations are performed asynchronously.
 
@@ -48,24 +44,6 @@ Chops Net IP:
 Chops Net IP is designed to make it easy and efficient for an application to create hundreds (or thousands) of network connections and handle them simultaneously. In particular, there are no threads or thread pools within Chops Net IP, and it works well with only one application thread invoking the event loop (an executor, in current C++ terminology).
 
 A detailed overview, a C++ socket library comparison, and a FAQ is [available here](doc/net_ip/overview.md).
-
-## Future Components
-
-### MQTT
-
-(More info to be added.)
-
-### Discrete Event Sim
-
-(More info to be added.)
-
-### Bluetooth
-
-(More info to be added.)
-
-### Serial
-
-(More info to be added.)
 
 # C++ Language Requirements and Alternatives
 
