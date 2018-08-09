@@ -1,10 +1,16 @@
-# Chops Release Status
+# Chops Net IP Release Status
+
+## Release 0.3
+
+Release 0.3 (or 0.x) is under development. The main change will be using the (future standard) C++ facility `std::expected` for all public error handling returns (instead of throwing exceptions). In advance of C++ 20, this will be implemented with Martin Moene's `expected-lite` library.
+
+Additional platform and compiler testing will be performed, and some of the minor internal "TODOs" will be implemented.
 
 ## Release 0.2
 
-Release 0.2 is now (Feb 25, 2018) merged to the master branch:
+Release 0.2 is now (Feb 25, 2018) merged to the master branch.
 
-### Chops Net IP
+### Notes
 
 - Significant changes have been made to the `start` method function parameters of the `basic_net_entity` class. There are two function object parameters for callbacks, the first is invoked on an IO state change, and the second is invoked on errors or closes. This makes better conceptual sense and cleans up former inconsistencies in the callback interface. Specifically:
   - IO state change callbacks correspond to a TCP connection being created or destroyed, or a UDP socket being opened or closed. There is one state change callback invocation for creation or open and one state change callback invocation for destruction or close. In both cases the `basic_io_interface` is associated to a valid IO handler. This allows for simpler state management and consistent associative container usage.
@@ -20,7 +26,7 @@ Release 0.2 is now (Feb 25, 2018) merged to the master branch:
 All tests run, although they are still limited (see next steps and constraints).
 
 
-## Next Steps, ToDo's, Problems, and Constraints:
+### Next Steps, ToDo's, Problems, and Constraints:
 
 - This is a good point to ask for project help and collaboration, which will be greatly appreciated (for many reasons).
 - The code is well doxygenated, and there is a good start on the high level descriptions, but tutorials and other high-level documentation is needed. A "doxygen to markdown" procedure is needed (or an equivalent step to generate the documentation from the embedded doxygen).
@@ -29,7 +35,7 @@ All tests run, although they are still limited (see next steps and constraints).
 - The makefiles and build infrastructure components are not yet present. A working CMakeLists.txt is needed as well as Github continuous integration procedures (e.g. Jenkins and Travis).
 - Code coverage tools have not been used on the codebase.
 
-### Chops Net IP
+### Overall Comments
 
 - There are likely to be Chops Net IP bugs, specially relating to error and shutdown scenarios.
 - Most of the testing has been "loopback" testing on one system. This will soon expand to distributed testing among multiple systems, specially as additional operating system build and testing is performed.
@@ -39,9 +45,9 @@ All tests run, although they are still limited (see next steps and constraints).
   - Investigate specific error logic on TCP connect errors - since timer support is part of a TCP connector, determine which errors are "whoah, something bad happened, bail out", and which errors are "hey, set timer, let's try again a little bit later"
   - UDP sockets are opened in the "start" method with a ipv4 flag when there is not an endpoint available (i.e. "send only" UDP entities) - this needs to be re-thought, possibly leaving the socket closed and opening it when the first send is called (interrogate the first endpoint to see if it is v4 or v6)
 
-## Older Releases
+## Release 0.1
 
-### Release 0.1
+### Notes
 
 Release 0.1 is now (Feb 13, 2018) merged to the master branch:
 

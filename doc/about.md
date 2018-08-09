@@ -1,8 +1,10 @@
 # Author Notes and Contributor Information
 
-## An Author Note on Behavior Driven Development
+The primary author of Chops Net IP is Cliff Green, softwarelibre at codewrangler dot net. Cliff is a software engineer and has worked for many years writing infrastructure libraries and applications for use in networked and distributed systems, typically where high reliability or uptime is required. The domains where he has worked include wireless networks, location technology, and large scale embedded and simulation systems in the military aerospace industry. He has volunteered every year at CppCon and presented at BoostCon (before it was renamed to C++ Now).
 
->I'm dipping my toe (for the first time) into BDD (Behavior Driven Development), using the Catch 2 testing facilities. It's an interesting way to specify and test behavior of the interfaces, and so far I'm liking it.
+Cliff lives in the Seattle area and you may know him from other interests including volleyball, hiking, railroading (both the model variety and the real life big ones), music, or even parent support activities (if you are having major difficulties with your teen check out the Changes Parent Support Network, http://cpsn.org).
+
+(Fill in info on co-authors and contributors.)
 
 ## An Author Note on the Chops Name
 
@@ -19,8 +21,6 @@
 >I originally was going to use the term "openhearted" as part of the project name, but decided that "openwork" is a nice alternate form of "open source" and a little more technically consistent. The dictionary says that "openwork" is work constructed so as to show openings through its substance (such as wrought-iron openwork or embroidery, and is typically ornamental), so my use of the term is not exactly correct. I don't care, I still like the way I use it.
 
 >Even though I didn't use "openhearted" in the name, it's an aspect that I aspire to in every part of my life. I fall short, very often, but not because of lack of effort or desire.
-
->I picked "medley" because I think it is more representative than "suite", which (to me) implies a cohesive set of libraries, or possibly a framework.
 
 >I mentioned Tal earlier in this note, so here are two representative YouTube videos of her playing with Jeff Beck, who I consider one of the all time best guitarists. The first video is a blend of jazz, rock, and funk, the second is the two of them playing one of my favorite rock / jazz fusion ballads: https://www.youtube.com/watch?v=jVb-izZVCwQ, https://www.youtube.com/watch?v=blp7hPFaIfU
 
