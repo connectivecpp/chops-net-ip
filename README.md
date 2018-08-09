@@ -76,7 +76,7 @@ The libraries and API's have minimal (as possible) library dependencies (there a
 Production external dependencies:
 
 - Version 1.11 (or later) of Chris Kohlhoff's `networking-ts-impl` (Networking TS) repository is required for some components. Note that the version number is from the Asio version and may not exactly match the Networking TS version.
-- Version 0.9 (or later) of `utility-rack`, which is a repository in the same account as Chops Net IP (`shared_buffer.hpp` is required).
+- Version 0.9 (or later) of `utility-rack`, which is a repository in the same account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
 - Version 0.1 (or later) of Martin Moene's `expected-lite` library.
 
 Test external dependencies:
