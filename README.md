@@ -1,16 +1,22 @@
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
-Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or if not fun, it makes network programming easier and safer without significantly sacrificing performance. It is built on top of the C++ Networking Technical Standard (TS) and handles Internet Protocol (IP) communications. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or if not fun, it makes network programming easier and safer without significantly sacrificing performance. It is built on top of the C++ Networking Technical Standard (TS) and handles Internet Protocol (IP) communications (TCP, UDP, UDP multicast). It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 This project is distributed under the [Boost Software License](LICENSE.txt).
 
-## Release Status
+## Chops Net IP Release Status
+
+Release 1.0 is under development as of August 2018, awaiting `std::expected` error handling improvement, CMake config file completion, and additional testing under multiple compilers and platforms.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
 # Overview
 
-Chops Net IP is an asynchronous general purpose networking library layered on top of the C++ Networking Technical Standard (TS) handling Internet Protocol (IP) communications. It is designed to simplify application code for processing data on multiple simultaneous TCP connections or UDP endpoints in an asynchronous, efficient manner. Every application interaction with Chops Net IP operations is no-wait (i.e. there are no blocking methods) and all network processing operations are performed asynchronously.
+For many developers, asynchronous network programming in C++ is not easy. It is complex, with many pitfalls, and requires designing C++ code in a way that is not natural for many developers, even those with years of experience. Chops Net IP ("C"onnective "H"andcrafted "Op"enwork "S"oftware, Networking over Internet Protocol) simplifies asynchronous network programming and provides useful (and tasty!) abstractions for many types of communications patterns.
+
+Chops Net IP is layered on top of the C++ Networking Technical Standard (TS). This allows it to be portable across many compilers and platforms and when the C++ Networking TS is standardized (C++ 20? We all hope!) Chops Net IP will directly use the networking facilities of the C++ standard library.
+
+Chops Net IP simplifies application code that processes data on multiple simultaneous TCP connections or UDP endpoints. All Chops Net IP operations (from the application viewpoint) are no-wait (i.e. there are no blocking methods) and all network processing operations are performed asynchronously.
 
 Example environments where Chops Net IP is a good fit:
 
