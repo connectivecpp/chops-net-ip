@@ -84,7 +84,7 @@ Test external dependencies:
 - Version 2.1.0 (or later) of Phil Nash's Catch 2 is required for all test scenarios.
 - Version 1.65.1 (or later) of the Boost library is required in some test scenarios (`boost.endian` at minimum).
 
-See [Reference Section](#references) for additional details on the above libraries.
+See [References](doc/references.md) for additional details on the above libraries.
 
 # Supported Compilers and Platforms
 
