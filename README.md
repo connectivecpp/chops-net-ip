@@ -12,7 +12,7 @@ Release notes and upcoming development plans are [available here](doc/release.md
 
 # Overview
 
-For many developers, asynchronous network programming in C++ is not easy. It is complex, has many pitfalls, and requires designing C++ code in a way that is not natural for many developers, even those with years of experience. Chops Net IP ("C"onnective "H"andcrafted "Op"enwork "S"oftware, Networking over Internet Protocol) simplifies asynchronous network programming and provides useful (and tasty!) abstractions for many types of communication patterns.
+For many software developers, asynchronous network programming in C++ is not easy. It is complex, has many pitfalls, and requires designing C++ code in a way that is not natural, even for those with years of experience. Chops Net IP ("C"onnective "H"andcrafted "Op"enwork "S"oftware, Networking over Internet Protocol) simplifies asynchronous network programming and provides useful (and tasty!) abstractions for many types of communication patterns.
 
 Chops Net IP is layered on top of the C++ Networking Technical Standard (TS). This allows it to be portable across many compilers and platforms and when the C++ Networking TS is standardized (C++ 20? We all hope!) Chops Net IP will directly use the networking facilities of the C++ standard library.
 
@@ -63,7 +63,7 @@ A detailed overview, a C++ socket library comparison, and a FAQ is [available he
 
 # C++ Language Requirements and Alternatives
 
-C++ 17 is the primary baseline for this repository.
+C++ 17 is the primary standards baseline for this repository. There is also one future C++ facility in use (`std::expected`, for better and simpler error handling).
 
 A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use, although they tend to be relatively simple features of those standards (e.g. `std::byte`, structured bindings). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards (see [References](doc/references.md)).
 
