@@ -1,5 +1,11 @@
 # Chops Net IP FAQ
 
+- Why should I use Chops Net IP?
+  - If you need general IP (Internet Protocol) networking in your application it will make your development job easier.
+- Why not use one of the many other networking or socket libraries?
+  - Chops Net IP scales very well, using system resources efficiently. It performs well. It is portable across many compilers and platforms. It defines application customization points that few other libraries have. The abstractions it provides are flexible and useful in many domains. It provides TCP, UDP, and UDP multicasting functionality, abstracting away many of the differences between those protocols.
+- When should I not use Chops Net IP?
+  - When you need abstractions for a specific complex and widely used domain. For example, serious web server applications should consider using Boost Beast (written by Vinnie Falco) or one of the many web frameworks that are available. If absolute raw performance is needed, writing directly to the C++ Networking TS (or using a similar library) would be better, giving up the convenience and flexibility that Chops Net IP provides.
 - Is Chops Net IP a framework?
   - No. It is a general purpose library. There are no specific network protocols required by the library and no wire protocols added by the library. It can communicate with any TCP or UDP application. Obviously the wire protocols and communication semantics need to be appropriately implemented by the application using the Chops Net IP library.
 - Wny is a queue required for outgoing data?
@@ -7,7 +13,7 @@
 - What if the outgoing data queue becomes large?
   - This is an indication that the remote end is not processing data fast enough (or that data is being produced too fast). The application can query outgoing queue stats to determine if this scenario is occurring.
 - Why not provide a configuration API for a table-driven network application?
-  - There are many different formats and types of configurations, including dynamically generated configurations. Configuration should be a separate concern from the Chops Net IP library. Configuration parsing for common formats (e.g. JSON) may be added to the `component` directory (non-dependent convenience classes and functions) in the future.
+  - There are many different formats and types of configurations, including dynamically generated configurations. Configuration should be a separate concern from the Chops Net IP library. Configuration parsing for common formats (e.g. JSON) may be added to the `component` directory (non-dependent convenience classes and functions) in the future or provided in separate repositories.
 - Are there logging or tracing facilities in Chops Net IP?
   - No. There is not a logging library or design that is generic enough to work in every environment. Even general purpose logging libraries have a set of tradeoffs that are not acceptable for Chops Net IP. Instead, the approach taken by Chops Net IP is to provide customization points for every meaningful step in the networking processing flow. This allows the application complete flexibility in using whatever logging facilities it wishes.
 - Is Chops Net IP a complete wrapper over the C++ Networking TS?
