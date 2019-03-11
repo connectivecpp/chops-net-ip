@@ -18,7 +18,7 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
 #include <experimental/internet>
 #include <experimental/socket>

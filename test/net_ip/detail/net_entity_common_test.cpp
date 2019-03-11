@@ -13,7 +13,7 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
 #include <memory> // std::shared_ptr
 #include <system_error> // std::error_code

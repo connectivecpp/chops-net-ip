@@ -19,7 +19,7 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte

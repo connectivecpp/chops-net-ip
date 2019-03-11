@@ -13,7 +13,7 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
 #include <experimental/internet> // endpoint declarations
 #include <experimental/io_context>
