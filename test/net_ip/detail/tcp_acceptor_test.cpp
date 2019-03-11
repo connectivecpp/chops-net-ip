@@ -11,7 +11,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,10 +20,12 @@
 
 #include "catch2/catch.hpp"
 
-#include <experimental/internet>
-#include <experimental/socket>
-#include <experimental/buffer>
-#include <experimental/io_context>
+#include "asio/ip/tcp.hpp"
+#include "asio/write.hpp"
+#include "asio/read.hpp"
+#include "asio/buffer.hpp"
+#include "asio/io_context.hpp"
+#include "asio/connect.hpp"
 
 #include <system_error> // std::error_code
 #include <cstddef> // std::size_t
@@ -48,7 +50,6 @@
 
 // #include <iostream>
 
-using namespace std::experimental::net;
 using namespace chops::test;
 
 const char* test_port = "30434";
@@ -58,32 +59,32 @@ constexpr int NumMsgs = 50;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
-std::size_t connector_func (const vec_buf& in_msg_vec, io_context& ioc, 
+std::size_t connector_func (const vec_buf& in_msg_vec, asio::io_context& ioc, 
                             bool read_reply, int interval, chops::const_shared_buffer empty_msg) {
 
-  ip::tcp::socket sock(ioc);
-  auto endp_seq = chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
-  ip::tcp::endpoint endp = connect(sock, endp_seq);
+  asio::ip::tcp::socket sock(ioc);
+  auto endp_seq = chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+  asio::ip::tcp::endpoint endp = asio::connect(sock, endp_seq);
 
   std::size_t cnt = 0;
   chops::mutable_shared_buffer return_msg { };
   for (auto buf : in_msg_vec) {
-    write(sock, const_buffer(buf.data(), buf.size()));
+    asio::write(sock, asio::const_buffer(buf.data(), buf.size()));
     if (read_reply) {
       return_msg.resize(buf.size());
-      read(sock, mutable_buffer(return_msg.data(), return_msg.size()));
+      asio::read(sock, asio::mutable_buffer(return_msg.data(), return_msg.size()));
       ++cnt;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
-  write(sock, const_buffer(empty_msg.data(), empty_msg.size()));
+  asio::write(sock, asio::const_buffer(empty_msg.data(), empty_msg.size()));
   char c;
   std::error_code ec;
-  auto sz = read(sock, mutable_buffer(&c, 1), ec); // block on read until connection is closed
+  auto sz = asio::read(sock, asio::mutable_buffer(&c, 1), ec); // block on read until connection is closed
   return cnt;
 }
 
-std::size_t start_connector_funcs (const vec_buf& in_msg_vec, io_context& ioc,
+std::size_t start_connector_funcs (const vec_buf& in_msg_vec, asio::io_context& ioc,
                                    bool reply, int interval, int num_conns,
                                    std::string_view delim, chops::const_shared_buffer empty_msg) {
 
@@ -116,7 +117,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
       THEN ("the futures provide synchronization and data returns") {
 
         auto endp_seq = 
-            chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+            chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 

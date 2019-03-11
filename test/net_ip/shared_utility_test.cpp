@@ -29,8 +29,8 @@
 #include <memory> // std::shared_ptr, std::make_shared
 #include <future>
 
-#include <experimental/buffer>
-#include <experimental/internet>
+#include "asio/ip/udp.hpp"
+#include "asio/buffer.hpp"
 
 #include "utility/make_byte_array.hpp"
 #include "utility/shared_buffer.hpp"
@@ -124,25 +124,24 @@ void make_msg_vec_test(F&& f) {
 template <typename F>
 std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, int num_msgs) {
   using namespace chops::test;
-  using namespace std::experimental::net;
 
   auto msgs = make_msg_vec(f, pre, body_char, num_msgs);
   auto empty = make_empty_body_msg(f);
 
   auto iohp = std::make_shared<io_handler_mock>();
-  ip::udp::endpoint endp { };
+  asio::ip::udp::endpoint endp { };
 
   test_counter cnt(0);
   msg_hdlr<io_handler_mock> mh(false, cnt);
 
   int m = 0;
   for (auto i : msgs) {
-    auto ret = mh(const_buffer(i.data(), i.size()), io_interface_mock(iohp), endp);
+    auto ret = mh(asio::const_buffer(i.data(), i.size()), io_interface_mock(iohp), endp);
     if (++m % 1000 == 0) {
       REQUIRE(ret);
     }
   }
-  REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), io_interface_mock(iohp), endp));
+  REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), io_interface_mock(iohp), endp));
 
   return cnt.load();
 
@@ -178,7 +177,6 @@ SCENARIO ( "Shared Net IP test utility, make msg vec",
 SCENARIO ( "Shared Net IP test utility, decode variable len msg header",
            "[shared_utility] [decode_variable_len_msg]" ) {
   using namespace chops::test;
-  using namespace std::experimental::net;
 
   auto ba = chops::make_byte_array(0x02, 0x01); // 513 in big endian
 
@@ -189,7 +187,7 @@ SCENARIO ( "Shared Net IP test utility, decode variable len msg header",
       }
     }
     AND_WHEN ("a simple variable len msg frame is constructed") {
-      mutable_buffer buf(ba.data(), ba.size());
+      asio::mutable_buffer buf(ba.data(), ba.size());
       auto mf = chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr);
       THEN ("the returned length toggles between the decoded length and zero") {
         REQUIRE(mf(buf) == 513);
@@ -204,11 +202,10 @@ SCENARIO ( "Shared Net IP test utility, decode variable len msg header",
 SCENARIO ( "Shared Net IP test utility, msg hdlr",
            "[shared_utility] [msg_hdlr]" ) {
   using namespace chops::test;
-  using namespace std::experimental::net;
 
   auto iohp = std::make_shared<io_handler_mock>();
   REQUIRE_FALSE(iohp->send_called);
-  ip::udp::endpoint endp { };
+  asio::ip::udp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
   auto empty = make_empty_variable_len_msg();
@@ -219,9 +216,9 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
       test_counter cnt(0);
       msg_hdlr<io_handler_mock> mh(true, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
+        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
         REQUIRE(iohp->send_called);
-        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
+        REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), 
                       io_interface_mock(iohp), endp));
         REQUIRE(cnt == 1);
       }
@@ -230,8 +227,8 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
       test_counter cnt(0);
       msg_hdlr<io_handler_mock> mh(false, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
-        REQUIRE_FALSE(mh(const_buffer(empty.data(), empty.size()), 
+        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
+        REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), 
                       io_interface_mock(iohp), endp));
         REQUIRE(cnt == 1);
       }
@@ -265,7 +262,6 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
 SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
            "[shared_utility] [io_handler_mock]" ) {
   using namespace chops::test;
-  using namespace std::experimental::net;
 
   io_handler_mock io_mock { };
 
@@ -323,7 +319,7 @@ SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
     }
     AND_WHEN ("fourth start_io overload is called") {
       THEN ("the related flag is true") {
-        io_mock.start_io(ip::udp::endpoint(), 0, [] { });
+        io_mock.start_io(asio::ip::udp::endpoint(), 0, [] { });
         REQUIRE (io_mock.rd_endp_sio_called);
       }
     }
@@ -335,7 +331,7 @@ SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
     }
     AND_WHEN ("sixth start_io overload is called") {
       THEN ("the related flag is true") {
-        io_mock.start_io(ip::udp::endpoint());
+        io_mock.start_io(asio::ip::udp::endpoint());
         REQUIRE (io_mock.send_endp_sio_called);
       }
     }

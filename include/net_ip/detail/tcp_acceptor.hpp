@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -18,9 +18,8 @@
 #ifndef TCP_ACCEPTOR_HPP_INCLUDED
 #define TCP_ACCEPTOR_HPP_INCLUDED
 
-#include <experimental/internet>
-#include <experimental/io_context>
-#include <experimental/executor>
+#include "asio/ip/tcp.hpp"
+#include "asio/io_context.hpp"
 
 #include <system_error>
 #include <memory>
@@ -42,20 +41,21 @@ namespace detail {
 
 class tcp_acceptor : public std::enable_shared_from_this<tcp_acceptor> {
 public:
-  using socket_type = std::experimental::net::ip::tcp::acceptor;
-  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using socket_type = asio::ip::tcp::acceptor;
+  using endpoint_type = asio::ip::tcp::endpoint;
 
 private:
   net_entity_common<tcp_io>  m_entity_common;
+  asio::io_context&          m_io_context;
   socket_type                m_acceptor;
   std::vector<tcp_io_ptr>    m_io_handlers;
   endpoint_type              m_acceptor_endp;
   bool                       m_reuse_addr;
 
 public:
-  tcp_acceptor(std::experimental::net::io_context& ioc, const endpoint_type& endp,
+  tcp_acceptor(asio::io_context& ioc, const endpoint_type& endp,
                bool reuse_addr) :
-    m_entity_common(), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
+    m_entity_common(), m_io_context(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
     m_reuse_addr(reuse_addr) { }
 
 private:
@@ -78,8 +78,7 @@ public:
       return false;
     }
     try {
-      m_acceptor = socket_type(m_acceptor.get_executor().context(), m_acceptor_endp,
-                               m_reuse_addr);
+      m_acceptor = socket_type(m_io_context, m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
       m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
@@ -112,7 +111,7 @@ private:
 
     auto self = shared_from_this();
     m_acceptor.async_accept( [this, self] 
-            (const std::error_code& err, std::experimental::net::ip::tcp::socket sock) mutable {
+            (const std::error_code& err, asio::ip::tcp::socket sock) mutable {
         if (err) {
           m_entity_common.call_error_cb(tcp_io_ptr(), err);
           stop(); // is this the right thing to do? what are possible causes of errors?

@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -26,9 +26,10 @@
 
 #include <mutex>
 
-#include <experimental/io_context>
-#include <experimental/executor>
-#include <experimental/internet>
+#include "asio/io_context.hpp"
+#include "asio/ip/tcp.hpp"
+#include "asio/ip/udp.hpp"
+#include "asio/post.hpp"
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
@@ -116,7 +117,7 @@ namespace net {
 class net_ip {
 private:
 
-  std::experimental::net::io_context&    m_ioc;
+  asio::io_context&                      m_ioc;
 
   mutable std::mutex                     m_mutex;
   std::vector<detail::tcp_acceptor_ptr>  m_acceptors;
@@ -133,7 +134,7 @@ public:
  *
  *  @param ioc IO context for asynchronous operations.
  */
-  explicit net_ip(std::experimental::net::io_context& ioc) :
+  explicit net_ip(asio::io_context& ioc) :
     m_ioc(ioc), m_acceptors(), m_connectors(), m_udp_entities() { }
 
 private:
@@ -171,7 +172,7 @@ public:
   tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port_or_service, 
                                              std::string_view listen_intf = "",
                                              bool reuse_addr = true) {
-    endpoints_resolver<std::experimental::net::ip::tcp> resolver(m_ioc);
+    endpoints_resolver<asio::ip::tcp> resolver(m_ioc);
     auto results = resolver.make_endpoints(true, listen_intf, local_port_or_service);
     return make_tcp_acceptor(results.cbegin()->endpoint(), reuse_addr);
   }
@@ -183,7 +184,7 @@ public:
  *  such as directly specifying ipV4 or ipV6 in name resolving, or directly creating the endpoint 
  *  without using name resolving.
  *
- *  @param endp A @c std::experimental::net::ip::tcp::endpoint that the acceptor uses for the local
+ *  @param endp A @c asio::ip::tcp::endpoint that the acceptor uses for the local
  *  bind (when @c start is called).
  *
  *  @param reuse_addr If @c true (default), the @c reuse_address socket option is set upon 
@@ -192,10 +193,10 @@ public:
  *  @return @c tcp_acceptor_net_entity object.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (const std::experimental::net::ip::tcp::endpoint& endp,
+  tcp_acceptor_net_entity make_tcp_acceptor (const asio::ip::tcp::endpoint& endp,
                                              bool reuse_addr = true) {
     auto p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
-//    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
+//    asio::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     lg g(m_mutex);
     m_acceptors.push_back(p);
     return tcp_acceptor_net_entity(p);
@@ -236,7 +237,7 @@ public:
 
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
                                                                   remote_host, reconn_time);
-//    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+//    asio::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     lg g(m_mutex);
     m_connectors.push_back(p);
     return tcp_connector_net_entity(p);
@@ -258,7 +259,7 @@ public:
  *
  *  This allows flexibility in creating the remote endpoints for the connector to use.
  *
- *  @param beg A begin iterator to a sequence of remote @c std::experimental::net::ip::tcp::endpoint
+ *  @param beg A begin iterator to a sequence of remote @c asio::ip::tcp::endpoint
  *  objects.
  *
  *  @param end An end iterator to the sequence of endpoints.
@@ -274,7 +275,7 @@ public:
                                                std::chrono::milliseconds reconn_time = 
                                                  std::chrono::milliseconds { } ) {
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
-//    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
+//    asio::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     lg g(m_mutex);
     m_connectors.push_back(p);
     return tcp_connector_net_entity(p);
@@ -283,7 +284,7 @@ public:
 /**
  *  @brief Create a TCP connector @c net_entity using a single remote endpoint.
  *
- *  @param endp Remote @c std::experimental::net::ip::tcp::endpoint to use for the connect
+ *  @param endp Remote @c asio::ip::tcp::endpoint to use for the connect
  *  attempt.
  *
  *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
@@ -292,10 +293,10 @@ public:
  *  @return @c tcp_connector_net_entity object.
  *
  */
-  tcp_connector_net_entity make_tcp_connector (const std::experimental::net::ip::tcp::endpoint& endp, 
+  tcp_connector_net_entity make_tcp_connector (const asio::ip::tcp::endpoint& endp, 
                                                std::chrono::milliseconds reconn_time = 
                                                  std::chrono::milliseconds { } ) {
-    std::vector<std::experimental::net::ip::tcp::endpoint> vec { endp };
+    std::vector<asio::ip::tcp::endpoint> vec { endp };
     return make_tcp_connector(vec.cbegin(), vec.cend(), reconn_time);
   }
 
@@ -328,7 +329,7 @@ public:
  */
   udp_net_entity make_udp_unicast (std::string_view local_port_or_service, 
                                    std::string_view local_intf = "") {
-    endpoints_resolver<std::experimental::net::ip::udp> resolver(m_ioc);
+    endpoints_resolver<asio::ip::udp> resolver(m_ioc);
     auto results = resolver.make_endpoints(true, local_intf, local_port_or_service);
     return make_udp_unicast(results.cbegin()->endpoint());
   }
@@ -340,15 +341,15 @@ public:
  *  This @c make method allows flexibility in creating an endpoint for the UDP unicast
  *  @c net_entity to use.
  *
- *  @param endp A @c std::experimental::net::ip::udp::endpoint used for the local bind 
+ *  @param endp A @c asio::ip::udp::endpoint used for the local bind 
  *  (when @c start is called).
  *
  *  @return @c udp_net_entity object.
  *
  */
-  udp_net_entity make_udp_unicast (const std::experimental::net::ip::udp::endpoint& endp) {
+  udp_net_entity make_udp_unicast (const asio::ip::udp::endpoint& endp) {
     auto p = std::make_shared<detail::udp_entity_io>(m_ioc, endp);
-    std::experimental::net::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
+    asio::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
     return udp_net_entity(p);
   }
 
@@ -361,7 +362,7 @@ public:
  *
  */
   udp_net_entity make_udp_sender () {
-    return make_udp_unicast(std::experimental::net::ip::udp::endpoint());
+    return make_udp_unicast(asio::ip::udp::endpoint());
   }
 
 // TODO: multicast make methods 
@@ -377,7 +378,7 @@ public:
  *
  */
   void remove(tcp_acceptor_net_entity acc) {
-//    std::experimental::net::post(m_ioc.get_executor(), 
+//    asio::post(m_ioc.get_executor(), 
 //          [acc, this] () mutable {
 //        chops::erase_where(m_acceptors, acc.get_shared_ptr());
 //      }
@@ -397,7 +398,7 @@ public:
  *
  */
   void remove(tcp_connector_net_entity conn) {
-//    std::experimental::net::post(m_ioc.get_executor(), 
+//    asio::post(m_ioc.get_executor(), 
 //          [conn, this] () mutable {
 //        chops::erase_where(m_connectors, conn.get_shared_ptr());
 //      }
@@ -416,7 +417,7 @@ public:
  *
  */
   void remove(udp_net_entity udp_ent) {
-//    std::experimental::net::post(m_ioc.get_executor(), 
+//    asio::post(m_ioc.get_executor(), 
 //          [udp_ent, this] () mutable {
 //        chops::erase_where(m_udp_entities, udp_ent.get_shared_ptr());
 //      }
@@ -433,7 +434,7 @@ public:
  *
  */
   void remove_all() {
-//    std::experimental::net::post(m_ioc.get_executor(), [this] () {
+//    asio::post(m_ioc.get_executor(), [this] () {
 //        m_udp_entities.clear();
 //        m_connectors.clear();
 //        m_acceptors.clear();
@@ -452,7 +453,7 @@ public:
  *
  */
   void stop_all() {
-//    std::experimental::net::post(m_ioc.get_executor(), [this] () {
+//    asio::post(m_ioc.get_executor(), [this] () {
 //        for (auto i : m_udp_entities) { i->stop(); }
 //        for (auto i : m_connectors) { i->stop(); }
 //        for (auto i : m_acceptors) { i->stop(); }

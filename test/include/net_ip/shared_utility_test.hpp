@@ -44,8 +44,9 @@
 #include <cassert>
 #include <limits>
 
-#include <experimental/buffer>
-#include <experimental/internet> // ip::udp::endpoint
+#include "asio/buffer.hpp"
+#include "asio/ip/udp.hpp" // ip::udp::endpoint
+#include "asio/ip/address.hpp" // make_address
 
 #include <boost/endian/conversion.hpp>
 
@@ -122,7 +123,7 @@ using test_counter = std::atomic_size_t;
 template <typename IOT>
 struct msg_hdlr {
   using endp_type = typename IOT::endpoint_type;
-  using const_buf = std::experimental::net::const_buffer;
+  using const_buf = asio::const_buffer;
 
   bool               reply;
   test_counter&      cnt;
@@ -166,7 +167,7 @@ inline bool udp_start_io (chops::net::udp_io_interface io, bool reply, test_coun
 }
 
 inline bool udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
-                          const std::experimental::net::ip::udp::endpoint& remote_endp) {
+                          const asio::ip::udp::endpoint& remote_endp) {
   if (receiving) {
     return io.start_io(remote_endp, udp_max_buf_size, udp_msg_hdlr(false, cnt));
   }
@@ -175,7 +176,7 @@ inline bool udp_start_io (chops::net::udp_io_interface io, bool receiving, test_
 
 struct io_handler_mock {
   using socket_type = int;
-  using endpoint_type = std::experimental::net::ip::udp::endpoint;
+  using endpoint_type = asio::ip::udp::endpoint;
 
   socket_type sock = 3;
   bool started = false;
@@ -291,8 +292,8 @@ struct net_entity_mock {
 inline void io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
 inline void err_func_mock(io_interface_mock, std::error_code) { }
 
-std::experimental::net::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
-  return std::experimental::net::ip::udp::endpoint(std::experimental::net::ip::make_address(addr),
+asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
+  return asio::ip::udp::endpoint(asio::ip::make_address(addr),
                            static_cast<unsigned short>(port_num));
 }
 

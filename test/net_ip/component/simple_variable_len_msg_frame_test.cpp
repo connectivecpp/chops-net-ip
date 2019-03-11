@@ -15,14 +15,12 @@
 
 #include "catch2/catch.hpp"
 
-#include <experimental/buffer>
+#include "asio/buffer.hpp"
 
 #include <cstddef> // std::size_t, std::byte
 
 #include "utility/make_byte_array.hpp"
 #include "net_ip/component/simple_variable_len_msg_frame.hpp"
-
-using namespace std::experimental::net;
 
 std::size_t decoder_func (const std::byte* buf, std::size_t sz) {
   REQUIRE (sz == 1);
@@ -42,13 +40,13 @@ SCENARIO ( "Simple variable len message frame test",
     WHEN ("it is called multiple times") {
       THEN ("the return value toggles between the decoder supplied number and zero") {
         std::size_t idx = 0;
-        mutable_buffer mbuf;
+        asio::mutable_buffer mbuf;
         while (idx < msgs.size()) {
-          mbuf = mutable_buffer(msgs.data() + idx, 1);
+          mbuf = asio::mutable_buffer(msgs.data() + idx, 1);
           auto ret = mf(mbuf);
           INFO("Return from msg frame: " << ret);
           idx += ret;
-          mbuf = mutable_buffer(msgs.data() + idx, ret);
+          mbuf = asio::mutable_buffer(msgs.data() + idx, ret);
           ret = mf(mbuf);
           REQUIRE (ret == 0);
           idx += 1;

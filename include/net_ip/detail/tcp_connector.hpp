@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -18,11 +18,11 @@
 #ifndef TCP_CONNECTOR_HPP_INCLUDED
 #define TCP_CONNECTOR_HPP_INCLUDED
 
-#include <experimental/internet>
-#include <experimental/socket>
-#include <experimental/io_context>
-#include <experimental/executor>
-#include <experimental/timer>
+#include "asio/ip/tcp.hpp"
+#include "asio/connect.hpp"
+#include "asio/io_context.hpp"
+#include "asio/ip/basic_resolver.hpp"
+#include "asio/steady_timer.hpp"
 
 #include <system_error>
 #include <vector>
@@ -45,26 +45,25 @@ namespace detail {
 
 class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
 public:
-  using socket_type = std::experimental::net::ip::tcp::socket;
-  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using socket_type = asio::ip::tcp::socket;
+  using endpoint_type = asio::ip::tcp::endpoint;
 
 private:
-  using resolver_type = chops::net::endpoints_resolver<std::experimental::net::ip::tcp>;
-  using resolver_results = 
-    std::experimental::net::ip::basic_resolver_results<std::experimental::net::ip::tcp>;
+  using resolver_type = chops::net::endpoints_resolver<asio::ip::tcp>;
+  using resolver_results = asio::ip::basic_resolver_results<asio::ip::tcp>;
   using endpoints = std::vector<endpoint_type>;
   using endpoints_iter = endpoints::const_iterator;
 
 private:
-  net_entity_common<tcp_io>             m_entity_common;
-  socket_type                           m_socket;
-  tcp_io_ptr                            m_io_handler;
-  resolver_type                         m_resolver;
-  endpoints                             m_endpoints;
-  std::experimental::net::steady_timer  m_timer;
-  std::chrono::milliseconds             m_reconn_time;
-  std::string                           m_remote_host;
-  std::string                           m_remote_port;
+  net_entity_common<tcp_io>     m_entity_common;
+  socket_type                   m_socket;
+  tcp_io_ptr                    m_io_handler;
+  resolver_type                 m_resolver;
+  endpoints                     m_endpoints;
+  asio::steady_timer            m_timer;
+  std::chrono::milliseconds     m_reconn_time;
+  std::string                   m_remote_host;
+  std::string                   m_remote_port;
 
   // TODO: currently this flag is needed to distinguish whether a connect
   // handler can't connect or whether the operation is cancelled and it's
@@ -73,7 +72,7 @@ private:
 
 public:
   template <typename Iter>
-  tcp_connector(std::experimental::net::io_context& ioc, 
+  tcp_connector(asio::io_context& ioc, 
                 Iter beg, Iter end, std::chrono::milliseconds reconn_time) :
       m_entity_common(),
       m_socket(ioc),
@@ -87,7 +86,7 @@ public:
       m_shutting_down(false)
     { }
 
-  tcp_connector(std::experimental::net::io_context& ioc,
+  tcp_connector(asio::io_context& ioc,
                 std::string_view remote_port, std::string_view remote_host, 
                 std::chrono::milliseconds reconn_time) :
       m_entity_common(),
@@ -182,7 +181,7 @@ private:
 
   void start_connect() {
     auto self = shared_from_this();
-    std::experimental::net::async_connect(m_socket, m_endpoints.cbegin(), m_endpoints.cend(),
+    asio::async_connect(m_socket, m_endpoints.cbegin(), m_endpoints.cend(),
           [this, self] 
                 (const std::error_code& err, endpoints_iter iter) mutable {
         handle_connect(err, iter);

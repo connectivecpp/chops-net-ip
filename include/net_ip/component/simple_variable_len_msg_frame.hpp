@@ -15,7 +15,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -27,7 +27,7 @@
 
 #include <cstddef> // std::size_t, std::byte
 
-#include <experimental/buffer>
+#include "asio/buffer.hpp"
 
 namespace chops {
 namespace net {
@@ -59,7 +59,7 @@ using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
 inline auto make_simple_variable_len_msg_frame(hdr_decoder_func func) {
   bool hdr_processed = false;
   return [hdr_processed, func] 
-      (std::experimental::net::mutable_buffer buf) mutable -> std::size_t {
+      (asio::mutable_buffer buf) mutable -> std::size_t {
     return hdr_processed ? 
         (hdr_processed = false, 0) :
         (hdr_processed = true, func(static_cast<const std::byte*>(buf.data()), buf.size()));

@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -18,10 +18,10 @@
 #ifndef UDP_ENTITY_IO_HPP_INCLUDED
 #define UDP_ENTITY_IO_HPP_INCLUDED
 
-#include <experimental/executor>
-#include <experimental/io_context>
-#include <experimental/internet>
-#include <experimental/buffer>
+#include "asio/io_context.hpp"
+#include "asio/executor.hpp"
+#include "asio/ip/udp.hpp"
+#include "asio/buffer.hpp"
 
 #include <memory> // std::shared_ptr, std::enable_shared_from_this
 #include <system_error>
@@ -44,8 +44,8 @@ namespace detail {
 
 class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
-  using socket_type = std::experimental::net::ip::udp::socket;
-  using endpoint_type = std::experimental::net::ip::udp::endpoint;
+  using socket_type = asio::ip::udp::socket;
+  using endpoint_type = asio::ip::udp::endpoint;
 
 private:
   using byte_vec = chops::mutable_shared_buffer::byte_vec;
@@ -54,6 +54,7 @@ private:
 
   io_common<udp_entity_io>          m_io_common;
   net_entity_common<udp_entity_io>  m_entity_common;
+  asio::io_context&                 m_io_context;
   socket_type                       m_socket;
   endpoint_type                     m_local_endp;
   endpoint_type                     m_default_dest_endp;
@@ -66,9 +67,9 @@ private:
   endpoint_type                     m_sender_endp;
 
 public:
-  udp_entity_io(std::experimental::net::io_context& ioc, 
+  udp_entity_io(asio::io_context& ioc, 
                 const endpoint_type& local_endp) noexcept : 
-    m_io_common(), m_entity_common(), 
+    m_io_common(), m_entity_common(), m_io_context(ioc),
     m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
     m_byte_vec(), m_max_size(0), m_sender_endp() { }
 
@@ -104,10 +105,10 @@ public:
       // assume default constructed endpoints compare equal
       if (m_local_endp == endpoint_type()) {
 // TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
-        m_socket.open(std::experimental::net::ip::udp::v4());
+        m_socket.open(asio::ip::udp::v4());
       }
       else {
-        m_socket = socket_type(m_socket.get_executor().context(), m_local_endp);
+        m_socket = socket_type(m_io_context, m_local_endp);
       }
     }
     catch (const std::system_error& se) {
@@ -204,7 +205,7 @@ private:
     auto self { shared_from_this() };
     m_byte_vec.resize(m_max_size);
     m_socket.async_receive_from(
-              std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
+              asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
               m_sender_endp,
                 [this, self, mh = std::move(msg_hdlr)] 
                   (const std::error_code& err, std::size_t nb) mutable {
@@ -236,7 +237,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     stop();
     return;
   }
-  if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes), 
+  if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
                 basic_io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
@@ -248,7 +249,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
 
 inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const endpoint_type& endp) {
   auto self { shared_from_this() };
-  m_socket.async_send_to(std::experimental::net::const_buffer(buf.data(), buf.size()), endp,
+  m_socket.async_send_to(asio::const_buffer(buf.data(), buf.size()), endp,
             [this, self] (const std::error_code& err, std::size_t nb) {
       handle_write(err, nb);
     }

@@ -228,7 +228,7 @@ public:
  *
  *  @param sz Size of buffer.
  *
- *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
+ *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
@@ -244,7 +244,7 @@ public:
  *
  *  @param buf @c chops::const_shared_buffer containing data.
  *
- *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
+ *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
@@ -265,7 +265,7 @@ public:
  *
  *  @param buf @c chops::mutable_shared_buffer containing data.
  *
- *  @param endp Destination @c std::experimental::net::ip::udp::endpoint for the buffer.
+ *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
@@ -298,9 +298,9 @@ public:
  *  the callback is:
  *
  *  @code
- *    bool (std::experimental::net::const_buffer,
+ *    bool (asio::const_buffer,
  *          chops::net::tcp_io_interface, // basic_io_interface<tcp_io>
- *          std::experimental::net::ip::tcp::endpoint);
+ *          asio::ip::tcp::endpoint);
  *  @endcode
  *
  *  The buffer (first parameter) always references a full message. The 
@@ -318,7 +318,7 @@ public:
  *  the callback is:
  *
  *  @code
- *    std::size_t (std::experimental::net::mutable_buffer);
+ *    std::size_t (asio::mutable_buffer);
  *  @endcode
  *
  *  Each time the message frame callback is called by the Chops Net IP IO handler, the 
@@ -370,9 +370,9 @@ public:
  *  the callback is:
  *
  *  @code
- *    bool (std::experimental::net::const_buffer,
+ *    bool (asio::const_buffer,
  *          chops::net::tcp_io_interface, // basic_io_interface<tcp_io>
- *          std::experimental::net::ip::tcp::endpoint);
+ *          asio::ip::tcp::endpoint);
  *  @endcode
  *
  *  The buffer points to the complete message including the delimiter sequence. The 
@@ -418,13 +418,13 @@ public:
  *
  *  @code
  *    // TCP io:
- *    bool (std::experimental::net::const_buffer,
+ *    bool (asio::const_buffer,
  *          chops::net::tcp_io_interface, // basic_io_interface<tcp_io>
- *          std::experimental::net::ip::tcp::endpoint);
+ *          asio::ip::tcp::endpoint);
  *    // UDP io:
- *    bool (std::experimental::net::const_buffer,
+ *    bool (asio::const_buffer,
  *          chops::net::udp_io_interface, // basic_io_interface<udp_io>
- *          std::experimental::net::ip::udp::endpoint);
+ *          asio::ip::udp::endpoint);
  *  @endcode
  *
  *  Returning @c false from the message handler callback causes the TCP connection or UDP socket to 
@@ -461,7 +461,7 @@ public:
  *
  *  Sends (writes) are enabled after this call.
  *
- *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *  @param endp Default destination @c asio::ip::udp::endpoint.
  *
  *  @param max_size Maximum UDP datagram size.
  *
@@ -469,9 +469,9 @@ public:
  *  the callback is:
  *
  *  @code
- *    bool (std::experimental::net::const_buffer,
+ *    bool (asio::const_buffer,
  *          chops::net::udp_io_interface, // basic_io_interface<udp_io>
- *          std::experimental::net::ip::udp::endpoint);
+ *          asio::ip::udp::endpoint);
  *  @endcode
  *
  *  Returning @c false from the message handler callback causes the UDP socket to 
@@ -530,7 +530,7 @@ public:
  *  This method is used to enable IO processing where only sends are needed (and no 
  *  incoming message handling).
  *
- *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *  @param endp Default destination @c asio::ip::udp::endpoint.
  *
  *  @return @c false if already started, otherwise @c true.
  *

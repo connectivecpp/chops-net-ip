@@ -20,8 +20,8 @@
 #ifndef ENDPOINTS_RESOLVER_HPP_INCLUDED
 #define ENDPOINTS_RESOLVER_HPP_INCLUDED
 
-#include <experimental/internet>
-#include <experimental/io_context>
+#include "asio/ip/basic_resolver.hpp"
+#include "asio/io_context.hpp"
 
 #include <string_view>
 #include <string>
@@ -54,17 +54,17 @@ namespace net {
 template <typename Protocol>
 class endpoints_resolver {
 private:
-  std::experimental::net::ip::basic_resolver<Protocol>  m_resolver;
+  asio::ip::basic_resolver<Protocol>  m_resolver;
 
 public:
 
 /**
  *  @brief Construct with an @c io_context.
  *
- *  @param ioc @c std::experimental::net::io_context used in the resolver.
+ *  @param ioc @c asio::io_context used in the resolver.
  *
  */
-  explicit endpoints_resolver(std::experimental::net::io_context& ioc) : m_resolver(ioc) { }
+  explicit endpoints_resolver(asio::io_context& ioc) : m_resolver(ioc) { }
 
 /**
  *  @brief Create a sequence of endpoints and return them in a function object callback.
@@ -85,11 +85,10 @@ public:
  *  signature of the callback:
  *
  *  @code
- *    using namespace std::experimental::net;
  *    // TCP:
- *    void (std::error_code err, ip::basic_resolver_results<ip::tcp>);
+ *    void (std::error_code err, asio::ip::basic_resolver_results<asio::ip::tcp>);
  *    // UDP:
- *    void (std::error_code err, ip::basic_resolver_results<ip::udp>);
+ *    void (std::error_code err, asio::ip::basic_resolver_results<asio::ip::udp>);
  *  @endcode
  *
  *  If an error occurs, the error code is set accordingly. 
@@ -99,14 +98,12 @@ public:
   void make_endpoints(bool local, std::string_view host_or_intf_name, 
                       std::string_view service_or_port, F&& func) {
 
-    using namespace std::experimental::net;
-
     // Note - std::move used instead of std::forward since an explicit move or copy
     // is needed to prevent worry about dangling references
     if (local) {
       m_resolver.async_resolve(std::string(host_or_intf_name), std::string(service_or_port), 
-                        ip::resolver_base::flags(ip::resolver_base::passive | 
-                                                 ip::resolver_base::address_configured),
+                        asio::ip::resolver_base::flags(asio::ip::resolver_base::passive | 
+                                                 asio::ip::resolver_base::address_configured),
                         std::move(func));
     }
     else {
@@ -131,19 +128,18 @@ public:
  *  except that a container of endpoints is returned instead of a function object callback 
  *  invocation happening at a later point.
  *
- *  @return @c std::experimental::net::ip::basic_resolver_results<Protocol>, where Protocol
- *  is either @c std::experimental::net::ip::tcp or @c std::experimental::net::ip::udp.
+ *  @return @c asio::ip::basic_resolver_results<Protocol>, where Protocol
+ *  is either @c asio::ip::tcp or @c asio::ip::udp.
  *
  *  @throw @c std::system_error on failure.
  */
 
   auto make_endpoints(bool local, std::string_view host_or_intf_name, std::string_view service_or_port) {
 
-    using namespace std::experimental::net;
-
     if (local) {
       return m_resolver.resolve(std::string(host_or_intf_name), std::string(service_or_port),
-          ip::resolver_base::flags(ip::resolver_base::passive | ip::resolver_base::address_configured));
+          asio::ip::resolver_base::flags(asio::ip::resolver_base::passive | 
+                                         asio::ip::resolver_base::address_configured));
     }
     return m_resolver.resolve(std::string(host_or_intf_name), std::string(service_or_port));
   }

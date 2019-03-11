@@ -24,8 +24,9 @@
 #include <exception>
 #include <iostream>
 
-#include <experimental/io_context>
-#include <experimental/executor>
+#include "asio/io_context.hpp"
+#include "asio/executor.hpp"
+#include "asio/executor_work_guard.hpp"
 
 namespace chops {
 namespace net {
@@ -39,20 +40,19 @@ namespace net {
  */
 class worker {
 private:
-  std::experimental::net::io_context  m_ioc;
-  std::experimental::net::executor_work_guard<std::experimental::net::io_context::executor_type> 
-                                      m_wg;
-  std::thread                         m_run_thr;
+  asio::io_context                                           m_ioc;
+  asio::executor_work_guard<asio::io_context::executor_type> m_wg;
+  std::thread                                                m_run_thr;
 
 public:
-  worker() : m_ioc(), m_wg(std::experimental::net::make_work_guard(m_ioc)), m_run_thr() { }
+  worker() : m_ioc(), m_wg(asio::make_work_guard(m_ioc)), m_run_thr() { }
 
 /**
  *  @brief Provide access to the @c io_context.
  *
- *  @return Reference to a @c std::experimental::net::io_context.
+ *  @return Reference to a @c asio::io_context.
  */
-  std::experimental::net::io_context& get_io_context() { return m_ioc; }
+  asio::io_context& get_io_context() { return m_ioc; }
 
 /**
  *  @brief Start the thread that invokes the underlying asynchronous
