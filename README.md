@@ -1,12 +1,12 @@
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
-Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer without significantly sacrificing performance. It is built on top of the C++ Networking Technical Standard (TS) and handles Internet Protocol (IP) communications (TCP, UDP, UDP multicast). It is written using modern C++ design idioms and the latest (2017) C++ standard.
+Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer without significantly sacrificing performance. It is built on top of the Asio asynchronous networking library and handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 This project is distributed under the [Boost Software License](LICENSE.txt).
 
 ## Chops Net IP Release Status
 
-Release 1.0 is under development as of August 2018, awaiting `std::expected` (proposed for C++ 20) error handling improvement, CMake config file completion, and additional testing under multiple compilers and platforms.
+Release 1.0 is under development as of March 2019, awaiting `std::expected` (proposed for C++ 20) error handling improvement, CMake config file completion, and additional testing under multiple compilers and platforms.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
@@ -14,7 +14,7 @@ Release notes and upcoming development plans are [available here](doc/release.md
 
 For many software developers, asynchronous network programming in C++ is not easy. It is complex, has many pitfalls, and requires designing C++ code in a way that is not natural, even for those with years of experience. Chops Net IP ("C"onnective "H"andcrafted "Op"enwork "S"oftware, Networking over Internet Protocol) simplifies asynchronous network programming and provides useful (and tasty!) abstractions for many types of communication patterns.
 
-Chops Net IP is layered on top of the C++ Networking Technical Standard (TS). This allows it to be portable across many compilers and platforms and when the C++ Networking TS is standardized (C++ 20? We all hope!) Chops Net IP will directly use the networking facilities of the C++ standard library.
+Chops Net IP is layered on top of Chris Kohlhoff's Asio library (see [References](doc/references.md)) allowing it to be portable across many compilers and platforms. When the C++ Networking TS is standardized (possibly C++ 23 but more likely C++ 26) Chops Net IP will directly use the networking facilities of the C++ standard library.
 
 Chops Net IP simplifies application code that processes data on multiple simultaneous TCP connections or UDP endpoints. All Chops Net IP operations (from the application viewpoint) are no-wait (i.e. there are no blocking methods) and all network processing operations are performed asynchronously.
 
@@ -75,8 +75,8 @@ The libraries and API's have minimal (as possible) library dependencies (there a
 
 Production external dependencies:
 
-- Version 1.11 (or later) of Chris Kohlhoff's `networking-ts-impl` (Networking TS) repository is required for some components. Note that the version number is from the Asio version and may not exactly match the Networking TS version.
-- Version 0.9 (or later) of `utility-rack`, which is a repository in the same account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
+- Version 1.12 (or later) of Chris Kohlhoff's `asio` repository is required. Note that it is the stand-alone library, not the Boost Asio implementation.
+- Version 0.9 (or later) of `utility-rack`, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
 - Version 0.1 (or later) of Martin Moene's `expected-lite` library.
 
 Test external dependencies:
@@ -103,9 +103,7 @@ See [References](doc/references.md) for details on dependencies and inspirations
 
 # About
 
-The primary author of Chops is Cliff Green, softwarelibre at codewrangler dot net.
-
-Co-authors include ...
+The primary author of Chops is Cliff Green, cliffg at connectivecpp dot com. The primary co-author is Thurman Gillespy, thurmang at connectivecpp dot com.
 
 Contributors include ...
 

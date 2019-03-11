@@ -28,7 +28,6 @@ All tests run, although they are still limited (see next steps and constraints).
 
 ### Next Steps, ToDo's, Problems, and Constraints:
 
-- This is a good point to ask for project help and collaboration, which will be greatly appreciated (for many reasons).
 - The code is well doxygenated, and there is a good start on the high level descriptions, but tutorials and other high-level documentation is needed. A "doxygen to markdown" procedure is needed (or an equivalent step to generate the documentation from the embedded doxygen).
 - The code only compiles on one compiler, but VC++ and Clang support (with the latest C++ standard flags) is expected soon. Compiling and building on Windows 10 is also expected to be supported at that time. Once multiple compilers and desktop environments are tested, development will expand to smaller and more esoteric environments (e.g. Raspberry Pi).
 - Attention will be devoted to performance bottlenecks as the project matures.

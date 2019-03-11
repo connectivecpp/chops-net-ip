@@ -17,7 +17,7 @@ The secondary criteria includes:
 
 ## Asio and C++ Networking TS
 
-Both Asio and the C++ Networking TS provide the foundation and underlying asynchronous model for Chops Net IP. Chops Net IP is layered on top of the C++ Networking TS and could easily be ported to use Asio. Chops Net IP provides usage and abstraction advantages as outlined in the overview documentation.
+Asio provides the foundation and underlying asynchronous model for Chops Net IP. The C++ Networking TS is still in development, awaiting standardization and modularization of core components such as executors. Chops Net IP provides usage and abstraction advantages as outlined in the overview documentation.
 
 ## ACE
 
