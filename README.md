@@ -1,6 +1,10 @@
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
-Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer without significantly sacrificing performance. It is built on top of the Asio asynchronous networking library and handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming Asio, easier and safer, without significantly sacrificing performance. It is layered on top of the Asio asynchronous networking library, which is not an easy library to use correctly. It handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+
+Chops Net IP is not like any other high-level, general purpose C++ socket library.
+
+# License
 
 This project is distributed under the [Boost Software License](LICENSE.txt).
 
