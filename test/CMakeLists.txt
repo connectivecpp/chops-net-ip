@@ -16,24 +16,24 @@ set ( tester_suffix "_runner" )
 set ( main_test_lib_name "main_test_lib" )
 
 set ( test_sources 
-    "${test_source_dir}/net_ip/basic_io_interface_test.cpp"
-    "${test_source_dir}/net_ip/basic_net_entity_test.cpp"
-    "${test_source_dir}/net_ip/endpoints_resolver_test.cpp"
-    "${test_source_dir}/net_ip/net_ip_error_test.cpp"
-    "${test_source_dir}/net_ip/net_ip_test.cpp"
-    "${test_source_dir}/net_ip/shared_utility_func_test.cpp"
-    "${test_source_dir}/net_ip/shared_utility_test.cpp"
-    "${test_source_dir}/net_ip/component/error_delivery_test.cpp"
-    "${test_source_dir}/net_ip/component/io_interface_delivery_test.cpp"
-    "${test_source_dir}/net_ip/component/send_to_all_test.cpp"
-    "${test_source_dir}/net_ip/component/simple_variable_len_msg_frame_test.cpp"
     "${test_source_dir}/net_ip/detail/io_common_test.cpp"
     "${test_source_dir}/net_ip/detail/net_entity_common_test.cpp"
     "${test_source_dir}/net_ip/detail/output_queue_test.cpp"
     "${test_source_dir}/net_ip/detail/tcp_acceptor_test.cpp"
     "${test_source_dir}/net_ip/detail/tcp_connector_test.cpp"
     "${test_source_dir}/net_ip/detail/tcp_io_test.cpp"
-    "${test_source_dir}/net_ip/detail/udp_entity_io_test.cpp" )
+    "${test_source_dir}/net_ip/detail/udp_entity_io_test.cpp"
+    "${test_source_dir}/net_ip/component/error_delivery_test.cpp"
+    "${test_source_dir}/net_ip/component/io_interface_delivery_test.cpp"
+    "${test_source_dir}/net_ip/component/send_to_all_test.cpp"
+    "${test_source_dir}/net_ip/component/simple_variable_len_msg_frame_test.cpp"
+    "${test_source_dir}/net_ip/basic_io_interface_test.cpp"
+    "${test_source_dir}/net_ip/basic_net_entity_test.cpp"
+    "${test_source_dir}/net_ip/endpoints_resolver_test.cpp"
+    "${test_source_dir}/net_ip/net_ip_error_test.cpp"
+    "${test_source_dir}/net_ip/shared_utility_test.cpp"
+    "${test_source_dir}/net_ip/shared_utility_func_test.cpp"
+    "${test_source_dir}/net_ip/net_ip_test.cpp" )
 
 set ( OPTIONS "" )
 set ( DEFINITIONS "" )
