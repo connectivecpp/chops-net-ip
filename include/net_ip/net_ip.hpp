@@ -91,7 +91,7 @@ namespace net {
  *  There are no executor operations available through the @c net_ip class. In 
  *  other words, no event loop or @c run methods are available. Instead, the
  *  @c net_ip class takes an @c io_context as a constructor parameter and 
- *  application code will use the Networking TS executor methods for invoking
+ *  application code will use the Asio executor methods for invoking
  *  the underlying asynchronous operations.
  *
  *  For convenience, a class named @c worker in the @c component directory combines 

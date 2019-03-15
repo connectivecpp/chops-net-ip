@@ -5,7 +5,7 @@
  *  @brief Test scenarios for @c tcp_connector detail class.
  *
  *  This test is similar to the tcp_acceptor_test code, except the Chops Net IP 
- *  tcp_connector class instead of Networking TS blocking io calls.
+ *  tcp_connector class instead of Asio blocking io calls.
  *
  *  @author Cliff Green
  *

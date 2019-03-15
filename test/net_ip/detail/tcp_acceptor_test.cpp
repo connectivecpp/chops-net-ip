@@ -7,7 +7,7 @@
  *  This test is similar to the tcp_io_test code, with a little bit less
  *  internal plumbing, and allowing multiple connector threads to be started. 
  *  The TCP acceptor is the Chops Net IP class, but the connector threads are 
- *  using blocking Networking TS connects and io.
+ *  using blocking Asio connects and io.
  *
  *  @author Cliff Green
  *
