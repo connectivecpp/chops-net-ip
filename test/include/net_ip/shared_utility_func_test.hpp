@@ -7,7 +7,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,7 +20,7 @@
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
 
-#include <experimental/internet>
+#include "asio/ip/udp.hpp" // udp endpoint
 
 #include "net_ip/shared_utility_test.hpp"
 
@@ -69,7 +69,7 @@ inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net
 
 inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net::err_wait_q& wq,
                                bool receiving, test_counter& cnt,
-                               const std::experimental::net::ip::udp::endpoint& remote_endp) {
+                               const asio::ip::udp::endpoint& remote_endp) {
 
   if (receiving) {
     return chops::net::make_udp_io_interface_future_pair(udp_entity,

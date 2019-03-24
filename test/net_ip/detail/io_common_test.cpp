@@ -6,17 +6,16 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
-#include <experimental/internet> // endpoint declarations
-#include <experimental/io_context>
+#include "asio/io_context.hpp"
 
 #include <memory> // std::shared_ptr
 #include <system_error> // std::error_code
@@ -33,7 +32,6 @@ template <typename IOT>
 void io_common_test(chops::const_shared_buffer buf, int num_bufs,
                     typename IOT::endpoint_type endp) {
 
-  using namespace std::experimental::net;
   using namespace std::placeholders;
 
   REQUIRE (num_bufs > 1);
@@ -154,8 +152,6 @@ struct io_mock {
 };
 
 SCENARIO ( "Io common test", "[io_common]" ) {
-  using namespace std::experimental::net;
-
   auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
   io_common_test<io_mock>(chops::const_shared_buffer(std::move(mb)), 20, 42.0);

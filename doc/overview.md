@@ -52,7 +52,7 @@ Chops Net IP states and transitions match existing standard network protocol beh
 
 Even though an implicit state transition table exists within the Chops Net IP library (matching network protocol behavior), there are not any explicit state flags or methods to query the state through the API. Instead, state transitions are handled through application supplied function object callbacks, which notify the application that something interesting has happened and containing objects for further interaction and processing. In other words, there is not an "is_connected" method with the Chops Net IP library. Instead, an application can layer its own state on top of Chops Net IP (if desired), using the function object callbacks to manage the state.
 
-Pro tip - Chops Net IP follows the implicit state model of the Networking TS and Asio (and similar) libraries where state transitions are implemented through chaining function objects on asynchronous operations. Developers familiar with implicit or explicit state transition models will be familiar with the application model defined for Chops Net IP. Chops Net IP insulates the application from the intricacies of the Networking TS API and simplifies the state transition details.
+Pro tip - Chops Net IP follows the implicit state model of the Asio library (and similar libraries) where state transitions are implemented through chaining function objects on asynchronous operations. Developers familiar with implicit or explicit state transition models will be familiar with the application model defined for Chops Net IP. Chops Net IP insulates the application from the intricacies of the Asio library and simplifies the state transition details.
 
 ![Image of Chops Net IP objects and states](object_states_diagram.png)
 
@@ -134,7 +134,7 @@ Where to provide the customization points in the API is one of the most crucial 
 
 Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
 
-Mutex locking is kept to a minimum in the library. Alternatively, some of the internal handler classes take incoming parameters and post the data through the `io context`. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Networking TS executor and posting queue code.
+Mutex locking is kept to a minimum in the library. Alternatively, some of the internal handler classes take incoming parameters and post the data through the `io context`. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Asio executor and posting queue code.
 
 In the areas where data is potentially accessed concurrently, it is typically protected by `std::atomic` wraps. For example, outgoing queue statistics and `is_started` flags are all `std::atomic`. While this guarantees runtime integrity (i.e. no crashes), it does mean that statistics might have temporary inconsistency with each other. For example, an outgoing buffer might be popped from the queue exactly between an application querying and accessing two outgoing counters. This potential inconsistency is not considered to be an issue, since the queue counters are only meant for general congestion queries, not exact statistical gathering.
 

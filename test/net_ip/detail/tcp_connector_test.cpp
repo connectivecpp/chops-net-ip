@@ -5,7 +5,7 @@
  *  @brief Test scenarios for @c tcp_connector detail class.
  *
  *  This test is similar to the tcp_acceptor_test code, except the Chops Net IP 
- *  tcp_connector class instead of Networking TS blocking io calls.
+ *  tcp_connector class instead of Asio blocking io calls.
  *
  *  @author Cliff Green
  *
@@ -16,12 +16,11 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
-#include <experimental/internet>
-#include <experimental/socket>
-#include <experimental/buffer>
-#include <experimental/io_context>
+#include "asio/ip/tcp.hpp"
+#include "asio/buffer.hpp"
+#include "asio/io_context.hpp"
 
 #include <system_error> // std::error_code
 #include <cstddef> // std::size_t
@@ -53,7 +52,6 @@
 
 #include <iostream> // std::cerr for error sink
 
-using namespace std::experimental::net;
 using namespace chops::test;
 
 const char* test_port = "30777";
@@ -63,7 +61,7 @@ constexpr int ReconnTime = 100;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
-void start_connectors(const vec_buf& in_msg_vec, io_context& ioc, 
+void start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc, 
                       int interval, int num_conns,
                       std::string_view delim, chops::const_shared_buffer empty_msg,
                       test_counter& conn_cnt, chops::net::err_wait_q& err_wq) {
@@ -122,7 +120,7 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
       THEN ("the futures provide synchronization and data returns") {
 
         auto endp_seq = 
-            chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+            chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
 
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);

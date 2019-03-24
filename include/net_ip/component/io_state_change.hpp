@@ -22,7 +22,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -35,7 +35,7 @@
 #include <cstddef> // std::size_t, std::byte
 #include <utility> // std::move
 
-#include <experimental/internet> // ip::udp::endpoint
+#include "asio/ip/udp.hpp" // ip::udp::endpoint
 
 #include "net_ip/io_interface.hpp"
 
@@ -172,7 +172,7 @@ auto make_send_only_io_state_change () {
  *  @brief Create an IO state change function object parameters for UDP senders and
  *  receivers with a default destination endpoint.
  *
- *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *  @param endp Default destination @c asio::ip::udp::endpoint.
  *
  *  @param max_size Maximum buffer size for UDP reads.
  *
@@ -185,7 +185,7 @@ auto make_send_only_io_state_change () {
  */
 
 template <typename MH>
-auto make_default_endp_io_state_change (std::experimental::net::ip::udp::endpoint endp,
+auto make_default_endp_io_state_change (asio::ip::udp::endpoint endp,
                                         std::size_t max_size,
                                         MH&& msg_hdlr) {
   return [max_size, endp, mh = std::move(msg_hdlr)] 
@@ -200,13 +200,13 @@ auto make_default_endp_io_state_change (std::experimental::net::ip::udp::endpoin
  *  @brief Create an IO state change function object parameters for UDP sending only
  *  with a default destination endpoint.
  *
- *  @param endp Default destination @c std::experimental::net::ip::udp::endpoint.
+ *  @param endp Default destination @c asio::ip::udp::endpoint.
  *
  *  @return A function object that can be used with the @c start method.
  *
  *  @note This is implemented only for UDP processing.
  */
-auto make_send_only_default_endp_io_state_change (std::experimental::net::ip::udp::endpoint endp) {
+auto make_send_only_default_endp_io_state_change (asio::ip::udp::endpoint endp) {
   return [endp] (udp_io_interface io, std::size_t num, bool starting) mutable {
     if (starting) {
       io.start_io(endp);

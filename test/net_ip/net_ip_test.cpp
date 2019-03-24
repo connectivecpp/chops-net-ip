@@ -13,12 +13,7 @@
  *
  */
 
-#include "catch.hpp"
-
-#include <experimental/internet>
-#include <experimental/socket>
-#include <experimental/buffer>
-#include <experimental/io_context>
+#include "catch2/catch.hpp"
 
 #include <system_error> // std::error_code
 #include <cstddef> // std::size_t
@@ -47,7 +42,6 @@
 
 #include <iostream> // std::cerr for error sink
 
-using namespace std::experimental::net;
 using namespace chops::test;
 
 const char* tcp_test_port = "30465";

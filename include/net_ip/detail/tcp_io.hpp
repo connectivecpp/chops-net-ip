@@ -18,9 +18,13 @@
 #ifndef TCP_IO_HPP_INCLUDED
 #define TCP_IO_HPP_INCLUDED
 
-#include <experimental/executor>
-#include <experimental/internet>
-#include <experimental/buffer>
+#include "asio/io_context.hpp"
+#include "asio/executor.hpp"
+#include "asio/read.hpp"
+#include "asio/read_until.hpp"
+#include "asio/write.hpp"
+#include "asio/ip/tcp.hpp"
+#include "asio/buffer.hpp"
 
 #include <memory> // std::shared_ptr, std::enable_shared_from_this
 #include <system_error>
@@ -42,12 +46,12 @@ namespace chops {
 namespace net {
 namespace detail {
 
-std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexcept;
+std::size_t null_msg_frame (asio::mutable_buffer) noexcept;
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
-  using socket_type = std::experimental::net::ip::tcp::socket;
-  using endpoint_type = std::experimental::net::ip::tcp::endpoint;
+  using socket_type = asio::ip::tcp::socket;
+  using endpoint_type = asio::ip::tcp::endpoint;
   using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<tcp_io>)>;
 
 private:
@@ -98,7 +102,7 @@ public:
     }
     m_read_size = header_size;
     m_byte_vec.resize(m_read_size);
-    start_read(std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
+    start_read(asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
                std::forward<MH>(msg_handler), std::forward<MF>(msg_frame));
     return true;
   }
@@ -120,8 +124,8 @@ public:
 
   bool start_io() {
     return start_io(1, 
-                    [] (std::experimental::net::const_buffer, basic_io_interface<tcp_io>, 
-                        std::experimental::net::ip::tcp::endpoint) mutable {
+                    [] (asio::const_buffer, basic_io_interface<tcp_io>, 
+                        asio::ip::tcp::endpoint) mutable {
                           return true;
                     }, 
                     null_msg_frame
@@ -166,7 +170,7 @@ public:
 //    post(m_socket.get_executor(), [this, self] {
     // attempt graceful shutdown
     std::error_code ec;
-    m_socket.shutdown(std::experimental::net::ip::tcp::socket::shutdown_both, ec);
+    m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
 //    auto self { shared_from_this() };
 //  post(m_socket.get_executor(), [this, self, ec] () mutable { 
     m_socket.close(ec); 
@@ -189,11 +193,11 @@ private:
   }
 
   template <typename MH, typename MF>
-  void start_read(std::experimental::net::mutable_buffer mbuf, MH&& msg_hdlr, MF&& msg_frame) {
+  void start_read(asio::mutable_buffer mbuf, MH&& msg_hdlr, MF&& msg_frame) {
     // std::move in lambda instead of std::forward since an explicit copy or move of the function
     // object is desired so there are no dangling references
     auto self { shared_from_this() };
-    std::experimental::net::async_read(m_socket, mbuf,
+    asio::async_read(m_socket, mbuf,
       [this, self, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
             (const std::error_code& err, std::size_t nb) mutable {
         handle_read(mbuf, err, nb, std::move(mh), std::move(mf));
@@ -202,15 +206,13 @@ private:
   }
 
   template <typename MH, typename MF>
-  void handle_read(std::experimental::net::mutable_buffer, 
+  void handle_read(asio::mutable_buffer, 
                    const std::error_code&, std::size_t, MH&&, MF&&);
 
   template <typename MH>
   void start_read_until(MH&& msg_hdlr) {
     auto self { shared_from_this() };
-    std::experimental::net::async_read_until(m_socket, 
-                                             std::experimental::net::dynamic_buffer(m_byte_vec), 
-                                             m_delimiter,
+    asio::async_read_until(m_socket, asio::dynamic_buffer(m_byte_vec), m_delimiter,
       [this, self, mh = std::move(msg_hdlr)] (const std::error_code& err, std::size_t nb) mutable {
         handle_read_until(err, nb, std::move(mh));
       }
@@ -229,7 +231,7 @@ private:
 // method implementations, just to make the class declaration a little more readable
 
 template <typename MH, typename MF>
-void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf, 
+void tcp_io::handle_read(asio::mutable_buffer mbuf, 
                          const std::error_code& err, std::size_t /* num_bytes */,
                          MH&& msg_hdlr, MF&& msg_frame) {
 
@@ -240,7 +242,7 @@ void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf,
   // assert num_bytes == mbuf.size()
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
-    if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
+    if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
                   basic_io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
       // message handler not happy, tear everything down
       m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
@@ -248,12 +250,12 @@ void tcp_io::handle_read(std::experimental::net::mutable_buffer mbuf,
       return;
     }
     m_byte_vec.resize(m_read_size);
-    mbuf = std::experimental::net::mutable_buffer(m_byte_vec.data(), m_byte_vec.size());
+    mbuf = asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size());
   }
   else {
     std::size_t old_size = m_byte_vec.size();
     m_byte_vec.resize(old_size + next_read_size);
-    mbuf = std::experimental::net::mutable_buffer(m_byte_vec.data() + old_size, next_read_size);
+    mbuf = asio::mutable_buffer(m_byte_vec.data() + old_size, next_read_size);
   }
   start_read(mbuf, std::forward<MH>(msg_hdlr), std::forward<MF>(msg_frame));
 }
@@ -266,7 +268,7 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
     return;
   }
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
-  if (!msg_hdlr(std::experimental::net::const_buffer(m_byte_vec.data(), num_bytes),
+  if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes),
                 basic_io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
       m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
                     shared_from_this());
@@ -279,8 +281,7 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
 
 inline void tcp_io::start_write(chops::const_shared_buffer buf) {
   auto self { shared_from_this() };
-  std::experimental::net::async_write(m_socket, 
-          std::experimental::net::const_buffer(buf.data(), buf.size()),
+  asio::async_write(m_socket, asio::const_buffer(buf.data(), buf.size()),
             [this, self] (const std::error_code& err, std::size_t nb) {
       handle_write(err, nb);
     }
@@ -302,7 +303,7 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
 
 using tcp_io_ptr = std::shared_ptr<tcp_io>;
 
-inline std::size_t null_msg_frame (std::experimental::net::mutable_buffer) noexcept {
+inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept {
   return 0;
 }
 

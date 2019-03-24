@@ -13,10 +13,11 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
-#include <experimental/internet>
-#include <experimental/io_context>
+#include "asio/ip/tcp.hpp"
+#include "asio/ip/udp.hpp"
+#include "asio/ip/basic_resolver.hpp"
 
 #include <system_error> // std::error_code
 #include <utility> // std::pair
@@ -28,12 +29,10 @@
 #include "net_ip/endpoints_resolver.hpp"
 #include "net_ip/component/worker.hpp"
 
-using namespace std::experimental::net;
-
 template <typename Protocol>
 void make_endpoints_test (bool local, std::string_view host, std::string_view port, bool expected_good) {
 
-  using results_t = ip::basic_resolver_results<Protocol>;
+  using results_t = asio::ip::basic_resolver_results<Protocol>;
   using prom_ret = std::pair<std::error_code, results_t>;
 
   using namespace std::literals::chrono_literals;
@@ -97,49 +96,49 @@ std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
 SCENARIO ( "Make endpoints remote test, TCP  1", 
            "[make_endpoints] [tcp]" ) {
 
-  make_endpoints_test<ip::tcp> (false, "www.cnn.com", "80", true);
+  make_endpoints_test<asio::ip::tcp> (false, "www.cnn.com", "80", true);
 
 }
 
 SCENARIO ( "Make endpoints remote test, TCP 2",
            "[make_endpoints] [tcp]" ) {
 
-  make_endpoints_test<ip::tcp> (false, "www.seattletimes.com", "80", true);
+  make_endpoints_test<asio::ip::tcp> (false, "www.seattletimes.com", "80", true);
 
 }
 
 SCENARIO ( "Make endpoints local test, TCP 3",
            "[make_endpoints] [tcp]" ) {
 
-  make_endpoints_test<ip::tcp> (true, "", "23000", true);
+  make_endpoints_test<asio::ip::tcp> (true, "", "23000", true);
 
 }
 
 SCENARIO ( "Make endpoints remote test, UDP  1",
            "[make_endpoints] [udp]" ) {
 
-  make_endpoints_test<ip::udp> (false, "www.cnn.com", "80", true);
+  make_endpoints_test<asio::ip::udp> (false, "www.cnn.com", "80", true);
 
 }
 
 SCENARIO ( "Make endpoints remote test, UDP 2",
            "[make_endpoints] [udp]" ) {
 
-  make_endpoints_test<ip::udp> (false, "www.seattletimes.com", "80", true);
+  make_endpoints_test<asio::ip::udp> (false, "www.seattletimes.com", "80", true);
 
 }
 
 SCENARIO ( "Make endpoints local test, UDP 3",
            "[make_endpoints] [udp]" ) {
 
-  make_endpoints_test<ip::udp> (true, "", "23000", true);
+  make_endpoints_test<asio::ip::udp> (true, "", "23000", true);
 
 }
 
 /*
 SCENARIO ( "Make endpoints remote test, TCP invalid", "[tcp_make_endpoints_invalid]" ) {
 
-  make_endpoints_test<ip::tcp> (false, "frobozz.blaaaarg", "32555", false);
+  make_endpoints_test<asio::ip::tcp> (false, "frobozz.blaaaarg", "32555", false);
 
 }
 */

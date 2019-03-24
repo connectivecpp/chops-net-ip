@@ -13,11 +13,11 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
-#include <experimental/internet>
-#include <experimental/socket>
-#include <experimental/io_context>
+#include "asio/ip/tcp.hpp"
+#include "asio/connect.hpp"
+#include "asio/io_context.hpp"
 
 #include <system_error> // std::error_code
 #include <cstddef> // std::size_t
@@ -39,7 +39,6 @@
 
 // #include <iostream>
 
-using namespace std::experimental::net;
 using namespace chops::test;
 
 // using notifier_cb = 
@@ -65,13 +64,13 @@ struct notify_me {
   }
 };
 
-std::size_t connector_func (const vec_buf& in_msg_vec, io_context& ioc, 
+std::size_t connector_func (const vec_buf& in_msg_vec, asio::io_context& ioc, 
                             int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {
 
   auto endps = 
-      chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
-  ip::tcp::socket sock(ioc);
-  connect(sock, endps);
+      chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
+  asio::ip::tcp::socket sock(ioc);
+  asio::connect(sock, endps);
 
   notify_prom_type notify_prom;
   auto notify_fut = notify_prom.get_future();
@@ -109,8 +108,8 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
       THEN ("the futures provide synchronization and data returns") {
 
         auto endps = 
-            chops::net::endpoints_resolver<ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
-        ip::tcp::acceptor acc(ioc, *(endps.cbegin()));
+            chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
+        asio::ip::tcp::acceptor acc(ioc, *(endps.cbegin()));
 
         INFO ("Creating connector asynchronously, msg interval: " << interval);
 

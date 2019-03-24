@@ -6,7 +6,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -66,7 +66,7 @@ inline void udp_empty_error_func(udp_io_interface, std::error_code) { }
  *  is likely to soon go away. Instead, a @c void pointer of the underlying
  *  handler is used. Another reason for not storing a @c basic_io_interface is that
  *  the IO handler type parameterization is no longer needed, so this can be used for
- *  both TCP and UDP error data.
+ *  both TCP and UDP error data. The pointer address is used for logging purposes only.
  */
 struct error_data {
   std::chrono::steady_clock::time_point   time_p;

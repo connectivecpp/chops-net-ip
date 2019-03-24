@@ -6,7 +6,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -122,8 +122,8 @@ public:
  *  The socket reference returned from this method allows direct access to the
  *  @c basic_net_entity socket. This socket may be different from the socket that is
  *  accessible through the @c basic_io_interface object. In particular, a TCP acceptor
- *  socket reference is of type @c ip::tcp::acceptor (in the namespace
- *  @c std::experimental::net), a TCP connector socket reference is of type
+ *  socket reference is of type @c ip::tcp::acceptor (in the @c asio namespace), a 
+ *  TCP connector socket reference is of type
  *  @c ip::tcp::socket, and a UDP entity socket reference is of type 
  *  @c ip::udp::socket.
  *

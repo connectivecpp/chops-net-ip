@@ -13,7 +13,7 @@
  *
  */
 
-#include "catch.hpp"
+#include "catch2/catch.hpp"
 
 #include <cstddef> // std::size_t
 #include <system_error>
