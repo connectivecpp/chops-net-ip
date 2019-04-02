@@ -55,6 +55,8 @@ int main() {
         };
 
     // io state change handlers
+    std::size_t n = 1;
+    bool flag = true;
     auto io_state_chng_out = [n, flag, &queue_out, &msg_hndlr_out] 
         (io_interface iof, std::size_t n, bool flag)
         {
@@ -83,8 +85,6 @@ int main() {
     auto tcne = chat_in.make_tcp_acceptor("5000", "127.0.0.1");
 
     // start tcp_connector_network_entity
-    std::size_t n = 1;
-    bool flag = true;
     tane.start(io_state_chng_out, err_func);
 
     // start tcp_acceptor network entity
