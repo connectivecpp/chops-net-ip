@@ -107,7 +107,7 @@ See [References](doc/references.md) for details on dependencies and inspirations
 
 # About
 
-The primary author of Chops is Cliff Green, cliffg at connectivecpp dot com. The primary co-author is Thurman Gillespy, thurmang at connectivecpp dot com.
+The primary author of Chops is Cliff Green, cliffg at connectivecpp dot com. The primary co-author is Thurman Gillespy, thurmang at connectivecpp dot com, and Roxanne Agerone roxannea at connectivecpp dot com.
 
 Contributors include ...
 
