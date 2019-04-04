@@ -2,7 +2,7 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief Example of TCP send/recieve text string over network.
+ *  @brief Example of TCP send/recieve text string over local loop network.
  * 
  *  @author Thurman Gillespy
  * 
@@ -21,6 +21,7 @@
 #include <string_view>
 #include <chrono>
 #include <thread>
+#include <algorithm> // std::for_each
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
@@ -42,42 +43,42 @@ int main() {
     
     /* lambda callbacks */
     // message handlers
-    auto msg_hndlr_out = [] (const_buf buf, io_interface iof, endpoint ep)
+    auto msg_hndlr_connect = [] (const_buf buf, io_interface iof, endpoint ep)
         {
-            // only data back from acceptor
-            // display to user
+            // receive data from acceptor, display to user
             std::string s (static_cast<const char*> (buf.data()), buf.size());
             std::cout << s; // s aleady has terminating '\n'
 
             return true;
         };
     
-    auto msg_hndlr_in = [] (const_buf buf, io_interface iof, endpoint ep)
+    // recceive data from connector, send back to acceptor
+    auto msg_hndlr_accept = [] (const_buf buf, io_interface iof, endpoint ep)
         {
+            // copy buffer contents into string, convert to uppercase
             std::string s(static_cast<const char*> (buf.data()), buf.size());
-            //std::for_each(s.begin(), s.end(), std::mem_fun(&std::toupper));
-            for (auto &ch : s) {
-                ch = toupper(ch);
-            }
+            auto to_upper = [] (char& c) { c = ::toupper(c); };
+            std::for_each(s.begin(), s.end(), to_upper);
+            // send c-string back over network connection
             iof.send(s.c_str(), s.size() + 1);
 
             return true;
         };
 
     // io state change handlers
-    tcp_io_interface tcp_iof;
-    auto io_state_chng_out = [&tcp_iof, msg_hndlr_out] 
+    tcp_io_interface tcp_connect_iof;
+    auto io_state_chng_connect = [&tcp_connect_iof, msg_hndlr_connect] 
         (io_interface iof, std::size_t n, bool flag)
         {
-            iof.start_io("\n", msg_hndlr_out);
-            // send iof to main
-            tcp_iof = iof;
+            iof.start_io("\n", msg_hndlr_connect);
+            // return iof to main
+            tcp_connect_iof = iof;
         };
 
-    auto io_state_chng_in = [msg_hndlr_in]
+    auto io_state_chng_accept = [msg_hndlr_accept]
         (io_interface iof, std::size_t n, bool flag)
         {
-            iof.start_io("\n", msg_hndlr_in);
+            iof.start_io("\n", msg_hndlr_accept);
         };
 
     // error handler
@@ -88,37 +89,37 @@ int main() {
     chops::net::worker wk;
     wk.start();
 
-    // create input and output tcp connections
-    chops::net::net_ip chat_in(wk.get_io_context());
-    auto tane = chat_in.make_tcp_acceptor("12370", "127.0.0.1");
+    // create input (acceptor) and output (connector) tcp connections
+    chops::net::net_ip chat(wk.get_io_context());
+    auto tane = chat.make_tcp_acceptor("12370", "127.0.0.1");
     assert(tane.is_valid());
 
-    auto tcne = chat_in.make_tcp_connector("12370", "127.0.0.1");
+    auto tcne = chat.make_tcp_connector("12370", "127.0.0.1");
     assert(tcne.is_valid());
 
     // start tcp_acceptor network entity
-    tane.start(io_state_chng_in, err_func);
-    // start tcp_connector_network_entity
-    tcne.start(io_state_chng_out, err_func);
+    tane.start(io_state_chng_accept, err_func);
+    // start tcp_connector network entity
+    tcne.start(io_state_chng_connect, err_func);
 
     // pause to let things settle down
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-    assert(tcp_iof.is_valid()); // fails without a pause
+    assert(tcp_connect_iof.is_valid()); // fails without a pause
 
     std::cout << "network demo over local loop" << std::endl;
     std::cout << "enter a string at the prompt" << std::endl;
     std::cout << "the string will be returned in uppercase" << std::endl;
     std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
 
-    // get string from user
+    // get std::string from user
     // send as c-string over network connection
     std::string s;
     while (s != "quit\n") {
         std::cout << "> ";
         std::getline (std::cin, s);
         s += "\n"; // needed for deliminator
-        tcp_iof.send(s.c_str(), s.size() + 1);
+        tcp_connect_iof.send(s.c_str(), s.size() + 1);
         // pause so returned string displayed before next prompt
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
