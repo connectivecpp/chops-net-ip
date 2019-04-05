@@ -2,7 +2,7 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief Example of TCP send/recieve text string over local loop network
+ *  @brief Example of TCP send/receive text string over local loop network
  *  connection.
  * 
  *  @author Thurman Gillespy
@@ -153,7 +153,7 @@ int main() {
     auto err_func = [] (io_interface iof, std::error_code err) 
         { std::cerr << "err_func: " << err << std::endl; };
 
-    // work guard - handles @c std::thread and @c asio::io_contect management
+    // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
 
