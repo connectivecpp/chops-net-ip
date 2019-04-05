@@ -108,7 +108,7 @@ namespace net {
  *
  *  The @c net_ip class is safe for multiple threads to use concurrently. 
  *
- *  It should be noted, however, that race conditions are possible, specially for 
+ *  It should be noted, however, that race conditions are possible, especially for 
  *  similar operations invoked between @c net_entity and @c io_interface 
  *  objects. For example, starting and stopping network entities concurrently between 
  *  separate objects or threads could cause unexpected behavior.
