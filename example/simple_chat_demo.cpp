@@ -14,9 +14,11 @@
  *  
  *  Sample make file:
  *  g++ -std=c++17 -Wall -Werror \
- *  -I ../include -I ../include/net_ip/ -I ~/Projects/utility-rack/include/ \
- *  -I ~/Projects/asio/asio/include \
- *  simple_chat_deo.cpp -lpthread
+ *  -I ../include -I ../include/net_ip/ 
+ *  -I ~/Projects/utility-rack/include/ \
+ *  -I ~/Projects/asio-1.12.2/include \
+ *  -I ~/Projects/boost_1_69_0/ \
+ *  simple_chat_deo.cpp -lpthread -o chat
  * 
  *  BUGS:
  *   - leaks memory like a sieve. Under investigation.
@@ -47,7 +49,7 @@ using endpoint = asio::ip::tcp::endpoint;
 /** How to use @c chops-net-ip for a simple text send/receive network connection
  *  over a local loop.
  * 
- *  1. Write message handlers for the @c tcp_connector and @c tcp_acceptor.
+ *  1. Write message handler for the @c tcp_connector and @c tcp_acceptor.
  * 
  *  The @c tcp_connector_message_handler receives text from a @c tcp_acceptor
  *  (in-bound messages). In this demo, the handler prints the text to stdout,
@@ -108,13 +110,9 @@ const std::string help = "-h";
 const std::string param_connect = "-connect";
 const std::string param_accept = "-accept";
 
-int main(int argc, char* argv[]) {
-    const char* ip_addr = LOCAL_LOOP.c_str();
-    const char* port = PORT.c_str();
-    std::string param;
-
-    //std::cout << "argc: " << argc << std::endl;
-
+// process command line args, set ip_addr, port, param as needed
+bool process_args(int argc, char* argv[], const char*& ip_addr, 
+        const char*& port, std::string& param) {
     if (argc < 2 || argc > 4) {
         std::cout << "incorrect parameter count\n";
         std::cout << usage << std::endl;
@@ -123,13 +121,14 @@ int main(int argc, char* argv[]) {
 
     if (argv[1] == help) {
         std::cout << usage << std::endl;
-        return EXIT_SUCCESS;
-    } else if (param_connect == argv[1]) {
+        return EXIT_FAILURE;
+    } else if (argv[1] == param_connect) {
         param = param_connect;
     } else if (argv[1] == param_accept) {
         param = param_accept;
     } else {
-        std::cout << "incorrect first parameter: must be [-h | -connect | -accept]" << std::endl;
+        std::cout << "incorrect first parameter: ";
+        std::cout << "must be [-h | -connect | -accept]" << std::endl;
         std::cout << usage << std::endl;
         return EXIT_FAILURE;
     }
@@ -141,17 +140,21 @@ int main(int argc, char* argv[]) {
         port = argv[3];
     }
 
-    std::cout << "2-way chat demo" << std::endl;
-    std::cout << "IP address: " << ip_addr << "; port: " << port << std::endl;
-    std::cout << "connection type: " << param << std::endl;
-    std::cout << "enter -h for usage" << std::endl;
-    std::cout << "enter text message at the prompt" << std::endl;
-    std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
+    return EXIT_SUCCESS;
+}
 
+int main(int argc, char* argv[]) {
+    const char* ip_addr = LOCAL_LOOP.c_str();
+    const char* port = PORT.c_str();
+    std::string param;
+
+    if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
+        return EXIT_FAILURE;
+    }
 
     /* lambda callbacks */
-    // message handler for @c tcp_connector @c network_entity
-    auto msg_hndlr_connect = [] (const_buf buf, io_interface iof, endpoint ep)
+    // message handler for @c network_entity
+    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep)
         {
             // receive data from acceptor, display to user
             std::string s (static_cast<const char*> (buf.data()), buf.size());
@@ -161,23 +164,16 @@ int main(int argc, char* argv[]) {
             return s == "QUIT\n" ? false : true;
         };
 
-    // io state change handlers
-    tcp_io_interface tcp_connect_iof; // used to send text data
+    // io state change handler
+    tcp_io_interface tcp_iof; // used to send text data
     // handler for @c tcp_connector
-    auto io_state_chng_connect = [&tcp_connect_iof, msg_hndlr_connect] 
+    auto io_state_chng_hndlr = [&tcp_iof, msg_hndlr] 
         (io_interface iof, std::size_t n, bool flag)
         {
-            iof.start_io("\n", msg_hndlr_connect);
+            iof.start_io("\n", msg_hndlr);
             // return iof to main
-            tcp_connect_iof = iof;
+            tcp_iof = iof;
         };
-
-    // // handler for @c tcp_acceptor
-    // auto io_state_chng_accept = [msg_hndlr_accept]
-    //     (io_interface iof, std::size_t n, bool flag)
-    //     {
-    //         iof.start_io("\n", msg_hndlr_accept);
-    //     };
 
     // error handler
     auto err_func = [] (io_interface iof, std::error_code err) 
@@ -199,22 +195,26 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip chat(wk.get_io_context());
     if (param == param_connect) {
         // make @c tcp_connector, receive @c network_entity
+
         auto net_entity = chat.make_tcp_connector(port, ip_addr);
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_connect, err_func);
+        net_entity.start(io_state_chng_hndlr, err_func);
     } else if (param == param_accept){
+
         // make @ tcp_acceptor, receive @c tcp_acceptor_network_entity
         auto net_entity = chat.make_tcp_acceptor(port, ip_addr);
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_connect, err_func);
+        net_entity.start(io_state_chng_hndlr, err_func);
     }
 
-    // pause to let both sides connect
-    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
-
-    assert(tcp_connect_iof.is_valid()); // fails without a pause
+    std::cout << "2-way chat demo" << std::endl;
+    std::cout << "enter -h at command line for usage" << std::endl;
+    std::cout << "IP address: " << ip_addr << "; port: " << port << std::endl;
+    std::cout << "connection type: " << param << std::endl;
+    std::cout << "enter text message at the prompt" << std::endl;
+    std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
 
     // get std::string from user
     // send as c-string over network connection
@@ -224,7 +224,8 @@ int main(int argc, char* argv[]) {
         std::getline (std::cin, s);
         s += "\n"; // needed for deliminator
         // send c-string from @c tcp_connector to @c tcp_acceptor
-        tcp_connect_iof.send(s.c_str(), s.size() + 1);
+        assert(tcp_iof.is_valid());
+        tcp_iof.send(s.c_str(), s.size() + 1);
         
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
