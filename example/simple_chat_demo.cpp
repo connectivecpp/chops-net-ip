@@ -198,17 +198,18 @@ int main(int argc, char* argv[]) {
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
     if (param == param_connect) {
-        // make @c tcp_connector, receive @c tcp_connector_network_entity
+        // make @c tcp_connector, receive @c network_entity
         auto net_entity = chat.make_tcp_connector(port, ip_addr);
         assert(net_entity.is_valid());
+        // start network entity, emplace handlers
+        net_entity.start(io_state_chng_connect, err_func);
     } else if (param == param_accept){
         // make @ tcp_acceptor, receive @c tcp_acceptor_network_entity
         auto net_entity = chat.make_tcp_acceptor(port, ip_addr);
         assert(net_entity.is_valid());
+        // start network entity, emplace handlers
+        net_entity.start(io_state_chng_connect, err_func);
     }
-    
-    // start network entity, emplace handlers
-    net_entity.start(io_state_chng_connect, err_func);
 
     // pause to let both sides connect
     std::this_thread::sleep_for(std::chrono::milliseconds(4000));
