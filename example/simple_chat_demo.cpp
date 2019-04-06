@@ -105,14 +105,17 @@ const std::string PORT = "5001";
 const std::string LOCAL_LOOP = "127.0.0.1";
 const std::string usage = "usage: ./chat [-h | -connect | -accept ] [ip address] [port]\n"\
     "  default ip address: " + LOCAL_LOOP + " (local loop)\n" \
-    "  default port: " + PORT;
+    "  default port: " + PORT + "\n" \
+    "  if connection type = accept, IP address becomes \"\"";
 const std::string help = "-h";
 const std::string param_connect = "-connect";
 const std::string param_accept = "-accept";
+const std::string empty = "";
 
 // process command line args, set ip_addr, port, param as needed
 bool process_args(int argc, char* argv[], const char*& ip_addr, 
         const char*& port, std::string& param) {
+    
     if (argc < 2 || argc > 4) {
         std::cout << "incorrect parameter count\n";
         std::cout << usage << std::endl;
@@ -133,10 +136,19 @@ bool process_args(int argc, char* argv[], const char*& ip_addr,
         return EXIT_FAILURE;
     }
 
-    if (argc == 3) {
-        ip_addr = argv[2];
-    } else if (argc == 4) {
-        ip_addr = argv[2];
+    if (param == param_accept) {
+        ip_addr = "";
+    }
+
+    if (argc == 3 || argc == 4) {
+        if (param == param_accept) {
+            ip_addr = "";
+        } else {
+            ip_addr = argv[2];
+        }
+    }
+
+    if (argc == 4) {
         port = argv[3];
     }
 
@@ -195,8 +207,7 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip chat(wk.get_io_context());
     if (param == param_connect) {
         // make @c tcp_connector, receive @c network_entity
-
-        auto net_entity = chat.make_tcp_connector(port, ip_addr);
+        auto net_entity = chat.make_tcp_connector(port, ip_addr, std::chrono::milliseconds(5000));
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
         net_entity.start(io_state_chng_hndlr, err_func);
@@ -211,7 +222,8 @@ int main(int argc, char* argv[]) {
 
     std::cout << "2-way chat demo" << std::endl;
     std::cout << "enter -h at command line for usage" << std::endl;
-    std::cout << "IP address: " << ip_addr << "; port: " << port << std::endl;
+    std::cout << "IP address: " << (ip_addr == empty ? "\"\"" : ip_addr);
+    std::cout << "; port: " << port << std::endl;;
     std::cout << "connection type: " << param << std::endl;
     std::cout << "enter text message at the prompt" << std::endl;
     std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
