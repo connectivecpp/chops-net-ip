@@ -2,8 +2,7 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief Example of TCP send/recieve text string over local loop network
- *  connection.
+ *  @brief Example of TCP 2-way network chat program.
  * 
  *  @author Thurman Gillespy
  * 
@@ -17,7 +16,7 @@
  *  g++ -std=c++17 -Wall -Werror \
  *  -I ../include -I ../include/net_ip/ -I ~/Projects/utility-rack/include/ \
  *  -I ~/Projects/asio/asio/include \
- *  local_chat_demo.cpp -lpthread
+ *  simple_chat_deo.cpp -lpthread
  * 
  *  BUGS:
  *   - leaks memory like a sieve. Under investigation.
@@ -101,34 +100,65 @@ using endpoint = asio::ip::tcp::endpoint;
  */
 
 const std::string PORT = "5001";
+const std::string LOCAL_LOOP = "127.0.0.1";
+const std::string usage = "usage: ./chat [-h | -connect | -accept ] [ip address] [port]\n"\
+    "  default ip address: " + LOCAL_LOOP + " (local loop)\n" \
+    "  default port: " + PORT;
+const std::string help = "-h";
+const std::string param_connect = "-connect";
+const std::string param_accept = "-accept";
 
-int main() {
-    
+int main(int argc, char* argv[]) {
+    const char* ip_addr = LOCAL_LOOP.c_str();
+    const char* port = PORT.c_str();
+    std::string param;
+
+    //std::cout << "argc: " << argc << std::endl;
+
+    if (argc < 2 || argc > 4) {
+        std::cout << "incorrect parameter count\n";
+        std::cout << usage << std::endl;
+        return EXIT_FAILURE;
+    };
+
+    if (argv[1] == help) {
+        std::cout << usage << std::endl;
+        return EXIT_SUCCESS;
+    } else if (param_connect == argv[1]) {
+        param = param_connect;
+    } else if (argv[1] == param_accept) {
+        param = param_accept;
+    } else {
+        std::cout << "incorrect first parameter: must be [-h | -connect | -accept]" << std::endl;
+        std::cout << usage << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if (argc == 3) {
+        ip_addr = argv[2];
+    } else if (argc == 4) {
+        ip_addr = argv[2];
+        port = argv[3];
+    }
+
+    std::cout << "2-way chat demo" << std::endl;
+    std::cout << "IP address: " << ip_addr << "; port: " << port << std::endl;
+    std::cout << "connection type: " << param << std::endl;
+    std::cout << "enter -h for usage" << std::endl;
+    std::cout << "enter text message at the prompt" << std::endl;
+    std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
+
+
     /* lambda callbacks */
     // message handler for @c tcp_connector @c network_entity
     auto msg_hndlr_connect = [] (const_buf buf, io_interface iof, endpoint ep)
         {
             // receive data from acceptor, display to user
             std::string s (static_cast<const char*> (buf.data()), buf.size());
-            std::cout << s; // s aleady has terminating '\n'
+            std::cout << "> " << s; // s aleady has terminating '\n'
 
             // return false if user entered 'quit', otherwise true
-            return s == "QUIT\n" ? false: true;
-        };
-    
-    // message handler for @c tcp_acceptor @c message_handler
-    // receive data from connector, send back to acceptor
-    auto msg_hndlr_accept = [] (const_buf buf, io_interface iof, endpoint ep)
-        {
-            // copy buffer contents into string, convert to uppercase
-            std::string s(static_cast<const char*> (buf.data()), buf.size());
-            auto to_upper = [] (char& c) { c = ::toupper(c); };
-            std::for_each(s.begin(), s.end(), to_upper);
-            // send c-string back over network connection
-            iof.send(s.c_str(), s.size() + 1);
-            
-            // return false if user entered 'quit', otherwise true
-            return s == "QUIT\n" ? false:  true;
+            return s == "QUIT\n" ? false : true;
         };
 
     // io state change handlers
@@ -142,45 +172,48 @@ int main() {
             tcp_connect_iof = iof;
         };
 
-    // handler for @c tcp_acceptor
-    auto io_state_chng_accept = [msg_hndlr_accept]
-        (io_interface iof, std::size_t n, bool flag)
-        {
-            iof.start_io("\n", msg_hndlr_accept);
-        };
+    // // handler for @c tcp_acceptor
+    // auto io_state_chng_accept = [msg_hndlr_accept]
+    //     (io_interface iof, std::size_t n, bool flag)
+    //     {
+    //         iof.start_io("\n", msg_hndlr_accept);
+    //     };
 
     // error handler
     auto err_func = [] (io_interface iof, std::error_code err) 
-        { std::cerr << "err_func: " << err << std::endl; };
+        { 
+            static int count = 0;
+            std::cerr << "err_func: " << err << std::endl;
+            if (++count > 10) {
+                std::cerr << "aborting: > 10 error messages" << std::endl;
+                exit(0);
+            } };
 
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
 
-    // create input (acceptor) and output (connector) tcp connections
+    assert(param == param_connect || param == param_accept);
+
+    // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
-    // make @ tcp_acceptor, receive @c tcp_acceptor_network_entity
-    auto tane = chat.make_tcp_acceptor(PORT, "127.0.0.1");
-    assert(tane.is_valid());
+    if (param == param_connect) {
+        // make @c tcp_connector, receive @c tcp_connector_network_entity
+        auto net_entity = chat.make_tcp_connector(port, ip_addr);
+        assert(net_entity.is_valid());
+    } else if (param == param_accept){
+        // make @ tcp_acceptor, receive @c tcp_acceptor_network_entity
+        auto net_entity = chat.make_tcp_acceptor(port, ip_addr);
+        assert(net_entity.is_valid());
+    }
+    
+    // start network entity, emplace handlers
+    net_entity.start(io_state_chng_connect, err_func);
 
-    // make @c tcp_connector, receive @c tcp_connector_network_entity
-    auto tcne = chat.make_tcp_connector(PORT, "127.0.0.1");
-    assert(tcne.is_valid());
-
-    // start @c tcp_acceptor network entity, emplace handlers
-    tane.start(io_state_chng_accept, err_func);
-    // start @c tcp_connector network entity, emplace handlers
-    tcne.start(io_state_chng_connect, err_func);
-
-    // pause to let things settle down
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    // pause to let both sides connect
+    std::this_thread::sleep_for(std::chrono::milliseconds(4000));
 
     assert(tcp_connect_iof.is_valid()); // fails without a pause
-
-    std::cout << "network demo over local loop" << std::endl;
-    std::cout << "enter a string at the prompt" << std::endl;
-    std::cout << "the string will be returned in uppercase" << std::endl;
-    std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
 
     // get std::string from user
     // send as c-string over network connection
@@ -191,7 +224,7 @@ int main() {
         s += "\n"; // needed for deliminator
         // send c-string from @c tcp_connector to @c tcp_acceptor
         tcp_connect_iof.send(s.c_str(), s.size() + 1);
-        // pause so returned string is displayed before next prompt
+        
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
