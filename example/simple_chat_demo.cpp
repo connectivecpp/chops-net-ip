@@ -103,14 +103,14 @@ using endpoint = asio::ip::tcp::endpoint;
 
 const std::string PORT = "5001";
 const std::string LOCAL_LOOP = "127.0.0.1";
-const std::string usage = "usage: ./chat [-h | -connect | -accept ] [ip address] [port]\n"\
+const std::string USAGE = "usage: ./chat [-h | -connect | -accept ] [ip address] [port]\n"\
     "  default ip address: " + LOCAL_LOOP + " (local loop)\n" \
     "  default port: " + PORT + "\n" \
     "  if connection type = accept, IP address becomes \"\"";
-const std::string help = "-h";
-const std::string param_connect = "-connect";
-const std::string param_accept = "-accept";
-const std::string empty = "";
+const std::string HELP = "-h";
+const std::string PARAM_CONNECT = "-connect";
+const std::string PARAM_ACCEPT = "-accept";
+const std::string EMPTY = "";
 
 // process command line args, set ip_addr, port, param as needed
 bool process_args(int argc, char* argv[], const char*& ip_addr, 
@@ -118,32 +118,30 @@ bool process_args(int argc, char* argv[], const char*& ip_addr,
     
     if (argc < 2 || argc > 4) {
         std::cout << "incorrect parameter count\n";
-        std::cout << usage << std::endl;
+        std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
     };
 
-    if (argv[1] == help) {
-        std::cout << usage << std::endl;
+    if (argv[1] == HELP) {
+        std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
-    } else if (argv[1] == param_connect) {
-        param = param_connect;
-    } else if (argv[1] == param_accept) {
-        param = param_accept;
+    } else if (argv[1] == PARAM_CONNECT) {
+        param = PARAM_CONNECT;
+    } else if (argv[1] == PARAM_ACCEPT) {
+        param = PARAM_ACCEPT;
     } else {
         std::cout << "incorrect first parameter: ";
         std::cout << "must be [-h | -connect | -accept]" << std::endl;
-        std::cout << usage << std::endl;
+        std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
     }
 
-    if (param == param_accept) {
+    if (param == PARAM_ACCEPT) {
         ip_addr = "";
     }
 
     if (argc == 3 || argc == 4) {
-        if (param == param_accept) {
-            ip_addr = "";
-        } else {
+        if (param == PARAM_CONNECT) {
             ip_addr = argv[2];
         }
     }
@@ -201,17 +199,18 @@ int main(int argc, char* argv[]) {
     chops::net::worker wk;
     wk.start();
 
-    assert(param == param_connect || param == param_accept);
+    assert(param == PARAM_CONNECT || param == PARAM_ACCEPT);
 
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
-    if (param == param_connect) {
+    if (param == PARAM_CONNECT) {
         // make @c tcp_connector, receive @c network_entity
-        auto net_entity = chat.make_tcp_connector(port, ip_addr, std::chrono::milliseconds(5000));
+        auto net_entity = chat.make_tcp_connector(port, ip_addr,
+                    std::chrono::milliseconds(5000));
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
         net_entity.start(io_state_chng_hndlr, err_func);
-    } else if (param == param_accept){
+    } else if (param == PARAM_ACCEPT){
 
         // make @ tcp_acceptor, receive @c tcp_acceptor_network_entity
         auto net_entity = chat.make_tcp_acceptor(port, ip_addr);
@@ -221,10 +220,10 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "2-way chat demo" << std::endl;
-    std::cout << "enter -h at command line for usage" << std::endl;
-    std::cout << "IP address: " << (ip_addr == empty ? "\"\"" : ip_addr);
+    std::cout << "enter -h at command line for usage\n\n";
+    std::cout << "IP address: " << (ip_addr == EMPTY ? "\"\"" : ip_addr);
     std::cout << "; port: " << port << std::endl;;
-    std::cout << "connection type: " << param << std::endl;
+    std::cout << "connection type: " << param << std::endl << std::endl;
     std::cout << "enter text message at the prompt" << std::endl;
     std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
 
