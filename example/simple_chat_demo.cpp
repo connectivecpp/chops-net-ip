@@ -39,6 +39,7 @@
 #include "net_ip/basic_net_entity.hpp"
 #include "component/worker.hpp"
 #include "queue/wait_queue.hpp"
+#include "simple_chat_screen.h"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -101,21 +102,26 @@ using endpoint = asio::ip::tcp::endpoint;
  * 
  */
 
-const std::string PORT = "5001";
-const std::string LOCAL_LOOP = "127.0.0.1";
-const std::string USAGE = "usage: ./chat [-h | -connect | -accept ] [ip address] [port]\n"\
-    "  default ip address: " + LOCAL_LOOP + " (local loop)\n" \
-    "  default port: " + PORT + "\n" \
-    "  if connection type = accept, IP address becomes \"\"";
-const std::string HELP = "-h";
-const std::string PARAM_CONNECT = "-connect";
-const std::string PARAM_ACCEPT = "-accept";
-const std::string EMPTY = "";
 
 // process command line args, set ip_addr, port, param as needed
-bool process_args(int argc, char* argv[], const char*& ip_addr, 
-        const char*& port, std::string& param) {
-    
+bool process_args(int argc, char* argv[], std::string& ip_addr, 
+        std::string& port, std::string& param) {
+    const std::string PORT = "5001";
+    const std::string LOCAL_LOOP = "127.0.0.1";
+    const std::string USAGE =
+        "usage: ./chat [-h | -connect | -accept ] [ip address] [port]\n"
+        "  default ip address: " + LOCAL_LOOP + " (local loop)\n"
+        "  default port: " + PORT + "\n"
+        "  if connection type = accept, IP address becomes \"\"";
+    const std::string HELP = "-h";
+    const std::string PARAM_CONNECT = "-connect";
+    const std::string PARAM_ACCEPT = "-accept";
+    const std::string EMPTY = "";
+
+    // set default values
+    ip_addr = LOCAL_LOOP;
+    port = PORT;
+
     if (argc < 2 || argc > 4) {
         std::cout << "incorrect parameter count\n";
         std::cout << USAGE << std::endl;
@@ -154,24 +160,34 @@ bool process_args(int argc, char* argv[], const char*& ip_addr,
 }
 
 int main(int argc, char* argv[]) {
-    const char* ip_addr = LOCAL_LOOP.c_str();
-    const char* port = PORT.c_str();
+    const std::string PARAM_CONNECT = "-connect"; // fix later
+    const std::string LOCAL = "[local] ";
+    const std::string REMOTE = "[remote] ";
+    std::string ip_addr;
+    std::string port;
     std::string param;
+    // std::vector<std::string> history(10, BLANK_LINE);
 
     if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
+    // DEBUG
+    // std::cout << "ip_addr: " << ip_addr << "; port: " << port << std::endl;
+    // return 0;
+
+    simple_chat_screen screen(ip_addr, port, param);
 
     /* lambda callbacks */
     // message handler for @c network_entity
-    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep)
+    auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep)
         {
             // receive data from acceptor, display to user
             std::string s (static_cast<const char*> (buf.data()), buf.size());
-            std::cout << "> " << s; // s aleady has terminating '\n'
+            screen.insert_scroll_line(s, REMOTE);
+            screen.draw_screen();
 
             // return false if user entered 'quit', otherwise true
-            return s == "QUIT\n" ? false : true;
+            return s == "quit\n" ? false : true;
         };
 
     // io state change handler
@@ -199,41 +215,35 @@ int main(int argc, char* argv[]) {
     chops::net::worker wk;
     wk.start();
 
-    assert(param == PARAM_CONNECT || param == PARAM_ACCEPT);
+    assert(param != "");
 
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, receive @c network_entity
-        auto net_entity = chat.make_tcp_connector(port, ip_addr,
+        auto net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
                     std::chrono::milliseconds(5000));
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
         net_entity.start(io_state_chng_hndlr, err_func);
-    } else if (param == PARAM_ACCEPT){
-
+    } else {
         // make @ tcp_acceptor, receive @c tcp_acceptor_network_entity
-        auto net_entity = chat.make_tcp_acceptor(port, ip_addr);
+        auto net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
         net_entity.start(io_state_chng_hndlr, err_func);
     }
 
-    std::cout << "2-way chat demo" << std::endl;
-    std::cout << "enter -h at command line for usage\n\n";
-    std::cout << "IP address: " << (ip_addr == EMPTY ? "\"\"" : ip_addr);
-    std::cout << "; port: " << port << std::endl;;
-    std::cout << "connection type: " << param << std::endl << std::endl;
-    std::cout << "enter text message at the prompt" << std::endl;
-    std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
+    screen.draw_screen();
 
     // get std::string from user
     // send as c-string over network connection
     std::string s;
     while (s != "quit\n") {
-        std::cout << "> ";
         std::getline (std::cin, s);
         s += "\n"; // needed for deliminator
+        screen.insert_scroll_line(s, LOCAL);
+        screen.draw_screen();
         // send c-string from @c tcp_connector to @c tcp_acceptor
         assert(tcp_iof.is_valid());
         tcp_iof.send(s.c_str(), s.size() + 1);
