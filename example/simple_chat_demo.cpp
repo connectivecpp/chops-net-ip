@@ -161,20 +161,17 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
 
 int main(int argc, char* argv[]) {
     const std::string PARAM_CONNECT = "-connect"; // fix later
-    const std::string LOCAL = "[local] ";
+    const std::string LOCAL = "[local]  ";
     const std::string REMOTE = "[remote] ";
     std::string ip_addr;
     std::string port;
     std::string param;
-    // std::vector<std::string> history(10, BLANK_LINE);
 
     if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
-    // DEBUG
-    // std::cout << "ip_addr: " << ip_addr << "; port: " << port << std::endl;
-    // return 0;
-
+    
+    // create instanced of simple_chat_screen class
     simple_chat_screen screen(ip_addr, port, param);
 
     /* lambda callbacks */
