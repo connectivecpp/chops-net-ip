@@ -1,8 +1,14 @@
 /** @file
  *  
- *  Screen layout constants
+ *  @brief class to handle printing output to stdout for simple_chat_demo.cpp program.
  * 
  *  @author Thurman Gillespy
+ * 
+ *  Copyright (c) 2019 Thurman Gillespy
+ *  4/9/19
+ * 
+ *  Distributed under the Boost Software License, Version 1.0. 
+ *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  */
 
 #include <iostream>
@@ -10,7 +16,12 @@
 #include <vector>
 #include <cstdlib> // std::system
 
-static const int NUN_SCROLL_LINES = 10;
+const int NUN_SCROLL_LINES = 10;
+
+// shared globals
+const std::string PARAM_CONNECT = "-connect";
+const std::string PARAM_ACCEPT = "-accept";
+const std::string REMOTE = "[remote] ";
 
 // https://stackoverflow.com/questions/3381614/c-convert-string-to-hexadecimal-and-vice-versa
 std::string string_to_hex(const std::string& input) {
@@ -28,14 +39,15 @@ std::string string_to_hex(const std::string& input) {
     return output;
 }
 
+// handle all methods to print output to stdout
 class simple_chat_screen {
 private:
-    const std::string m_ip_addr;
-    const std::string m_port;
-    const std::string m_connect_type;
-    std::string m_upper_screen;
-    std::string m_scroll_text;
-    const int m_num_scroll_lines;
+    const std::string m_ip_addr; // IP address or host name
+    const std::string m_port; // connection port
+    const std::string m_connect_type; // @c '-connect' or @c '-accept'
+    std::string m_upper_screen; // fixed upper region of screen output
+    std::string m_scroll_text; // history scroll text region
+    const int m_num_scroll_lines; // number of 'scrol lines'
 
 public:
     simple_chat_screen(const std::string ip, const std::string port, const std::string type,
@@ -45,13 +57,17 @@ public:
         create_scroll_text();
     };
 
+    // print the output to stdout
+    // called after @c insert_scroll_line
     void draw_screen() {
-        std::system("clear"); // BAD CODE
-        std::cout << (m_upper_screen + m_scroll_text + BOTTOM);
+        std::system("clear"); // not recommended, but adequate here
+        std::cout << (m_upper_screen + m_scroll_text + BOTTOM + PROMPT);
     }
 
+    // the scroll region has a fixed numbmer of 'scroll lines'.
+    // calculate complete new scroll line, insert old line at top
+    // of text scroll region, add new scroll line
     void insert_scroll_line(const std::string& text, const std::string& prefix) {
-        const std::string REMOTE = "[remote] "; // fix later
         
         // create the new scroll line
         // remove '\n' at end of text, and '\0' at beginning (if present)
@@ -71,7 +87,7 @@ public:
 
 private:
     using S = const std::string;
-    S PARAM_ACCEPT = "-accept"; // fix later
+    // string constants for output
     S TOP =
         "\n_____________________________________________________________________________\n";
     S BLANK_LINE =
@@ -98,6 +114,7 @@ private:
         "|---------------------------------------------------------------------------|\n";
     S HDR_START =
         "|  ";
+    S PROMPT = "> ";
 
     // create the string that represent the (unchanging) upper screen so only calculate once
     void create_upper_screen() {
@@ -110,6 +127,7 @@ private:
             DIVIDOR + BLANK_LINE + HDR_INSTR + DIVIDOR;
     }
 
+    // seed the scroll text region with m_scoll_lines number of blank lines
     void create_scroll_text() {
         int count = m_num_scroll_lines;
         while (count-- > 0) {

@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/4/19
+ *  4/9/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -47,33 +47,25 @@ using const_buf = asio::const_buffer;
 using tcp_io_interface = chops::net::tcp_io_interface;
 using endpoint = asio::ip::tcp::endpoint;
 
-/** How to use @c chops-net-ip for a simple text send/receive network connection
- *  over a local loop.
+/** How to use @c chops-net-ip for a simple 2-way chat program over a
+ *  network connection
  * 
- *  1. Write message handler for the @c tcp_connector and @c tcp_acceptor.
+ *  1. Write message handler function.
  * 
- *  The @c tcp_connector_message_handler receives text from a @c tcp_acceptor
- *  (in-bound messages). In this demo, the handler prints the text to stdout,
+ *  The message handler receives text after @c ::send is invoked. Both
+ *  the local and remote remote clients obtain the sent text through the
+ *  handler. In this demo, the handler inserts the recevied text into the
+ *  history scroll text and then updates the screen output.
  * 
- *  The @c tcp_acceptor_message_handler receives the (out-bound) message from
- *  the @c tcp-connector. In this demo, the handler converts the text to
- *  uppercase, then returns the text over the same connection back to the
- *  @c tcp_connector.
+ *  Both message handlers return @c false when the user enters @c "quit",
+ *  otherwise @c true. @c "quit" shuts down the handler and exits the program.
  * 
- *  In this demo, both message handlers return @c false when the user enters
- *  @c "quit", otherwise @c true. @c "quit" shuts down both handlers and exits
- *  the program.
+ *  2. Write @ io_state_change handler.
  * 
- *  2. Write @ io_state_change handlers for the @c tcp_connector and @c
- *  @c tcp_acceptor.
- * 
- *  The @c tcp_connector @c io_state_change handler calls @c start_io on the
- *  provided @c chops::net::tcp_io_interface. It then needs to return a copy
+ *  The @c io_state_change handler calls @c start_io on the provided
+ *  @c chops::net::tcp_io_interface. The handler needs to return a copy
  *  of the @c io_interface to main. The main copy will use the @c io_interface
- *  to @c send the text message from the @c tcp_connector to the @c tcp_acceptor.
- *  
- *  The @c tcp_acceptor @c io_state_change handler only needs to call @c start_io
- *  on the provided @c io_interface.
+ *  to @c send the text message from one client to another.
  * 
  *  3. Create an instance of the @c chops::net::worker class, which provides
  *  @c std::thread and @c asio::io_context management. Call @c worker::start 
@@ -84,18 +76,20 @@ using endpoint = asio::ip::tcp::endpoint;
  *  needs an @c asio:io_context, which is provided by the @c get_io_context()
  *  method of the @c chops::net::worker instance.
  *  
- *  5. Call @c ::make_tcp_connector on the @ net_ip instance, which returns a 
- *  copy of a @c tcp_connecvtor_network_entity.
+ *  5. Call @c ::make_tcp_connector on the @c tcp_connector @ net_ip instance
+ *  (@c '-connect' connection type), which returns a copy of a
+ *  @c tcp_connector_network_entity.
  *  
- *  6. Call @c ::make_tcp_acceptor on the @ net_ip instance, which returns a
- *  copy of a @c tcp_acceptor_network_entity.
+ *  6. Call @c ::make_tcp_acceptor on the @c tcp_acceptor @ net_ip instance
+ *  (@c '-accept' connection type), which returns a copy of a
+ *  @c tcp_acceptor_network_entity.
  * 
- *  7. Call @c ::start() on both both @c network_entity. Each @c tcp_connector
- *  and @c tcp_acceptor @ network_entity takes its' own @c io_state_change
- *  handler, and each @ io_state_change handler takes its' own @c message_handler. 
+ *  7. Call @c ::start() on both both @c network_entity, which emplaces both 
+ *  message handlers for both the @c '-connect' and @c '-accept' connection
+ *  types. 
  * 
  *  8. Call @c ::send() on the @c chops::net::tcp_io_interface instance to send
- *  a text string over the local loop network connection.
+ *  a text string over the network connection.
  * 
  *  9. See the example code and the header files for the signatures of the
  *  handlers.
@@ -114,8 +108,6 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
         "  default port: " + PORT + "\n"
         "  if connection type = accept, IP address becomes \"\"";
     const std::string HELP = "-h";
-    const std::string PARAM_CONNECT = "-connect";
-    const std::string PARAM_ACCEPT = "-accept";
     const std::string EMPTY = "";
 
     // set default values
@@ -156,13 +148,13 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
         port = argv[3];
     }
 
+    assert(param != "");
+
     return EXIT_SUCCESS;
 }
 
 int main(int argc, char* argv[]) {
-    const std::string PARAM_CONNECT = "-connect"; // fix later
     const std::string LOCAL = "[local]  ";
-    const std::string REMOTE = "[remote] ";
     std::string ip_addr;
     std::string port;
     std::string param;
@@ -171,8 +163,6 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     
-    // create instanced of simple_chat_screen class
-    simple_chat_screen screen(ip_addr, port, param);
 
     /* lambda callbacks */
     // message handler for @c network_entity
@@ -211,20 +201,22 @@ int main(int argc, char* argv[]) {
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
-
-    assert(param != "");
+    
+    // create instance of @c simple_chat_screen class
+    simple_chat_screen screen(ip_addr, port, param);
 
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
+
     if (param == PARAM_CONNECT) {
-        // make @c tcp_connector, receive @c network_entity
+        // make @c tcp_connector, return @c network_entity
         auto net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
                     std::chrono::milliseconds(5000));
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
         net_entity.start(io_state_chng_hndlr, err_func);
     } else {
-        // make @ tcp_acceptor, receive @c tcp_acceptor_network_entity
+        // make @ tcp_acceptor, return @c network_entity
         auto net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
@@ -234,7 +226,7 @@ int main(int argc, char* argv[]) {
     screen.draw_screen();
 
     // get std::string from user
-    // send as c-string over network connection
+    // send as c-string over network connection, update screen
     std::string s;
     while (s != "quit\n") {
         std::getline (std::cin, s);
@@ -244,8 +236,6 @@ int main(int argc, char* argv[]) {
         // send c-string from @c tcp_connector to @c tcp_acceptor
         assert(tcp_iof.is_valid());
         tcp_iof.send(s.c_str(), s.size() + 1);
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
     wk.stop();
