@@ -29,7 +29,6 @@
 #include <cstdlib> // EXIT_SUCCESS
 #include <cstddef> // std::size_t 
 #include <string>
-#include <string_view>
 #include <chrono>
 #include <thread>
 #include <cassert>
@@ -37,7 +36,6 @@
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "component/worker.hpp"
-#include "queue/wait_queue.hpp"
 #include "simple_chat_screen.hpp"
 
 using io_context = asio::io_context;
@@ -170,6 +168,10 @@ int main(int argc, char* argv[]) {
         {
             // receive data from acceptor, display to user
             std::string s (static_cast<const char*> (buf.data()), buf.size());
+            // BUG: remove errant '\0' at front of string, if present
+            if (s.at(0) == '\0') {
+                s = s.substr(1, std::string::npos);
+            }
             screen.insert_scroll_line(s, REMOTE);
             screen.draw_screen();
 

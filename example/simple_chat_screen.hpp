@@ -11,6 +11,9 @@
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  */
 
+#ifndef SIMPLE_CHAT_SCREEN_HPP_INCLUDED
+#define SIMPLE_CHAT_SCREEN_HPP_INCLUDED
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -24,7 +27,7 @@ const std::string PARAM_ACCEPT = "-accept";
 const std::string REMOTE = "[remote] ";
 
 // https://stackoverflow.com/questions/3381614/c-convert-string-to-hexadecimal-and-vice-versa
-std::string string_to_hex(const std::string& input) {
+inline std::string string_to_hex(const std::string& input) {
     static const char* const lut = "0123456789ABCDEF";
     size_t len = input.length();
 
@@ -70,12 +73,12 @@ public:
     void insert_scroll_line(const std::string& text, const std::string& prefix) {
         
         // create the new scroll line
-        // remove '\n' at end of text, and '\0' at beginning (if present)
-        int first_pos = (text.find_first_of('\0') == 0 ? 1 : 0);
+        // remove '\n' at end of text
         std::string new_scroll_line = "| " + prefix + 
-            text.substr(first_pos, text.size() - (1 + first_pos));
+            text.substr(0, text.size() - 1);
         // DEBUG: show string as ascii values
-        // new_scroll_line += "<" + string_to_hex(text) + ">";
+        // new_scroll_line += " <" + std::to_string(text.size()) + ">";
+        // new_scroll_line += " <" + string_to_hex(text) + ">";
         new_scroll_line += 
             BLANK_LINE.substr(new_scroll_line.length(), std::string::npos);
         
@@ -135,3 +138,5 @@ private:
         }
     }
 };
+
+#endif
