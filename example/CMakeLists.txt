@@ -12,8 +12,8 @@ project ( chops-net-ip-example VERSION 1.0 LANGUAGES CXX )
 set ( example_source_dir "${CMAKE_SOURCE_DIR}/example" )
 
 set ( example_sources 
-    "${example_source_dir}/aaa_demo.cpp"
-    "${example_source_dir}/bbb_demo.cpp" )
+    "${example_source_dir}/local_echo_demo.cpp"
+    "${example_source_dir}/simple_chat_demo.cpp" )
 
 set ( OPTIONS "" )
 set ( DEFINITIONS "" )
