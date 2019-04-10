@@ -26,6 +26,10 @@ set ( header_dirs
 # Still learning find_package and related ways to bring in third party dependent include directories,
 # so don't judge, instead please help.
 
+set ( utility_rack_include_dir "${CMAKE_SOURCE_DIR}/../utility-rack/include" )
+if ( NOT $ENV{UTILITY_RACK_INCLUDE_DIR} STREQUAL "" )
+    set ( utility_rack_include_dir $ENV{UTILITY_RACK_INCLUDE_DIR}} )
+endif()
 set ( asio_include_dir "${CMAKE_SOURCE_DIR}/../asio/asio/include" )
 if ( NOT $ENV{ASIO_INCLUDE_DIR} STREQUAL "" )
     set ( asio_include_dir $ENV{ASIO_INCLUDE_DIR}} )
@@ -44,6 +48,9 @@ if ( NOT $ENV{EXPECTED_LITE_INCLUDE_DIR} STREQUAL "" )
 endif()
 
 function ( add_target_dependencies target )
+#    find_package ( utility-rack REQUIRED )
+#    target_include_directories ( ${target} PRIVATE ${utility-rack_INCLUDE_DIRS} )
+    target_include_directories ( ${target} PRIVATE ${utility_rack_include_dir} )
 #    find_package ( Boost REQUIRED )
 #    target_include_directories ( ${target} PRIVATE ${Boost_INCLUDE_DIRS} )
     target_include_directories ( ${target} PRIVATE ${boost_include_dir} )
