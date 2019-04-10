@@ -14,7 +14,7 @@
  *  
  *  Sample make file:
  *  g++ -std=c++17 -Wall -Werror \
- *  -I ../include -I ../include/net_ip/ 
+ *  -I ../include -I ../include/net_ip/ \
  *  -I ~/Projects/utility-rack/include/ \
  *  -I ~/Projects/asio-1.12.2/include \
  *  -I ~/Projects/boost_1_69_0/ \
@@ -32,14 +32,13 @@
 #include <string_view>
 #include <chrono>
 #include <thread>
-#include <algorithm> // std::for_each
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "component/worker.hpp"
 #include "queue/wait_queue.hpp"
-#include "simple_chat_screen.h"
+#include "simple_chat_screen.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -55,10 +54,10 @@ using endpoint = asio::ip::tcp::endpoint;
  *  The message handler receives text after @c ::send is invoked. Both
  *  the local and remote remote clients obtain the sent text through the
  *  handler. In this demo, the handler inserts the recevied text into the
- *  history scroll text and then updates the screen output.
+ *  history scroll text, and then updates the screen output.
  * 
- *  Both message handlers return @c false when the user enters @c "quit",
- *  otherwise @c true. @c "quit" shuts down the handler and exits the program.
+ *  Both message handlers return @c false when the user enters @c 'quit',
+ *  otherwise @c true. @c 'quit' shuts down the handler and exits the program.
  * 
  *  2. Write @ io_state_change handler.
  * 
@@ -84,9 +83,8 @@ using endpoint = asio::ip::tcp::endpoint;
  *  (@c '-accept' connection type), which returns a copy of a
  *  @c tcp_acceptor_network_entity.
  * 
- *  7. Call @c ::start() on both both @c network_entity, which emplaces both 
- *  message handlers for both the @c '-connect' and @c '-accept' connection
- *  types. 
+ *  7. Call @c ::start() on both both instances of @c network_entity, which
+ *  emplaces the message handler and @c io_state change handlers.
  * 
  *  8. Call @c ::send() on the @c chops::net::tcp_io_interface instance to send
  *  a text string over the network connection.
@@ -163,6 +161,8 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
     
+    // create instance of @c simple_chat_screen class
+    simple_chat_screen screen(ip_addr, port, param);
 
     /* lambda callbacks */
     // message handler for @c network_entity
@@ -201,9 +201,6 @@ int main(int argc, char* argv[]) {
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
-    
-    // create instance of @c simple_chat_screen class
-    simple_chat_screen screen(ip_addr, port, param);
 
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
