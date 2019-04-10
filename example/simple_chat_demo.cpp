@@ -7,14 +7,14 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/9/19
+ *  4/10/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
  *  Sample make file:
  *  g++ -std=c++17 -Wall -Werror \
- *  -I ../include -I ../include/net_ip/ \
+ *  -I ../include -I \
  *  -I ~/Projects/utility-rack/include/ \
  *  -I ~/Projects/asio-1.12.2/include \
  *  -I ~/Projects/boost_1_69_0/ \
@@ -35,7 +35,7 @@
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
-#include "component/worker.hpp"
+#include "net_ip/component/worker.hpp"
 #include "simple_chat_screen.hpp"
 
 using io_context = asio::io_context;

@@ -8,14 +8,14 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/4/19
+ *  4/10/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
  *  Sample make file:
  *  g++ -std=c++17 -Wall -Werror \
- *  -I ../include -I ../include/net_ip/ 
+ *  -I ../include -I \
  *  -I ~/Projects/utility-rack/include/ \
  *  -I ~/Projects/asio-1.12.2/include \
  *  -I ~/Projects/boost_1_69_0/ \
@@ -38,7 +38,7 @@
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
-#include "component/worker.hpp"
+#include "net_ip/component/worker.hpp"
 #include "queue/wait_queue.hpp"
 
 using io_context = asio::io_context;
@@ -48,7 +48,7 @@ using tcp_io_interface = chops::net::tcp_io_interface;
 using endpoint = asio::ip::tcp::endpoint;
 
 /** How to use @c chops-net-ip for a simple text send/receive network connection
- *  over a local loop.
+ *  over a local loop that echos the text (in uppercase) back to the user.
  * 
  *  1. Write message handlers for the @c tcp_connector and @c tcp_acceptor.
  * 

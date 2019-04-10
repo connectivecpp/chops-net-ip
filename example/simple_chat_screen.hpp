@@ -68,8 +68,8 @@ public:
     }
 
     // the scroll region has a fixed numbmer of 'scroll lines'.
-    // calculate complete new scroll line, insert old line at top
-    // of text scroll region, add new scroll line
+    // calculate complete new scroll line; delete old line at top
+    // of text scroll region; add new scroll line (append)
     void insert_scroll_line(const std::string& text, const std::string& prefix) {
         
         // create the new scroll line
