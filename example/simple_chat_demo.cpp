@@ -7,18 +7,18 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/10/19
+ *  4/11/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
  *  Sample make file:
- *  g++ -std=c++17 -Wall -Werror \
- *  -I ../include -I \
- *  -I ~/Projects/utility-rack/include/ \
- *  -I ~/Projects/asio-1.12.2/include \
- *  -I ~/Projects/boost_1_69_0/ \
- *  simple_chat_deo.cpp -lpthread -o chat
+g++ -std=c++17 -Wall -Werror \
+-I ../include \
+-I ~/Projects/utility-rack/include/ \
+-I ~/Projects/asio-1.12.2/include/ \
+-I ~/Projects/boost_1_69_0/ \
+simple_chat_deo.cpp -lpthread -o chat
  * 
  *  BUGS:
  *   - leaks memory like a sieve. Under investigation.
@@ -31,6 +31,7 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include <stdio.h>
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
@@ -105,7 +106,7 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
         "  if connection type = accept, IP address becomes \"\"";
     const std::string HELP = "-h";
     const std::string EMPTY = "";
-
+    
     // set default values
     ip_addr = LOCAL_LOOP;
     port = PORT;
@@ -151,9 +152,14 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
 
 int main(int argc, char* argv[]) {
     const std::string LOCAL = "[local]  ";
+    const std::string SYSTEM = "[system] ";
+    const std::string DELIM = "\a"; // alert (bell)
+    // const char* ERR_LOG = "err_log.txt";
     std::string ip_addr;
     std::string port;
     std::string param;
+    std::string connect_errs = "connection errors\n";
+    std::string accept_errs = "acception errors\n";
 
     if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -161,44 +167,93 @@ int main(int argc, char* argv[]) {
     
     // create instance of @c simple_chat_screen class
     simple_chat_screen screen(ip_addr, port, param);
+    // create error log, clear old log
+    // FILE* file_ptr = fopen(ERR_LOG, "w");
+    // assert(file_ptr != nullptr);
 
     /* lambda callbacks */
     // message handler for @c network_entity
     auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep)
         {
             // receive data from acceptor, display to user
+            // remove deliminator here?
             std::string s (static_cast<const char*> (buf.data()), buf.size());
-            // BUG: remove errant '\0' at front of string, if present
-            if (s.at(0) == '\0') {
-                s = s.substr(1, std::string::npos);
-            }
             screen.insert_scroll_line(s, REMOTE);
             screen.draw_screen();
-
+ 
             // return false if user entered 'quit', otherwise true
-            return s == "quit\n" ? false : true;
+            return s == "quit" + DELIM ? false : true;
         };
 
     // io state change handler
     tcp_io_interface tcp_iof; // used to send text data
     // handler for @c tcp_connector
-    auto io_state_chng_hndlr = [&tcp_iof, msg_hndlr] 
+    auto io_state_chng_hndlr = [&tcp_iof, msg_hndlr, DELIM] 
         (io_interface iof, std::size_t n, bool flag)
         {
-            iof.start_io("\n", msg_hndlr);
+            iof.start_io(DELIM, msg_hndlr);
             // return iof to main
             tcp_iof = iof;
         };
 
     // error handler
-    auto err_func = [] (io_interface iof, std::error_code err) 
+    auto connect_err_func = [&] (io_interface iof, std::error_code err) 
         { 
             static int count = 0;
-            std::cerr << "err_func: " << err << std::endl;
-            if (++count > 10) {
-                std::cerr << "aborting: > 10 error messages" << std::endl;
+            static int last_err = 0;
+            std::string err_text;
+
+            if (err.value() == last_err) {
+                ++count;
+            } else {
+                if (count > 0) {
+                    connect_errs += "  <" + std::to_string(count) + ">\n";
+                    count = 0;
+                    last_err = err.value();
+                }
+                err_text =  "connect: " + std::to_string(err.value()) + ": " + 
+                    err.category().name() + ": " + err.message() + "\n";
+                connect_errs += err_text;
+                ++count;
+            }
+            if (count > 10) {
+                std::cerr << "abort: too many errors\n";
+                connect_errs += "  <" + std::to_string(count) + ">\n";
+                std::cerr << connect_errs;
                 exit(0);
-            } };
+            }
+
+            if (err.value() == 111) {
+                screen.insert_scroll_line("waiting for connection" + DELIM, SYSTEM);
+                screen.draw_screen();
+            }
+        };
+    
+     auto accept_err_func = [&accept_errs] (io_interface iof, std::error_code err) {
+            static int count = 0;
+            static int last_err = 0;
+            std::string err_text;
+
+            if (err.value() == last_err) {
+                ++count;
+            } else {
+                if (count > 0) {
+                    accept_errs += "  <" + std::to_string(count) + ">\n";
+                    count = 0;
+                    last_err = err.value();
+                }
+                err_text =  "accept: " + std::to_string(err.value()) + ": " + 
+                    err.category().name() + ": " + err.message() + "\n";
+                accept_errs += err_text;
+                ++count;
+            }
+            if (count > 10) {
+                std::cerr << "abort: too many errors\n";
+                accept_errs += "  <" + std::to_string(count) + ">\n";
+                std::cerr << accept_errs;
+                exit(0);
+            }
+     };
 
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
@@ -209,17 +264,18 @@ int main(int argc, char* argv[]) {
 
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, return @c network_entity
+        // TODO: why does this not work with std::string, but acceptor does?
         auto net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
                     std::chrono::milliseconds(5000));
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_hndlr, err_func);
+        net_entity.start(io_state_chng_hndlr, connect_err_func);
     } else {
         // make @ tcp_acceptor, return @c network_entity
         auto net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_hndlr, err_func);
+        net_entity.start(io_state_chng_hndlr, accept_err_func);
     }
 
     screen.draw_screen();
@@ -227,16 +283,18 @@ int main(int argc, char* argv[]) {
     // get std::string from user
     // send as c-string over network connection, update screen
     std::string s;
-    while (s != "quit\n") {
+    while (s != "quit" + DELIM) {
         std::getline (std::cin, s);
-        s += "\n"; // needed for deliminator
+        s += DELIM; // needed for deliminator
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
-        // send c-string from @c tcp_connector to @c tcp_acceptor
+        // send string data from @c tcp_connector to @c tcp_acceptor
         assert(tcp_iof.is_valid());
-        tcp_iof.send(s.c_str(), s.size() + 1);
+        // note correct method of sending std::string over network
+        tcp_iof.send(s.data(), s.size());
     }
-    
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::cerr << "loop exit\n";
     wk.stop();
 
     return EXIT_SUCCESS;
