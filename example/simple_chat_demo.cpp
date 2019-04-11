@@ -100,7 +100,10 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
     const std::string PORT = "5001";
     const std::string LOCAL_LOOP = "127.0.0.1";
     const std::string USAGE =
-        "usage: ./chat [-h | -connect | -accept ] [ip address] [port]\n"
+        "usage: ./chat [-h] -connect | -accept [ip address] [port]\n"
+        "  -h  print usage\n"
+        "  -connect  tcp_acceptor\n"
+        "  -accept   tcp_connector\n"
         "  default ip address: " + LOCAL_LOOP + " (local loop)\n"
         "  default port: " + PORT + "\n"
         "  if connection type = accept, IP address becomes \"\"";
@@ -161,8 +164,8 @@ int main(int argc, char* argv[]) {
     std::string ip_addr;
     std::string port;
     std::string param;
-    std::string connect_errs = "connection errors\n";
-    std::string accept_errs = "acception errors\n";
+    std::string connect_errs = "tcp_connector errors\n";
+    std::string accept_errs = "tcp_acceptor errors\n";
 
     if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -226,7 +229,7 @@ int main(int argc, char* argv[]) {
                 exit(0);
             }
 
-            if (err.value() == 111) {
+            if (err.value() == 111 || err.value() == 113) {
                 screen.insert_scroll_line(WAIT_CONNECT, SYSTEM);
                 screen.draw_screen();
             }
@@ -303,7 +306,14 @@ int main(int argc, char* argv[]) {
     // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
     std::cout << "\nbye\n";
-    std::cout << connect_errs << std::endl;
+
+    // DEBUG
+    if (param == PARAM_CONNECT) {
+        std::cout << connect_errs << std::endl;
+    } else {
+        std::cout << accept_errs << std::endl;
+    }
+
     wk.stop();
 
     return EXIT_SUCCESS;
