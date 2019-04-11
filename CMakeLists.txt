@@ -10,7 +10,7 @@
 cmake_minimum_required ( VERSION 3.8 )
 
 option ( CHOPS_NET_IP_OPT_BUILD_TESTS  "Build and perform chops-net-ip tests" ON )
-option ( CHOPS_NET_IP_OPT_BUILD_EXAMPLES  "Build and perform chops-net-ip examples" OFF )
+option ( CHOPS_NET_IP_OPT_BUILD_EXAMPLES  "Build and perform chops-net-ip examples" ON )
 
 project ( chops-net-ip VERSION 1.0 LANGUAGES CXX )
 
