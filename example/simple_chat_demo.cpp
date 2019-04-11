@@ -156,7 +156,7 @@ int main(int argc, char* argv[]) {
     const std::string DELIM = "\a"; // alert (bell)
     const std::string NO_CONNECTION = "error: no connection" + DELIM;
     const std::string ABORT = "abort: too many errors";
-    const std::string WAIT_CONNECT = "waiting for connections..." + DELIM;
+    const std::string WAIT_CONNECT = "waiting for connection..." + DELIM;
     // const char* ERR_LOG = "err_log.txt";
     std::string ip_addr;
     std::string port;
@@ -292,7 +292,7 @@ int main(int argc, char* argv[]) {
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
         if (!tcp_iof.is_valid()) {
-            screen.insert_scroll_line("error: no connection", SYSTEM);
+            screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
             screen.draw_screen();
             continue;
         }
@@ -302,7 +302,8 @@ int main(int argc, char* argv[]) {
     }
     // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::cout << "bye\n";
+    std::cout << "\nbye\n";
+    std::cout << connect_errs << std::endl;
     wk.stop();
 
     return EXIT_SUCCESS;
