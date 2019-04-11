@@ -154,6 +154,9 @@ int main(int argc, char* argv[]) {
     const std::string LOCAL = "[local]  ";
     const std::string SYSTEM = "[system] ";
     const std::string DELIM = "\a"; // alert (bell)
+    const std::string NO_CONNECTION = "error: no connection" + DELIM;
+    const std::string ABORT = "abort: too many errors";
+    const std::string WAIT_CONNECT = "waiting for connections..." + DELIM;
     // const char* ERR_LOG = "err_log.txt";
     std::string ip_addr;
     std::string port;
@@ -217,19 +220,19 @@ int main(int argc, char* argv[]) {
                 ++count;
             }
             if (count > 10) {
-                std::cerr << "abort: too many errors\n";
+                std::cerr << ABORT << std::endl;
                 connect_errs += "  <" + std::to_string(count) + ">\n";
                 std::cerr << connect_errs;
                 exit(0);
             }
 
             if (err.value() == 111) {
-                screen.insert_scroll_line("waiting for connection" + DELIM, SYSTEM);
+                screen.insert_scroll_line(WAIT_CONNECT, SYSTEM);
                 screen.draw_screen();
             }
         };
     
-     auto accept_err_func = [&accept_errs] (io_interface iof, std::error_code err) {
+     auto accept_err_func = [&] (io_interface iof, std::error_code err) {
             static int count = 0;
             static int last_err = 0;
             std::string err_text;
@@ -248,7 +251,7 @@ int main(int argc, char* argv[]) {
                 ++count;
             }
             if (count > 10) {
-                std::cerr << "abort: too many errors\n";
+                std::cerr << ABORT << std::endl;
                 accept_errs += "  <" + std::to_string(count) + ">\n";
                 std::cerr << accept_errs;
                 exit(0);
@@ -288,13 +291,18 @@ int main(int argc, char* argv[]) {
         s += DELIM; // needed for deliminator
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
+        if (!tcp_iof.is_valid()) {
+            screen.insert_scroll_line("error: no connection", SYSTEM);
+            screen.draw_screen();
+            continue;
+        }
         // send string data from @c tcp_connector to @c tcp_acceptor
-        assert(tcp_iof.is_valid());
         // note correct method of sending std::string over network
         tcp_iof.send(s.data(), s.size());
     }
+    // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::cerr << "loop exit\n";
+    std::cout << "bye\n";
     wk.stop();
 
     return EXIT_SUCCESS;
