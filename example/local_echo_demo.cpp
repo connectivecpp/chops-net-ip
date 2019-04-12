@@ -17,7 +17,7 @@
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio-1.12.2/include \
+-I ~/Projects/asio/asio/include \
 -I ~/Projects/boost_1_69_0/ \
  local_echo_demo.cpp -lpthread -o local
  * 
@@ -137,23 +137,30 @@ int main() {
     tcp_io_interface tcp_connect_iof; // used to send text data
     // handler for @c tcp_connector
     auto io_state_chng_connect = [&tcp_connect_iof, msg_hndlr_connect] 
-        (io_interface iof, std::size_t n, bool flag)
-        {
-            iof.start_io("\n", msg_hndlr_connect);
-            // return iof to main
-            tcp_connect_iof = iof;
+        (io_interface iof, std::size_t n, bool flag) {
+            if (flag && n == 1) {
+                iof.start_io("\n", msg_hndlr_connect);
+                // return iof to main
+                tcp_connect_iof = iof;
+            }
+            
         };
 
     // handler for @c tcp_acceptor
     auto io_state_chng_accept = [msg_hndlr_accept]
         (io_interface iof, std::size_t n, bool flag)
         {
-            iof.start_io("\n", msg_hndlr_accept);
+            if (flag && n == 1) {
+                iof.start_io("\n", msg_hndlr_accept);
+            }
         };
 
     // error handler
     auto err_func = [] (io_interface iof, std::error_code err) 
-        { std::cerr << "err_func: " << err << std::endl; };
+        { 
+            // std::cerr << "err_func: " << err << " ";
+            // std::cerr << err.message() << std::endl; 
+        };
 
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
