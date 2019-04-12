@@ -194,13 +194,13 @@ int main(int argc, char* argv[]) {
     // io state change handler
     tcp_io_interface tcp_iof; // used to send text data
     // handler for @c tcp_connector
-    auto io_state_chng_hndlr = [&tcp_iof, msg_hndlr, DELIM] 
-        (io_interface iof, std::size_t n, bool flag)
-        {
+    auto io_state_chng_hndlr = [&tcp_iof, msg_hndlr, DELIM](io_interface iof, std::size_t n, bool flag) {
+        if (flag && n == 1) {
             iof.start_io(DELIM, msg_hndlr);
             // return iof to main
             tcp_iof = iof;
-        };
+        }
+    };
 
     // error handler
     auto connect_err_func = [&] (io_interface iof, std::error_code err) 
@@ -305,14 +305,6 @@ int main(int argc, char* argv[]) {
     }
     // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    std::cout << "\nbye\n";
-
-    // DEBUG
-    if (param == PARAM_CONNECT) {
-        std::cout << connect_errs << std::endl;
-    } else {
-        std::cout << accept_errs << std::endl;
-    }
 
     wk.stop();
 
