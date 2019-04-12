@@ -20,9 +20,6 @@ g++ -std=c++17 -Wall -Werror \
 -I ~/Projects/asio/asio/include \
 -I ~/Projects/boost_1_69_0/ \
  local_echo_demo.cpp -lpthread -o local
- * 
- *  BUGS:
- *   - leaks memory like a sieve. Under investigation.
  *
  */ 
 
