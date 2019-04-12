@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 #include <cstdlib> // std::system
+#include <sys/types.h>
+#include <unistd.h>
 
 const int NUN_SCROLL_LINES = 10;
 
@@ -119,8 +121,15 @@ private:
         }
     }
 
+    // not recommended, but adequate for this demo
+    // for problems with system("clear") see
+    // http://www.cplusplus.com/articles/4z18T05o/
     void clear_screen() {
+        #ifdef _WIN32
+        system("cls");
+        #else
         system("clear");
+        #endif
     }
 };
 
