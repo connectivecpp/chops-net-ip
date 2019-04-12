@@ -5,7 +5,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/9/19
+ *  4/11/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -25,22 +25,6 @@ const int NUN_SCROLL_LINES = 10;
 const std::string PARAM_CONNECT = "-connect";
 const std::string PARAM_ACCEPT = "-accept";
 const std::string REMOTE = "[remote] ";
-
-// https://stackoverflow.com/questions/3381614/c-convert-string-to-hexadecimal-and-vice-versa
-inline std::string string_to_hex(const std::string& input) {
-    static const char* const lut = "0123456789ABCDEF";
-    size_t len = input.length();
-
-    std::string output;
-    output.reserve(2 * len);
-    for (size_t i = 0; i < len; ++i)
-    {
-        const unsigned char c = input[i];
-        output.push_back(lut[c >> 4]);
-        output.push_back(lut[c & 15]);
-    }
-    return output;
-}
 
 // handle all methods to print output to stdout
 class simple_chat_screen {
@@ -63,7 +47,7 @@ public:
     // print the output to stdout
     // called after @c insert_scroll_line
     void draw_screen() {
-        std::system("clear"); // not recommended, but adequate here
+        clear_screen();
         std::cout << (m_upper_screen + m_scroll_text + BOTTOM + PROMPT);
     }
 
@@ -73,12 +57,9 @@ public:
     void insert_scroll_line(const std::string& text, const std::string& prefix) {
         
         // create the new scroll line
-        // remove '\n' at end of text
+        // remove DELIM at end of text
         std::string new_scroll_line = "| " + prefix + 
             text.substr(0, text.size() - 1);
-        // DEBUG: show string as ascii values
-        // new_scroll_line += " <" + std::to_string(text.size()) + ">";
-        // new_scroll_line += " <" + string_to_hex(text) + ">";
         new_scroll_line += 
             BLANK_LINE.substr(new_scroll_line.length(), std::string::npos);
         
@@ -136,6 +117,10 @@ private:
         while (count-- > 0) {
             m_scroll_text += BLANK_LINE;
         }
+    }
+
+    void clear_screen() {
+        system("clear");
     }
 };
 

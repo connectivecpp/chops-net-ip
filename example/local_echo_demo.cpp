@@ -8,18 +8,18 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/10/19
+ *  4/11/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
- *  Sample make file:
- *  g++ -std=c++17 -Wall -Werror \
- *  -I ../include -I \
- *  -I ~/Projects/utility-rack/include/ \
- *  -I ~/Projects/asio-1.12.2/include \
- *  -I ~/Projects/boost_1_69_0/ \
- *  local_chat_demo.cpp -lpthread -o local
+ *  Sample make file :
+g++ -std=c++17 -Wall -Werror \
+-I ../include \
+-I ~/Projects/utility-rack/include/ \
+-I ~/Projects/asio-1.12.2/include \
+-I ~/Projects/boost_1_69_0/ \
+ local_echo_demo.cpp -lpthread -o local
  * 
  *  BUGS:
  *   - leaks memory like a sieve. Under investigation.
@@ -192,7 +192,7 @@ int main() {
         std::getline (std::cin, s);
         s += "\n"; // needed for deliminator
         // send c-string from @c tcp_connector to @c tcp_acceptor
-        tcp_connect_iof.send(s.c_str(), s.size() + 1);
+        tcp_connect_iof.send(s.data(), s.size());
         // pause so returned string is displayed before next prompt
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
