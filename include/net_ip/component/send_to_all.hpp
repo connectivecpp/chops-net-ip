@@ -102,6 +102,16 @@ public:
       io.send(buf);
     }
   }
+
+  void send(chops::const_shared_buffer buf, io_intf cur_io) const { // TG
+    lock_guard gd { m_mutex };
+    for (const auto& io : m_io_intfs) {
+      if ( !(cur_io == io) ) {
+        io.send(buf);
+      }
+    }
+  }
+
 /**
  *  @brief Copy the bytes, create a reference counted buffer, then send it to
  *  all @c basic_io_interface objects.
@@ -109,6 +119,11 @@ public:
   void send(const void* buf, std::size_t sz) const {
     send(chops::const_shared_buffer(buf, sz));
   }
+
+  void send(const void* buf, std::size_t sz, io_intf cur_io) const { // TG
+    send(chops::const_shared_buffer(buf, sz), cur_io);
+  }
+
 /**
  *  @brief Move the buffer from a writable reference counted buffer to a 
  *  immutable reference counted buffer, then send it.
@@ -116,6 +131,11 @@ public:
   void send(chops::mutable_shared_buffer&& buf) const { 
     send(chops::const_shared_buffer(std::move(buf)));
   }
+
+  void send(chops::mutable_shared_buffer&& buf, io_intf cur_io) const { 
+    send(chops::const_shared_buffer(std::move(buf)), cur_io);
+  }
+
 /**
  *  @brief Return the number of @c basic_io_interface objects in the collection.
  */
