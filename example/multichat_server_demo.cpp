@@ -99,13 +99,15 @@ int main(int argc, char *argv[])
 
    /* lamda handlers */
    // receive text from client, send out to others
-   auto msg_hndlr = [&](const_buf buf, io_interface iof, endpoint ep) {
+   auto msg_hndlr = [&sta](const_buf buf, io_interface iof, endpoint ep) {
       sta.send(buf.data(), buf.size(), iof);
+
       return true;
    };
 
-   auto io_state_chng_hndlr = [&](io_interface iof, std::size_t n, bool flag) {
-      // add to or remove from list
+   auto io_state_chng_hndlr = [&sta, &msg_hndlr, &DELIM]
+                              (io_interface iof, std::size_t n, bool flag) {
+      // add to or remove @c io_interface from list in sta
       sta(iof, n, flag);
       if (flag) {
          iof.start_io(DELIM, msg_hndlr);
@@ -119,7 +121,8 @@ int main(int argc, char *argv[])
    // create @c net_ip instance
    chops::net::net_ip server(wk.get_io_context());
    // make @c tcp_acceptor, ruitn @c network_entity
-   auto net_entity = server.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
+   auto net_entity = server.make_tcp_acceptor(port.c_str());
+   assert(net_entity.is_valid());
    // start network entity, emplace handlers
    net_entity.start(io_state_chng_hndlr, err_func);
 
@@ -127,14 +130,15 @@ int main(int argc, char *argv[])
    
    while (!finished) {
       std::string s;
-      std::cout << "press any key to exit" << std::endl;
+      std::cout << "press return to exit" << std::endl;
       getline(std::cin, s);
       s = "server shutting down" + DELIM;
       sta.send(s.data(), s.size());
       finished = true;
    }
-   
+   // delay so message gets sent
    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+   // shutdown code here?
 
    wk.stop();
 
