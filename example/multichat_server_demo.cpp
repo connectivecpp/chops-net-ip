@@ -89,15 +89,14 @@ int main(int argc, char *argv[])
    if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
       return EXIT_FAILURE;
    }
-   // DEBUG
-   // std::cout << ip_addr << ":" << port << std::endl;
-   // return 0;
 
    // work guard - handles @c std::thread and @c asio::io_context management
    chops::net::worker wk;
    wk.start();
 
+   // handles all @c io_interfaces
    chops::net::send_to_all<chops::net::tcp_io> sta;
+
    /* lamda handlers */
    // receive text from client, send out to others
    auto msg_hndlr = [&](const_buf buf, io_interface iof, endpoint ep) {
@@ -124,13 +123,19 @@ int main(int argc, char *argv[])
    // start network entity, emplace handlers
    net_entity.start(io_state_chng_hndlr, err_func);
 
+   std::cout << "chops-net-ip chat sever demo" << std::endl;
+   
    while (!finished) {
       std::string s;
       std::cout << "press any key to exit" << std::endl;
       getline(std::cin, s);
+      s = "server shutting down" + DELIM;
+      sta.send(s.data(), s.size());
       finished = true;
    }
    
+   std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
    wk.stop();
 
 
