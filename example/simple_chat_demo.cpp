@@ -29,7 +29,6 @@ simple_chat_demo.cpp -lpthread -o chat
 #include <string>
 #include <chrono>
 #include <thread>
-#include <stdio.h>
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
@@ -93,26 +92,28 @@ using endpoint = asio::ip::tcp::endpoint;
 
 
 // process command line args, set ip_addr, port, param as needed
-bool process_args(int argc, char* argv[], std::string& ip_addr, 
-        std::string& port, std::string& param) {
+bool process_args(int argc, char* const argv[], std::string& ip_addr, 
+        std::string& port, std::string& param, bool& print_errors) {
     const std::string PORT = "5001";
     const std::string LOCAL_LOOP = "127.0.0.1";
     const std::string USAGE =
-        "usage: ./chat [-h] -connect | -accept [ip address] [port]\n"
+        "usage: ./chat [-h] [-e] -connect | -accept [ip address] [port]\n"
         "  -h  print usage\n"
+        "  -e  print error messages\n"
         "  -connect  tcp_connector\n"
         "  -accept   tcp_acceptor\n"
         "  default ip address: " + LOCAL_LOOP + " (local loop)\n"
         "  default port: " + PORT + "\n"
         "  if connection type = accept, IP address becomes \"\"";
     const std::string HELP = "-h";
+    const std::string ERR = "-e";
     const std::string EMPTY = "";
     
     // set default values
     ip_addr = LOCAL_LOOP;
     port = PORT;
 
-    if (argc < 2 || argc > 4) {
+    if (argc < 2 || argc > 5) {
         std::cout << "incorrect parameter count\n";
         std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
@@ -121,29 +122,62 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
     if (argv[1] == HELP) {
         std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
-    } else if (argv[1] == PARAM_CONNECT) {
-        param = PARAM_CONNECT;
-    } else if (argv[1] == PARAM_ACCEPT) {
-        param = PARAM_ACCEPT;
+    } else if (argv[1] == ERR) {
+        print_errors = true;
+    }
+    std::cerr << (print_errors ? "true" : "false") << std::endl;
+    if (print_errors) {
+        if (argc == 2) {
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
+        if (argv[2] == PARAM_CONNECT) {
+            param = PARAM_CONNECT;
+        } else if (argv[2] == PARAM_ACCEPT) {
+            param = PARAM_ACCEPT;
+        } else {
+            std::cout << "incorrect second parameter: ";
+            std::cout << "must be [-connect | -accept]" << std::endl;
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
     } else {
-        std::cout << "incorrect first parameter: ";
-        std::cout << "must be [-h | -connect | -accept]" << std::endl;
-        std::cout << USAGE << std::endl;
-        return EXIT_FAILURE;
+        if (argv[1] == PARAM_CONNECT) {
+            param = PARAM_CONNECT;
+        } else if (argv[1] == PARAM_ACCEPT) {
+            param = PARAM_ACCEPT;
+        } else {
+            std::cout << "incorrect first parameter: ";
+            std::cout << "must be [-h | -e | -connect | -accept]" << std::endl;
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
     }
 
     if (param == PARAM_ACCEPT) {
         ip_addr = "";
     }
 
-    if (argc == 3 || argc == 4) {
-        if (param == PARAM_CONNECT) {
-            ip_addr = argv[2];
+    if (print_errors) {
+        if (argc == 4 || argc == 5) {
+            if (param == PARAM_CONNECT) {
+                ip_addr = argv[3];
+            }
         }
-    }
 
-    if (argc == 4) {
-        port = argv[3];
+        if (argc == 5) {
+            port = argv[4];
+        }
+    } else {
+        if (argc == 3 || argc == 4) {
+            if (param == PARAM_CONNECT) {
+                ip_addr = argv[2];
+            }
+        }
+
+        if (argc == 4) {
+            port = argv[3];
+        }
     }
 
     assert(param != "");
@@ -154,21 +188,22 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
 int main(int argc, char* argv[]) {
     const std::string LOCAL = "[local]  ";
     const std::string SYSTEM = "[system] ";
+    const std::string ERROR = "[error]  ";
     const std::string DELIM = "\a"; // alert (bell)
     const std::string NO_CONNECTION = "error: no connection" + DELIM;
     const std::string ABORT = "abort: too many errors";
     const std::string WAIT_CONNECT = "waiting for connection..." + DELIM;
-    // const char* ERR_LOG = "err_log.txt";
     std::string ip_addr;
     std::string port;
     std::string param;
+    bool print_errors = false;
 
-    if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
+    if (process_args(argc, argv, ip_addr, port, param, print_errors) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
     
     // create instance of @c simple_chat_screen class
-    simple_chat_screen screen(ip_addr, port, param);
+    simple_chat_screen screen(ip_addr, port, param, print_errors);
 
     /* lambda callbacks */
     // message handler for @c network_entity
@@ -202,7 +237,7 @@ int main(int argc, char* argv[]) {
         { 
             static int count = 0;
 
-            if (++count > 10) {
+            if (++count > 15) {
                 std::cerr << ABORT << std::endl;
                 exit(0);
             }
@@ -212,10 +247,13 @@ int main(int argc, char* argv[]) {
                 screen.draw_screen();
             }
 
-            // uncomment to see the error messages
-            // std::string err_text = std::to_string(err.value()) + " " +
-            //     err.category().name() + " " + err.message();
-            // screen.insert_scroll_line(err_text, SYSTEM);
+            if (print_errors) {
+                std::string err_text = err.category().name();
+                err_text += ": " + std::to_string(err.value()) + ", " +
+                err.message() + DELIM;
+                screen.insert_scroll_line(err_text, ERROR);
+                screen.draw_screen();
+            }
         };
 
     // work guard - handles @c std::thread and @c asio::io_context management
@@ -260,6 +298,8 @@ int main(int argc, char* argv[]) {
     }
     // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    // tcp_iof.stop_io();
 
     wk.stop();
 
