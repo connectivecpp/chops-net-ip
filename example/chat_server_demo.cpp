@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/14/19
+ *  4/15/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -112,7 +112,8 @@ int main(int argc, char *argv[])
    /* lamda handlers */
    // receive text from client, send out to others
    const auto msg_hndlr = [&sta](const_buf buf, io_interface iof, endpoint ep) {
-      sta.send(buf.data(), buf.size(), iof);
+      // sta.send(buf.data(), buf.size(), iof);
+      sta.send(buf.data(), buf.size());
 
       return true;
    };
