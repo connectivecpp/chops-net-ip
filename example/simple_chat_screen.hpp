@@ -5,7 +5,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/11/19
+ *  4/15/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -34,13 +34,13 @@ private:
     const std::string m_connect_type; // @c '-connect' or @c '-accept'
     std::string m_upper_screen; // fixed upper region of screen output
     std::string m_scroll_text; // history scroll text region
-    const int m_num_scroll_lines; // number of 'scrol lines'
+    const int m_num_scroll_lines; // number of 'scroll lines'
 
 public:
-    simple_chat_screen(const std::string ip, const std::string port, const std::string type,
-        int num_lines = NUN_SCROLL_LINES) :
+    simple_chat_screen(const std::string& ip, const std::string& port, const std::string& type,
+        bool print_errors, int num_lines = NUN_SCROLL_LINES) :
         m_ip_addr(ip), m_port(port), m_connect_type(type), m_num_scroll_lines(num_lines) {
-        create_upper_screen();
+        create_upper_screen(print_errors);
         create_scroll_text();
     };
 
@@ -79,7 +79,7 @@ private:
     S DIVIDOR =
         "|___________________________________________________________________________|\n";
     S HDR_1 =
-        "|                   chops-net-ip 2-way chat network demo                    |\n";
+        "|                      chops-net-ip chat network demo                       |\n";
     S HDR_IP =
         "|   IP address: ";
     S HDR_PORT =
@@ -90,6 +90,10 @@ private:
         "connector                                              |\n";
     S ACCEPT_T =
         "acceptor                                               |\n";
+    S ERR_LOG_ON = 
+        "|     errors printed to console: ON                                         |\n";
+    S ERR_LOG_OFF = 
+        "|     errors printed to console: OFF                                        |\n";
     S HDR_INSTR =
         "|   Enter text to send at prompt. Enter 'quit' to exit.                     |\n";
     S SCROLL_LINE =
@@ -98,16 +102,17 @@ private:
         "|---------------------------------------------------------------------------|\n";
     S HDR_START =
         "|  ";
-    S PROMPT = "> ";
+    S PROMPT = "| > ";
 
     // create the string that represent the (unchanging) upper screen so only calculate once
-    void create_upper_screen() {
+    void create_upper_screen(bool print_err) {
         std::string hdr_info = HDR_IP + (m_ip_addr == "" ? "\"\"" : m_ip_addr) + HDR_PORT + 
             m_port ;
         hdr_info += BLANK_LINE.substr(hdr_info.size(), std::string::npos);
         m_upper_screen =
             TOP + BLANK_LINE + HDR_1 + DIVIDOR + BLANK_LINE + hdr_info + HDR_TYPE + 
-            (m_connect_type == PARAM_ACCEPT ? ACCEPT_T : CONNECT_T) +
+            (m_connect_type == PARAM_ACCEPT ? ACCEPT_T : CONNECT_T) + 
+            (print_err ? ERR_LOG_ON : ERR_LOG_OFF) +
             DIVIDOR + BLANK_LINE + HDR_INSTR + DIVIDOR;
     }
 
@@ -119,8 +124,15 @@ private:
         }
     }
 
+    // not recommended, but adequate for this demo
+    // for problems with system("clear") see
+    // http://www.cplusplus.com/articles/4z18T05o/
     void clear_screen() {
+        #ifdef _WIN32
+        system("cls");
+        #else
         system("clear");
+        #endif
     }
 };
 

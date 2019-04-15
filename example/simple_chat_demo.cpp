@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/11/19
+ *  4/15/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -16,12 +16,10 @@
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio-1.12.2/include/ \
+-I ~/Projects/asio/asio/include/ \
 -I ~/Projects/boost_1_69_0/ \
-simple_chat_deo.cpp -lpthread -o chat
+simple_chat_demo.cpp -lpthread -o chat
  * 
- *  BUGS:
- *   - leaks memory like a sieve. Under investigation.
  *
  */ 
 
@@ -31,7 +29,7 @@ simple_chat_deo.cpp -lpthread -o chat
 #include <string>
 #include <chrono>
 #include <thread>
-#include <stdio.h>
+#include <future> // std::promise, std::future
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
@@ -95,26 +93,28 @@ using endpoint = asio::ip::tcp::endpoint;
 
 
 // process command line args, set ip_addr, port, param as needed
-bool process_args(int argc, char* argv[], std::string& ip_addr, 
-        std::string& port, std::string& param) {
+bool process_args(int argc, char* const argv[], std::string& ip_addr, 
+        std::string& port, std::string& param, bool& print_errors) {
     const std::string PORT = "5001";
     const std::string LOCAL_LOOP = "127.0.0.1";
     const std::string USAGE =
-        "usage: ./chat [-h] -connect | -accept [ip address] [port]\n"
-        "  -h  print usage\n"
-        "  -connect  tcp_acceptor\n"
-        "  -accept   tcp_connector\n"
+        "usage: ./chat [-h] [-e] -connect | -accept [ip address] [port]\n"
+        "  -h  print usage info\n"
+        "  -e  print error messages\n"
+        "  -connect  tcp_connector\n"
+        "  -accept   tcp_acceptor\n"
         "  default ip address: " + LOCAL_LOOP + " (local loop)\n"
         "  default port: " + PORT + "\n"
         "  if connection type = accept, IP address becomes \"\"";
     const std::string HELP = "-h";
+    const std::string ERR = "-e";
     const std::string EMPTY = "";
     
     // set default values
     ip_addr = LOCAL_LOOP;
     port = PORT;
 
-    if (argc < 2 || argc > 4) {
+    if (argc < 2 || argc > 5) {
         std::cout << "incorrect parameter count\n";
         std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
@@ -123,29 +123,62 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
     if (argv[1] == HELP) {
         std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
-    } else if (argv[1] == PARAM_CONNECT) {
-        param = PARAM_CONNECT;
-    } else if (argv[1] == PARAM_ACCEPT) {
-        param = PARAM_ACCEPT;
+    } else if (argv[1] == ERR) {
+        print_errors = true;
+    }
+    
+    if (print_errors) {
+        if (argc == 2) {
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
+        if (argv[2] == PARAM_CONNECT) {
+            param = PARAM_CONNECT;
+        } else if (argv[2] == PARAM_ACCEPT) {
+            param = PARAM_ACCEPT;
+        } else {
+            std::cout << "incorrect second parameter: ";
+            std::cout << "must be [-connect | -accept]" << std::endl;
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
     } else {
-        std::cout << "incorrect first parameter: ";
-        std::cout << "must be [-h | -connect | -accept]" << std::endl;
-        std::cout << USAGE << std::endl;
-        return EXIT_FAILURE;
+        if (argv[1] == PARAM_CONNECT) {
+            param = PARAM_CONNECT;
+        } else if (argv[1] == PARAM_ACCEPT) {
+            param = PARAM_ACCEPT;
+        } else {
+            std::cout << "incorrect first parameter: ";
+            std::cout << "must be [-h | -e | -connect | -accept]" << std::endl;
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
     }
 
     if (param == PARAM_ACCEPT) {
         ip_addr = "";
     }
 
-    if (argc == 3 || argc == 4) {
-        if (param == PARAM_CONNECT) {
-            ip_addr = argv[2];
+    if (print_errors) {
+        if (argc == 4 || argc == 5) {
+            if (param == PARAM_CONNECT) {
+                ip_addr = argv[3];
+            }
         }
-    }
 
-    if (argc == 4) {
-        port = argv[3];
+        if (argc == 5) {
+            port = argv[4];
+        }
+    } else {
+        if (argc == 3 || argc == 4) {
+            if (param == PARAM_CONNECT) {
+                ip_addr = argv[2];
+            }
+        }
+
+        if (argc == 4) {
+            port = argv[3];
+        }
     }
 
     assert(param != "");
@@ -156,76 +189,72 @@ bool process_args(int argc, char* argv[], std::string& ip_addr,
 int main(int argc, char* argv[]) {
     const std::string LOCAL = "[local]  ";
     const std::string SYSTEM = "[system] ";
+    const std::string ERROR = "[error]  ";
     const std::string DELIM = "\a"; // alert (bell)
     const std::string NO_CONNECTION = "error: no connection" + DELIM;
     const std::string ABORT = "abort: too many errors";
     const std::string WAIT_CONNECT = "waiting for connection..." + DELIM;
-    // const char* ERR_LOG = "err_log.txt";
     std::string ip_addr;
     std::string port;
     std::string param;
-    std::string connect_errs = "tcp_connector errors\n";
-    std::string accept_errs = "tcp_acceptor errors\n";
+    std::string last_msg;
+    bool print_errors = false;
+    bool shutdown = false;
+    std::promise<io_interface> promise_obj;
+    std::future<io_interface> future_obj = promise_obj.get_future();
 
-    if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
+    if (process_args(argc, argv, ip_addr, port, param, print_errors) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
     
     // create instance of @c simple_chat_screen class
-    simple_chat_screen screen(ip_addr, port, param);
-    // create error log, clear old log
-    // FILE* file_ptr = fopen(ERR_LOG, "w");
-    // assert(file_ptr != nullptr);
+    simple_chat_screen screen(ip_addr, port, param, print_errors);
 
     /* lambda callbacks */
     // message handler for @c network_entity
     auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep)
         {
+            if (shutdown) {
+                screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
+                    SYSTEM);
+                screen.draw_screen();
+
+                return false;
+            }
+
             // receive data from acceptor, display to user
             // remove deliminator here?
             std::string s (static_cast<const char*> (buf.data()), buf.size());
-            screen.insert_scroll_line(s, REMOTE);
-            screen.draw_screen();
- 
-            // return false if user entered 'quit', otherwise true
-            return s == "quit" + DELIM ? false : true;
+            
+            if (s != last_msg) {
+                screen.insert_scroll_line(s, REMOTE);
+                screen.draw_screen();
+            }
+            
+            return true;
         };
 
-    // io state change handler
-    tcp_io_interface tcp_iof; // used to send text data
     // handler for @c tcp_connector
-    auto io_state_chng_hndlr = [&tcp_iof, msg_hndlr, DELIM](io_interface iof, std::size_t n, bool flag) {
+    auto io_state_chng_hndlr = [&promise_obj, msg_hndlr, DELIM]
+                                (io_interface iof, std::size_t n, bool flag) {
+        // only start the iof if flag is true (startup) and only 1
         if (flag && n == 1) {
             iof.start_io(DELIM, msg_hndlr);
             // return iof to main
-            tcp_iof = iof;
+            // tcp_iof = iof;
+
+            // return iof via promise/future handoff
+            promise_obj.set_value(iof);
         }
     };
 
     // error handler
-    auto connect_err_func = [&] (io_interface iof, std::error_code err) 
+    auto err_func = [&] (io_interface iof, std::error_code err) 
         { 
             static int count = 0;
-            static int last_err = 0;
-            std::string err_text;
 
-            if (err.value() == last_err) {
-                ++count;
-            } else {
-                if (count > 0) {
-                    connect_errs += "  <" + std::to_string(count) + ">\n";
-                    count = 0;
-                    last_err = err.value();
-                }
-                err_text =  "connect: " + std::to_string(err.value()) + ": " + 
-                    err.category().name() + ": " + err.message() + "\n";
-                connect_errs += err_text;
-                ++count;
-            }
-            if (count > 10) {
+            if (++count > 15) {
                 std::cerr << ABORT << std::endl;
-                connect_errs += "  <" + std::to_string(count) + ">\n";
-                std::cerr << connect_errs;
                 exit(0);
             }
 
@@ -233,33 +262,15 @@ int main(int argc, char* argv[]) {
                 screen.insert_scroll_line(WAIT_CONNECT, SYSTEM);
                 screen.draw_screen();
             }
-        };
-    
-     auto accept_err_func = [&] (io_interface iof, std::error_code err) {
-            static int count = 0;
-            static int last_err = 0;
-            std::string err_text;
 
-            if (err.value() == last_err) {
-                ++count;
-            } else {
-                if (count > 0) {
-                    accept_errs += "  <" + std::to_string(count) + ">\n";
-                    count = 0;
-                    last_err = err.value();
-                }
-                err_text =  "accept: " + std::to_string(err.value()) + ": " + 
-                    err.category().name() + ": " + err.message() + "\n";
-                accept_errs += err_text;
-                ++count;
+            if (print_errors) {
+                std::string err_text = err.category().name();
+                err_text += ": " + std::to_string(err.value()) + ", " +
+                err.message() + DELIM;
+                screen.insert_scroll_line(err_text, ERROR);
+                screen.draw_screen();
             }
-            if (count > 10) {
-                std::cerr << ABORT << std::endl;
-                accept_errs += "  <" + std::to_string(count) + ">\n";
-                std::cerr << accept_errs;
-                exit(0);
-            }
-     };
+        };
 
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
@@ -275,36 +286,46 @@ int main(int argc, char* argv[]) {
                     std::chrono::milliseconds(5000));
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_hndlr, connect_err_func);
+        net_entity.start(io_state_chng_hndlr, err_func);
     } else {
         // make @ tcp_acceptor, return @c network_entity
         auto net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
         assert(net_entity.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_hndlr, accept_err_func);
+        net_entity.start(io_state_chng_hndlr, err_func);
     }
 
     screen.draw_screen();
 
-    // get std::string from user
-    // send as c-string over network connection, update screen
+     // io state change handler
+    tcp_io_interface tcp_iof; // used to send text data
+    tcp_iof = future_obj.get(); // wait for value set in io_state_chng_hndlr
+    
+    // get std::string from user, send string data over network, update screen
     std::string s;
-    while (s != "quit" + DELIM) {
-        std::getline (std::cin, s);
+    // while (s != "quit" + DELIM) {
+    while (!shutdown) {
+        std::getline (std::cin, s); // user input
+        if (s == "quit") {
+            shutdown = true;
+        }
         s += DELIM; // needed for deliminator
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
+        last_msg = s;
         if (!tcp_iof.is_valid()) {
             screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
             screen.draw_screen();
             continue;
         }
-        // send string data from @c tcp_connector to @c tcp_acceptor
-        // note correct method of sending std::string over network
+        // note correct method of sending string data over network
         tcp_iof.send(s.data(), s.size());
+       
     }
     // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    // tcp_iof.stop_io();
 
     wk.stop();
 

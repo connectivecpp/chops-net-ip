@@ -20,9 +20,6 @@ g++ -std=c++17 -Wall -Werror \
 -I ~/Projects/asio/asio/include \
 -I ~/Projects/boost_1_69_0/ \
  local_echo_demo.cpp -lpthread -o local
- * 
- *  BUGS:
- *   - leaks memory like a sieve. Under investigation.
  *
  */ 
 
@@ -126,8 +123,8 @@ int main() {
             std::string s(static_cast<const char*> (buf.data()), buf.size());
             auto to_upper = [] (char& c) { c = ::toupper(c); };
             std::for_each(s.begin(), s.end(), to_upper);
-            // send c-string back over network connection
-            iof.send(s.c_str(), s.size() + 1);
+            // send uppercase string data back over network connection
+            iof.send(s.data(), s.size());
             
             // return false if user entered 'quit', otherwise true
             return s == "QUIT\n" ? false:  true;
@@ -186,19 +183,19 @@ int main() {
 
     assert(tcp_connect_iof.is_valid()); // fails without a pause
 
-    std::cout << "network demo over local loop" << std::endl;
+    std::cout << "network echo demo over local loop" << std::endl;
     std::cout << "enter a string at the prompt" << std::endl;
     std::cout << "the string will be returned in uppercase" << std::endl;
     std::cout << "enter \'quit\' to exit" << std::endl << std::endl;
 
     // get std::string from user
-    // send as c-string over network connection
+    // send string data over network connection
     std::string s;
     while (s != "quit\n") {
         std::cout << "> ";
         std::getline (std::cin, s);
         s += "\n"; // needed for deliminator
-        // send c-string from @c tcp_connector to @c tcp_acceptor
+        // send string from @c tcp_connector to @c tcp_acceptor
         tcp_connect_iof.send(s.data(), s.size());
         // pause so returned string is displayed before next prompt
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
