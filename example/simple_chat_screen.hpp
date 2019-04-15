@@ -102,7 +102,7 @@ private:
         "|---------------------------------------------------------------------------|\n";
     S HDR_START =
         "|  ";
-    S PROMPT = " > ";
+    S PROMPT = "| > ";
 
     // create the string that represent the (unchanging) upper screen so only calculate once
     void create_upper_screen(bool print_err) {
