@@ -197,7 +197,9 @@ int main(int argc, char* argv[]) {
     std::string ip_addr;
     std::string port;
     std::string param;
+    std::string last_msg;
     bool print_errors = false;
+    bool shutdown = false;
     std::promise<io_interface> promise_obj;
     std::future<io_interface> future_obj = promise_obj.get_future();
 
@@ -212,14 +214,24 @@ int main(int argc, char* argv[]) {
     // message handler for @c network_entity
     auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep)
         {
+            if (shutdown) {
+                screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
+                    SYSTEM);
+                screen.draw_screen();
+
+                return false;
+            }
+
             // receive data from acceptor, display to user
             // remove deliminator here?
             std::string s (static_cast<const char*> (buf.data()), buf.size());
-            screen.insert_scroll_line(s, REMOTE);
-            screen.draw_screen();
- 
-            // return false if user entered 'quit', otherwise true
-            return s == "quit" + DELIM ? false : true;
+            
+            if (s != last_msg) {
+                screen.insert_scroll_line(s, REMOTE);
+                screen.draw_screen();
+            }
+            
+            return true;
         };
 
     // handler for @c tcp_connector
@@ -288,13 +300,19 @@ int main(int argc, char* argv[]) {
      // io state change handler
     tcp_io_interface tcp_iof; // used to send text data
     tcp_iof = future_obj.get(); // wait for value set in io_state_chng_hndlr
+    
     // get std::string from user, send string data over network, update screen
     std::string s;
-    while (s != "quit" + DELIM) {
+    // while (s != "quit" + DELIM) {
+    while (!shutdown) {
         std::getline (std::cin, s); // user input
+        if (s == "quit") {
+            shutdown = true;
+        }
         s += DELIM; // needed for deliminator
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
+        last_msg = s;
         if (!tcp_iof.is_valid()) {
             screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
             screen.draw_screen();
@@ -302,6 +320,7 @@ int main(int argc, char* argv[]) {
         }
         // note correct method of sending string data over network
         tcp_iof.send(s.data(), s.size());
+       
     }
     // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
