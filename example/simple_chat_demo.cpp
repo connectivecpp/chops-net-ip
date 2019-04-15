@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/11/19
+ *  4/15/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -29,6 +29,7 @@ simple_chat_demo.cpp -lpthread -o chat
 #include <string>
 #include <chrono>
 #include <thread>
+#include <future> // std::promise, std::future
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
@@ -98,7 +99,7 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
     const std::string LOCAL_LOOP = "127.0.0.1";
     const std::string USAGE =
         "usage: ./chat [-h] [-e] -connect | -accept [ip address] [port]\n"
-        "  -h  print usage\n"
+        "  -h  print usage info\n"
         "  -e  print error messages\n"
         "  -connect  tcp_connector\n"
         "  -accept   tcp_acceptor\n"
@@ -125,7 +126,7 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
     } else if (argv[1] == ERR) {
         print_errors = true;
     }
-    std::cerr << (print_errors ? "true" : "false") << std::endl;
+    
     if (print_errors) {
         if (argc == 2) {
             std::cout << USAGE << std::endl;
@@ -197,6 +198,8 @@ int main(int argc, char* argv[]) {
     std::string port;
     std::string param;
     bool print_errors = false;
+    std::promise<io_interface> promise_obj;
+    std::future<io_interface> future_obj = promise_obj.get_future();
 
     if (process_args(argc, argv, ip_addr, port, param, print_errors) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -219,16 +222,17 @@ int main(int argc, char* argv[]) {
             return s == "quit" + DELIM ? false : true;
         };
 
-    // io state change handler
-    tcp_io_interface tcp_iof; // used to send text data
     // handler for @c tcp_connector
-    auto io_state_chng_hndlr = [&tcp_iof, msg_hndlr, DELIM]
+    auto io_state_chng_hndlr = [&promise_obj, msg_hndlr, DELIM]
                                 (io_interface iof, std::size_t n, bool flag) {
         // only start the iof if flag is true (startup) and only 1
         if (flag && n == 1) {
             iof.start_io(DELIM, msg_hndlr);
             // return iof to main
-            tcp_iof = iof;
+            // tcp_iof = iof;
+
+            // return iof via promise/future handoff
+            promise_obj.set_value(iof);
         }
     };
 
@@ -281,6 +285,9 @@ int main(int argc, char* argv[]) {
 
     screen.draw_screen();
 
+     // io state change handler
+    tcp_io_interface tcp_iof; // used to send text data
+    tcp_iof = future_obj.get(); // wait for value set in io_state_chng_hndlr
     // get std::string from user, send string data over network, update screen
     std::string s;
     while (s != "quit" + DELIM) {
