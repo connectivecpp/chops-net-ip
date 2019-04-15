@@ -5,7 +5,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/14/19
+ *  4/15/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -102,7 +102,7 @@ private:
         "|---------------------------------------------------------------------------|\n";
     S HDR_START =
         "|  ";
-    S PROMPT = "> ";
+    S PROMPT = " > ";
 
     // create the string that represent the (unchanging) upper screen so only calculate once
     void create_upper_screen(bool print_err) {
