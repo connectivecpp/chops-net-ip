@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/12/19
+ *  4/14/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -18,7 +18,7 @@ g++ -std=c++17 -Wall -Werror \
 -I ~/Projects/utility-rack/include/ \
 -I ~/Projects/asio/asio/include/ \
 -I ~/Projects/boost_1_69_0/ \
-multichat_server_demo.cpp -lpthread -o server
+chat_server_demo.cpp -lpthread -o chat_server
  *
  */
 
@@ -35,7 +35,6 @@ multichat_server_demo.cpp -lpthread -o server
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
 #include "net_ip/component/send_to_all.hpp"
-#include "simple_chat_screen.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -43,30 +42,46 @@ using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
 // process command line args, set ip_addr, port, param as needed
-bool process_args(int argc, char *argv[], std::string &ip_addr,
-                  std::string &port, std::string &param) {
+bool process_args(int argc,  char* const argv[], std::string& ip_addr,
+                  std::string& port, bool& print_errors) {
    const std::string PORT = "5001";
    const std::string LOCAL_LOOP = "127.0.0.1";
    const std::string USAGE =
        "usage:\n"
-       "  ./chat_server [-h]  [port]\n"
-       "     -h   print usage\n"
+       "  ./chat_server [-h] [-e] [port]\n"
+       "      -h   print usage\n"
+       "      -e   print all error messages to console\n"
        "      default port = " + PORT + "\n"
-       "      server IP address = " + LOCAL_LOOP + " (local loop)";
+       "      server IP address (fixed) = " + LOCAL_LOOP + " (local loop)";
 
    const std::string HELP = "-h";
+   const std::string ERR = "-e";
 
    // set default values
    ip_addr = LOCAL_LOOP;
    port = PORT;
 
-   if (argc > 2 || (argc == 2 && argv[1] == HELP)) {
+   if (argc > 3 || (argc == 2 && argv[1] == HELP)) {
       std::cout << USAGE << std::endl;
       return EXIT_FAILURE;
    }
 
    if (argc == 2) {
-      port = argv[1];
+      if (argv[1] == ERR) {
+         print_errors = true;
+      } else {
+         port = argv[1];
+      }
+   }
+
+   if (argc == 3) {
+      if (argv[1] == ERR) {
+         print_errors = true;
+         port = argv[2];
+      } else {
+         std::cout << USAGE << std::endl;
+         return EXIT_FAILURE;
+      }
    }
 
    return EXIT_SUCCESS;
@@ -78,15 +93,12 @@ int main(int argc, char *argv[])
    const std::string SYSTEM = "[system] ";
    const std::string SERVER = "[server] ";
    const std::string DELIM = "\a"; // alert (bell)
-   const std::string NO_CONNECTION = "error: no connection" + DELIM;
-   const std::string ABORT = "abort: too many errors";
-   const std::string WAIT_CONNECT = "waiting for connection..." + DELIM;
    std::string ip_addr;
    std::string port;
-   std::string param;
+   bool print_errors = false;
    bool finished = false;
 
-   if (process_args(argc, argv, ip_addr, port, param) == EXIT_FAILURE) {
+   if (process_args(argc, argv, ip_addr, port, print_errors) == EXIT_FAILURE) {
       return EXIT_FAILURE;
    }
 
@@ -99,13 +111,13 @@ int main(int argc, char *argv[])
 
    /* lamda handlers */
    // receive text from client, send out to others
-   auto msg_hndlr = [&sta](const_buf buf, io_interface iof, endpoint ep) {
+   const auto msg_hndlr = [&sta](const_buf buf, io_interface iof, endpoint ep) {
       sta.send(buf.data(), buf.size(), iof);
 
       return true;
    };
 
-   auto io_state_chng_hndlr = [&sta, &msg_hndlr, &DELIM]
+   const auto io_state_chng_hndlr = [&sta, &msg_hndlr, &DELIM]
                               (io_interface iof, std::size_t n, bool flag) {
       // add to or remove @c io_interface from list in sta
       sta(iof, n, flag);
@@ -114,8 +126,10 @@ int main(int argc, char *argv[])
       }
    };
 
-   auto err_func = [&](io_interface iof, std::error_code err) {
-      std::cerr << err << " " << err.message() << std::endl;
+   const auto err_func = [&print_errors](io_interface iof, std::error_code err) {
+      if (print_errors) {
+         std::cerr << err << ", " << err.message() << std::endl;
+      }
    };
 
    // create @c net_ip instance
@@ -126,7 +140,11 @@ int main(int argc, char *argv[])
    // start network entity, emplace handlers
    net_entity.start(io_state_chng_hndlr, err_func);
 
-   std::cout << "chops-net-ip chat sever demo" << std::endl;
+   std::cout << "chops-net-ip chat server demo" << std::endl;
+   std::cout << "  port: " << port << std::endl;
+   if (print_errors) {
+      std::cout << "  all error messages printed to console" << std::endl;
+   }
    
    while (!finished) {
       std::string s;
@@ -137,9 +155,10 @@ int main(int argc, char *argv[])
       finished = true;
    }
    // delay so message gets sent
-   std::this_thread::sleep_for(std::chrono::milliseconds(500));
+   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
    // shutdown code here?
-
+   // net_entity.stop();
+   
    wk.stop();
 
 
