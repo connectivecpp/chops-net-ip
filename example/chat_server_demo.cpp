@@ -111,12 +111,19 @@ int main(int argc, char *argv[])
 
    /* lamda handlers */
    // receive text from client, send out to others
-   const auto msg_hndlr = [&sta, finished](const_buf buf, io_interface iof, endpoint ep) {
+   const auto msg_hndlr = [&sta, finished, &DELIM](const_buf buf, io_interface iof, endpoint ep) {
       if (finished) {
          return false;
       }
       // sta.send(buf.data(), buf.size(), iof);
-      sta.send(buf.data(), buf.size());
+      // retransmit 'quit' only to sender
+      const std::string s (static_cast<const char*> (buf.data()), buf.size());
+      if (s != "quit" + DELIM) {
+         sta.send(buf.data(), buf.size());
+      } else {
+         // send back to only the sender so io_state_change handler can exit
+         iof.send(buf.data(), buf.size()); 
+      }
 
       return true;
    };
@@ -160,9 +167,14 @@ int main(int argc, char *argv[])
    }
    // delay so message gets sent
    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+   std::cerr << "shutdown\n";
    // shutdown code here?
    net_entity.stop();
+   // server.stop_all();
+   // server.remove_all();
    
+   std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
    wk.stop();
 
 
