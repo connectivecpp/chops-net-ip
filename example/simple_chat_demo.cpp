@@ -229,22 +229,31 @@ int main(int argc, char* argv[]) {
             if (s != last_msg) {
                 screen.insert_scroll_line(s, REMOTE);
                 screen.draw_screen();
+
+                // if user sent quit, echo back to allow
+                // io_state_change handler to exit
+                if (s == "quit" + DELIM) {
+                    iof.send(s.data(), s.size());
+                }
             }
             
             return true;
         };
 
     // handler for @c tcp_connector
-    auto io_state_chng_hndlr = [&promise_obj, msg_hndlr, DELIM]
+    auto io_state_chng_hndlr = [&promise_obj, msg_hndlr, DELIM, SYSTEM, &screen]
                                 (io_interface iof, std::size_t n, bool flag) {
         // only start the iof if flag is true (startup) and only 1
         if (flag && n == 1) {
             iof.start_io(DELIM, msg_hndlr);
-            // return iof to main
-            // tcp_iof = iof;
-
             // return iof via promise/future handoff
             promise_obj.set_value(iof);
+        }
+        if (!flag) {
+            screen.insert_scroll_line("io_state_chng shutdown" + DELIM, SYSTEM);
+            screen.draw_screen();
+            assert(iof.is_valid());
+            iof.stop_io();
         }
     };
 
@@ -275,24 +284,32 @@ int main(int argc, char* argv[]) {
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
-
+    { 
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
+    
+
+    chops::net::tcp_connector_net_entity net_entity_connect;
+    chops::net::tcp_acceptor_net_entity net_entity_accept;
+    chops::net::tcp_acceptor_net_entity* net_entity_ptr = nullptr;
 
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, return @c network_entity
         // TODO: why does this not work with std::string, but acceptor does?
-        auto net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
+        net_entity_connect = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
                     std::chrono::milliseconds(5000));
-        assert(net_entity.is_valid());
+        assert(net_entity_connect.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_hndlr, err_func);
+        net_entity_connect.start(io_state_chng_hndlr, err_func);
+        net_entity_ptr = 
+            reinterpret_cast<chops::net::tcp_acceptor_net_entity*> (&net_entity_connect);
     } else {
         // make @ tcp_acceptor, return @c network_entity
-        auto net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
-        assert(net_entity.is_valid());
+        net_entity_accept = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
+        assert(net_entity_accept.is_valid());
         // start network entity, emplace handlers
-        net_entity.start(io_state_chng_hndlr, err_func);
+        net_entity_accept.start(io_state_chng_hndlr, err_func);
+        net_entity_ptr = &net_entity_accept;
     }
 
     screen.draw_screen();
@@ -303,7 +320,6 @@ int main(int argc, char* argv[]) {
     
     // get std::string from user, send string data over network, update screen
     std::string s;
-    // while (s != "quit" + DELIM) {
     while (!shutdown) {
         std::getline (std::cin, s); // user input
         if (s == "quit") {
@@ -325,7 +341,30 @@ int main(int argc, char* argv[]) {
     // allow last message to be sent before shutting down connection
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    // tcp_iof.stop_io();
+    // shutdown
+    net_entity_ptr->stop();
+    
+    // if (param == PARAM_CONNECT) {
+    //     screen.insert_scroll_line("connect exit" + DELIM, SYSTEM);
+    //     screen.draw_screen();
+
+    //     if (net_entity_connect.is_valid() && net_entity_connect.is_started()) {
+    //         net_entity_connect.stop();
+    //     }
+
+    //     // chat.stop_all();
+    //     // chat.remove_all();
+    // } else {
+    //     screen.insert_scroll_line("accept exit" + DELIM, SYSTEM);
+    //     screen.draw_screen();
+    //     assert(net_entity_accept.is_valid());
+    //     net_entity_accept.stop(); // still leaks
+    //     // chat.stop_all();
+    //     // chat.remove_all();
+    // }
+
+    } // ::net_ip chat goes out of scope
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
     wk.stop();
 
