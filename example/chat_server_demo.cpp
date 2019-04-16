@@ -111,7 +111,10 @@ int main(int argc, char *argv[])
 
    /* lamda handlers */
    // receive text from client, send out to others
-   const auto msg_hndlr = [&sta](const_buf buf, io_interface iof, endpoint ep) {
+   const auto msg_hndlr = [&sta, finished](const_buf buf, io_interface iof, endpoint ep) {
+      if (finished) {
+         return false;
+      }
       // sta.send(buf.data(), buf.size(), iof);
       sta.send(buf.data(), buf.size());
 
@@ -158,7 +161,7 @@ int main(int argc, char *argv[])
    // delay so message gets sent
    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
    // shutdown code here?
-   // net_entity.stop();
+   net_entity.stop();
    
    wk.stop();
 
