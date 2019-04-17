@@ -63,8 +63,25 @@ namespace net {
  *
  */
 
+// TG: set up class inheritance
+class net_entity_interface {
+public:
+  virtual bool is_valid() const noexcept = 0;
+  // bool is_valid() const noexcept;
+  virtual bool is_started() const = 0;
+  // bool is_started() const;
+  template <typename ET>
+  typename ET::socket_type& get_socket() const;
+  template <typename F1, typename F2>
+  bool start(F1&& io_state_chg_func, F2&& err_func); // cant make virtual
+  virtual bool stop() = 0; // must be virtual
+  // bool stop();
+  template <typename ET>
+  std::weak_ptr<ET> get_shared_ptr() const noexcept;
+};
+
 template <typename ET>
-class basic_net_entity {
+class basic_net_entity : public net_entity_interface {
 private:
   std::weak_ptr<ET> m_eh_wptr;
 
@@ -302,6 +319,8 @@ public:
   auto get_shared_ptr() const noexcept {
     return m_eh_wptr.lock();
   }
+
+  // TG: need to define virtual destructor??
 
 };
 
