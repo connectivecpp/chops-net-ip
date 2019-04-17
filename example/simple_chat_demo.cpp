@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
     const std::string SYSTEM = "[system] ";
     const std::string ERROR = "[error]  ";
     const std::string DELIM = "\a"; // alert (bell)
-    const std::string NO_CONNECTION = "error: no connection" + DELIM;
+    const std::string NO_CONNECTION = "no connection..." + DELIM;
     const std::string ABORT = "abort: too many errors";
     const std::string WAIT_CONNECT = "waiting for connection..." + DELIM;
     std::string ip_addr;
@@ -298,7 +298,8 @@ int main(int argc, char* argv[]) {
 
     chops::net::tcp_connector_net_entity net_entity_connect;
     chops::net::tcp_acceptor_net_entity net_entity_accept;
-    chops::net::tcp_acceptor_net_entity* net_entity_ptr = nullptr;
+    chops::net::net_entity_interface* net_entity_ptr = nullptr;
+
 
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, return @c network_entity
@@ -306,18 +307,21 @@ int main(int argc, char* argv[]) {
         net_entity_connect = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
                     std::chrono::milliseconds(5000));
         assert(net_entity_connect.is_valid());
-        // start network entity, emplace handlers
         net_entity_connect.start(io_state_chng_hndlr, err_func);
-        net_entity_ptr = 
-            reinterpret_cast<chops::net::tcp_acceptor_net_entity*> (&net_entity_connect);
+        net_entity_ptr = &net_entity_connect;
     } else {
         // make @ tcp_acceptor, return @c network_entity
         net_entity_accept = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
         assert(net_entity_accept.is_valid());
-        // start network entity, emplace handlers
         net_entity_accept.start(io_state_chng_hndlr, err_func);
         net_entity_ptr = &net_entity_accept;
     }
+
+    // start network entity, emplace handlers
+    assert(net_entity_ptr != nullptr);
+    // DOES NOT WORK
+    // net_entity_ptr->start(io_state_chng_hndlr, err_func);
+    // auto wk_ptr = net_entity_ptr->get_shared_ptr();
 
     screen.draw_screen();
 
