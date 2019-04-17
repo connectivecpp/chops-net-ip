@@ -2,12 +2,12 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief Example of TCP 2-way network chat program.
+ *  @brief Example of TCP peer to peer network chat program.
  * 
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/15/19
+ *  4/17/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -100,7 +100,7 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
     const std::string USAGE =
         "usage: ./chat [-h] [-e] -connect | -accept [ip address] [port]\n"
         "  -h  print usage info\n"
-        "  -e  print error messages\n"
+        "  -e  print error and diagnostic messages\n"
         "  -connect  tcp_connector\n"
         "  -accept   tcp_acceptor\n"
         "  default ip address: " + LOCAL_LOOP + " (local loop)\n"
@@ -212,46 +212,53 @@ int main(int argc, char* argv[]) {
 
     /* lambda callbacks */
     // message handler for @c network_entity
+    // note: cannot explicitly capture REMOTE
     auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep)
         {
             if (shutdown) {
-                screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
-                    SYSTEM);
-                screen.draw_screen();
+                if (print_errors) {
+                    screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
+                        SYSTEM);
+                    screen.draw_screen();
+                }
 
                 return false;
             }
 
             // receive data from acceptor, display to user
             // remove deliminator here?
-            std::string s (static_cast<const char*> (buf.data()), buf.size());
-            
-            if (s != last_msg) {
-                screen.insert_scroll_line(s, REMOTE);
-                screen.draw_screen();
+            std::string s(static_cast<const char *>(buf.data()), buf.size());
 
-                // if user sent quit, echo back to allow
-                // io_state_change handler to exit
-                if (s == "quit" + DELIM) {
-                    iof.send(s.data(), s.size());
-                }
+            screen.insert_scroll_line(s, REMOTE);
+            screen.draw_screen();
+
+            // if user sent quit, echo back to allow her io_interface to stop
+            if (s == "quit" + DELIM) {
+                iof.send(s.data(), s.size());
             }
-            
+
             return true;
         };
 
     // handler for @c tcp_connector
-    auto io_state_chng_hndlr = [&promise_obj, msg_hndlr, DELIM, SYSTEM, &screen]
-                                (io_interface iof, std::size_t n, bool flag) {
-        // only start the iof if flag is true (startup) and only 1
+    auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
+        // start iof on flag, and only allow one connection
         if (flag && n == 1) {
+            if (print_errors) {
+                screen.insert_scroll_line("io_interface start" + DELIM, SYSTEM);
+                screen.draw_screen();
+            }
             iof.start_io(DELIM, msg_hndlr);
             // return iof via promise/future handoff
             promise_obj.set_value(iof);
         }
+        // stop iof when flag false
+        // IMPORTANT: needed to avert memory leaks and crashes
         if (!flag) {
-            screen.insert_scroll_line("io_state_chng shutdown" + DELIM, SYSTEM);
-            screen.draw_screen();
+            if (print_errors) {
+                screen.insert_scroll_line("io_interface stop" + DELIM, SYSTEM);
+                screen.draw_screen();
+            }
             assert(iof.is_valid());
             iof.stop_io();
         }
@@ -284,7 +291,7 @@ int main(int argc, char* argv[]) {
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
-    { 
+    
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
     
@@ -344,26 +351,6 @@ int main(int argc, char* argv[]) {
     // shutdown
     net_entity_ptr->stop();
     
-    // if (param == PARAM_CONNECT) {
-    //     screen.insert_scroll_line("connect exit" + DELIM, SYSTEM);
-    //     screen.draw_screen();
-
-    //     if (net_entity_connect.is_valid() && net_entity_connect.is_started()) {
-    //         net_entity_connect.stop();
-    //     }
-
-    //     // chat.stop_all();
-    //     // chat.remove_all();
-    // } else {
-    //     screen.insert_scroll_line("accept exit" + DELIM, SYSTEM);
-    //     screen.draw_screen();
-    //     assert(net_entity_accept.is_valid());
-    //     net_entity_accept.stop(); // still leaks
-    //     // chat.stop_all();
-    //     // chat.remove_all();
-    // }
-
-    } // ::net_ip chat goes out of scope
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
     wk.stop();
