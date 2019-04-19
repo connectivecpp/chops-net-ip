@@ -33,6 +33,10 @@
 namespace chops {
 namespace net {
 
+
+using ent_wp_var = std::variant<udp_wp, acc_wp, conn_wp>;
+
+
 /**
  *  @brief The @c net_entity class provides the application interface 
  *  into the TCP acceptor, TCP connector, and UDP entity functionality.
@@ -69,9 +73,9 @@ namespace net {
 
 class net_entity {
 private:
-  using acc_wp = std::weak_ptr<detail::tcp_acceptor>;
-  using conn_wp = std::weak_ptr<detail::tcp_connector>;
-  using udp_wp = std::weak_ptr<detail::udp_entity_io>;
+  using acc_wp = std::weak_ptr<tcp_acceptor>;
+  using conn_wp = std::weak_ptr<tcp_connector>;
+  using udp_wp = std::weak_ptr<udp_entity_io>;
 
 private:
   std::variant<udp_wp, acc_wp, conn_wp> m_wptr;
@@ -104,11 +108,13 @@ public:
 /**
  *  @brief Query whether an internal net entity is associated with this object.
  *
- *  If @c true, a net entity (TCP acceptor or connector or UDP entity) is associated. 
+ *  If @c true, a net entity (TCP acceptor or TCP connector or UDP entity) is associated. 
  *
  *  @return @c true if associated with a net entity.
  */
-  bool is_valid() const noexcept { return !m_eh_wptr.expired(); }
+  bool is_valid() const noexcept {
+    return std::visit([] (const auto& wp)->bool { return !wp.expired(); }, m_wptr);
+  }
 
 /**
  *  @brief Query whether @c start has been called or not.
@@ -117,11 +123,13 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if no association to a net entity.
  */
-  bool is_started() const {
-    if (auto p = m_eh_wptr.lock()) {
-      return p->is_started();
-    }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  bool is_started() const noexcept {
+    return std::visit([] (const auto& wp)->bool { 
+          if (auto p = wp.lock()) {
+            return p->is_started();
+          }
+          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        }, m_wptr);
   }
 
 /**
@@ -141,12 +149,14 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
+  /*
   typename ET::socket_type& get_socket() const {
     if (auto p = m_eh_wptr.lock()) {
       return p->get_socket();
     }
     throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
+  */
 
 /**
  *  @brief Start network processing on the associated net entity with the application
@@ -162,18 +172,17 @@ public:
  *  The application provides two function objects to @c start (the second can be defaulted
  *  to a "do nothing" function object):
  *
- *  1) An IO state change function object which is invoked twice. The first time is when a 
- *  TCP connection is created or UDP socket is opened, the second time is when the TCP 
- *  connection is destroyed or the UDP socket closed. A @c basic_io_interface object is 
- *  provided to the callback which allows IO processing to commence through the 
- *  @c start_io method call.
+ *  1) An IO state change callback function object. This callback object is invoked when a 
+ *  TCP connection is created or a UDP socket opened, and then invoked when the TCP connection 
+ *  is destroyed or the UDP socket closed. A @c basic_io_interface object is provided to the 
+ *  callback which allows IO processing to commence through the @c start_io method call (when
+ *  a TCP connection is created or UDP socket opened).
  *
  *  2) An error function object which is invoked whenever an error occurs or when
  *  processing is gracefully shutdown.
  *
  *  The @c start method call can be followed by a @c stop call, followed by @c start, 
- *  etc. This may be useful (for example) for a TCP connector that needs to reconnect 
- *  after a connection has been lost.
+ *  as needed.
  *
  *  @param io_state_chg_func A function object with the following signature:
  *
@@ -240,10 +249,12 @@ public:
  */
   template <typename F1, typename F2>
   bool start(F1&& io_state_chg_func, F2&& err_func) {
-    if (auto p = m_eh_wptr.lock()) {
-      return p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func));
-    }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return std::visit([&io_state_chg_func, &err_func] (const auto& wp)->bool {
+          if (auto p = wp.lock()) {
+            return p->start(io_state_chg_func, err_func);
+          }
+          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        }, m_wptr);
   }
 
 /**
@@ -260,10 +271,12 @@ public:
  *
  */
   bool stop() {
-    if (auto p = m_eh_wptr.lock()) {
-      return p->stop();
-    }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return std::visit([] (const auto& wp)->bool {
+          if (auto p = wp.lock()) {
+            return p->stop();
+          }
+          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        }, m_wptr);
   }
 /**
  *  @brief Compare two @c net_entity objects for equality.
@@ -276,10 +289,12 @@ public:
  *  @return As described in the comments.
  */
 
-  bool operator==(const net_entity<ET>& rhs) const noexcept {
-    auto lp = m_eh_wptr.lock();
-    auto rp = rhs.m_eh_wptr.lock();
-    return (lp && rp && lp == rp) || (!lp && !rp);
+  bool operator==(const net_entity& rhs) const noexcept {
+    return std::visit([] (const auto& lwp, const auto& rwp)->bool {
+          auto lp = lwp.lock();
+          auto rp = rwp.lock();
+          return (lp && rp && lp == rp) || (!lp && !rp);
+        }, m_wptr, rhs.m_wptr);
   }
 
 /**
@@ -295,10 +310,12 @@ public:
  *
  *  @return As described in the comments.
  */
-  bool operator<(const net_entity<ET>& rhs) const noexcept {
-    auto lp = m_eh_wptr.lock();
-    auto rp = rhs.m_eh_wptr.lock();
-    return (lp && rp && lp < rp) || (!lp && rp);
+  bool operator<(const net_entity& rhs) const noexcept {
+    return std::visit([] (const auto& lwp, const auto& rwp)->bool {
+          auto lp = lwp.lock();
+          auto rp = rwp.lock();
+          return (lp && rp && lp < rp) || (!lp && rp);
+        }, m_wptr, rhs.m_wptr);
   }
 
 /**
