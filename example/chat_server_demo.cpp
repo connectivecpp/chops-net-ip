@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/15/19
+ *  4/17/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -41,7 +41,8 @@ using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
-// process command line args, set ip_addr, port, param as needed
+// process command line args
+// set ip_addr, port, param, print_errors as needed
 bool process_args(int argc,  char* const argv[], std::string& ip_addr,
                   std::string& port, bool& print_errors) {
    const std::string PORT = "5001";
@@ -111,9 +112,22 @@ int main(int argc, char *argv[])
 
    /* lamda handlers */
    // receive text from client, send out to others
-   const auto msg_hndlr = [&sta](const_buf buf, io_interface iof, endpoint ep) {
-      // sta.send(buf.data(), buf.size(), iof);
-      sta.send(buf.data(), buf.size());
+   const auto msg_hndlr = [&sta, finished, &DELIM](const_buf buf, io_interface iof, endpoint ep) {
+      if (finished) {
+         return false;
+      }
+      
+      // retransmit message
+      const std::string s (static_cast<const char*> (buf.data()), buf.size());
+      if (s == "quit" + DELIM) {
+         // send 'quit' to originator
+         // originator needs message for io_state_change halt
+         iof.send(buf.data(), buf.size()); 
+      } else {
+         // not 'quit' (normal message)
+         // so send message to all but originator
+         sta.send(buf.data(), buf.size(), iof);
+      }
 
       return true;
    };
@@ -151,15 +165,20 @@ int main(int argc, char *argv[])
       std::string s;
       std::cout << "press return to exit" << std::endl;
       getline(std::cin, s);
-      s = "server shutting down" + DELIM;
+      // ignore any user input
+      // notify clients of server shutdown
+      s = "server shutting down..." + DELIM;
       sta.send(s.data(), s.size());
       finished = true;
    }
    // delay so message gets sent
    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-   // shutdown code here?
-   // net_entity.stop();
+   // shutdown
+   std::cerr << "shutdown...\n";
+   net_entity.stop();
    
+   std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
    wk.stop();
 
 
