@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/17/19
+ *  4/18/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -36,6 +36,8 @@ simple_chat_demo.cpp -lpthread -o chat
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
 #include "simple_chat_screen.hpp"
+#include "utility/shared_buffer.hpp"
+#include "queue/wait_queue.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -92,7 +94,7 @@ using endpoint = asio::ip::tcp::endpoint;
  */
 
 
-// process command line args, set ip_addr, port, param as needed
+// process command line args, set ip_addr, port, param, print_errors
 bool process_args(int argc, char* const argv[], std::string& ip_addr, 
         std::string& port, std::string& param, bool& print_errors) {
     const std::string PORT = "5001";
@@ -109,6 +111,7 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
     const std::string HELP = "-h";
     const std::string ERR = "-e";
     const std::string EMPTY = "";
+    int offset = 0; // 1 when -e 1st parameter
     
     // set default values
     ip_addr = LOCAL_LOOP;
@@ -125,60 +128,32 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
         return EXIT_FAILURE;
     } else if (argv[1] == ERR) {
         print_errors = true;
+        offset = 1;
     }
     
-    if (print_errors) {
-        if (argc == 2) {
-            std::cout << USAGE << std::endl;
-            return EXIT_FAILURE;
-        }
-        if (argv[2] == PARAM_CONNECT) {
-            param = PARAM_CONNECT;
-        } else if (argv[2] == PARAM_ACCEPT) {
-            param = PARAM_ACCEPT;
-        } else {
-            std::cout << "incorrect second parameter: ";
-            std::cout << "must be [-connect | -accept]" << std::endl;
-            std::cout << USAGE << std::endl;
-            return EXIT_FAILURE;
-        }
+    if (argv[1 + offset] == PARAM_CONNECT) {
+        param = PARAM_CONNECT;
+    } else if (argv[1 + offset] == PARAM_ACCEPT) {
+        param = PARAM_ACCEPT;
     } else {
-        if (argv[1] == PARAM_CONNECT) {
-            param = PARAM_CONNECT;
-        } else if (argv[1] == PARAM_ACCEPT) {
-            param = PARAM_ACCEPT;
-        } else {
-            std::cout << "incorrect first parameter: ";
-            std::cout << "must be [-h | -e | -connect | -accept]" << std::endl;
-            std::cout << USAGE << std::endl;
-            return EXIT_FAILURE;
-        }
+        std::cout << "incorrect first parameter: ";
+        std::cout << "must be [-h | -e | -connect | -accept]" << std::endl;
+        std::cout << USAGE << std::endl;
+        return EXIT_FAILURE;
     }
 
     if (param == PARAM_ACCEPT) {
         ip_addr = "";
     }
 
-    if (print_errors) {
-        if (argc == 4 || argc == 5) {
-            if (param == PARAM_CONNECT) {
-                ip_addr = argv[3];
-            }
+    if (argc == 3 + offset || argc == 4 + offset) {
+        if (param == PARAM_CONNECT) {
+            ip_addr = argv[2 + offset];
         }
+    }
 
-        if (argc == 5) {
-            port = argv[4];
-        }
-    } else {
-        if (argc == 3 || argc == 4) {
-            if (param == PARAM_CONNECT) {
-                ip_addr = argv[2];
-            }
-        }
-
-        if (argc == 4) {
-            port = argv[3];
-        }
+    if (argc == 4 + offset) {
+        port = argv[3 + offset];
     }
 
     assert(param != "");
@@ -200,8 +175,10 @@ int main(int argc, char* argv[]) {
     std::string last_msg;
     bool print_errors = false;
     bool shutdown = false;
-    std::promise<io_interface> promise_obj;
-    std::future<io_interface> future_obj = promise_obj.get_future();
+    // std::promise<io_interface> promise_obj;
+    // std::future<io_interface> future_obj = promise_obj.get_future();
+    chops::wait_queue< chops::net::tcp_io_interface > io_queue;
+    
 
     if (process_args(argc, argv, ip_addr, port, param, print_errors) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -222,7 +199,7 @@ int main(int argc, char* argv[]) {
                     screen.draw_screen();
                 }
 
-                return false;
+                return false; // must return false on shutdown
             }
 
             // receive data from acceptor, display to user
@@ -240,21 +217,32 @@ int main(int argc, char* argv[]) {
             return true;
         };
 
+    io_interface tcp_iof;
     // handler for @c tcp_connector
     auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
         // start iof on flag, and only allow one connection
-        if (flag && n == 1) {
-            if (print_errors) {
-                screen.insert_scroll_line("io_interface start" + DELIM, SYSTEM);
+        if (flag) {
+            if (n == 1) {
+                if (print_errors) {
+                    screen.insert_scroll_line("io_interface start" + DELIM, SYSTEM);
+                    screen.draw_screen();
+                }
+                iof.start_io(DELIM, msg_hndlr);
+                tcp_iof = iof;
+            } else {
+                // >1 connection
+                screen.insert_scroll_line("duplicate io_interface rejected" + 
+                            DELIM, SYSTEM);
                 screen.draw_screen();
+                iof.start_io();
+                std::string err = "only one tcp connection allowed";
+                iof.send(err.data(), err.size());
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                iof.stop_io();
             }
-            iof.start_io(DELIM, msg_hndlr);
-            // return iof via promise/future handoff
-            promise_obj.set_value(iof);
-        }
-        // stop iof when flag false
-        // IMPORTANT: needed to avert memory leaks and crashes
-        if (!flag) {
+        } else { // flag false
+            // stop iof when flag false
+            // IMPORTANT: needed to avert memory leaks and crashes
             if (print_errors) {
                 screen.insert_scroll_line("io_interface stop" + DELIM, SYSTEM);
                 screen.draw_screen();
@@ -318,16 +306,12 @@ int main(int argc, char* argv[]) {
     }
 
     // start network entity, emplace handlers
-    assert(net_entity_ptr != nullptr);
-    // DOES NOT WORK
-    // net_entity_ptr->start(io_state_chng_hndlr, err_func);
-    // auto wk_ptr = net_entity_ptr->get_shared_ptr();
 
     screen.draw_screen();
 
-     // io state change handler
-    tcp_io_interface tcp_iof; // used to send text data
-    tcp_iof = future_obj.get(); // wait for value set in io_state_chng_hndlr
+    // io state change handler
+    // tcp_io_interface tcp_iof; // used to send text data
+    // tcp_iof = future_obj.get(); // wait for value set in io_state_chng_hndlr
     
     // get std::string from user, send string data over network, update screen
     std::string s;
@@ -339,7 +323,7 @@ int main(int argc, char* argv[]) {
         s += DELIM; // needed for deliminator
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
-        last_msg = s;
+
         if (!tcp_iof.is_valid()) {
             screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
             screen.draw_screen();
