@@ -5,9 +5,9 @@
  *  @brief A class template that manages a collection of 
  *  @c basic_io_interface objects and provides "send to all" functionality.
  *
- *  @author Cliff Green
+ *  @author Cliff Green, Thurman Gillespy
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2019 by Cliff Green, Thurman Gillespy
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -34,11 +34,11 @@ namespace net {
 
 /**
  *  @brief Manage a collection of @c basic_io_interface objects and provide a way
- *  to send data to all.
+ *  to send data to all. or to all except a specific object.
  *
  *  In some use cases a buffer of data needs to be sent to multiple TCP connections or 
  *  UDP destinations. This class manages a collection of @c basic_io_interface objects
- *  and simplifies sending to all of them.
+ *  and simplifies sending to all of them, or to all except a specific object.
  *
  *  In particular, if the buffer of data to be sent is not yet in a reference counted buffer 
  *  and the @c void pointer interface is used, only one buffer copy is made, and all TCP 
@@ -103,6 +103,10 @@ public:
     }
   }
 
+/**
+ *  @brief Send a reference counted buffer to all @c basic_io_interface
+ *  objects except @c cur_io.
+ */
   void send(chops::const_shared_buffer buf, io_intf cur_io) const { // TG
     lock_guard gd { m_mutex };
     for (const auto& io : m_io_intfs) {
@@ -120,18 +124,26 @@ public:
     send(chops::const_shared_buffer(buf, sz));
   }
 
+/**
+ *  @brief Copy the bytes, create a reference counted buffer, then send it to
+ *  all @c basic_io_interface objects except @c cur_io.
+ */
   void send(const void* buf, std::size_t sz, io_intf cur_io) const { // TG
     send(chops::const_shared_buffer(buf, sz), cur_io);
   }
 
 /**
  *  @brief Move the buffer from a writable reference counted buffer to a 
- *  immutable reference counted buffer, then send it.
+ *  immutable reference counted buffer, then send to all.
  */
   void send(chops::mutable_shared_buffer&& buf) const { 
     send(chops::const_shared_buffer(std::move(buf)));
   }
 
+/**
+ *  @brief Move the buffer from a writable reference counted buffer to a 
+ *  immutable reference counted buffer, then send to all except @c cur_io.
+ */
   void send(chops::mutable_shared_buffer&& buf, io_intf cur_io) const { 
     send(chops::const_shared_buffer(std::move(buf)), cur_io);
   }
