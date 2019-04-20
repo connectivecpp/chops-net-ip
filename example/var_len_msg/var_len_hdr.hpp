@@ -6,7 +6,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -22,24 +22,17 @@
 #include <cassert>
 #include <limits>
 
-#include <boost/endian/conversion.hpp>
-
 namespace chops {
 namespace example {
 
 inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
-  assert (sz == 2);
-  std::uint16_t hdr;
-  std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
-  *(hdr_ptr+0) = *(buf_ptr+0);
-  *(hdr_ptr+1) = *(buf_ptr+1);
-  return boost::endian::big_to_native(hdr);
+  // code to be filled in
 }
 
 template <typename IOT>
 struct msg_hdlr {
   using endp_type = typename IOT::endpoint_type;
-  using const_buf = std::experimental::net::const_buffer;
+  using const_buf = asio::const_buffer;
 
   bool               reply;
   test_counter&      cnt;
@@ -69,8 +62,8 @@ using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
 
 constexpr int udp_max_buf_size = 65507;
 
-std::experimental::net::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
-  return std::experimental::net::ip::udp::endpoint(std::experimental::net::ip::make_address(addr),
+asio::net::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
+  return asio::net::ip::udp::endpoint(asio::net::ip::make_address(addr),
                            static_cast<unsigned short>(port_num));
 }
 
