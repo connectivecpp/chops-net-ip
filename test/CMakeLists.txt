@@ -28,7 +28,7 @@ set ( test_sources
     "${test_source_dir}/net_ip/component/send_to_all_test.cpp"
     "${test_source_dir}/net_ip/component/simple_variable_len_msg_frame_test.cpp"
     "${test_source_dir}/net_ip/basic_io_interface_test.cpp"
-    "${test_source_dir}/net_ip/basic_net_entity_test.cpp"
+    "${test_source_dir}/net_ip/net_entity_test.cpp"
     "${test_source_dir}/net_ip/endpoints_resolver_test.cpp"
     "${test_source_dir}/net_ip/net_ip_error_test.cpp"
     "${test_source_dir}/net_ip/shared_utility_test.cpp"
