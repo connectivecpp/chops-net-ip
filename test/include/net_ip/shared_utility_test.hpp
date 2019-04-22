@@ -21,7 +21,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -53,6 +53,7 @@
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
+#include "utility/cast_ptr_to.hpp"
 
 #include "net_ip/io_interface.hpp"
 
@@ -91,7 +92,7 @@ inline chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_b
 inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
   assert (sz == 2);
   std::uint16_t hdr;
-  std::byte* hdr_ptr = static_cast<std::byte*>(static_cast<void*>(&hdr));
+  std::byte* hdr_ptr = chops::cast_ptr_to<std::byte>(&hdr);
   *(hdr_ptr+0) = *(buf_ptr+0);
   *(hdr_ptr+1) = *(buf_ptr+1);
   return boost::endian::big_to_native(hdr);

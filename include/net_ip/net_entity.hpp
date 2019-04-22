@@ -33,10 +33,6 @@
 namespace chops {
 namespace net {
 
-
-using ent_wp_var = std::variant<udp_wp, acc_wp, conn_wp>;
-
-
 /**
  *  @brief The @c net_entity class provides the application interface 
  *  into the TCP acceptor, TCP connector, and UDP entity functionality.
@@ -113,7 +109,7 @@ public:
  *  @return @c true if associated with a net entity.
  */
   bool is_valid() const noexcept {
-    return std::visit([] (const auto& wp)->bool { return !wp.expired(); }, m_wptr);
+    return std::visit([] (const auto& wp) { return !wp.expired(); }, m_wptr);
   }
 
 /**
@@ -123,7 +119,7 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if no association to a net entity.
  */
-  bool is_started() const noexcept {
+  bool is_started() const {
     return std::visit([] (const auto& wp)->bool { 
           if (auto p = wp.lock()) {
             return p->is_started();
@@ -140,23 +136,25 @@ public:
  *  @c net_entity socket. This socket may be different from the socket that is
  *  accessible through the @c basic_io_interface object. In particular, a TCP acceptor
  *  socket reference is of type @c ip::tcp::acceptor (in the @c asio namespace), a 
- *  TCP connector socket reference is of type
- *  @c ip::tcp::socket, and a UDP entity socket reference is of type 
- *  @c ip::udp::socket.
+ *  TCP connector socket reference is of type @c ip::tcp::socket, and a UDP entity 
+ *  socket reference is of type @c ip::udp::socket.
  *
- *  @return @c ip::tcp::socket or @c ip::udp::socket or @c ip::tcp::acceptor, 
- *  depending on net entity type.
+ *  @tparam ST Type of socket, either @c ip::tcp::socket or @c ip::udp::socket or 
+ *  @c ip::tcp::acceptor, depending on net entity.
+ *
+ *  @return Reference to the socket, type as specified in template parameter.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
-  /*
-  typename ET::socket_type& get_socket() const {
-    if (auto p = m_eh_wptr.lock()) {
-      return p->get_socket();
-    }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  template <typename ST>
+  ST& get_socket() const {
+    return std::visit([] (const auto& wp)->ST& { 
+          if (auto p = m_eh_wptr.lock()) {
+            return p->get_socket();
+          }
+          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        }, m_wptr);
   }
-  */
 
 /**
  *  @brief Start network processing on the associated net entity with the application
@@ -290,7 +288,7 @@ public:
  */
 
   bool operator==(const net_entity& rhs) const noexcept {
-    return std::visit([] (const auto& lwp, const auto& rwp)->bool {
+    return std::visit([] (const auto& lwp, const auto& rwp) {
           auto lp = lwp.lock();
           auto rp = rwp.lock();
           return (lp && rp && lp == rp) || (!lp && !rp);
@@ -311,7 +309,7 @@ public:
  *  @return As described in the comments.
  */
   bool operator<(const net_entity& rhs) const noexcept {
-    return std::visit([] (const auto& lwp, const auto& rwp)->bool {
+    return std::visit([] (const auto& lwp, const auto& rwp) {
           auto lp = lwp.lock();
           auto rp = rwp.lock();
           return (lp && rp && lp < rp) || (!lp && rp);
@@ -325,8 +323,11 @@ public:
  *  @return A @c std::shared_ptr, which may be empty if there is not an associated net
  *  entity.
  */
+  template <typename ET>
   auto get_shared_ptr() const noexcept {
-    return m_eh_wptr.lock();
+    return std::visit([] (const auto& wp) { 
+          return wp.lock();
+        }, m_wptr);
   }
 
 };
