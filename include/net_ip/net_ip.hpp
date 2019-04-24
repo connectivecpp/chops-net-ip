@@ -23,6 +23,7 @@
 #include <string_view>
 #include <vector>
 #include <chrono>
+#include <variant> // std::visit
 
 #include <mutex>
 
@@ -41,6 +42,7 @@
 #include "net_ip/detail/tcp_io.hpp"
 
 #include "utility/erase_where.hpp"
+#include "utility/overloaded.hpp"
 
 namespace chops {
 namespace net {
@@ -53,31 +55,31 @@ namespace net {
  *  A @c net_ip object creates and manages network related objects. It is
  *  the initial API point for creating a TCP acceptor, TCP connector,
  *  UDP unicast, or UDP multicast network entity. Once one of these
- *  network objects is created internal to the @c net_ip object, a @c basic_net_entity 
+ *  network objects is created internal to the @c net_ip object, a @c net_entity 
  *  object is returned to the application, allowing further operations to occur.
  *
- *  Applications perform most operations with either a @c basic_net_entity or a 
+ *  Applications perform most operations with either a @c net_entity or a 
  *  @c basic_io_interface object. The @c net_ip object creates facade-like objects of 
- *  type @c basic_net_entity, which allow further operations.
+ *  type @c net_entity, which allow further operations.
  *
- *  The general application usage pattern for the @ net_ip, @ basic_net_entity, and
+ *  The general application usage pattern for the @ net_ip, @ net_entity, and
  *  @c basic_io_interface classes is:
  *
  *  1. Instantiate a @c net_ip object.
  *
- *  2. Create a @c basic_net_entity object, through one of the @c net_ip @c make 
- *  methods. A @c basic_net_entity interacts with one of a TCP acceptor, TCP 
+ *  2. Create a @c net_entity object, through one of the @c net_ip @c make 
+ *  methods. A @c net_entity interacts with one of a TCP acceptor, TCP 
  *  connector, UDP unicast receiver or sender, or UDP multicast receiver (a
  *  UDP multicast sender is the same as a UDP unicast sender).
  *
- *  3. Call the @c start method on the @c basic_net_entity object. This performs
+ *  3. Call the @c start method on the @c net_entity object. This performs
  *  name resolution (if needed), a local bind (if needed) and (for TCP) a 
  *  connect or a listen. 
  *
  *  Local host and port and interface name lookups are performed immediately 
  *  using direct (synchronous) lookups. Remote host and port name lookups are 
  *  performed asynchronously (since these may take longer) and are started when 
- *  the @c basic_net_entity @c start is called (this is only needed for TCP connectors).
+ *  the @c net_entity @c start is called (this is only needed for TCP connectors).
  *  If this is not acceptable, the application can perform the lookup and the 
  *  endpoint (or endpoint sequence) can be passed in through the @c make method.
  *
@@ -117,12 +119,12 @@ namespace net {
 class net_ip {
 private:
 
-  asio::io_context&                      m_ioc;
+  asio::io_context&                             m_ioc;
+  mutable std::mutex                            m_mutex;
 
-  mutable std::mutex                     m_mutex;
-  std::vector<detail::tcp_acceptor_ptr>  m_acceptors;
-  std::vector<detail::tcp_connector_ptr> m_connectors;
-  std::vector<detail::udp_entity_io_ptr> m_udp_entities;
+  std::vector<detail::tcp_acceptor_shared_ptr>  m_acceptors;
+  std::vector<detail::tcp_connector_shared_ptr> m_connectors;
+  std::vector<detail::udp_entity_io_shared_ptr> m_udp_entities;
 
 private:
   using lg = std::lock_guard<std::mutex>;
@@ -161,7 +163,7 @@ public:
  *  @param reuse_addr If @c true (default), the @c reuse_address socket option is set upon 
  *  socket open.
  *
- *  @return @c tcp_acceptor_net_entity object.
+ *  @return @c net_entity object instantiated for a TCP acceptor.
  *
  *  @throw @c std::system_error if there is a name lookup failure.
  *
@@ -169,9 +171,9 @@ public:
  *  alternate TCP acceptor @c make method can be used if this is not acceptable.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (std::string_view local_port_or_service, 
-                                             std::string_view listen_intf = "",
-                                             bool reuse_addr = true) {
+  net_entity make_tcp_acceptor (std::string_view local_port_or_service, 
+                                std::string_view listen_intf = "",
+                                bool reuse_addr = true) {
     endpoints_resolver<asio::ip::tcp> resolver(m_ioc);
     auto results = resolver.make_endpoints(true, listen_intf, local_port_or_service);
     return make_tcp_acceptor(results.cbegin()->endpoint(), reuse_addr);
@@ -190,16 +192,16 @@ public:
  *  @param reuse_addr If @c true (default), the @c reuse_address socket option is set upon 
  *  socket open.
  *
- *  @return @c tcp_acceptor_net_entity object.
+ *  @return @c net_entity object instantiated for a TCP acceptor.
  *
  */
-  tcp_acceptor_net_entity make_tcp_acceptor (const asio::ip::tcp::endpoint& endp,
-                                             bool reuse_addr = true) {
+  net_entity make_tcp_acceptor (const asio::ip::tcp::endpoint& endp,
+                                bool reuse_addr = true) {
     auto p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
 //    asio::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     lg g(m_mutex);
     m_acceptors.push_back(p);
-    return tcp_acceptor_net_entity(p);
+    return net_entity(p);
   }
 
 /**
@@ -211,9 +213,8 @@ public:
  *
  *  If a reconnect timeout is provided (parm > 0), connect failures result in reconnect 
  *  attempts after the timeout period. Reconnect attempts will continue until a connect is 
- *  successful or the @c net_entity @c stop method is called. If a connection is broken or the 
- *  TCP connector is stopped, reconnects will not be attempted, so it is the application's 
- *  responsibility to call @c start again on the @c net_entity. 
+ *  successful or the @c net_entity @c stop method is called. If a connection is broken 
+ *  reconnects will be attempted again until the @c net_entity @c stop method is called.
  *
  *  @param remote_port_or_service Port number or service name on remote host.
  *
@@ -222,7 +223,7 @@ public:
  *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
  *
- *  @return @c tcp_connector_net_entity object.
+ *  @return @c net_entity object instantiated for a TCP connector.
  *
  *  @note The name and port lookup to create a sequence of remote TCP endpoints is not performed
  *  until the @c net_entity @c start method is called. If this is not acceptable, the
@@ -230,21 +231,21 @@ public:
  *  method called.
  *
  */
-  tcp_connector_net_entity make_tcp_connector (std::string_view remote_port_or_service,
-                                               std::string_view remote_host,
-                                               std::chrono::milliseconds reconn_time = 
-                                                 std::chrono::milliseconds { } ) {
+  net_entity make_tcp_connector (std::string_view remote_port_or_service,
+                                 std::string_view remote_host,
+                                 std::chrono::milliseconds reconn_time = 
+                                   std::chrono::milliseconds { } ) {
 
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
                                                                   remote_host, reconn_time);
 //    asio::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     lg g(m_mutex);
     m_connectors.push_back(p);
-    return tcp_connector_net_entity(p);
+    return net_entity(p);
   }
 
   // match const char* to string_view instead of templated iterator
-  tcp_connector_net_entity make_tcp_connector (const char* remote_port_or_service,
+  net_entity make_tcp_connector (const char* remote_port_or_service,
                                                const char* remote_host,
                                                std::chrono::milliseconds reconn_time =
                                                  std::chrono::milliseconds { } ) {
@@ -267,18 +268,18 @@ public:
  *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
  *
- *  @return @c tcp_connector_net_entity object.
+ *  @return @c net_entity object instantiated for a TCP connector.
  *
  */
   template <typename Iter>
-  tcp_connector_net_entity make_tcp_connector (Iter beg, Iter end,
-                                               std::chrono::milliseconds reconn_time = 
-                                                 std::chrono::milliseconds { } ) {
+  net_entity make_tcp_connector (Iter beg, Iter end,
+                                 std::chrono::milliseconds reconn_time = 
+                                   std::chrono::milliseconds { } ) {
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
 //    asio::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     lg g(m_mutex);
     m_connectors.push_back(p);
-    return tcp_connector_net_entity(p);
+    return net_entity(p);
   }
 
 /**
@@ -290,10 +291,10 @@ public:
  *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
  *  reconnects are attempted (default is 0).
  *
- *  @return @c tcp_connector_net_entity object.
+ *  @return @c net_entity object instantiated for a TCP connector.
  *
  */
-  tcp_connector_net_entity make_tcp_connector (const asio::ip::tcp::endpoint& endp, 
+  net_entity make_tcp_connector (const asio::ip::tcp::endpoint& endp, 
                                                std::chrono::milliseconds reconn_time = 
                                                  std::chrono::milliseconds { } ) {
     std::vector<asio::ip::tcp::endpoint> vec { endp };
@@ -321,14 +322,16 @@ public:
  *
  *  @throw @c std::system_error if there is a name lookup failure.
  *
+ *  @return @c net_entity object instantiated for UDP.
+ *
  *  @note Common socket options on UDP datagram sockets, such as increasing the 
  *  "time to live" (hop limit), allowing UDP broadcast, or setting the socket 
  *  reuse flag can be set by using the @c net_entity @c get_socket method (or 
  *  @c io_interface @c get_socket method, which returns the same reference).
  *
  */
-  udp_net_entity make_udp_unicast (std::string_view local_port_or_service, 
-                                   std::string_view local_intf = "") {
+  net_entity make_udp_unicast (std::string_view local_port_or_service, 
+                               std::string_view local_intf = "") {
     endpoints_resolver<asio::ip::udp> resolver(m_ioc);
     auto results = resolver.make_endpoints(true, local_intf, local_port_or_service);
     return make_udp_unicast(results.cbegin()->endpoint());
@@ -344,13 +347,13 @@ public:
  *  @param endp A @c asio::ip::udp::endpoint used for the local bind 
  *  (when @c start is called).
  *
- *  @return @c udp_net_entity object.
+ *  @return @c entity object.
  *
  */
-  udp_net_entity make_udp_unicast (const asio::ip::udp::endpoint& endp) {
+  net_entity make_udp_unicast (const asio::ip::udp::endpoint& endp) {
     auto p = std::make_shared<detail::udp_entity_io>(m_ioc, endp);
     asio::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
-    return udp_net_entity(p);
+    return net_entity(p);
   }
 
 /**
@@ -358,72 +361,36 @@ public:
  *
  *  This @c make method is used when no UDP reads are desired, only sends.
  *
- *  @return @c udp_net_entity object.
+ *  @return @c net_entity object instantiated for UDP.
  *
  */
-  udp_net_entity make_udp_sender () {
+  net_entity make_udp_sender () {
     return make_udp_unicast(asio::ip::udp::endpoint());
   }
 
 // TODO: multicast make methods 
 
 /**
- *  @brief Remove a TCP acceptor @c net_entity from the internal list of TCP 
- *  acceptors. 
+ *  @brief Remove a @c net_entity from the internal list of @c net_entity objects.
  *
  *  @c stop should first be called by the application, or the @c stop_all 
  *  method can be called to stop all net entities.
  *
- *  @param acc TCP acceptor @c net_entity to be removed.
+ *  @param ent @c net_entity to be removed.
  *
  */
-  void remove(tcp_acceptor_net_entity acc) {
+  void remove(net_entity ent) {
 //    asio::post(m_ioc.get_executor(), 
-//          [acc, this] () mutable {
-//        chops::erase_where(m_acceptors, acc.get_shared_ptr());
+//          [ent, this] () mutable {
+//        chops::erase_where(something);
 //      }
 //    );
     lg g(m_mutex);
-    chops::erase_where(m_acceptors, acc.get_shared_ptr());
-  }
-
-/**
- *  @brief Remove a TCP connector @c net_entity from the internal list of TCP 
- *  connectors.
- *
- *  @c stop should first be called by the application, or the @c stop_all 
- *  method can be called to stop all net entities.
- *
- *  @param conn TCP connector @c net_entity to be removed.
- *
- */
-  void remove(tcp_connector_net_entity conn) {
-//    asio::post(m_ioc.get_executor(), 
-//          [conn, this] () mutable {
-//        chops::erase_where(m_connectors, conn.get_shared_ptr());
-//      }
-//    );
-    lg g(m_mutex);
-    chops::erase_where(m_connectors, conn.get_shared_ptr());
-  }
-
-/**
- *  @brief Remove a UDP @c net_entity from the internal list of UDP entities.
- *
- *  @c stop should first be called by the application, or the @c stop_all 
- *  method can be called to stop all net entities.
- *
- *  @param udp_ent UDP @c net_entity to be removed.
- *
- */
-  void remove(udp_net_entity udp_ent) {
-//    asio::post(m_ioc.get_executor(), 
-//          [udp_ent, this] () mutable {
-//        chops::erase_where(m_udp_entities, udp_ent.get_shared_ptr());
-//      }
-//    );
-    lg g(m_mutex);
-    chops::erase_where(m_udp_entities, udp_ent.get_shared_ptr());
+    std::visit (chops::overloaded {
+        [] (detail::tcp_acceptor_weak_ptr p) { chops::erase_where(m_acceptors, p.lock()); },
+        [] (detail::tcp_connector_weak_ptr p) { chops::erase_where(m_connectors, p.lock()); },
+        [] (detail::udp_entity_io_weak_ptr p) { chops::erase_where(m_udp_entities, p.lock()); },
+      }, ent.m_wptr);
   }
 
 /**

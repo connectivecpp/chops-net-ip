@@ -57,7 +57,7 @@ private:
 private:
   net_entity_common<tcp_io>     m_entity_common;
   socket_type                   m_socket;
-  tcp_io_ptr                    m_io_handler;
+  tcp_io_shared_ptr             m_io_handler;
   resolver_type                 m_resolver;
   endpoints                     m_endpoints;
   asio::steady_timer            m_timer;
@@ -128,7 +128,7 @@ public:
         [this, self] 
              (std::error_code err, resolver_results res) mutable {
           if (err) {
-            m_entity_common.call_error_cb(tcp_io_ptr(), err);
+            m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
             m_entity_common.stop();
             return;
           }
@@ -148,7 +148,7 @@ public:
     if (!close()) {
       return false;
     }
-    m_entity_common.call_error_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped));
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped));
     return true;
   }
 
@@ -193,7 +193,7 @@ private:
     using namespace std::placeholders;
 
     if (err) {
-      m_entity_common.call_error_cb(tcp_io_ptr(), err);
+      m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
       if (!is_started() || m_shutting_down ) {
 //      if (!is_started() || err.value() == something) {
         return;
@@ -202,7 +202,7 @@ private:
         m_timer.expires_after(m_reconn_time);
       }
       catch (const std::system_error& se) {
-        m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
+        m_entity_common.call_error_cb(tcp_io_shared_ptr(), se.code());
         m_entity_common.stop();
         return;
       }
@@ -221,7 +221,7 @@ private:
     m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true);
   }
 
-  void notify_me(std::error_code err, tcp_io_ptr iop) {
+  void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
     assert (iop == m_io_handler);
 
     iop->close();
@@ -232,7 +232,8 @@ private:
 
 };
 
-using tcp_connector_ptr = std::shared_ptr<tcp_connector>;
+using tcp_connector_shared_ptr = std::shared_ptr<tcp_connector>;
+using tcp_connector_weak_ptr = std::weak_ptr<tcp_connector>;
 
 } // end detail namespace
 } // end net namespace

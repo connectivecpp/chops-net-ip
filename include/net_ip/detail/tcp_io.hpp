@@ -301,7 +301,8 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
   start_write(elem->first);
 }
 
-using tcp_io_ptr = std::shared_ptr<tcp_io>;
+using tcp_io_shared_ptr = std::shared_ptr<tcp_io>;
+using tcp_io_weak_ptr = std::weak_ptr<tcp_io>;
 
 inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept {
   return 0;

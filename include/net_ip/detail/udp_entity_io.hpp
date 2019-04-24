@@ -269,7 +269,8 @@ inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t 
   start_write(elem->first, elem->second ? *(elem->second) : m_default_dest_endp);
 }
 
-using udp_entity_io_ptr = std::shared_ptr<udp_entity_io>;
+using udp_entity_io_shared_ptr = std::shared_ptr<udp_entity_io>;
+using udp_entity_io_weak_ptr = std::weak_ptr<udp_entity_io>;
 
 } // end detail namespace
 } // end net namespace

@@ -22,7 +22,7 @@
 #include "asio/io_context.hpp"
 
 #include <system_error>
-#include <memory>
+#include <memory>// std::shared_ptr, std::weak_ptr
 #include <vector>
 #include <utility> // std::move, std::forward
 #include <cstddef> // for std::size_t
@@ -45,12 +45,12 @@ public:
   using endpoint_type = asio::ip::tcp::endpoint;
 
 private:
-  net_entity_common<tcp_io>  m_entity_common;
-  asio::io_context&          m_io_context;
-  socket_type                m_acceptor;
-  std::vector<tcp_io_ptr>    m_io_handlers;
-  endpoint_type              m_acceptor_endp;
-  bool                       m_reuse_addr;
+  net_entity_common<tcp_io>         m_entity_common;
+  asio::io_context&                 m_io_context;
+  socket_type                       m_acceptor;
+  std::vector<tcp_io_shared_ptr>    m_io_handlers;
+  endpoint_type                     m_acceptor_endp;
+  bool                              m_reuse_addr;
 
 public:
   tcp_acceptor(asio::io_context& ioc, const endpoint_type& endp,
@@ -81,7 +81,7 @@ public:
       m_acceptor = socket_type(m_io_context, m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
-      m_entity_common.call_error_cb(tcp_io_ptr(), se.code());
+      m_entity_common.call_error_cb(tcp_io_shared_ptr(), se.code());
       stop();
       return false;
     }
@@ -98,7 +98,7 @@ public:
       i->stop_io();
     }
     // m_io_handlers.clear(); // the stop_io on each tcp_io handler should clear the container
-    m_entity_common.call_error_cb(tcp_io_ptr(), std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
     std::error_code ec;
     m_acceptor.close(ec);
     return true;
@@ -113,11 +113,11 @@ private:
     m_acceptor.async_accept( [this, self] 
             (const std::error_code& err, asio::ip::tcp::socket sock) mutable {
         if (err) {
-          m_entity_common.call_error_cb(tcp_io_ptr(), err);
+          m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
           stop(); // is this the right thing to do? what are possible causes of errors?
           return;
         }
-        tcp_io_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
+        tcp_io_shared_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
         m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true);
@@ -126,7 +126,7 @@ private:
     );
   }
 
-  void notify_me(std::error_code err, tcp_io_ptr iop) {
+  void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
     iop->close();
     m_entity_common.call_error_cb(iop, err);
     chops::erase_where(m_io_handlers, iop);
@@ -135,7 +135,8 @@ private:
 
 };
 
-using tcp_acceptor_ptr = std::shared_ptr<tcp_acceptor>;
+using tcp_acceptor_shared_ptr = std::shared_ptr<tcp_acceptor>;
+using tcp_acceptor_weak_ptr = std::weak_ptr<tcp_acceptor>;
 
 } // end detail namespace
 } // end net namespace

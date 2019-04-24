@@ -69,12 +69,12 @@ namespace net {
 
 class net_entity {
 private:
-  using acc_wp = std::weak_ptr<tcp_acceptor>;
-  using conn_wp = std::weak_ptr<tcp_connector>;
-  using udp_wp = std::weak_ptr<udp_entity_io>;
+  std::variant<detail::udp_entity_io_weak_ptr,
+               detail::tcp_acceptor_weak_ptr,
+               detail::tcp_connector_weak_ptr> m_wptr;
 
 private:
-  std::variant<udp_wp, acc_wp, conn_wp> m_wptr;
+  friend class net_ip;
 
 public:
 
@@ -314,20 +314,6 @@ public:
           auto rp = rwp.lock();
           return (lp && rp && lp < rp) || (!lp && rp);
         }, m_wptr, rhs.m_wptr);
-  }
-
-/**
- *  @brief Return a @c std::shared_ptr to the actual net entity object, meant to be used
- *  for internal purposes only.
- *
- *  @return A @c std::shared_ptr, which may be empty if there is not an associated net
- *  entity.
- */
-  template <typename ET>
-  auto get_shared_ptr() const noexcept {
-    return std::visit([] (const auto& wp) { 
-          return wp.lock();
-        }, m_wptr);
   }
 
 };
