@@ -20,7 +20,7 @@
 #include <cstddef> // std::size_t, std::byte
 
 #include "utility/make_byte_array.hpp"
-#include "net_ip/component/simple_variable_len_msg_frame.hpp"
+#include "net_ip_component/simple_variable_len_msg_frame.hpp"
 
 std::size_t decoder_func (const std::byte* buf, std::size_t sz) {
   REQUIRE (sz == 1);

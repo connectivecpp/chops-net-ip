@@ -13,7 +13,7 @@
 - What if the outgoing data queue becomes large?
   - This is an indication that the remote end is not processing data fast enough (or that data is being produced too fast). The application can query outgoing queue stats to determine if this scenario is occurring.
 - Why not provide a configuration API for a table-driven network application?
-  - There are many different formats and types of configurations, including dynamically generated configurations. Configuration should be a separate concern from the Chops Net IP library. Configuration parsing for common formats (e.g. JSON) may be added to the `component` directory (non-dependent convenience classes and functions) in the future or provided in separate repositories.
+  - There are many different formats and types of configurations, including dynamically generated configurations. Configuration should be a separate concern from the Chops Net IP library. Configuration parsing for common formats (e.g. JSON) may be added to the `net_ip_component` directory (non-dependent convenience classes and functions) in the future or provided in separate repositories.
 - Are there logging or tracing facilities in Chops Net IP?
   - No. There is not a logging library or design that is generic enough to work in every environment. Even general purpose logging libraries have a set of tradeoffs that are not acceptable for Chops Net IP. Instead, the approach taken by Chops Net IP is to provide customization points for every meaningful step in the networking processing flow. This allows the application complete flexibility in using whatever logging facilities it wishes.
 - Is Chops Net IP a complete wrapper over the Asio API?

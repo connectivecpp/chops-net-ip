@@ -24,10 +24,10 @@
 
 #include "net_ip/shared_utility_test.hpp"
 
-#include "net_ip/component/simple_variable_len_msg_frame.hpp"
-#include "net_ip/component/io_interface_delivery.hpp"
-#include "net_ip/component/io_state_change.hpp"
-#include "net_ip/component/error_delivery.hpp"
+#include "net_ip_component/simple_variable_len_msg_frame.hpp"
+#include "net_ip_component/io_interface_delivery.hpp"
+#include "net_ip_component/io_state_change.hpp"
+#include "net_ip_component/error_delivery.hpp"
 
 namespace chops {
 namespace test {

@@ -37,7 +37,7 @@
 
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/io_interface.hpp"
-#include "net_ip/component/simple_variable_len_msg_frame.hpp"
+#include "net_ip_component/simple_variable_len_msg_frame.hpp"
 
 #include "net_ip/shared_utility_test.hpp"
 

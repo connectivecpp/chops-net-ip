@@ -27,7 +27,7 @@
 #include <iostream> // temporary debugging
 
 #include "net_ip/endpoints_resolver.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip_component/worker.hpp"
 
 template <typename Protocol>
 void make_endpoints_test (bool local, std::string_view host, std::string_view port, bool expected_good) {

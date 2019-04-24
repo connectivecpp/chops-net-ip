@@ -239,7 +239,7 @@ public:
  *  The error function object must be copyable (it will be stored in a @c std::function).
  *
  *  For use cases that don't care about error codes, a function named @c empty_error_func 
- *  is available in the @c component directory.
+ *  is available in the @c error_delivery.hpp header in the @c net_ip_component directory.
  *
  *  @return @c false if already started, otherwise @c true.
  *

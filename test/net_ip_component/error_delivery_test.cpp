@@ -26,7 +26,7 @@
 
 #include "net_ip/net_ip_error.hpp"
 
-#include "net_ip/component/error_delivery.hpp"
+#include "net_ip_component/error_delivery.hpp"
 
 #include "queue/wait_queue.hpp"
 

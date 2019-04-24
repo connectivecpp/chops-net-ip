@@ -40,7 +40,7 @@ Chops Net IP has the following design goals:
 
 ## Component Directory
 
-All of the essential (core) Chops Net IP headers are in the `net_ip` and `detail` directories. There are additional useful (and tested) classes and functions in the `component` directory. One of the `component` headers provides an executor and "run loop" convenience class, and other headers provide classes or functions for common use cases such as returning `std::future` objects that provide an `io_interface` object for starting the read processing and enabling sends.
+All of the essential (core) Chops Net IP headers are in the `net_ip` and `detail` directories. There are additional useful (and tested) classes and functions in the `net_ip_component` directory. One of the `net_ip_component` headers provides an executor and "run loop" convenience class, and other headers provide classes or functions for common use cases such as returning `std::future` objects that provide an `io_interface` object for starting the read processing and enabling sends.
 
 ## Exceptions and Error Handling
 

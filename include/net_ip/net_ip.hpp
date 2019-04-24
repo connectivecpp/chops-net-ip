@@ -96,8 +96,8 @@ namespace net {
  *  application code will use the Asio executor methods for invoking
  *  the underlying asynchronous operations.
  *
- *  For convenience, a class named @c worker in the @c component directory combines 
- *  an executor with a work guard and creates a thread to invoke the asynchronous 
+ *  For convenience, a class named @c worker in the @c net_ip_component directory 
+ *  combines an executor with a work guard and creates a thread to invoke the asynchronous 
  *  operations. Example usage:
  *
  *  @code

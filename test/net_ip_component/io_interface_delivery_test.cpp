@@ -20,8 +20,8 @@
 #include <memory>
 #include <future>
 
-#include "net_ip/component/io_interface_delivery.hpp"
-#include "net_ip/component/io_state_change.hpp"
+#include "net_ip_component/io_interface_delivery.hpp"
+#include "net_ip_component/io_state_change.hpp"
 
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/basic_io_interface.hpp"

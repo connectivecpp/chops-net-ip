@@ -19,7 +19,7 @@
 
 #include <memory> // std::make_shared
 
-#include "net_ip/component/send_to_all.hpp"
+#include "net_ip_component/send_to_all.hpp"
 
 #include "net_ip/queue_stats.hpp"
 #include "utility/shared_buffer.hpp"

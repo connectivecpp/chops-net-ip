@@ -57,7 +57,7 @@
 
 #include "net_ip/io_interface.hpp"
 
-#include "net_ip/component/simple_variable_len_msg_frame.hpp"
+#include "net_ip_component/simple_variable_len_msg_frame.hpp"
 
 namespace chops {
 namespace test {
