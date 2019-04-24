@@ -3,9 +3,9 @@
  * 
  *  @ingroup example_module
  *  
- *  @brief TCP acceptor (server) that receives binary text messages, converts
- *  to upper case, then echos back to TCP connector (client).
- * 
+ *  @brief TCP connector (client) that sends binary text message to
+ *  server, receives message back converted to upper case.
+ *  
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
@@ -20,7 +20,7 @@ g++ -std=c++17 -Wall -Werror \
 -I ~/Projects/utility-rack/include/ \
 -I ~/Projects/asio/asio/include/ \
 -I ~/Projects/boost_1_69_0/ \
-echo_binary_text_server_demo.cpp -lpthread -o echo_server
+echo_binary_text_client_demo.cpp -lpthread -o echo_client
  * 
  */
 
@@ -29,6 +29,7 @@ echo_binary_text_server_demo.cpp -lpthread -o echo_server
 #include <cstddef> // std::size_t 
 #include <string>
 #include <thread>
+#include <chrono>
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
@@ -43,13 +44,14 @@ using endpoint = asio::ip::tcp::endpoint;
 
 const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
 const std::string PORT = "5002";
+const std::string IP_ADDR = "127.0.0.1";
+
 io_interface tcp_iof; // use this to send text messages
-bool hdr_processed = false;
 
 int main(int argc, char* argv[]) {
 
     bool print_errors = true;
-    
+
     /* lambda handlers */
     // message handler
     // receive text, convert to uppercase, send back to client
@@ -59,6 +61,7 @@ int main(int argc, char* argv[]) {
     };
 
     auto msg_frame = [&] (asio::mutable_buffer buf) -> std::size_t {
+        bool hdr_processed = false;
         std::cerr << "msg_frame: buf.size() = " << buf.size();
         std::cerr << ", hdr_processed: " << (hdr_processed ? "true" : "false") << std::endl;
 
@@ -93,26 +96,47 @@ int main(int argc, char* argv[]) {
         }
     };
 
-    // work guard - handles @c std::thread and @c asio::io_context management
+     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
     
     // create @c net_ip instance
     chops::net::net_ip echo_server(wk.get_io_context());
-    chops::net::tcp_acceptor_net_entity net_entity_accept;
-
-    // make @ tcp_acceptor, return @c network_entity
-    net_entity_accept = echo_server.make_tcp_acceptor(PORT.c_str());
-    assert(net_entity_accept.is_valid());
+    chops::net::tcp_connector_net_entity net_entity_connect;
+    net_entity_connect = echo_server.make_tcp_connector(PORT.c_str(), IP_ADDR.c_str(),
+                        std::chrono::milliseconds(5000));
+    assert(net_entity_connect.is_valid());
     // start network entity, emplace handlers
-    net_entity_accept.start(io_state_chng_hndlr, err_func);
+    net_entity_connect.start(io_state_chng_hndlr, err_func);
 
-    std::cout << "Press return to exit" << std::endl;
+    std::cout << "binary text demo - client" << std::endl;
+    std::cout << "enter text to send, or \'quit\' to exit" << std::endl;
 
+    bool shutdown = false;
     std::string s;
-    std::getline(std::cin, s); // pause until return
+    while (!shutdown) {
+        std::getline (std::cin, s); // user input
+        if (s == "quit") {
+            shutdown = true;
+            continue;
+        }
+        // tcp.iof is not valid when there is no network connection
+        if (!tcp_iof.is_valid()) {
+            std::cout << "no connextion" << std::endl;
+            continue; // back to top of loop
+        }
+        
+        chops::mutable_shared_buffer buf;
+        
+        // 1st 2 bytes size of string
+        uint16_t size_val = (uint16_t)HDR_SIZE;
+        buf.append(&size_val, sizeof(size_val));
+        buf.append(s.data(), s.size());
+        std::cout << "buf.size() = " << buf.size() << std::endl;
+        tcp_iof.send(buf.data(), buf.size());
+    }
 
-    net_entity_accept.stop();
+    net_entity_connect.stop();
 
     wk.stop();
 
