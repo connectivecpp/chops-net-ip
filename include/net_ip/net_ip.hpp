@@ -352,7 +352,9 @@ public:
  */
   net_entity make_udp_unicast (const asio::ip::udp::endpoint& endp) {
     auto p = std::make_shared<detail::udp_entity_io>(m_ioc, endp);
-    asio::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
+//    asio::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
+    lg g(m_mutex);
+    m_udp_entities.push_back(p);
     return net_entity(p);
   }
 
