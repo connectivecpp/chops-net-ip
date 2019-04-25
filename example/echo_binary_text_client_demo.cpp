@@ -96,15 +96,8 @@ int main(int argc, char* argv[]) {
     if (process_args(argc, argv, print_errors, ip_address, port) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
-
-    // // DEBUG
-    // std::cout << "argc: " << argc << std::endl;
-    // std::cout << "print errors: " << (print_errors ? "true" : "false") << std::endl;
-    // std::cout << "ip address: " << ip_address << ", port: " << port << std::endl;
-    // std::cout << std::endl;
-    // return 1;
-
-    /* lambda handlers */
+    
+    /**** lambda handlers ****/
 
     // message handler
     // receive text, display to console

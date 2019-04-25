@@ -79,11 +79,6 @@ int main(int argc, char* argv[]) {
     if (processArgs(argc, argv, print_errors, port) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
-    // // DEBUG
-    // std::cout << "argc: " << argc << std::endl;
-    // std::cout << "port: " << port << "; print errors: " << (print_errors ? "true" : "false");
-    // std::cout << std::endl;
-    // return 1;
     
     /**** lambda handlers ****/
 
