@@ -34,7 +34,8 @@ echo_binary_text_server_demo.cpp -lpthread -o echo_server
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
-#include "asio.hpp"
+#include "utility/cast_ptr_to.hpp"
+#include "marshall/extract_append.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -87,6 +88,7 @@ int main(int argc, char* argv[]) {
     auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
+        // std::string ss (chops::cast_ptr_to<const char, const std::byte> (buf.data()), buf.size());
         // print info about client
         std::cout << "received request from " << ep.address() << ":" << ep.port() << std::endl;
         std::cout << "  text: " << s << std::endl;
@@ -98,7 +100,14 @@ int main(int argc, char* argv[]) {
         chops::mutable_shared_buffer buf_out;
         // 1st 2 bytes are the size of the message
         uint16_t size_val = s.size();
-        buf_out.append(&size_val, sizeof(size_val)); // write 2 byte size
+        // endian correct data marshalling
+        std::byte tbuf[HDR_SIZE];
+        std::size_t result = chops::append_val<uint16_t>(tbuf, size_val);
+        assert(result == HDR_SIZE);
+        // chops::append_val<uint16_t>(const_cast<std::byte*> 
+                            // (static_cast<const std::byte*> (buf.data())), size_val);
+        // buf_out.append(&size_val, sizeof(size_val)); // write 2 byte size
+        buf_out.append(tbuf, sizeof(tbuf)); // write the header
         buf_out.append(s.data(), s.size()); // now add the text data
         
         iof.send(buf_out.data(), buf_out.size());
@@ -117,7 +126,11 @@ int main(int argc, char* argv[]) {
         } else {
             hdr_processed = true;
             // 1st 2 bytes is message size
-            uint16_t size = *(static_cast<uint16_t*> (buf.data()));
+            // uint16_t size = *(static_cast<uint16_t*> (buf.data()));
+            // endian correct data marshalling
+            uint16_t size = chops::extract_val<uint16_t> 
+                                (static_cast<std::byte*> (buf.data()));
+            // std::cerr << "msg_frame: size = " << size << std::endl;
             
             return size;
         }

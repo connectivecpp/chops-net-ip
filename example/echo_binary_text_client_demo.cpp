@@ -35,6 +35,8 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
+#include "utility/cast_ptr_to.hpp"
+#include "marshall/extract_append.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -51,9 +53,9 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
     "  -h           Print useage\n"
     "  -e           Print error messages\n"
     "  ip address   Default: 127.0.0.1 (LOCAL LOOP)\n"
-    "  port         Default port: 5002\n"
+    "  port         Default: 5002\n"
     "  change port and use local loop:\n"
-    "    ./echo_client [e] \"\" port";
+    "    ./echo_client [-e] \"\" port";
 
     int offset = 0;
 
@@ -119,7 +121,10 @@ int main(int argc, char* argv[]) {
         } else {
             hdr_processed = true;
             // 1st 2 bytes is message size
-            uint16_t size = *(static_cast<uint16_t*> (buf.data()));
+            // uint16_t size = *(static_cast<uint16_t*> (buf.data())); // OLD
+            // endian correct data marshalling
+            uint16_t size = chops::extract_val<uint16_t> 
+                                (static_cast<std::byte*> (buf.data()));
             
             return size;
         }
@@ -187,14 +192,19 @@ int main(int argc, char* argv[]) {
         }
         
         // buffer to send entered message from user
-        chops::mutable_shared_buffer buf;
+        chops::mutable_shared_buffer buf_out;
         
-        // 1st 2 bytes size of message are the string length
+        // 1st 2 bytes size of message (header) are the string length
         uint16_t size_val = s.size();
-        buf.append(&size_val, sizeof(size_val)); // put 2 bytes into buffer
-        buf.append(s.data(), s.size()); // now add the string
+        // endian correct data marshalling
+        std::byte tbuf[HDR_SIZE];
+        std::size_t result = chops::append_val<uint16_t>(tbuf, size_val);
+        assert(result == HDR_SIZE);
+        // buf.append(&size_val, sizeof(size_val)); // put 2 bytes into buffer
+        buf_out.append(tbuf, sizeof(tbuf)); // write the header
+        buf_out.append(s.data(), s.size()); // now add the text data
         // send message to server (TCP_acceptor)
-        tcp_iof.send(buf.data(), buf.size());
+        tcp_iof.send(buf_out.data(), buf_out.size());
     }
 
     // cleanup
