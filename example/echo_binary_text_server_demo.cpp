@@ -43,40 +43,53 @@ using endpoint = asio::ip::tcp::endpoint;
 
 const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
 const std::string PORT = "5002";
-io_interface tcp_iof; // use this to send text messages
-bool hdr_processed = false;
 
 int main(int argc, char* argv[]) {
-
+    io_interface tcp_iof; // use this to send text messages
+    bool hdr_processed = false;
     bool print_errors = true;
     
     /* lambda handlers */
     // message handler
     // receive text, convert to uppercase, send back to client
     auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep) {
-        std::cerr << "msg_hndlr: buf.size() = " << buf.size() << std::endl;
+        // create string from buf, omit 1st 2 bytes (header)
+        std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
+       
+        // convert to uppercase
+        auto to_upper = [] (char& c) { c = ::toupper(c); };
+        std::for_each(s.begin(), s.end(), to_upper);
+
+        // create buffer to send test data
+        chops::mutable_shared_buffer buf_out;
+        // 1st 2 bytes are the size of the message
+        uint16_t size_val = s.size();
+        buf_out.append(&size_val, sizeof(size_val));
+        buf_out.append(s.data(), s.size());
+        
+        iof.send(buf_out.data(), buf_out.size());
+
         return true;
     };
 
     auto msg_frame = [&] (asio::mutable_buffer buf) -> std::size_t {
-        std::cerr << "msg_frame: buf.size() = " << buf.size();
-        std::cerr << ", hdr_processed: " << (hdr_processed ? "true" : "false") << std::endl;
-
+        
         if (hdr_processed) {
             hdr_processed = false;
             return 0;
         } else {
             hdr_processed = true;
-            return buf.size();
+            // 1st 2 bytes is message size
+            uint16_t size = *(static_cast<uint16_t*> (buf.data()));
+            
+            return size;
         }
     };
 
     auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
-        std::cerr << "io_state_chng_hndlr: flag = " << (flag ? "true" : "false") << std::endl;
-
+        
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
-            tcp_iof = iof;
         } else {
             iof.stop_io();
         }
@@ -107,6 +120,7 @@ int main(int argc, char* argv[]) {
     // start network entity, emplace handlers
     net_entity_accept.start(io_state_chng_hndlr, err_func);
 
+    std::cout << "chops-net-ip binary text echo demo - server" << std::endl;
     std::cout << "Press return to exit" << std::endl;
 
     std::string s;
