@@ -41,14 +41,9 @@ using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
-const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
-const std::string PORT = "5002";
-const std::string LOCAL_LOOP = "127.0.0.1";
-
 // process command line args (if any)
 bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_address, 
     std::string& port) {
-
     const std::string HELP = "-h";
     const std::string PRINT_ERRS = "-e";
     const std::string usage = \
@@ -87,6 +82,10 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
 
 
 int main(int argc, char* argv[]) {
+    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
+    const std::string PORT = "5002";
+    const std::string LOCAL_LOOP = "127.0.0.1";
+
     std::string ip_address = LOCAL_LOOP;
     std::string port = PORT;
     bool hdr_processed = false;
@@ -96,12 +95,12 @@ int main(int argc, char* argv[]) {
     if (process_args(argc, argv, print_errors, ip_address, port) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
-    
+
     /**** lambda handlers ****/
 
     // message handler
     // receive text, display to console
-    auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep) {
+    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
         std::cout << s << std::endl;
@@ -127,7 +126,8 @@ int main(int argc, char* argv[]) {
     };
 
     // io state change handler
-    auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
+    auto io_state_chng_hndlr = [&msg_hndlr, &msg_frame, &tcp_iof] 
+        (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     };
 
     // error handler
-    auto err_func = [&] (io_interface iof, std::error_code err) {
+    auto err_func = [&print_errors] (io_interface iof, std::error_code err) {
         if (print_errors) {
             std::string err_text = err.category().name();
             err_text += ": " + std::to_string(err.value()) + ", " +

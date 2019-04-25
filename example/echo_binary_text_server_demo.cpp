@@ -41,9 +41,6 @@ using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
-const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
-const std::string PORT = "5002";
-
 bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) {
     const std::string HELP = "-h";
     const std::string PRINT_ERRS = "-e";
@@ -72,6 +69,9 @@ bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) 
 }
 
 int main(int argc, char* argv[]) {
+    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
+    const std::string PORT = "5002";
+
     std::string port = PORT;
     bool hdr_processed = false;
     bool print_errors = false;
@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
 
     // message handler
     // receive text, convert to uppercase, send back to client
-    auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep) {
+    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
         // print info about client
@@ -124,7 +124,8 @@ int main(int argc, char* argv[]) {
     };
 
     // io state change handler
-    auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
+    auto io_state_chng_hndlr = [&msg_hndlr, &msg_frame] 
+        (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
