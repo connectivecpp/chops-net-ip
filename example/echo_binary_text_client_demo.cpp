@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/23/19
+ *  4/25/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -43,26 +43,83 @@ using endpoint = asio::ip::tcp::endpoint;
 
 const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
 const std::string PORT = "5002";
-const std::string IP_ADDR = "127.0.0.1";
+const std::string LOCAL_LOOP = "127.0.0.1";
+
+// process command line args (if any)
+bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_address, 
+    std::string& port) {
+
+    const std::string HELP = "-h";
+    const std::string PRINT_ERRS = "-e";
+    const std::string usage = \
+    "useage: ./echo_client [-h | -e] [ip address/hostname] [port]\n"
+    "  -h           Print useage\n"
+    "  -e           Print error messages\n"
+    "  ip address   Default: 127.0.0.1 (LOCAL LOOP)\n"
+    "  port         Default port: 5002\n"
+    "  change port and use local loop:\n"
+    "    ./echo_client [e] \"\" port";
+
+    int offset = 0;
+
+    if (argc > 4 || (argc > 1 && argv[1] == HELP)) {
+        std::cout << usage << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if (argc > 1 && argv[1] == PRINT_ERRS) {
+        print_errors = true;
+        offset = 1;
+    }
+
+    if (argc == 2 + offset) {
+        ip_address = argv[1 + offset];
+    } else if (argc == 3 + offset) {
+        ip_address = argv[1 + offset];
+        port = argv[2 + offset];
+    } else if (argc > 3 + offset) {
+        std::cout << usage << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
 
 int main(int argc, char* argv[]) {
-    io_interface tcp_iof; // use this to send text messages
+    std::string ip_address = LOCAL_LOOP;
+    std::string port = PORT;
     bool hdr_processed = false;
-    bool print_errors = true;
+    bool print_errors = false;
+    io_interface tcp_iof; // use this to send text messages
+
+    if (process_args(argc, argv, print_errors, ip_address, port) == EXIT_FAILURE) {
+        return EXIT_FAILURE;
+    }
+
+    // // DEBUG
+    // std::cout << "argc: " << argc << std::endl;
+    // std::cout << "print errors: " << (print_errors ? "true" : "false") << std::endl;
+    // std::cout << "ip address: " << ip_address << ", port: " << port << std::endl;
+    // std::cout << std::endl;
+    // return 1;
 
     /* lambda handlers */
 
     // message handler
     // receive text, display to console
     auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep) {
-        // convert buf to string, but omit 1st 2 bytes (header)
+        // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
         std::cout << s << std::endl;
     
         return true;
     };
 
-    auto msg_frame = [&] (asio::mutable_buffer buf) -> std::size_t {
+    // message frame handler
+    // 1st call: buffer contains only the header, return message size, toggle flag
+    // 2nd call: return 0 to indicate no further prodessing, toggle flag
+    auto msg_frame = [&hdr_processed] (asio::mutable_buffer buf) -> std::size_t {
         
         if (hdr_processed) {
             hdr_processed = false;
@@ -76,11 +133,12 @@ int main(int argc, char* argv[]) {
         }
     };
 
+    // io state change handler
     auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
-            tcp_iof = iof; // used later to send text
+            tcp_iof = iof; // return iof to main, used later to send text
         } else {
             iof.stop_io();
         }
@@ -102,18 +160,25 @@ int main(int argc, char* argv[]) {
     wk.start();
     
     // create @c net_ip instance
-    chops::net::net_ip echo_server(wk.get_io_context());
+    chops::net::net_ip echo_client(wk.get_io_context());
 
+    // creae a network entity
     chops::net::tcp_connector_net_entity net_entity_connect;
-    net_entity_connect = echo_server.make_tcp_connector(PORT.c_str(), IP_ADDR.c_str(),
+    net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str(),
                         std::chrono::milliseconds(5000));
     assert(net_entity_connect.is_valid());
     // start network entity, emplace handlers
     net_entity_connect.start(io_state_chng_hndlr, err_func);
 
+    // begin
     std::cout << "chops-net-ip binary text echo demo - client" << std::endl;
+    std::cout << "  IP address:port = " << (ip_address == "" ? LOCAL_LOOP : ip_address);
+    std::cout << ":" << port << std::endl;
+    std::cout << "  print error messages: " << (print_errors ? "ON" : "OFF") << std::endl; 
     std::cout << "Enter text to send, or \'quit\' to exit" << std::endl;
 
+
+    // get text to send from user, exit on 'quit'
     std::string s;
     bool shutdown = false;
     while (!shutdown) {
@@ -128,7 +193,7 @@ int main(int argc, char* argv[]) {
             continue; // back to top of loop
         }
         
-        // create buffer to send entered message from user
+        // buffer to send entered message from user
         chops::mutable_shared_buffer buf;
         
         // 1st 2 bytes size of message are the string length
@@ -141,7 +206,6 @@ int main(int argc, char* argv[]) {
 
     // cleanup
     net_entity_connect.stop();
-
     wk.stop();
 
     return EXIT_SUCCESS;

@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/23/19
+ *  4/25/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -44,18 +44,57 @@ using endpoint = asio::ip::tcp::endpoint;
 const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
 const std::string PORT = "5002";
 
+bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) {
+    const std::string HELP = "-h";
+    const std::string PRINT_ERRS = "-e";
+    const std::string usage = \
+    "useage: ./echo_server [-h | -e] [port]\n"
+    "  -h    Print useage\n"
+    "  -e    Print error messages\n"
+    "  port  Default port: 5002";
+    int offset = 0;
+
+    if (argc > 3 || (argc > 1 && argv[1] == HELP)) {
+        std::cout << usage << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if (argc > 1 && argv[1] == PRINT_ERRS) {
+        print_errors = true;
+        offset = 1;
+    }
+
+    if (argc > 1 + offset) {
+        port = argv[1 + offset];
+    }
+
+    return EXIT_SUCCESS;
+}
+
 int main(int argc, char* argv[]) {
-    io_interface tcp_iof; // use this to send text messages
+    std::string port = PORT;
     bool hdr_processed = false;
-    bool print_errors = true;
+    bool print_errors = false;
+
+    if (processArgs(argc, argv, print_errors, port) == EXIT_FAILURE) {
+        return EXIT_FAILURE;
+    }
+    // // DEBUG
+    // std::cout << "argc: " << argc << std::endl;
+    // std::cout << "port: " << port << "; print errors: " << (print_errors ? "true" : "false");
+    // std::cout << std::endl;
+    // return 1;
     
-    /* lambda handlers */
+    /**** lambda handlers ****/
+
     // message handler
     // receive text, convert to uppercase, send back to client
     auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
-       
+        // print info about client
+        std::cout << "received request from " << ep.address() << ":" << ep.port() << std::endl;
+        std::cout << "  text: " << s << std::endl;
         // convert to uppercase
         auto to_upper = [] (char& c) { c = ::toupper(c); };
         std::for_each(s.begin(), s.end(), to_upper);
@@ -64,15 +103,18 @@ int main(int argc, char* argv[]) {
         chops::mutable_shared_buffer buf_out;
         // 1st 2 bytes are the size of the message
         uint16_t size_val = s.size();
-        buf_out.append(&size_val, sizeof(size_val));
-        buf_out.append(s.data(), s.size());
+        buf_out.append(&size_val, sizeof(size_val)); // write 2 byte size
+        buf_out.append(s.data(), s.size()); // now add the text data
         
         iof.send(buf_out.data(), buf_out.size());
 
         return true;
     };
 
-    auto msg_frame = [&] (asio::mutable_buffer buf) -> std::size_t {
+    // message frame handler
+    // 1st call: buffer contains only the header, return message size, toggle flag
+    // 2nd call: return 0 to indicate no further prodessing, toggle flag
+    auto msg_frame = [&hdr_processed] (asio::mutable_buffer buf) -> std::size_t {
         
         if (hdr_processed) {
             hdr_processed = false;
@@ -86,6 +128,7 @@ int main(int argc, char* argv[]) {
         }
     };
 
+    // io state change handler
     auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
@@ -115,19 +158,21 @@ int main(int argc, char* argv[]) {
     chops::net::tcp_acceptor_net_entity net_entity_accept;
 
     // make @ tcp_acceptor, return @c network_entity
-    net_entity_accept = echo_server.make_tcp_acceptor(PORT.c_str());
+    net_entity_accept = echo_server.make_tcp_acceptor(port.c_str());
     assert(net_entity_accept.is_valid());
     // start network entity, emplace handlers
     net_entity_accept.start(io_state_chng_hndlr, err_func);
 
     std::cout << "chops-net-ip binary text echo demo - server" << std::endl;
+    std::cout << "  IP address:port = 127.0.0.1:" << port << std::endl;
+    std::cout << "  print error messages: " << (print_errors ? "ON" : "OFF") << std::endl; 
     std::cout << "Press return to exit" << std::endl;
 
     std::string s;
     std::getline(std::cin, s); // pause until return
-
+    
+    // cleanup
     net_entity_accept.stop();
-
     wk.stop();
 
     return EXIT_SUCCESS;
