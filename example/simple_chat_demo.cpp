@@ -244,7 +244,7 @@ int main(int argc, char* argv[]) {
                 screen.insert_scroll_line("2nd tcp_connector client rejected" + 
                             DELIM, SYSTEM);
                 screen.draw_screen();
-                iof.start_io();
+                iof.start_io(DELIM, msg_hndlr);
                 const std::string err = "only one tcp connection allowed";
                 iof.send(err.data(), err.size());
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));

@@ -35,7 +35,7 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
-#include "utility/cast_ptr_to.hpp"
+// #include "utility/cast_ptr_to.hpp"
 #include "marshall/extract_append.hpp"
 
 using io_context = asio::io_context;
