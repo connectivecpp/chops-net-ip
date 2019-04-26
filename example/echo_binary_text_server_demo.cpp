@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/25/19
+ *  4/26/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -29,12 +29,12 @@ echo_binary_text_server_demo.cpp -lpthread -o echo_server
 #include <cstddef> // std::size_t 
 #include <string>
 #include <thread>
+#include <algorithm> // std::for_each
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
-// #include "utility/cast_ptr_to.hpp"
 #include "marshall/extract_append.hpp"
 
 using io_context = asio::io_context;
@@ -42,18 +42,19 @@ using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
+// process command line args (if any)
 bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) {
     const std::string HELP = "-h";
     const std::string PRINT_ERRS = "-e";
-    const std::string usage = \
+    const std::string USEAGE = \
     "useage: ./echo_server [-h | -e] [port]\n"
     "  -h    Print useage\n"
     "  -e    Print error messages\n"
-    "  port  Default port: 5002";
+    "  port  Default: 5002";
     int offset = 0;
 
     if (argc > 3 || (argc > 1 && argv[1] == HELP)) {
-        std::cout << usage << std::endl;
+        std::cout << USEAGE << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -70,7 +71,7 @@ bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) 
 }
 
 int main(int argc, char* argv[]) {
-    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
+    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of data is message size
     const std::string PORT = "5002";
 
     std::string port = PORT;
@@ -88,28 +89,27 @@ int main(int argc, char* argv[]) {
     auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
-        // std::string ss (chops::cast_ptr_to<const char, const std::byte> (buf.data()), buf.size());
+        
         // print info about client
         std::cout << "received request from " << ep.address() << ":" << ep.port() << std::endl;
         std::cout << "  text: " << s << std::endl;
-        // convert to uppercase
+        // convert received text to uppercase
         auto to_upper = [] (char& c) { c = ::toupper(c); };
         std::for_each(s.begin(), s.end(), to_upper);
 
-        // create buffer to send test data
+        // create buffer to send altered text back to client
         chops::mutable_shared_buffer buf_out;
         // 1st 2 bytes are the size of the message
         uint16_t size_val = s.size();
         // endian correct data marshalling
-        std::byte tbuf[HDR_SIZE];
+        std::byte tbuf[HDR_SIZE]; // temp buffer to hold the header
+        // write those 2 bytes to the temp buffer
         std::size_t result = chops::append_val<uint16_t>(tbuf, size_val);
         assert(result == HDR_SIZE);
-        // chops::append_val<uint16_t>(const_cast<std::byte*> 
-                            // (static_cast<const std::byte*> (buf.data())), size_val);
-        // buf_out.append(&size_val, sizeof(size_val)); // write 2 byte size
+        // now append our header and string data to the output buffer
         buf_out.append(tbuf, sizeof(tbuf)); // write the header
         buf_out.append(s.data(), s.size()); // now add the text data
-        
+        // send message back to the client
         iof.send(buf_out.data(), buf_out.size());
 
         return true;
@@ -126,13 +126,11 @@ int main(int argc, char* argv[]) {
         } else {
             hdr_processed = true;
             // 1st 2 bytes is message size
-            // uint16_t size = *(static_cast<uint16_t*> (buf.data()));
             // endian correct data marshalling
             uint16_t size = chops::extract_val<uint16_t> 
                                 (static_cast<std::byte*> (buf.data()));
-            // std::cerr << "msg_frame: size = " << size << std::endl;
             
-            return size;
+            return size; // return the size of the text data (obtained from header)
         }
     };
 
@@ -172,6 +170,7 @@ int main(int argc, char* argv[]) {
     // start network entity, emplace handlers
     net_entity_accept.start(io_state_chng_hndlr, err_func);
 
+    // begin
     std::cout << "chops-net-ip binary text echo demo - server" << std::endl;
     std::cout << "  IP address:port = 127.0.0.1:" << port << std::endl;
     std::cout << "  print error messages: " << (print_errors ? "ON" : "OFF") << std::endl; 
