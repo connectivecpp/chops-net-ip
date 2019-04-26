@@ -3,13 +3,13 @@
  * 
  *  @ingroup example_module
  *  
- *  @brief TCP connector (client) that sends binary text message to
+ *  @brief TCP connector (client) that sends binary text message to a
  *  server, receives message back converted to upper case.
  *  
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/25/19
+ *  4/26/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -35,6 +35,7 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
+#include "marshall/extract_append.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -46,19 +47,19 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
     std::string& port) {
     const std::string HELP = "-h";
     const std::string PRINT_ERRS = "-e";
-    const std::string usage = \
+    const std::string USEAGE = \
     "useage: ./echo_client [-h | -e] [ip address/hostname] [port]\n"
     "  -h           Print useage\n"
     "  -e           Print error messages\n"
     "  ip address   Default: 127.0.0.1 (LOCAL LOOP)\n"
-    "  port         Default port: 5002\n"
+    "  port         Default: 5002\n"
     "  change port and use local loop:\n"
-    "    ./echo_client [e] \"\" port";
+    "    ./echo_client [-e] \"\" port";
 
     int offset = 0;
 
     if (argc > 4 || (argc > 1 && argv[1] == HELP)) {
-        std::cout << usage << std::endl;
+        std::cout << USEAGE << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -73,7 +74,7 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
         ip_address = argv[1 + offset];
         port = argv[2 + offset];
     } else if (argc > 3 + offset) {
-        std::cout << usage << std::endl;
+        std::cout << USEAGE << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -82,7 +83,7 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
 
 
 int main(int argc, char* argv[]) {
-    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of header is message size
+    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of data is message size
     const std::string PORT = "5002";
     const std::string LOCAL_LOOP = "127.0.0.1";
 
@@ -90,6 +91,7 @@ int main(int argc, char* argv[]) {
     std::string port = PORT;
     bool hdr_processed = false;
     bool print_errors = false;
+
     io_interface tcp_iof; // use this to send text messages
 
     if (process_args(argc, argv, print_errors, ip_address, port) == EXIT_FAILURE) {
@@ -119,7 +121,9 @@ int main(int argc, char* argv[]) {
         } else {
             hdr_processed = true;
             // 1st 2 bytes is message size
-            uint16_t size = *(static_cast<uint16_t*> (buf.data()));
+            // endian correct data marshalling
+            uint16_t size = chops::extract_val<uint16_t> 
+                                (static_cast<std::byte*> (buf.data()));
             
             return size;
         }
@@ -155,12 +159,12 @@ int main(int argc, char* argv[]) {
     // create @c net_ip instance
     chops::net::net_ip echo_client(wk.get_io_context());
 
-    // creae a network entity
+    // create a @c tcp_connector network entity
     chops::net::tcp_connector_net_entity net_entity_connect;
     net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str(),
                         std::chrono::milliseconds(5000));
     assert(net_entity_connect.is_valid());
-    // start network entity, emplace handlers
+    // start @c network_entity, emplace handlers
     net_entity_connect.start(io_state_chng_hndlr, err_func);
 
     // begin
@@ -180,21 +184,27 @@ int main(int argc, char* argv[]) {
             shutdown = true;
             continue;
         }
-        // tcp.iof is not valid when there is no network connection
+        // @c tcp.iof is not valid when there is no network connection
         if (!tcp_iof.is_valid()) {
             std::cout << "no connection..." << std::endl;
             continue; // back to top of loop
         }
         
         // buffer to send entered message from user
-        chops::mutable_shared_buffer buf;
+        chops::mutable_shared_buffer buf_out;
         
-        // 1st 2 bytes size of message are the string length
+        // 1st 2 bytes size of message (header) are the string length
         uint16_t size_val = s.size();
-        buf.append(&size_val, sizeof(size_val)); // put 2 bytes into buffer
-        buf.append(s.data(), s.size()); // now add the string
+        // endian correct data marshalling
+        std::byte tbuf[HDR_SIZE]; // temp buffer to hold the header
+        // write those 2 bytes to the temp buffer
+        std::size_t result = chops::append_val<uint16_t>(tbuf, size_val);
+        assert(result == HDR_SIZE);
+        // now append our header and string data to the output buffer
+        buf_out.append(tbuf, sizeof(tbuf)); // write the header
+        buf_out.append(s.data(), s.size()); // now add the text data
         // send message to server (TCP_acceptor)
-        tcp_iof.send(buf.data(), buf.size());
+        tcp_iof.send(buf_out.data(), buf_out.size());
     }
 
     // cleanup
