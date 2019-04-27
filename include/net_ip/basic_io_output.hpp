@@ -18,6 +18,7 @@
 
 #include <cstddef> // std::size_t, std::byte
 #include <cstddef> // std::move
+#include <memory> // std::shared_ptr
 
 #include "utility/shared_buffer.hpp"
 
@@ -34,7 +35,9 @@ namespace net {
  *  network IO data sending, whether TCP or UDP. This class provides methods to 
  *  send data and query output queue stats.
  *
- *  This class provides an association by reference to a network IO handler. It does
+ *  A @c basic_io_output object is created by 
+ *  This class provides an association to a network IO handler. It may participate in
+ *  the lifetime of the network IO handler, depending on how it is created. It does
  *  not check for a valid reference, as opposed to the @c basic_io_interface class
  *  template and the @c net_entity class. It is the application responsibility to
  *  ensure that the reference is valid.
@@ -60,8 +63,13 @@ namespace net {
 
 template <typename IOH>
 class basic_io_output {
+
 private:
-  IOH& m_ioh;
+  using iohsp = std::shared_ptr<IOH>;
+private:
+  // order of declaration is important, iohptr is obtained from iohsp
+  iohsp    m_iohsp;
+  IOH*     m_iohptr;
 
 public:
   using endpoint_type = typename IOH::endpoint_type;
@@ -69,11 +77,18 @@ public:
 public:
 
 /**
- *  @brief Construct with a reference to an internal IO handler, this is an
- *  internal constructor only and not to be used by application code.
- *
+ *  @brief Construct with a pointer to an internal IO handler, where the @c shared_ptr
+ *  lifetime is not needed. This constructor is for internal use only and not to be used
+ *  by application code.
  */
-  explicit basic_io_output(IOH& ioh) noexcept : m_ioh(ioh) { }
+  explicit basic_io_output(IOH* ioh) noexcept : m_iohsp(), m_iohptr(ioh) { }
+
+/**
+ *  @brief Construct with a @c std::shared_ptr to an internal IO handler, allowing IO 
+ *  handler lifetime to be controlled. This constructor is for internal use only and not to 
+ *  be used by application code.
+ */
+  explicit basic_io_output(iohsp sp) noexcept : m_iohsp(sp), m_iohptr(m_iohsp.get()) { }
 
 /**
  *  @brief Return output queue statistics, allowing application monitoring of output queue
@@ -83,7 +98,7 @@ public:
  *
  */
   output_queue_stats get_output_queue_stats() const {
-    return m_ioh.get_output_queue_stats();
+    return m_iohptr->get_output_queue_stats();
   }
 
 /**
@@ -96,8 +111,10 @@ public:
  *
  *  @param sz Size of buffer.
  *
+ *  @return @c true if buffer queued for output, @c false otherwise.
+ *
  */
-  void send(const void* buf, std::size_t sz) const { send(chops::const_shared_buffer(buf, sz)); }
+  bool send(const void* buf, std::size_t sz) const { return send(chops::const_shared_buffer(buf, sz)); }
 
 /**
  *  @brief Send a reference counted buffer through the associated network IO handler.
@@ -106,9 +123,11 @@ public:
  *
  *  @param buf @c chops::const_shared_buffer containing data.
  *
+ *  @return @c true if buffer queued for output, @c false otherwise.
+ *
  */
-  void send(chops::const_shared_buffer buf) const {
-    m_ioh.send(buf);
+  bool send(chops::const_shared_buffer buf) const {
+    return m_iohptr->send(buf);
   }
 
 /**
@@ -129,9 +148,11 @@ public:
  *
  *  @param buf @c chops::mutable_shared_buffer containing data.
  *
+ *  @return @c true if buffer queued for output, @c false otherwise.
+ *
  */
-  void send(chops::mutable_shared_buffer&& buf) const { 
-    send(chops::const_shared_buffer(std::move(buf)));
+  bool send(chops::mutable_shared_buffer&& buf) const { 
+    return send(chops::const_shared_buffer(std::move(buf)));
   }
 
 /**
@@ -149,9 +170,11 @@ public:
  *
  *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
+ *  @return @c true if buffer queued for output, @c false otherwise.
+ *
  */
-  void send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
-    send(chops::const_shared_buffer(buf, sz), endp);
+  bool send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
+    return send(chops::const_shared_buffer(buf, sz), endp);
   }
 
 /**
@@ -164,9 +187,11 @@ public:
  *
  *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
+ *  @return @c true if buffer queued for output, @c false otherwise.
+ *
  */
-  void send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
-    m_ioh.send(buf, endp);
+  bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
+    return m_ioh.send(buf, endp);
   }
 
 /**
@@ -180,9 +205,11 @@ public:
  *
  *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
+ *  @return @c true if buffer queued for output, @c false otherwise.
+ *
  */
-  void send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
-    send(chops::const_shared_buffer(std::move(buf)), endp);
+  bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
+    return send(chops::const_shared_buffer(std::move(buf)), endp);
   }
 
 };
