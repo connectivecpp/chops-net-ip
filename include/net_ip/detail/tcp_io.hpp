@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -40,13 +40,40 @@
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/basic_io_interface.hpp"
-#include "utility/shared_buffer.hpp"
+#include "net_ip/basic_io_output.hpp"
+
+#include "marshall/shared_buffer.hpp"
+#include "utility/cast_ptr_to.hpp"
 
 namespace chops {
 namespace net {
+
+
 namespace detail {
 
-std::size_t null_msg_frame (asio::mutable_buffer) noexcept;
+inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept {
+  return 0;
+}
+
+class simple_variable_len_msg_frame {
+private:
+  hdr_decoder_func m_hdr_decoder_func;
+  bool             m_hdr_processed;
+public:
+  simple_variable_len_msg_frame(hdr_decoder_func func) : 
+      m_hdr_decoder_func(func), m_hdr_processed(false) { }
+
+  std::size_t operator() (asio::mutable_buffer buf) {
+    if (hdr_processed) {
+      hdr_processed = false;
+      return 0u;
+    }
+    else {
+      hdr_processed = true;
+      return m_hdr_decoder_func(cast_ptr_to<std::byte>(buf.data()), buf.size());
+    }
+  };
+}
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
@@ -86,7 +113,8 @@ private:
   tcp_io& operator=(tcp_io&&) = delete;
 
 public:
-  // all of the methods in this public section can be called through an basic_io_interface
+  // all of the methods in this public section can be called through a basic_io_interface
+  // or basic_io_output
   socket_type& get_socket() noexcept { return m_socket; }
 
   output_queue_stats get_output_queue_stats() const noexcept {
@@ -108,6 +136,12 @@ public:
   }
 
   template <typename MH>
+  bool start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) {
+    return start_io(read_size, std::forward<MH>(msg_handler), 
+                               simple_variable_len_msg_frame(func));
+  }
+
+  template <typename MH>
   bool start_io(std::string_view delimiter, MH&& msg_handler) {
     if (!start_io_setup()) {
       return false;
@@ -124,7 +158,7 @@ public:
 
   bool start_io() {
     return start_io(1, 
-                    [] (asio::const_buffer, basic_io_interface<tcp_io>, 
+                    [] (asio::const_buffer, basic_io_output(this), 
                         asio::ip::tcp::endpoint) mutable {
                           return true;
                     }, 
@@ -243,7 +277,7 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0) { // msg fully received, now invoke message handler
     if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  basic_io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
+                  basic_io_output(this), m_remote_endp)) {
       // message handler not happy, tear everything down
       m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
                     shared_from_this());
@@ -269,7 +303,7 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
   }
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes),
-                basic_io_interface<tcp_io>(weak_from_this()), m_remote_endp)) {
+                basic_io_output(this), m_remote_endp)) {
       m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
                     shared_from_this());
     return;
@@ -304,11 +338,18 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
 using tcp_io_shared_ptr = std::shared_ptr<tcp_io>;
 using tcp_io_weak_ptr = std::weak_ptr<tcp_io>;
 
-inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept {
-  return 0;
-}
-
 } // end detail namespace
+
+/**
+ *  @brief Using declaration for TCP based io, used to instantiate a @c basic_io_interface
+ *  or @c basic_io_output type.
+ *
+ *  @relates basic_io_interface
+ *  @relates basic_io_output
+ */
+using tcp_io = detail::tcp_io;
+
+
 } // end net namespace
 } // end chops namespace
 

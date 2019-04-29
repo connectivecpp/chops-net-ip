@@ -21,7 +21,6 @@
 #include <memory> // std::shared_ptr
 
 #include "utility/shared_buffer.hpp"
-
 #include "net_ip/queue_stats.hpp"
 
 namespace chops {
@@ -35,14 +34,16 @@ namespace net {
  *  network IO data sending, whether TCP or UDP. This class provides methods to 
  *  send data and query output queue stats.
  *
- *  A @c basic_io_output object is created by 
- *  This class provides an association to a network IO handler. It may participate in
- *  the lifetime of the network IO handler, depending on how it is created. It does
- *  not check for a valid reference, as opposed to the @c basic_io_interface class
- *  template and the @c net_entity class. It is the application responsibility to
- *  ensure that the reference is valid.
+ *  Unless default constructed, a @c basic_io_output object has an association to an 
+ *  IO handler object. This association will keep the IO handler 
+ *  object in memory after the
  *
- *  To ensure a valid reference, the context for a @ basic_io_output object is as follows:
+ *  This class provides an association to a network IO handler. It may participate in
+ *  the lifetime of the network IO handler, depending on how an object of this type is 
+ *  created. It does not check for a valid reference, as opposed to the 
+ *  @c basic_io_interface class template and the @c net_entity class.
+ *
+ *  To , the context for a @ basic_io_output object is as follows:
  *  1) In a message handler invocation - the reference will always be valid.
  *  2) A @c basic_io_output object can be obtained from a valid @c basic_io_interface object.
  *  As long as the originating @c basic_io_interface object is valid, the @c basic_io_output
@@ -52,12 +53,7 @@ namespace net {
  *  objects to be copied and used in multiple places in an application, all of them 
  *  accessing the same network IO handler.
  *
- *  A @c basic_io_output object is created from a @c basic_io_interface object or provided
- *  by the @c Chops Net IP library, either when a connection is established (TCP connection
- *  or UDP bind) or for an incoming message.
- *
- *  All @c basic_io_output methods can be called concurrently from multiple threads.
- *  In particular, @c send methods are allowed to be called concurrently.
+ *  All @c basic_io_output @c send methods can be called concurrently from multiple threads.
  *
  */
 
@@ -89,6 +85,18 @@ public:
  *  be used by application code.
  */
   explicit basic_io_output(iohsp sp) noexcept : m_iohsp(sp), m_iohptr(m_iohsp.get()) { }
+
+/**
+ *  @brief Release any internal @c std::shared_ptr associations to an IO handler so that 
+ *  the IO handler object can be released (as appropriate).
+ *
+ *  Calling @c send after @c release without assigning a new (valid) @c basic_io_output
+ *  object will result in dereferencing a null pointer.
+ */
+  void release() noexcept {
+    m_iohsp.reset();
+    m_iohptr = nullptr;
+  }
 
 /**
  *  @brief Return output queue statistics, allowing application monitoring of output queue
@@ -191,7 +199,7 @@ public:
  *
  */
   bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
-    return m_ioh.send(buf, endp);
+    return m_iohptr->send(buf, endp);
   }
 
 /**

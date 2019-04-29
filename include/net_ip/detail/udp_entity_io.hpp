@@ -273,6 +273,16 @@ using udp_entity_io_shared_ptr = std::shared_ptr<udp_entity_io>;
 using udp_entity_io_weak_ptr = std::weak_ptr<udp_entity_io>;
 
 } // end detail namespace
+
+/**
+ *  @brief Using declaration for UDP based io, used to instantiate a @c basic_io_interface
+ *  or @c basic_io_output type.
+ *
+ *  @relates basic_io_interface
+ *  @relates basic_io_output
+ */
+using udp_io = detail::udp_entity_io;
+
 } // end net namespace
 } // end chops namespace
 
