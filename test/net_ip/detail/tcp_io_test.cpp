@@ -35,7 +35,7 @@
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip/shared_utility_test.hpp"
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 
 // #include <iostream>
 

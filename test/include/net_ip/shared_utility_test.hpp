@@ -50,7 +50,7 @@
 
 #include <boost/endian/conversion.hpp>
 
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 

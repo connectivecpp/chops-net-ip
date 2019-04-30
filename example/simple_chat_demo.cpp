@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/19/19
+ *  4/30/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -122,9 +122,9 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
         "  default ip address: " + LOCAL_LOOP + " (local loop)\n"
         "  default port: " + PORT + "\n"
         "  if connection type = accept, IP address becomes \"\"";
-    const std::string HELP = "-h";
-    const std::string ERR = "-e";
-    const std::string EMPTY = "";
+    const std::string HELP_PRM = "-h";
+    const std::string PRINT_ERRS = "-e";
+    
     int offset = 0; // 1 when -e 1st parameter
     
     // set default values
@@ -137,10 +137,10 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
         return EXIT_FAILURE;
     };
 
-    if (argv[1] == HELP) {
+    if (argv[1] == HELP_PRM) {
         std::cout << USAGE << std::endl;
         return EXIT_FAILURE;
-    } else if (argv[1] == ERR) {
+    } else if (argv[1] == PRINT_ERRS) {
         print_errors = true;
         offset = 1;
     }

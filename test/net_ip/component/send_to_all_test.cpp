@@ -22,7 +22,7 @@
 #include "net_ip/component/send_to_all.hpp"
 
 #include "net_ip/queue_stats.hpp"
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 
 #include "net_ip/shared_utility_test.hpp"
 

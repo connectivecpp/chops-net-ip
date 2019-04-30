@@ -22,7 +22,7 @@
 #include <cstddef> // std::size_t, std::byte
 #include <utility> // std::forward, std::move
 
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/queue_stats.hpp"
