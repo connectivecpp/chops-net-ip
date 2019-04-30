@@ -47,7 +47,7 @@
 
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 
 #include <iostream> // std::cerr for error sink
