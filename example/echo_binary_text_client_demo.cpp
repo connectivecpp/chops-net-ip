@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/26/19
+ *  4/30/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -45,7 +45,7 @@ using endpoint = asio::ip::tcp::endpoint;
 // process command line args (if any)
 bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_address, 
     std::string& port) {
-    const std::string HELP = "-h";
+    const std::string HELP_PRM = "-h";
     const std::string PRINT_ERRS = "-e";
     const std::string USEAGE = \
     "useage: ./echo_client [-h | -e] [ip address/hostname] [port]\n"
@@ -58,7 +58,7 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
 
     int offset = 0;
 
-    if (argc > 4 || (argc > 1 && argv[1] == HELP)) {
+    if (argc > 4 || (argc > 1 && argv[1] == HELP_PRM)) {
         std::cout << USEAGE << std::endl;
         return EXIT_FAILURE;
     }
