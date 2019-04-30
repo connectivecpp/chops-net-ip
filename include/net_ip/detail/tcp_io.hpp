@@ -115,7 +115,11 @@ private:
 public:
   // all of the methods in this public section can be called through a basic_io_interface
   // or basic_io_output
-  socket_type& get_socket() noexcept { return m_socket; }
+
+  template <typename F>
+  void visit_socket(F&& f) {
+    f(m_socket);
+  }
 
   output_queue_stats get_output_queue_stats() const noexcept {
     return m_io_common.get_output_queue_stats();

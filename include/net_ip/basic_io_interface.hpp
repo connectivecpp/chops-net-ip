@@ -87,8 +87,12 @@ using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
  *  until a valid @c basic_io_interface object is assigned to it (typically this would be 
  *  performed through the state change function object callback).
  *
- *  The underlying network IO handler socket can be accessed through this interface. This 
- *  allows socket options to be queried and set (or other useful socket methods to be called).
+ *  A @c basic_io_output object can be created from a @c basic_io_interface, allowing 
+ *  data sending to the underlying network IO handler.
+ *
+ *  The underlying network IO handler socket can be accessed through the @c visit_socket
+ *  method. This allows socket options to be queried and set (or other useful socket methods 
+ *  to be called).
  *
  *  Appropriate comparison operators are provided to allow @c basic_io_interface objects
  *  to be used in associative or sequence containers.
@@ -157,16 +161,26 @@ public:
   }
 
 /**
- *  @brief Return a reference to the underlying socket, allowing socket options to be queried 
- *  or set or other socket methods to be called.
+ *  @brief Call an application supplied function object with a reference to the associated 
+ *  IO handler socket.
  *
- *  @return @c ip::tcp::socket or @c ip::udp::socket, depending on IO handler type.
+ *  The function object must have one of the following signatures, depending on the IO handler
+ *  type:
+ *
+ *  @code
+ *    void (asio::ip::tcp::socket&); // TCP IO
+ *    void (asio::ip::udp::socket&); // UDP IO
+ *  @endcode
+ *
+ *  Within the function object socket options can be queried or modified or any valid method
+ *  called.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  typename IOT::socket_type& get_socket() const {
+  template <typename F>
+  void visit_socket(F&& f) const {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->get_socket();
+      p->visit_socket(std::forward<F>(f));
     }
     throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -514,7 +528,7 @@ public:
  *
  *  A @c basic_io_output object is used for sending data. 
  *
- *  @return @c basic_io_output object, either tcp_io_output or udp_io_output.
+ *  @return @c basic_io_output object, either a @c tcp_io_output or @c udp_io_output.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */

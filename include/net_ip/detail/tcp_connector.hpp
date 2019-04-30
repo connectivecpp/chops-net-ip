@@ -111,7 +111,10 @@ public:
 
   bool is_started() const noexcept { return m_entity_common.is_started(); }
 
-  socket_type& get_socket() noexcept { return m_socket; }
+  template <typename F>
+  void visit_socket(F&& f) {
+    f(m_socket);
+  }
 
   template <typename F1, typename F2>
   bool start(F1&& io_state_chg, F2&& err_cb) {

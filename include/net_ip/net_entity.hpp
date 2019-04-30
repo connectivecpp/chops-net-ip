@@ -113,9 +113,10 @@ public:
   }
 
 /**
- *  @brief Query whether @c start has been called or not.
+ *  @brief Query whether the associated net entity is in a started or stopped state.
  *
- *  @return @c true if @c start has been called, @c false otherwise.
+ *  @return @c true if @c start has been called, @c false if not, or entity has
+ *  stopped.
  *
  *  @throw A @c net_ip_exception is thrown if no association to a net entity.
  */
@@ -129,31 +130,31 @@ public:
   }
 
 /**
- *  @brief Return a reference to the underlying net entity socket, allowing socket 
- *  options to be queried or set or other socket methods to be called.
+ *  @brief Call an application supplied function object with a reference to the associated 
+ *  net entity @c asio socket.
  *
- *  The socket reference returned from this method allows direct access to the
- *  @c net_entity socket. This socket may be different from the socket that is
- *  accessible through the @c basic_io_interface object. In particular, a TCP acceptor
- *  socket reference is of type @c ip::tcp::acceptor (in the @c asio namespace), a 
- *  TCP connector socket reference is of type @c ip::tcp::socket, and a UDP entity 
- *  socket reference is of type @c ip::udp::socket.
+ *  The function object must have one of the following signatures, depending on the entity
+ *  type:
  *
- *  @tparam ST Type of socket, either @c ip::tcp::socket or @c ip::udp::socket or 
- *  @c ip::tcp::acceptor, depending on net entity.
+ *  @code
+ *    void (asio::ip::tcp::socket&); // TCP connector
+ *    void (asio::ip::tcp::acceptor&) // TCP acceptor
+ *    void (asio::ip::udp::socket&); // UDP entity
+ *  @endcode
  *
- *  @return Reference to the socket, type as specified in template parameter.
+ *  Within the function object socket options can be queried or modified or any valid method
+ *  called.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
-  template <typename ST>
-  ST& get_socket() const {
-    return std::visit([] (const auto& wp)->ST& { 
-          if (auto p = m_eh_wptr.lock()) {
-            return p->get_socket();
-          }
-          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
-        }, m_wptr);
+  template <typename F>
+  void visit_socket(F&& f) const {
+    std::visit([func = std::forward<F>(f)] (const auto& wp) { 
+        if (auto p = wp.lock()) {
+          p->visit_socket(func);
+        }
+        throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+      }, m_wptr);
   }
 
 /**
@@ -186,9 +187,9 @@ public:
  *
  *  @code
  *    // TCP:
- *    void (chops::net::tcp_io_interface, std::size_t, bool);
+ *    bool (chops::net::tcp_io_interface, std::size_t, bool);
  *    // UDP:
- *    void (chops::net::udp_io_interface, std::size_t, bool);
+ *    bool (chops::net::udp_io_interface, std::size_t, bool);
  *  @endcode
  *
  *  The parameters are as follows:
@@ -204,10 +205,18 @@ public:
  *  has been created or a UDP socket is ready), and if @c false, the connection or socket
  *  has been destroyed or closed.
  *
- *  In both function object callback invocations the @c basic_io_interface object is valid 
- *  (@c is_valid returns @c true). For the second invocation no @c basic_io_interface methods 
- *  should be called, but the @c basic_io_interface object can be used for associative lookups 
- *  (if needed).
+ *  The return value specifies whether the net entity should continue processing or not.
+ *  Returning @c false is the same as calling @c stop on the entity. Returning @c true means
+ *  continue as expected.
+ *
+ *  Use cases for returning @c false include a TCP connector that should quit attempting to
+ *  connect, or a TCP acceptor that might need to be shut down when all current TCP connections
+ *  have closed.
+ *
+ *  In both IO state change function object callback invocations the @c basic_io_interface object 
+ *  is valid (@c is_valid returns @c true). For the second invocation no @c basic_io_interface 
+ *  methods should be called, but the @c basic_io_interface object can be used for associative 
+ *  lookups (if needed).
  *
  *  The IO state change function object must be copyable (it will be stored in a 
  *  @c std::function).

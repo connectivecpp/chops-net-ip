@@ -91,7 +91,10 @@ public:
 
   bool is_io_started() const noexcept { return m_io_common.is_io_started(); }
 
-  socket_type& get_socket() noexcept { return m_socket; }
+  template <typename F>
+  void visit_socket(F&& f) {
+    f(m_socket);
+  }
 
   output_queue_stats get_output_queue_stats() const noexcept {
     return m_io_common.get_output_queue_stats();
