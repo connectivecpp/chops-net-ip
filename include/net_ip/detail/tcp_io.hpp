@@ -39,7 +39,7 @@
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
-#include "net_ip/basic_io_interface.hpp"
+
 #include "net_ip/basic_io_output.hpp"
 
 #include "marshall/shared_buffer.hpp"
@@ -52,7 +52,7 @@ namespace net {
 namespace detail {
 
 inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept {
-  return 0;
+  return 0u;
 }
 
 class simple_variable_len_msg_frame {
@@ -60,10 +60,10 @@ private:
   hdr_decoder_func m_hdr_decoder_func;
   bool             m_hdr_processed;
 public:
-  simple_variable_len_msg_frame(hdr_decoder_func func) : 
+  simple_variable_len_msg_frame(hdr_decoder_func func) noexcept : 
       m_hdr_decoder_func(func), m_hdr_processed(false) { }
 
-  std::size_t operator() (asio::mutable_buffer buf) {
+  std::size_t operator() (asio::mutable_buffer buf) noexcept {
     if (hdr_processed) {
       hdr_processed = false;
       return 0u;
@@ -158,12 +158,10 @@ public:
 
   bool start_io() {
     return start_io(1, 
-                    [] (asio::const_buffer, basic_io_output(this), 
+                    [] (asio::const_buffer, basic_io_output<tcp_io>, 
                         asio::ip::tcp::endpoint) mutable {
                           return true;
-                    }, 
-                    null_msg_frame
-    );
+                    }, null_msg_frame );
   }
 
 

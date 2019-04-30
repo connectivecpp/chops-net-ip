@@ -35,7 +35,9 @@
 
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
-#include "net_ip/basic_io_interface.hpp"
+
+#include "net_ip/basic_io_output.hpp"
+
 #include "utility/shared_buffer.hpp"
 
 namespace chops {
@@ -238,7 +240,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     return;
   }
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
-                basic_io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
+                basic_io_output(this), m_sender_endp)) {
     // message handler not happy, tear everything down
     err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
     stop();

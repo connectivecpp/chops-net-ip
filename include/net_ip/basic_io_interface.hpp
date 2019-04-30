@@ -65,25 +65,25 @@ using hdr_decoder_func = std::size_t (*)(const std::byte* ptr, std::size_t sz);
  *  network IO processing, whether TCP or UDP. This class provides methods to start IO
  *  processing (i.e. start read processing and enable write processing),
  *  stop IO processing (which typically does not need to be directly called), and access 
- *  the IO handler socket (e.g. to modify socket options).
+ *  the IO handler socket (e.g. to retrieve or modify socket options).
  *
  *  This class is a lightweight value class, allowing @c basic_io_interface 
  *  objects to be copied and used in multiple places in an application, all of them 
  *  accessing the same network IO handler. Internally, a @c std::weak pointer is used 
  *  to link the @c basic_io_interface object with a network IO handler.
  *
- *  An @c basic_io_interface object is provided for application use through a state change 
+ *  A @c basic_io_interface object is provided for application use through a state change 
  *  function object callback. This occurs when a @c net_entity creates the underlying 
  *  network IO handler, or the network IO handler is being closed and destructed. 
  *  The @c net_entity class documentation provides more detail.
  *
- *  An @c basic_io_interface object is either associated with a network IO handler
+ *  A @c basic_io_interface object is either associated with a network IO handler
  *  (i.e. the @c std::weak pointer is good), or not. The @c is_valid method queries 
  *  if the association is present. Note that even if the @c std::weak_pointer is 
  *  valid, the network IO handler might be in the process of closing or being 
  *  destructed.
  *
- *  Applications can default construct an @c basic_io_interface object, but it is not useful 
+ *  Applications can default construct a @c basic_io_interface object, but it is not useful 
  *  until a valid @c basic_io_interface object is assigned to it (typically this would be 
  *  performed through the state change function object callback).
  *
@@ -204,7 +204,7 @@ public:
  *  @c basic_io_output can be used for sending a reply. The endpoint is the remote 
  *  endpoint that sent the data (not used in the @c send method call, but may be
  *  useful for other purposes). 
-
+ *
  *  Returning @c false from the message handler callback causes the connection to be 
  *  closed.
  *
@@ -317,12 +317,12 @@ public:
  *
  *  @code
  *    bool (asio::const_buffer,
- *          chops::net::tcp_io_interface, // basic_io_interface<tcp_io>
+ *          chops::net::tcp_io_output, // basic_io_output<tcp_io>
  *          asio::ip::tcp::endpoint);
  *  @endcode
  *
  *  The buffer points to the complete message including the delimiter sequence. The 
- *  @c basic_io_interface can be used for sending a reply, and the endpoint is the remote 
+ *  @c basic_io_output can be used for sending a reply, and the endpoint is the remote 
  *  endpoint that sent the data. Returning @c false from the message handler callback 
  *  causes the connection to be closed.
  *
@@ -365,11 +365,11 @@ public:
  *  @code
  *    // TCP io:
  *    bool (asio::const_buffer,
- *          chops::net::tcp_io_interface, // basic_io_interface<tcp_io>
+ *          chops::net::tcp_io_output, // basic_io_output<tcp_io>
  *          asio::ip::tcp::endpoint);
  *    // UDP io:
  *    bool (asio::const_buffer,
- *          chops::net::udp_io_interface, // basic_io_interface<udp_io>
+ *          chops::net::udp_io_output, // basic_io_output<udp_io>
  *          asio::ip::udp::endpoint);
  *  @endcode
  *
@@ -416,7 +416,7 @@ public:
  *
  *  @code
  *    bool (asio::const_buffer,
- *          chops::net::udp_io_interface, // basic_io_interface<udp_io>
+ *          chops::net::udp_io_output, // basic_io_output<udp_io>
  *          asio::ip::udp::endpoint);
  *  @endcode
  *
@@ -514,7 +514,7 @@ public:
  *
  *  A @c basic_io_output object is used for sending data. 
  *
- *  @return @c basic_io_output object.
+ *  @return @c basic_io_output object, either tcp_io_output or udp_io_output.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */

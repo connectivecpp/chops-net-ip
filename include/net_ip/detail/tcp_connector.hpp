@@ -35,7 +35,6 @@
 #include "net_ip/detail/net_entity_common.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
-#include "net_ip/io_interface.hpp"
 
 #include <cassert>
 
