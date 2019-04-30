@@ -34,9 +34,10 @@ namespace net {
  *  network IO data sending, whether TCP or UDP. This class provides methods to 
  *  send data and query output queue stats.
  *
- *  Unless default constructed, a @c basic_io_output object has an association to an 
- *  IO handler object. This association will keep the IO handler 
- *  object in memory after the
+ *  Unless default constructed or released, a @c basic_io_output object has an association 
+ *  to an IO handler object. This association will keep the IO handler object in memory,
+ *  even after the TCP connection or UDP socket has been closed. When output is done,
+ *  either by application notification or because 
  *
  *  This class provides an association to a network IO handler. It may participate in
  *  the lifetime of the network IO handler, depending on how an object of this type is 
@@ -71,6 +72,8 @@ public:
   using endpoint_type = typename IOH::endpoint_type;
 
 public:
+
+  basic_io_output() noexcept : m_iohsp(), m_iohptr(nullptr) { }
 
 /**
  *  @brief Construct with a pointer to an internal IO handler, where the @c shared_ptr
