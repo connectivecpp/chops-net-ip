@@ -178,7 +178,7 @@ bool process_args(int argc, char* const argv[], std::string& ip_addr,
 int main(int argc, char* argv[]) {
     const std::string LOCAL = "[local]  ";
     const std::string SYSTEM = "[system] ";
-    const std::string ERROR = "[error]  ";
+    const std::string ERROR_MSG = "[error]  ";
     const std::string DELIM = "\a"; // alert (bell)
     const std::string NO_CONNECTION = "no connection..." + DELIM;
     const std::string ABORT = "abort: too many errors";
@@ -244,7 +244,7 @@ int main(int argc, char* argv[]) {
                 screen.insert_scroll_line("2nd tcp_connector client rejected" + 
                             DELIM, SYSTEM);
                 screen.draw_screen();
-                iof.start_io();
+                iof.start_io(DELIM, msg_hndlr);
                 const std::string err = "only one tcp connection allowed";
                 iof.send(err.data(), err.size());
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -280,7 +280,7 @@ int main(int argc, char* argv[]) {
                 std::string err_text = err.category().name();
                 err_text += ": " + std::to_string(err.value()) + ", " +
                 err.message() + DELIM;
-                screen.insert_scroll_line(err_text, ERROR);
+                screen.insert_scroll_line(err_text, ERROR_MSG);
                 screen.draw_screen();
             }
         };
