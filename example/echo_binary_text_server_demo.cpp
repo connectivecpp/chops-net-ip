@@ -44,7 +44,7 @@ using endpoint = asio::ip::tcp::endpoint;
 
 // process command line args (if any)
 bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) {
-    const std::string HELP = "-h";
+    const std::string HELP_PRM = "-h";
     const std::string PRINT_ERRS = "-e";
     const std::string USEAGE = \
     "useage: ./echo_server [-h | -e] [port]\n"
@@ -53,7 +53,7 @@ bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) 
     "  port  Default: 5002";
     int offset = 0;
 
-    if (argc > 3 || (argc > 1 && argv[1] == HELP)) {
+    if (argc > 3 || (argc > 1 && argv[1] == HELP_PRM)) {
         std::cout << USEAGE << std::endl;
         return EXIT_FAILURE;
     }

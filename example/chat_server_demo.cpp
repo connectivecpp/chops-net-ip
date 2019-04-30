@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/17/19
+ *  4/30/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -55,20 +55,20 @@ bool process_args(int argc,  char* const argv[], std::string& ip_addr,
        "      default port = " + PORT + "\n"
        "      server IP address (fixed) = " + LOCAL_LOOP + " (local loop)";
 
-   const std::string HELP = "-h";
-   const std::string ERR = "-e";
+   const std::string HELP_PRM = "-h";
+   const std::string ERR_PRM = "-e";
 
    // set default values
    ip_addr = LOCAL_LOOP;
    port = PORT;
 
-   if (argc > 3 || (argc == 2 && argv[1] == HELP)) {
+   if (argc > 3 || (argc == 2 && argv[1] == HELP_PRM)) {
       std::cout << USAGE << std::endl;
       return EXIT_FAILURE;
    }
 
    if (argc == 2) {
-      if (argv[1] == ERR) {
+      if (argv[1] == ERR_PRM) {
          print_errors = true;
       } else {
          port = argv[1];
@@ -76,7 +76,7 @@ bool process_args(int argc,  char* const argv[], std::string& ip_addr,
    }
 
    if (argc == 3) {
-      if (argv[1] == ERR) {
+      if (argv[1] == ERR_PRM) {
          print_errors = true;
          port = argv[2];
       } else {
