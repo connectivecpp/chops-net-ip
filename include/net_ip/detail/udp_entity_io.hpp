@@ -46,7 +46,6 @@ namespace detail {
 
 class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
-  using socket_type = asio::ip::udp::socket;
   using endpoint_type = asio::ip::udp::endpoint;
 
 private:
@@ -57,7 +56,7 @@ private:
   io_common<udp_entity_io>          m_io_common;
   net_entity_common<udp_entity_io>  m_entity_common;
   asio::io_context&                 m_io_context;
-  socket_type                       m_socket;
+  asio::ip::udp::socket             m_socket;
   endpoint_type                     m_local_endp;
   endpoint_type                     m_default_dest_endp;
   // TODO: multicast stuff
@@ -96,6 +95,11 @@ public:
     f(m_socket);
   }
 
+  template <typename F>
+  void visit_io_output(F&& f) {
+    f(basic_io_output(this));
+  }
+
   output_queue_stats get_output_queue_stats() const noexcept {
     return m_io_common.get_output_queue_stats();
   }
@@ -113,7 +117,7 @@ public:
         m_socket.open(asio::ip::udp::v4());
       }
       else {
-        m_socket = socket_type(m_io_context, m_local_endp);
+        m_socket = asio::ip::udp::socket(m_io_context, m_local_endp);
       }
     }
     catch (const std::system_error& se) {
@@ -181,24 +185,26 @@ public:
     return true;
   }
 
-  void send(chops::const_shared_buffer buf) {
+  bool send(chops::const_shared_buffer buf) {
     auto self { shared_from_this() };
     post(m_socket.get_executor(), [this, self, buf] {
         if (!m_io_common.start_write_setup(buf)) {
-          return; // buf queued or shutdown happening
+          return false; // buf queued or shutdown happening
         }
         start_write(buf, m_default_dest_endp);
+        return true;
       }
     );
   }
 
-  void send(chops::const_shared_buffer buf, const endpoint_type& endp) {
+  bool send(chops::const_shared_buffer buf, const endpoint_type& endp) {
     auto self { shared_from_this() };
     post(m_socket.get_executor(), [this, self, buf, endp] {
         if (!m_io_common.start_write_setup(buf, endp)) {
-          return; // buf queued or shutdown happening
+          return false; // buf queued or shutdown happening
         }
         start_write(buf, endp);
+        return true;
       }
     );
   }

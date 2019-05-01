@@ -158,6 +158,36 @@ public:
   }
 
 /**
+ *  @brief Call an application supplied function object with all @c basic_io_output objects
+ *  that are active on associated IO handlers for this net entity.
+ *
+ *  A TCP connector will have 0 or 1 active IO handlers, depending on connection state, while
+ *  a TCP acceptor will have 0 to N active IO handlers, depending on the number of incoming
+ *  connections. A UDP entity will either have 0 or 1 active IO handlers depending on whether
+ *  it has been started or not.
+ *
+ *  The function object must have one of the following signatures, depending on TCP or UDP:
+ *
+ *  @code
+ *    void (chops::tcp_io_output); // TCP
+ *    void (chops::udp_io_output); // UDP
+ *  @endcode
+ *
+ *  The function object will be called 0 to N times depending on active IO handlers.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
+ */
+  template <typename F>
+  void visit_io_output(F&& f) const {
+    std::visit([func = std::forward<F>(f)] (const auto& wp) { 
+        if (auto p = wp.lock()) {
+          p->visit_io_output(func);
+        }
+        throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+      }, m_wptr);
+  }
+
+/**
  *  @brief Start network processing on the associated net entity with the application
  *  providing IO state change and error function objects.
  *

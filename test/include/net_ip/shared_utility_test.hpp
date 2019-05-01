@@ -48,19 +48,23 @@
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 #include "asio/ip/address.hpp" // make_address
 
-#include <boost/endian/conversion.hpp>
-
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 #include "utility/cast_ptr_to.hpp"
 
-#include "net_ip/io_interface.hpp"
+#include "marshall/extract_append.hpp"
 
-#include "net_ip_component/simple_variable_len_msg_frame.hpp"
+#include "net_ip/io_interface.hpp"
+#include "net_ip/io_output.hpp"
 
 namespace chops {
 namespace test {
+
+inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
+  assert (sz == 2);
+  return extract_val<std::uint16_t>(buf_ptr);
+}
 
 inline chops::mutable_shared_buffer make_body_buf(std::string_view pre, 
                                                   char body_char, 
@@ -72,8 +76,9 @@ inline chops::mutable_shared_buffer make_body_buf(std::string_view pre,
 
 inline chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
   assert(body.size() < std::numeric_limits<std::uint16_t>::max());
-  std::uint16_t hdr = boost::endian::native_to_big(static_cast<std::uint16_t>(body.size()));
-  chops::mutable_shared_buffer msg(static_cast<const void*>(&hdr), 2);
+  std::byte hdr[2];
+  auto sz = append_val(hdr, static_cast<std::uint16_t>(body.size()));
+  chops::mutable_shared_buffer msg(hdr, 2);
   return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
 }
 
@@ -87,15 +92,6 @@ inline chops::const_shared_buffer make_lf_text_msg(const chops::mutable_shared_b
   chops::mutable_shared_buffer msg(body.data(), body.size());
   auto ba = chops::make_byte_array(0x0A); // LF
   return chops::const_shared_buffer(std::move(msg.append(ba.data(), ba.size())));
-}
-
-inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
-  assert (sz == 2);
-  std::uint16_t hdr;
-  std::byte* hdr_ptr = chops::cast_ptr_to<std::byte>(&hdr);
-  *(hdr_ptr+0) = *(buf_ptr+0);
-  *(hdr_ptr+1) = *(buf_ptr+1);
-  return boost::endian::big_to_native(hdr);
 }
 
 template <typename F>
@@ -131,18 +127,20 @@ struct msg_hdlr {
 
   msg_hdlr(bool rep, test_counter& c) : reply(rep), cnt(c) { }
 
-  bool operator()(const_buf buf, chops::net::basic_io_interface<IOT> io_intf, endp_type endp) {
+  bool operator()(const_buf buf, chops::net::basic_io_output<IOT> io_out, endp_type endp) {
     chops::const_shared_buffer sh_buf(buf.data(), buf.size());
     if (sh_buf.size() > 2) { // not a shutdown message
       ++cnt;
       if (reply) {
-        io_intf.send(sh_buf, endp);
+        bool r = io_out.send(sh_buf, endp);
+        assert(r);
       }
       return true;
     }
     if (reply) {
       // may not make it back to sender, depending on TCP connection or UDP reliability
-      io_intf.send(sh_buf, endp);
+      bool r = io_out.send(sh_buf, endp);
+      assert(r);
     }
     return false;
   }
@@ -155,8 +153,7 @@ using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
 inline bool tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
                    std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
-    return io.start_io(2, tcp_msg_hdlr(reply, cnt), 
-                       chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr));
+    return io.start_io(2, tcp_msg_hdlr(reply, cnt), decode_variable_len_msg_hdr);
   }
   return io.start_io(delim, tcp_msg_hdlr(reply, cnt));
 }
@@ -176,10 +173,8 @@ inline bool udp_start_io (chops::net::udp_io_interface io, bool receiving, test_
 }
 
 struct io_handler_mock {
-  using socket_type = int;
   using endpoint_type = asio::ip::udp::endpoint;
 
-  socket_type sock = 3;
   bool started = false;
   constexpr static std::size_t qs_base = 42;
 

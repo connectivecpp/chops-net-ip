@@ -34,6 +34,8 @@
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
 
+#include "net_ip/basic_io_output.hpp"
+
 #include "net_ip/endpoints_resolver.hpp"
 
 #include <cassert>
@@ -44,7 +46,6 @@ namespace detail {
 
 class tcp_connector : public std::enable_shared_from_this<tcp_connector> {
 public:
-  using socket_type = asio::ip::tcp::socket;
   using endpoint_type = asio::ip::tcp::endpoint;
 
 private:
@@ -55,7 +56,7 @@ private:
 
 private:
   net_entity_common<tcp_io>     m_entity_common;
-  socket_type                   m_socket;
+  asio_ip::tcp_socket           m_socket;
   tcp_io_shared_ptr             m_io_handler;
   resolver_type                 m_resolver;
   endpoints                     m_endpoints;
@@ -114,6 +115,13 @@ public:
   template <typename F>
   void visit_socket(F&& f) {
     f(m_socket);
+  }
+
+  template <typename F>
+  void visit_io_output(F&& f) {
+    if (m_io_handler) {
+      f(basic_io_output(m_io_handler));
+    }
   }
 
   template <typename F1, typename F2>

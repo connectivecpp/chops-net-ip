@@ -90,8 +90,19 @@ public:
   explicit basic_io_output(iohsp sp) noexcept : m_iohsp(sp), m_iohptr(m_iohsp.get()) { }
 
 /**
- *  @brief Release any internal @c std::shared_ptr associations to an IO handler so that 
- *  the IO handler object can be released (as appropriate).
+ *  @brief Query whether an IO handler is associated with this object.
+ *
+ *  If @c true, an IO handler (e.g. TCP or UDP IO handler) is associated. However, 
+ *  the IO handler may be closed or shutting down, which means it will not queue
+ *  any sent data.
+ *
+ *  @return @c true if associated with an IO handler.
+ */
+  bool is_valid() const noexcept { return m_iohptr != nullptr; }
+
+/**
+ *  @brief Release the internal IO handler association, if present, so that 
+ *  the IO handler object memory can be released (as needed).
  *
  *  Calling @c send after @c release without assigning a new (valid) @c basic_io_output
  *  object will result in dereferencing a null pointer.
@@ -107,6 +118,8 @@ public:
  *
  *  @return @c queue_status @c struct.
  *
+ *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
+ *  equals @c true).
  */
   output_queue_stats get_output_queue_stats() const {
     return m_iohptr->get_output_queue_stats();
@@ -124,6 +137,8 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
+ *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
+ *  equals @c true).
  */
   bool send(const void* buf, std::size_t sz) const { return send(chops::const_shared_buffer(buf, sz)); }
 
@@ -136,6 +151,8 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
+ *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
+ *  equals @c true).
  */
   bool send(chops::const_shared_buffer buf) const {
     return m_iohptr->send(buf);
@@ -161,6 +178,8 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
+ *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
+ *  equals @c true).
  */
   bool send(chops::mutable_shared_buffer&& buf) const { 
     return send(chops::const_shared_buffer(std::move(buf)));
@@ -183,6 +202,8 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
+ *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
+ *  equals @c true).
  */
   bool send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
     return send(chops::const_shared_buffer(buf, sz), endp);
@@ -200,6 +221,8 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
+ *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
+ *  equals @c true).
  */
   bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
     return m_iohptr->send(buf, endp);
@@ -218,6 +241,8 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
+ *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
+ *  equals @c true).
  */
   bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
     return send(chops::const_shared_buffer(std::move(buf)), endp);

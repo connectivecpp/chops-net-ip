@@ -31,7 +31,7 @@
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
 
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 
 #include "utility/erase_where.hpp"
 
@@ -41,13 +41,12 @@ namespace detail {
 
 class tcp_acceptor : public std::enable_shared_from_this<tcp_acceptor> {
 public:
-  using socket_type = asio::ip::tcp::acceptor;
   using endpoint_type = asio::ip::tcp::endpoint;
 
 private:
   net_entity_common<tcp_io>         m_entity_common;
   asio::io_context&                 m_io_context;
-  socket_type                       m_acceptor;
+  asio::ip::tcp::acceptor           m_acceptor;
   std::vector<tcp_io_shared_ptr>    m_io_handlers;
   endpoint_type                     m_acceptor_endp;
   bool                              m_reuse_addr;
@@ -74,6 +73,14 @@ public:
     f(m_acceptor);
   }
 
+  template <typename F>
+  void visit_io_output(F&& f) {
+    for (auto ioh : m_io_handlers) {
+      f(basic_io_output(ioh));
+    }
+  }
+
+
   template <typename F1, typename F2>
   bool start(F1&& io_state_chg, F2&& err_func) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func))) {
@@ -81,7 +88,7 @@ public:
       return false;
     }
     try {
-      m_acceptor = socket_type(m_io_context, m_acceptor_endp, m_reuse_addr);
+      m_acceptor = asio::ip::tcp::acceptor(m_io_context, m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
       m_entity_common.call_error_cb(tcp_io_shared_ptr(), se.code());

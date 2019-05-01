@@ -77,7 +77,6 @@ public:
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
-  using socket_type = asio::ip::tcp::socket;
   using endpoint_type = asio::ip::tcp::endpoint;
   using entity_notifier_cb = std::function<void (std::error_code, std::shared_ptr<tcp_io>)>;
 
@@ -86,7 +85,7 @@ private:
 
 private:
 
-  socket_type            m_socket;
+  asio::ip::tcp::socket  m_socket;
   io_common<tcp_io>      m_io_common;
   entity_notifier_cb     m_notifier_cb;
   endpoint_type          m_remote_endp;
@@ -100,7 +99,7 @@ private:
 
 public:
 
-  tcp_io(socket_type sock, entity_notifier_cb cb) noexcept : 
+  tcp_io(asio::ip::tcp::socket sock, entity_notifier_cb cb) noexcept : 
     m_socket(std::move(sock)), m_io_common(), 
     m_notifier_cb(cb), m_remote_endp(),
     m_byte_vec(), m_read_size(0), m_delimiter() { }
@@ -180,19 +179,20 @@ public:
   }
 
   // use post for thread safety, multiple threads can call this method
-  void send(chops::const_shared_buffer buf) {
+  bool send(chops::const_shared_buffer buf) {
     auto self { shared_from_this() };
     post(m_socket.get_executor(), [this, self, buf] {
         if (!m_io_common.start_write_setup(buf)) {
-          return; // buf queued or shutdown happening
+          return false; // buf queued or shutdown happening
         }
         start_write(buf);
+	return true;
       }
     );
   }
 
-  void send(const chops::const_shared_buffer& buf, const endpoint_type&) {
-    send(buf);
+  bool send(const chops::const_shared_buffer& buf, const endpoint_type&) {
+    return send(buf);
   }
 
 public:
