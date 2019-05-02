@@ -2,22 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Declarations and implementations for utility code shared between 
- *  @c net_ip tests.
- *
- *  The general Chops Net IP test strategy is to have message senders and message 
- *  receivers, with a flag specifying whether the receiver is to loop back the
- *  messages. For TCP it is independent of whether the sender or receiver is an 
- *  acceptor or connector, although most tests have the connector being a sender. In 
- *  the test routines, coordination is typically needed to know when a connection has 
- *  been made or sender / receiver is ready so that message flow can start. At the 
- *  higher layers, the Chops Net IP library facilities provide connection state
- *  change function object callbacks.
- *
- *  When the message flow is finished, an empty body message is sent to the receiver
- *  (and looped back if the reply flag is set), which signals an "end of message 
- *  flow" condition. The looped back empty message may not arrive back to the 
- *  sender since connections or handlers are in the process of being taken down.
+ *  @brief Mock classes shared between various @c chops_net_ip tests.
  *
  *  @author Cliff Green
  *
@@ -28,32 +13,24 @@
  *
  */
 
-#ifndef SHARED_UTILITY_TEST_HPP_INCLUDED
-#define SHARED_UTILITY_TEST_HPP_INCLUDED
+#ifndef MOCK_CLASSES_TEST_HPP_INCLUDED
+#define MOCK_CLASSES_TEST_HPP_INCLUDED
 
 #include <string_view>
-#include <cstddef> // std::size_t, std::byte
-#include <cstdint> // std::uint16_t
-#include <vector>
-#include <utility> // std::forward, std::move
-#include <atomic>
+#include <cstddef> // std::size_t
+#include <utility> // std::move
 #include <memory> // std::shared_ptr
 #include <thread>
 #include <system_error>
 
 #include <cassert>
-#include <limits>
 
-#include "asio/buffer.hpp"
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
-#include "asio/ip/address.hpp" // make_address
 
 #include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 #include "utility/cast_ptr_to.hpp"
-
-#include "marshall/extract_append.hpp"
 
 #include "net_ip/io_interface.hpp"
 #include "net_ip/io_output.hpp"
@@ -64,12 +41,17 @@ namespace test {
 struct io_handler_mock {
   using endpoint_type = asio::ip::udp::endpoint;
 
+  double mock_sock = 42.0;
+
   bool started = false;
   constexpr static std::size_t qs_base = 42;
 
   bool is_io_started() const { return started; }
 
-  socket_type& get_socket() { return sock; }
+  template <typename F>
+  void visit_socket(F&& f) const {
+    f(mock_sock);
+  }
 
   chops::net::output_queue_stats get_output_queue_stats() const { 
     return chops::net::output_queue_stats { qs_base, qs_base +1 };
@@ -81,6 +63,7 @@ struct io_handler_mock {
   void send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; }
 
   bool mf_sio_called = false;
+  bool simple_var_len_sio_called = false;
   bool delim_sio_called = false;
   bool rd_sio_called = false;
   bool rd_endp_sio_called = false;
@@ -90,6 +73,11 @@ struct io_handler_mock {
   template <typename MH, typename MF>
   bool start_io(std::size_t, MH&&, MF&&) {
     return started ? false : started = true, mf_sio_called = true, true;
+  }
+
+  template <typename MH>
+  bool start_io(std::size_t, MH&&, hdr_decoder_func) {
+    return started ? false : started = true, simple_var_len_sio_called = true, true;
   }
 
   template <typename MH>
@@ -123,6 +111,7 @@ struct io_handler_mock {
 
 using io_handler_mock_ptr = std::shared_ptr<io_handler_mock>;
 using io_interface_mock = chops::net::basic_io_interface<io_handler_mock>;
+using io_output_mock = chops::net::basic_io_output<io_handler_mock>;
 
 struct net_entity_mock {
 
@@ -174,13 +163,8 @@ struct net_entity_mock {
 
 };
 
-inline void io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
+inline bool io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
 inline void err_func_mock(io_interface_mock, std::error_code) { }
-
-asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
-  return asio::ip::udp::endpoint(asio::ip::make_address(addr),
-                           static_cast<unsigned short>(port_num));
-}
 
 
 } // end namespace test

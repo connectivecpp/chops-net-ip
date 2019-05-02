@@ -302,7 +302,7 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  template <typename MH, typename MF>
+  template <typename MH>
   bool start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(header_size, std::forward<MH>(msg_handler), func);
