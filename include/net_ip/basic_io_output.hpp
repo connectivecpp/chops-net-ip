@@ -101,6 +101,17 @@ public:
   bool is_valid() const noexcept { return m_iohptr != nullptr; }
 
 /**
+ *  @brief Query whether an IO handler is in a started state or not.
+ *
+ *  @return @c true if @c start_io has been called, @c false if the IO handler
+ *  has not been started or is in a stopped state.
+ *
+ */
+  bool is_io_started() const {
+    m_iohptr->is_io_started();
+  }
+
+/**
  *  @brief Release the internal IO handler association, if present, so that 
  *  the IO handler object memory can be released (as needed).
  *

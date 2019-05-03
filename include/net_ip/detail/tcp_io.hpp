@@ -50,7 +50,7 @@ namespace chops {
 namespace net {
 namespace detail {
 
-std::size_t null_msg_frame (asio::mutable_buffer) noexcept { return 0; }
+inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept { return 0u; }
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
@@ -79,7 +79,7 @@ public:
   tcp_io(asio::ip::tcp::socket sock, entity_notifier_cb cb) noexcept : 
     m_socket(std::move(sock)), m_io_common(), 
     m_notifier_cb(cb), m_remote_endp(),
-    m_byte_vec(), m_read_size(0), m_delimiter() { }
+    m_byte_vec(), m_read_size(0u), m_delimiter() { }
 
 private:
   // no copy or assignment semantics for this class
@@ -254,7 +254,7 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
   }
   // assert num_bytes == mbuf.size()
   std::size_t next_read_size = msg_frame(mbuf);
-  if (next_read_size == 0) { // msg fully received, now invoke message handler
+  if (next_read_size == 0u) { // msg fully received, now invoke message handler
     if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
                   basic_io_output(this), m_remote_endp)) {
       // message handler not happy, tear everything down

@@ -28,7 +28,6 @@
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 
 #include "marshall/shared_buffer.hpp"
-#include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 #include "utility/cast_ptr_to.hpp"
 
@@ -50,7 +49,7 @@ struct io_handler_mock {
   bool is_io_started() const { return started; }
 
   template <typename F>
-  void visit_socket(F&& f) const {
+  void visit_socket(F&& f) {
     f(mock_sock);
   }
 

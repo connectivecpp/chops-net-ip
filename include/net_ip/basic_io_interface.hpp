@@ -121,6 +121,22 @@ public:
   bool is_valid() const noexcept { return !m_ioh_wptr.expired(); }
 
 /**
+ *  @brief Make a @c basic_io_output object from the associated IO handler.
+ *
+ *  A @c basic_io_output object is used for sending data. 
+ *
+ *  @return @c basic_io_output object, either a @c tcp_io_output or @c udp_io_output.
+ *
+ *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ */
+  basic_io_output<IOT> make_io_output() const {
+    if (auto p = m_ioh_wptr.lock()) {
+      return basic_io_output(p);
+    }
+    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  }
+
+/**
  *  @brief Query whether an IO handler is in a started state or not.
  *
  *  @return @c true if @c start_io has been called, @c false if the IO handler
@@ -153,9 +169,10 @@ public:
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
   template <typename F>
-  void visit_socket(F&& f) const {
+  void visit_socket(F&& f) {
     if (auto p = m_ioh_wptr.lock()) {
       p->visit_socket(std::forward<F>(f));
+      return;
     }
     throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -373,7 +390,6 @@ public:
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  *
  */
-
   template <typename MH>
   bool start_io(std::size_t read_size, MH&& msg_handler) {
     if (auto p = m_ioh_wptr.lock()) {
@@ -420,7 +436,6 @@ public:
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  *
  */
-
   template <typename MH>
   bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
     if (auto p = m_ioh_wptr.lock()) {
@@ -446,7 +461,6 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-
   bool start_io() {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io();
@@ -471,7 +485,6 @@ public:
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-
   bool start_io(const endpoint_type& endp) {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(endp);
@@ -499,23 +512,6 @@ public:
   }
 
 /**
- *  @brief Make a @c basic_io_output object from the associated IO handler.
- *
- *  A @c basic_io_output object is used for sending data. 
- *
- *  @return @c basic_io_output object, either a @c tcp_io_output or @c udp_io_output.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
- */
-  basic_io_output<IOT> make_io_output() const {
-    if (auto p = m_ioh_wptr.lock()) {
-      return basic_io_output(p);
-    }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
-  }
-
-
-/**
  *  @brief Compare two @c basic_io_interface objects for equality.
  *
  *  If both @c basic_io_interface objects are valid, then a @c std::shared_ptr comparison 
@@ -525,7 +521,6 @@ public:
  *
  *  @return As described in the comments.
  */
-
   bool operator==(const basic_io_interface<IOT>& rhs) const noexcept {
     auto lp = m_ioh_wptr.lock();
     auto rp = rhs.m_ioh_wptr.lock();

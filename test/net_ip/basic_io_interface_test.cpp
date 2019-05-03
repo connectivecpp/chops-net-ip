@@ -19,13 +19,12 @@
 #include <set>
 #include <cstddef> // std::size_t
 
-#include "net_ip/queue_stats.hpp"
 #include "net_ip/basic_io_interface.hpp"
+#include "net_ip/basic_io_output.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
+#include "net_ip/mock_classes_test.hpp"
 
-#include "marshall/shared_buffer.hpp"
-#include "utility/make_byte_array.hpp"
+std::size_t do_nothing_hdr_decoder (const std::byte*, std::size_t) { return 0u; }
 
 template <typename IOT>
 void basic_io_interface_test_default_constructed() {
@@ -41,21 +40,16 @@ void basic_io_interface_test_default_constructed() {
     AND_WHEN ("any method but comparison is called on an invalid basic_io_interface") {
       THEN ("an exception is thrown") {
 
-        chops::const_shared_buffer buf(nullptr, 0);
         using endp_t = typename IOT::endpoint_type;
 
         REQUIRE_THROWS (io_intf.is_io_started());
-        REQUIRE_THROWS (io_intf.get_socket());
-        REQUIRE_THROWS (io_intf.get_output_queue_stats());
 
-        REQUIRE_THROWS (io_intf.send(nullptr, 0));
-        REQUIRE_THROWS (io_intf.send(buf));
-        REQUIRE_THROWS (io_intf.send(chops::mutable_shared_buffer()));
-        REQUIRE_THROWS (io_intf.send(nullptr, 0, endp_t()));
-        REQUIRE_THROWS (io_intf.send(buf, endp_t()));
-        REQUIRE_THROWS (io_intf.send(chops::mutable_shared_buffer(), endp_t()));
+        REQUIRE_THROWS (io_intf.make_io_output());
+
+        REQUIRE_THROWS (io_intf.visit_socket([] (double&) { } ));
 
         REQUIRE_THROWS (io_intf.start_io(0, [] { }, [] { }));
+        REQUIRE_THROWS (io_intf.start_io(0, [] { }, do_nothing_hdr_decoder));
         REQUIRE_THROWS (io_intf.start_io("testing, hah!", [] { }));
         REQUIRE_THROWS (io_intf.start_io(0, [] { }));
         REQUIRE_THROWS (io_intf.start_io(endp_t(), 0, [] { }));
@@ -63,6 +57,7 @@ void basic_io_interface_test_default_constructed() {
         REQUIRE_THROWS (io_intf.start_io(endp_t()));
 
         REQUIRE_THROWS (io_intf.stop_io());
+
       }
     }
   } // end given
@@ -83,29 +78,17 @@ void basic_io_interface_test_methods() {
         REQUIRE (io_intf.is_valid());
       }
     }
-    AND_WHEN ("is_io_started or get_output_queue_stats is called") {
-      THEN ("correct values are returned") {
+    AND_WHEN ("is_io_started is called") {
+      THEN ("false is returned") {
         REQUIRE_FALSE (io_intf.is_io_started());
-        chops::net::output_queue_stats s = io_intf.get_output_queue_stats();
-        REQUIRE (s.output_queue_size == chops::test::io_handler_mock::qs_base);
-        REQUIRE (s.bytes_in_output_queue == (chops::test::io_handler_mock::qs_base + 1));
       }
     }
-    AND_WHEN ("send or start_io or stop_io is called") {
+    AND_WHEN ("start_io or stop_io is called") {
       THEN ("appropriate values are set or returned") {
 
-        chops::const_shared_buffer buf(nullptr, 0);
         using endp_t = typename IOT::endpoint_type;
 
         REQUIRE (io_intf.is_valid());
-
-        io_intf.send(nullptr, 0);
-        io_intf.send(buf);
-        io_intf.send(chops::mutable_shared_buffer());
-        io_intf.send(nullptr, 0, endp_t());
-        io_intf.send(buf, endp_t());
-        io_intf.send(chops::mutable_shared_buffer(), endp_t());
-        REQUIRE(ioh->send_called);
 
         REQUIRE (io_intf.start_io(0, [] { }, [] { }));
         REQUIRE (io_intf.is_io_started());
@@ -129,6 +112,21 @@ void basic_io_interface_test_methods() {
         REQUIRE_FALSE (io_intf.is_io_started());
       }
     }
+    AND_WHEN ("make_io_output is called") {
+      THEN ("a basic_io_output object is returned") {
+        REQUIRE (io_intf.is_valid());
+	auto io_out = io_intf.make_io_output();
+        REQUIRE (io_out.is_valid());
+      }
+    }
+    AND_WHEN ("visit_socket is called") {
+      THEN ("the io handler value is modified") {
+        REQUIRE (io_intf.is_valid());
+        io_intf.visit_socket([] (double& d) { d += 1.0; } );
+	REQUIRE (ioh->mock_sock == 43.0);
+      }
+    }
+
   } // end given
 
 }
