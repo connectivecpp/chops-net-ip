@@ -24,7 +24,6 @@
 #include <system_error> // std::make_error, std::error_code
 
 #include "net_ip/net_ip_error.hpp"
-#include "net_ip/basic_io_interface.hpp"
 
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/tcp_connector.hpp"

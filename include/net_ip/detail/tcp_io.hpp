@@ -41,39 +41,14 @@
 #include "net_ip/net_ip_error.hpp"
 
 #include "net_ip/basic_io_output.hpp"
+#include "net_ip/simple_variable_len_msg_frame.hpp"
 
 #include "marshall/shared_buffer.hpp"
 #include "utility/cast_ptr_to.hpp"
 
 namespace chops {
 namespace net {
-
-
 namespace detail {
-
-inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept {
-  return 0u;
-}
-
-class simple_variable_len_msg_frame {
-private:
-  hdr_decoder_func m_hdr_decoder_func;
-  bool             m_hdr_processed;
-public:
-  simple_variable_len_msg_frame(hdr_decoder_func func) noexcept : 
-      m_hdr_decoder_func(func), m_hdr_processed(false) { }
-
-  std::size_t operator() (asio::mutable_buffer buf) noexcept {
-    if (hdr_processed) {
-      hdr_processed = false;
-      return 0u;
-    }
-    else {
-      hdr_processed = true;
-      return m_hdr_decoder_func(cast_ptr_to<std::byte>(buf.data()), buf.size());
-    }
-  };
-}
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
@@ -140,7 +115,7 @@ public:
 
   template <typename MH>
   bool start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) {
-    return start_io(read_size, std::forward<MH>(msg_handler), 
+    return start_io(header_size, std::forward<MH>(msg_handler), 
                                simple_variable_len_msg_frame(func));
   }
 
@@ -341,16 +316,6 @@ using tcp_io_shared_ptr = std::shared_ptr<tcp_io>;
 using tcp_io_weak_ptr = std::weak_ptr<tcp_io>;
 
 } // end detail namespace
-
-/**
- *  @brief Using declaration for TCP based io, used to instantiate a @c basic_io_interface
- *  or @c basic_io_output type.
- *
- *  @relates basic_io_interface
- *  @relates basic_io_output
- */
-using tcp_io = detail::tcp_io;
-
 
 } // end net namespace
 } // end chops namespace
