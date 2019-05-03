@@ -48,12 +48,12 @@
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 #include "asio/ip/address.hpp" // make_address
 
-#include "utility/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "utility/make_byte_array.hpp"
 #include "utility/cast_ptr_to.hpp"
 
 #include "marshall/extract_append.hpp"
+#include "marshall/shared_buffer.hpp"
 
 #include "net_ip/io_interface.hpp"
 #include "net_ip/io_output.hpp"

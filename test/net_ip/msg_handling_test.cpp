@@ -33,12 +33,12 @@
 #include "asio/buffer.hpp"
 
 #include "utility/make_byte_array.hpp"
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 
-#include "net_ip/basic_io_interface.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_output.hpp"
 
 #include "net_ip/msg_handling_test.hpp"
+#include "net_ip/mock_classes_test.hpp"
 
 void make_msg_test() {
   using namespace chops::test;
@@ -127,7 +127,7 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
   auto msgs = make_msg_vec(f, pre, body_char, num_msgs);
   auto empty = make_empty_body_msg(f);
 
-  auto iohp = std::make_shared<io_handler_mock>();
+  io_handler_mock ioh { };
   asio::ip::udp::endpoint endp { };
 
   test_counter cnt(0);
@@ -135,12 +135,12 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
 
   int m = 0;
   for (auto i : msgs) {
-    auto ret = mh(asio::const_buffer(i.data(), i.size()), io_interface_mock(iohp), endp);
+    auto ret = mh(asio::const_buffer(i.data(), i.size()), io_output_mock(&ioh), endp);
     if (++m % 1000 == 0) {
       REQUIRE(ret);
     }
   }
-  REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), io_interface_mock(iohp), endp));
+  REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), io_output(&ioh), endp));
 
   return cnt.load();
 
@@ -202,8 +202,8 @@ SCENARIO ( "Message handling shared test utility, msg hdlr function object",
            "[msg_handling] [msg_hdlr]" ) {
   using namespace chops::test;
 
-  auto iohp = std::make_shared<io_handler_mock>();
-  REQUIRE_FALSE(iohp->send_called);
+  io_handler_mock ioh { };
+  REQUIRE_FALSE(ioh->send_called);
   asio::ip::udp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
@@ -215,10 +215,10 @@ SCENARIO ( "Message handling shared test utility, msg hdlr function object",
       test_counter cnt(0);
       msg_hdlr<io_handler_mock> mh(true, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
-        REQUIRE(iohp->send_called);
+        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_output_mock(&ioh), endp));
+        REQUIRE(ioh->send_called);
         REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), 
-                      io_interface_mock(iohp), endp));
+                      io_output_mock(&ioh), endp));
         REQUIRE(cnt == 1);
       }
     }
@@ -226,9 +226,9 @@ SCENARIO ( "Message handling shared test utility, msg hdlr function object",
       test_counter cnt(0);
       msg_hdlr<io_handler_mock> mh(false, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
+        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_output_mock(&ioh), endp));
         REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), 
-                      io_interface_mock(iohp), endp));
+                      io_output_mock(&ioh), endp));
         REQUIRE(cnt == 1);
       }
     }

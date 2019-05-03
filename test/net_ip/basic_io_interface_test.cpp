@@ -24,7 +24,7 @@
 
 #include "net_ip/shared_utility_test.hpp"
 
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 #include "utility/make_byte_array.hpp"
 
 template <typename IOT>

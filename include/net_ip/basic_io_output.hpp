@@ -20,7 +20,7 @@
 #include <cstddef> // std::move
 #include <memory> // std::shared_ptr
 
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 #include "net_ip/queue_stats.hpp"
 
 namespace chops {

@@ -38,7 +38,7 @@
 
 #include "net_ip/basic_io_output.hpp"
 
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 
 namespace chops {
 namespace net {

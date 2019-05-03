@@ -37,7 +37,7 @@
 #include "net_ip/shared_utility_test.hpp"
 #include "net_ip/shared_utility_func_test.hpp"
 
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 
 #include <iostream> // std::cerr for error sink

@@ -33,7 +33,7 @@
 #include "asio/buffer.hpp"
 
 #include "utility/make_byte_array.hpp"
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/io_interface.hpp"

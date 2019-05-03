@@ -52,7 +52,7 @@
 #include "marshall/shared_buffer.hpp"
 
 #include "net_ip/io_interface.hpp"
-#include "net_ip/io_output.hpp"
+#include "net_ip/basic_io_output.hpp"
 
 namespace chops {
 namespace test {

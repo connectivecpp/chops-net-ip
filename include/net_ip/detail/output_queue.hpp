@@ -28,7 +28,7 @@
 #include <optional>
 
 #include "net_ip/queue_stats.hpp"
-#include "utility/shared_buffer.hpp"
+#include "marshall/shared_buffer.hpp"
 
 namespace chops {
 namespace net {
