@@ -32,8 +32,9 @@
 #include "utility/make_byte_array.hpp"
 #include "utility/cast_ptr_to.hpp"
 
-#include "net_ip/io_interface.hpp"
-#include "net_ip/io_output.hpp"
+#include "net_ip/basic_io_interface.hpp"
+#include "net_ip/basic_io_output.hpp"
+#include "net_ip/simple_variable_len_msg_frame.hpp"
 
 namespace chops {
 namespace test {
@@ -59,8 +60,8 @@ struct io_handler_mock {
 
   bool send_called = false;
 
-  void send(chops::const_shared_buffer) { send_called = true; }
-  void send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; }
+  bool send(chops::const_shared_buffer) { send_called = true; return true; }
+  bool send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; return true; }
 
   bool mf_sio_called = false;
   bool simple_var_len_sio_called = false;
@@ -76,7 +77,7 @@ struct io_handler_mock {
   }
 
   template <typename MH>
-  bool start_io(std::size_t, MH&&, hdr_decoder_func) {
+  bool start_io(std::size_t, MH&&, chops::net::hdr_decoder_func) {
     return started ? false : started = true, simple_var_len_sio_called = true, true;
   }
 

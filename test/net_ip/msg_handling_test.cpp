@@ -140,7 +140,7 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
       REQUIRE(ret);
     }
   }
-  REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), io_output(&ioh), endp));
+  REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), io_output_mock(&ioh), endp));
 
   return cnt.load();
 
@@ -173,37 +173,12 @@ SCENARIO ( "Message handling shared test utility, make msg vec",
 
 }
 
-SCENARIO ( "Message handling shared test utility, decode variable len msg header",
-           "[msg_handling] [decode_variable_len_msg]" ) {
-  using namespace chops::test;
-
-  auto ba = chops::make_byte_array(0x02, 0x01); // 513 in big endian
-
-  GIVEN ("A two byte buffer that is a variable len msg header") {
-    WHEN ("the decode variable len msg hdr function is called") {
-      THEN ("the correct length is returned") {
-        REQUIRE(decode_variable_len_msg_hdr(ba.data(), 2) == 513);
-      }
-    }
-    AND_WHEN ("a simple variable len msg frame is constructed") {
-      asio::mutable_buffer buf(ba.data(), ba.size());
-      auto mf = chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr);
-      THEN ("the returned length toggles between the decoded length and zero") {
-        REQUIRE(mf(buf) == 513);
-        REQUIRE(mf(buf) == 0);
-        REQUIRE(mf(buf) == 513);
-        REQUIRE(mf(buf) == 0);
-      }
-    }
-  } // end given
-}
-
 SCENARIO ( "Message handling shared test utility, msg hdlr function object",
            "[msg_handling] [msg_hdlr]" ) {
   using namespace chops::test;
 
   io_handler_mock ioh { };
-  REQUIRE_FALSE(ioh->send_called);
+  REQUIRE_FALSE(ioh.send_called);
   asio::ip::udp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
@@ -216,7 +191,7 @@ SCENARIO ( "Message handling shared test utility, msg hdlr function object",
       msg_hdlr<io_handler_mock> mh(true, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
         REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_output_mock(&ioh), endp));
-        REQUIRE(ioh->send_called);
+        REQUIRE(ioh.send_called);
         REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), 
                       io_output_mock(&ioh), endp));
         REQUIRE(cnt == 1);

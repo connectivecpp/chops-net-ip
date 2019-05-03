@@ -50,6 +50,8 @@ namespace chops {
 namespace net {
 namespace detail {
 
+std::size_t null_msg_frame (asio::mutable_buffer) noexcept { return 0; }
+
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
   using endpoint_type = asio::ip::tcp::endpoint;

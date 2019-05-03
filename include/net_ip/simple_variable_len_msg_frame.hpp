@@ -21,6 +21,8 @@
 
 #include <cstddef> // std::size_t, std::byte
 
+#include "utility/cast_ptr_to.hpp"
+
 namespace chops {
 namespace net {
 

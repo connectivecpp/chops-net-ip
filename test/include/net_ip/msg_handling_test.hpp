@@ -51,8 +51,7 @@
 #include "marshall/extract_append.hpp"
 #include "marshall/shared_buffer.hpp"
 
-#include "net_ip/io_interface.hpp"
-#include "net_ip/basic_io_output.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 namespace chops {
 namespace test {
