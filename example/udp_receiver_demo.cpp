@@ -3,7 +3,7 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief UDP broadcast demo
+ *  @brief UDP reciever demo
  * 
  *  @author Thurman Gillespy
  * 
@@ -27,26 +27,33 @@
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
 
+const std::string PORT = "5005";
+
 int main(int argc, char* argv[]) {
-    const int PORT = 5003;
+    std::string port = PORT;
+    std::size_t max_buf = 1024;
     bool print_errors = true;
     chops::net::udp_io_interface udp_iof;
-    int port = PORT;
 
     /**** lambda callbacks ****/
+    // message handler
+    // receive text, display to console
+    auto msg_hndlr = [] (asio::const_buffer buf, chops::net::udp_io_interface iof,
+        asio::ip::udp::endpoint ep) {
+        // create string from buf
+        std::string s (static_cast<const char*> (buf.data()), buf.size());
+        std::cout << "UPD message received from " << ep.address() << std::endl;
+        std::cout << "  " << s << std::endl;
+    
+        return true;
+    };
+
     // io state change handler
-    auto io_state_chng_hndlr = [&udp_iof, &port] 
+    auto io_state_chng_hndlr = [&] 
         (chops::net::udp_io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
-            // set socket flags for UPD broadcast
-            asio::ip::udp::socket sock = iof.get_socket();
-            
-            // set default endpoint
-            asio::ip::udp::endpoint ep;
-            ep.address(asio::ip::make_address_v4("192.168.1.255"));
-            ep.port(port);
-            iof.start_io(ep);
+            iof.start_io(max_buf, msg_hndlr);
             udp_iof = iof; // return iof to main, used later to send text
         } else {
             iof.stop_io();
@@ -64,37 +71,27 @@ int main(int argc, char* argv[]) {
         }
     };
 
+
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
     
     // create @c net_ip instance
-    chops::net::net_ip udp_broad(wk.get_io_context());
+    chops::net::net_ip udp_receive(wk.get_io_context());
 
     // create a @c network_entitiy
     chops::net::udp_net_entity udpne;
-    udpne = udp_broad.make_udp_sender(); // send only, no reads
+    udpne = udp_receive.make_udp_unicast(port.c_str()); // send only, no reads
     assert(udpne.is_valid());
 
     udpne.start(io_state_chng_hndlr, err_func);
 
     // begin
-    std::cout << "chops-net-ip UDP broadcast demo" << std::endl;
-    std::cout << "Enter tedt for UDP broadcast on this subnet" << std::endl;
-    std::cout << "Enter \'quit\' or empty string to exit proggram" << std::endl;
+    std::cout << "chops-net-ip UDP receiver demo" << std::endl;
+    std::cout << "Press Enter to exit program" << std::endl;
 
-    bool finished = false;
-
-    while (!finished) {
-        std::string s;
-        getline(std::cin, s);
-        if (s == "quit" || s == "") {
-            finished = true;
-            continue;
-        }
-        assert(udp_iof.is_valid());
-        udp_iof.send(s.data(), s.size());
-    }
+    std::string s;
+    getline(std::cin, s); // wait for any input
 
      // cleanup
     udpne.stop();
