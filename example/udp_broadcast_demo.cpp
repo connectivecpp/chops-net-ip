@@ -14,7 +14,15 @@
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
- * 
+ *  Sample make file. Assuems all repositories are in some directory.
+
+g++ -std=c++17 -Wall -Werror \
+-I ../include \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../boost* \
+udp_broadcast_demo.cpp -lpthread -o udp_broad
+
  */
 
 #include <iostream>
@@ -171,6 +179,8 @@ int main(int argc, char* argv[]) {
         std::cout << "  IP address:net mask = " << ip_address << ":" << net_mask << std::endl;
     }
     std::cout << "  broadcast address:port = " << broadcast_addr << ":" << port << std::endl;
+    std::cout << "  print errors and system messages: ";
+    std::cout << (print_errors ? "ON" : "OFF") << std::endl;
     std::cout << std::endl;
     std::cout << "Enter text for UDP broadcast on this subnet" << std::endl;
     std::cout << "Enter \'quit\' or empty string to exit proggram" << std::endl;
