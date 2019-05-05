@@ -3,17 +3,26 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief UDP reciever demo
+ *  @brief UDP reciever demo. Receive text messages from UDP broadcast agent.
  * 
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  5/2/19
+ *  5/5/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
- * 
+ *  Sample make file. Assumes all repositories are in same directory
+
+g++ -std=c++17 -Wall -Werror \
+-I ../include \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../boost* \
+udp_receiver_demo.cpp -lpthread -o udp_receive
+
+ *
  */
 
 #include <iostream>
@@ -28,13 +37,58 @@
 #include "net_ip/component/worker.hpp"
 
 const std::string PORT = "5005";
+const std::string HELP_PRM = "-h";
+const std::string ERRS_PRM = "-e";
+
+auto print_useage = [] () {
+    const std::string USEAGE = \
+    "./udp_receive [-h] [-e] [port]\n"
+    "   -h      Print usage\n"
+    "   -e      Print error and system messages\n"
+    "   port    Default: " + PORT;
+
+    std::cout << USEAGE << std::endl;
+};
+
+bool process_args(int argc, char* argv[], bool& print_errors, std::string& port) {
+    
+    int offset = 0;
+
+    if (argc >= 2 && argv[1] == HELP_PRM) {
+        print_useage();
+        return EXIT_FAILURE;
+    }
+
+    if (argc >= 2 && argv[1] == ERRS_PRM) {
+        print_errors = true;
+        offset = 1;
+    }
+
+    if (argc >= 2 + offset) {
+        // get port
+        port = argv[1 + offset];
+    }
+
+    // too many args?
+    if (argc >= 3 + offset) {
+        std::cout << "too many arguements" << std::endl;
+        print_useage();
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
 
 int main(int argc, char* argv[]) {
     std::string port = PORT;
-    std::size_t max_buf = 1024;
-    bool print_errors = true;
+    const std::size_t MAX_BUF = 256;
+    bool print_errors = false;
     bool first_msg = true;
     chops::net::udp_io_interface udp_iof;
+
+    if (process_args(argc, argv, print_errors, port) == EXIT_FAILURE) {
+        return EXIT_FAILURE;
+    }
 
     /**** lambda callbacks ****/
     // message handler
@@ -58,11 +112,10 @@ int main(int argc, char* argv[]) {
         (chops::net::udp_io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
-            iof.start_io(max_buf, msg_hndlr);
+            iof.start_io(MAX_BUF, msg_hndlr);
             if (print_errors) {
                 std::cout << "io state change: start_io" << std::endl;
             }
-            // udp_iof = iof; // return iof to main, used later to send text
         } else {
             if (print_errors) {
                 std::cout << "io state change: stop_io" << std::endl;
@@ -99,6 +152,9 @@ int main(int argc, char* argv[]) {
 
     // begin
     std::cout << "chops-net-ip UDP receiver demo" << std::endl;
+    std::cout << "  print errors and system messages: ";
+    std::cout << (print_errors ? "ON" : "OFF") << std::endl;
+    std::cout << "  port: " << port << std::endl << std::endl;
     std::cout << "Press Enter to exit program" << std::endl;
 
     std::string s;
