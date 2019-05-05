@@ -29,6 +29,7 @@ udp_broadcast_demo.cpp -lpthread -o udp_broad
 #include <cstdlib> // EXIT_SUCCESS
 #include <string>
 #include <thread>
+#include <exception>
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
@@ -61,8 +62,10 @@ auto print_useage = [] () {
 // process comannand line process_args
 bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_address, 
                 std::string& net_mask, int& port, std::string& broadcast_addr) {
-
+                
     int offset = 0;
+
+    using addr4 = asio::ip::address_v4;
 
     if (argc == 1 || argv[1] == HELP_PRM) {
         print_useage();
@@ -79,12 +82,22 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
         return EXIT_FAILURE;
     }
 
+    try {
+
     if (argv[1 + offset] == BROAD_PRM) {
         if (argc <= 2 + offset) {
             print_useage();
             return EXIT_FAILURE;
         }
         broadcast_addr = argv[2 + offset];
+        // check address not malformed or empty
+        try {
+            addr4 t = asio::ip::make_address_v4(broadcast_addr);
+            assert( t.to_string() != "");
+        }
+
+        catch (...) { throw; }
+
         if (argc  == 4 + offset) {
             port = std::stoi(argv[3 + offset]);
         }
@@ -106,11 +119,23 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
             return EXIT_FAILURE;
         }
         // calculate network mask
-        using addr4 = asio::ip::address_v4;
-        addr4 asaddr = asio::ip::make_address_v4(ip_address);
-        addr4 asnetm = asio::ip::make_address_v4(net_mask);
-        addr4 asbroad = addr4::broadcast(asaddr, asnetm);
-        broadcast_addr = asbroad.to_string();
+        try {
+
+            addr4 asaddr = asio::ip::make_address_v4(ip_address);
+            addr4 asnetm = asio::ip::make_address_v4(net_mask);
+            addr4 asbroad = addr4::broadcast(asaddr, asnetm);
+            
+            broadcast_addr = asbroad.to_string();
+        }
+
+        catch (...) { throw; }
+    } // end else
+    } // end try
+
+    catch (std::exception& e) {
+        std::cout << "malformed ipv4 address or network mask" << std::endl;
+        print_useage();
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
