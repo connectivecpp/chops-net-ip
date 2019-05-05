@@ -135,6 +135,12 @@ int main(int argc, char* argv[]) {
         }
     };
 
+    // begin
+    std::cout << "chops-net-ip UDP receiver demo" << std::endl;
+    std::cout << "  print errors and system messages: ";
+    std::cout << (print_errors ? "ON" : "OFF") << std::endl;
+    std::cout << "  port: " << port << std::endl << std::endl;
+    std::cout << "Press Enter to exit program" << std::endl;
 
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
@@ -150,15 +156,9 @@ int main(int argc, char* argv[]) {
 
     udpne.start(io_state_chng_hndlr, err_func);
 
-    // begin
-    std::cout << "chops-net-ip UDP receiver demo" << std::endl;
-    std::cout << "  print errors and system messages: ";
-    std::cout << (print_errors ? "ON" : "OFF") << std::endl;
-    std::cout << "  port: " << port << std::endl << std::endl;
-    std::cout << "Press Enter to exit program" << std::endl;
-
+    // pause for user input, then quit
     std::string s;
-    getline(std::cin, s); // wait for any input
+    getline(std::cin, s);
 
      // cleanup
     udpne.stop();
