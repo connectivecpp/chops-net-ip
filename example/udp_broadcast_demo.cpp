@@ -8,7 +8,7 @@
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  5/2/19
+ *  5/4/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -25,13 +25,102 @@
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
+const std::string HELP_PRM = "-h";
+const std::string ERR_PRM = "-e";
+const std::string BROAD_PRM = "-b";
+
+// process comannand line process_args
+bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_address, 
+                std::string& net_mask, int& port, std::string& broadcast_addr) {
+    const std::string USAGE = \
+    "usage:\n"
+    "  ./udp_broad [-h]  Print useage\n"
+    "  ./udp_broad [-e] <IP address> [subnet mask] [port]\n"
+    "     -e             Print errors and system messages\n"
+    "     IP address     IP address of this machine\n"
+    "     subnet mask    Default: 255.255.255.0\n"
+    "     port           Default: 5005\n"
+    "  ./udp_broad [-e] -b <broadcast address> [port]\n"
+    "     -e             Print errors and system messages\n"
+    "     -b broadcast address\n"
+    "        known broadcast address for this machine\n"
+    "        ex: 192.168.1.255, 172.145.255.255\n"
+    "     port           Default: 5005";
+
+    int offset = 0;
+
+    if (argc == 1 || argv[1] == HELP_PRM) {
+        std::cout << USAGE << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if (argv[1] == ERR_PRM) {
+        print_errors = true;
+        offset = 1;
+    }
+
+    if (argc <= 1 + offset) {
+        std::cout << USAGE << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    if (argv[1 + offset] == BROAD_PRM) {
+        if (argc <= 2 + offset) {
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
+        broadcast_addr = argv[2 + offset];
+        if (argc  == 4 + offset) {
+            port = std::stoi(argv[3 + offset]);
+        }
+    } else {
+        // get ip address
+        ip_address = argv[1 + offset];
+        // subnet mask
+        if (argc >= 3 + offset) {
+            net_mask = argv[2 + offset];
+        }
+        // port
+        if (argc >= 4 + offset) {
+            port = std::stoi(argv[3 + offset]);
+        }
+        // too many params?
+        if (argc >= 5 + offset) {
+            std::cout << "too many parameters" << std::endl;
+            std::cout << USAGE << std::endl;
+            return EXIT_FAILURE;
+        }
+        // calculate network mask
+        using addr4 = asio::ip::address_v4;
+        addr4 asaddr = asio::ip::make_address_v4(ip_address);
+        addr4 asnetm = asio::ip::make_address_v4(net_mask);
+        addr4 asbroad = addr4::broadcast(asaddr, asnetm);
+        broadcast_addr = asbroad.to_string();
+    }
+
+    return EXIT_SUCCESS;
+}
 
 int main(int argc, char* argv[]) {
-    std::string broadcast_addr = "192.168.1.255";
+    std::string ip_address = "0.0.0.0";
+    std::string broadcast_addr = "";
+    std::string net_mask = "255.255.255.0";
     const int PORT = 5005;
-    bool print_errors = true;
+    bool print_errors = false;
     chops::net::udp_io_interface udp_iof;
     int port = PORT;
+
+    if (process_args(argc, argv, print_errors, ip_address, net_mask,  port, 
+            broadcast_addr) == EXIT_FAILURE) {
+        return EXIT_FAILURE;
+    }
+    // // DEBUG
+    // std::cout << argc << std::endl;
+    // std::cout << "IP address:port = " << ip_address << ":" << port << std::endl;
+    // std::cout << "netmask = " << net_mask << std::endl;
+    // std::cout << "broadcast address = " << broadcast_addr << std::endl;
+    // std::cout << "print errors = " << (print_errors ? "true" : "false") << std::endl;
+    // return 0;
 
     /**** lambda callbacks ****/
     // io state change handler
@@ -42,7 +131,7 @@ int main(int argc, char* argv[]) {
             if (print_errors) {
                 std::cout << "io state change: start_io" << std::endl;
             }
-            
+
             // set socket flag for UPD broadcast
             auto& sock = iof.get_socket();
             asio::socket_base::broadcast opt(true);
@@ -90,6 +179,11 @@ int main(int argc, char* argv[]) {
     
     // begin
     std::cout << "chops-net-ip UDP broadcast demo" << std::endl;
+    if (ip_address != "") {
+        std::cout << "  IP address:net mask = " << ip_address << ":" << net_mask << std::endl;
+    }
+    std::cout << "  broadcast address:port = " << broadcast_addr << ":" << port << std::endl;
+    std::cout << std::endl;
     std::cout << "Enter text for UDP broadcast on this subnet" << std::endl;
     std::cout << "Enter \'quit\' or empty string to exit proggram" << std::endl;
 
