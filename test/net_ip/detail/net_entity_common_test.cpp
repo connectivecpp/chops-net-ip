@@ -25,7 +25,7 @@
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/net_ip_error.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
+#include "shared_test/mock_classes_test.hpp"
 
 template<typename IOT>
 struct io_state_change {
@@ -34,10 +34,11 @@ struct io_state_change {
   std::size_t num = 0;
   bool ioh_valid = false;
 
-  void operator() (chops::net::basic_io_interface<IOT> ioh, std::size_t n, bool starting) {
+  bool operator() (chops::net::basic_io_interface<IOT> ioh, std::size_t n, bool starting) {
     called = true;
     num = n;
     ioh_valid = ioh.is_valid();
+    return true;
   }
 };
 
@@ -92,9 +93,10 @@ void net_entity_common_test() {
 
     AND_WHEN ("State change and error callbacks are invoked") {
       ne.start(std::ref(io_state_chg), std::ref(err_cb));
-      ne.call_io_state_chg_cb(iohp, 43, true);
+      auto a = ne.call_io_state_chg_cb(iohp, 43, true);
       ne.call_error_cb(iohp, std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
       THEN ("function object vals are set correctly") {
+        REQUIRE (a);
         REQUIRE (io_state_chg.called);
         REQUIRE (io_state_chg.ioh_valid);
         REQUIRE (io_state_chg.num == 43);
