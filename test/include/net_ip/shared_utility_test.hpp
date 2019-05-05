@@ -61,69 +61,6 @@
 namespace chops {
 namespace test {
 
-struct io_handler_mock {
-  using endpoint_type = asio::ip::udp::endpoint;
-
-  bool started = false;
-  constexpr static std::size_t qs_base = 42;
-
-  bool is_io_started() const { return started; }
-
-  socket_type& get_socket() { return sock; }
-
-  chops::net::output_queue_stats get_output_queue_stats() const { 
-    return chops::net::output_queue_stats { qs_base, qs_base +1 };
-  }
-
-  bool send_called = false;
-
-  void send(chops::const_shared_buffer) { send_called = true; }
-  void send(chops::const_shared_buffer, const endpoint_type&) { send_called = true; }
-
-  bool mf_sio_called = false;
-  bool delim_sio_called = false;
-  bool rd_sio_called = false;
-  bool rd_endp_sio_called = false;
-  bool send_sio_called = false;
-  bool send_endp_sio_called = false;
-
-  template <typename MH, typename MF>
-  bool start_io(std::size_t, MH&&, MF&&) {
-    return started ? false : started = true, mf_sio_called = true, true;
-  }
-
-  template <typename MH>
-  bool start_io(std::string_view, MH&&) {
-    return started ? false : started = true, delim_sio_called = true, true;
-  }
-
-  template <typename MH>
-  bool start_io(std::size_t, MH&&) {
-    return started ? false : started = true, rd_sio_called = true, true;
-  }
-
-  template <typename MH>
-  bool start_io(const endpoint_type&, std::size_t, MH&&) {
-    return started ? false : started = true, rd_endp_sio_called = true, true;
-  }
-
-  bool start_io() {
-    return started ? false : started = true, send_sio_called = true, true;
-  }
-
-  bool start_io(const endpoint_type&) {
-    return started ? false : started = true, send_endp_sio_called = true, true;
-  }
-
-  bool stop_io() {
-    return started ? started = false, true : false;
-  }
-
-};
-
-using io_handler_mock_ptr = std::shared_ptr<io_handler_mock>;
-using io_interface_mock = chops::net::basic_io_interface<io_handler_mock>;
-
 struct net_entity_mock {
 
   io_handler_mock_ptr  iop;
@@ -173,15 +110,6 @@ struct net_entity_mock {
   void join_thr() { thr.join(); }
 
 };
-
-inline void io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
-inline void err_func_mock(io_interface_mock, std::error_code) { }
-
-asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
-  return asio::ip::udp::endpoint(asio::ip::make_address(addr),
-                           static_cast<unsigned short>(port_num));
-}
-
 
 } // end namespace test
 } // end namespace chops

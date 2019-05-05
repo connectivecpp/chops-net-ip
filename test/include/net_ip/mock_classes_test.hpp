@@ -17,19 +17,11 @@
 #define MOCK_CLASSES_TEST_HPP_INCLUDED
 
 #include <string_view>
-#include <cstddef> // std::size_t
-#include <utility> // std::move
-#include <memory> // std::shared_ptr
-#include <thread>
-#include <system_error>
-
-#include <cassert>
+#include <cstddef> // std::size_t, std::byte
 
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 
 #include "marshall/shared_buffer.hpp"
-#include "utility/make_byte_array.hpp"
-#include "utility/cast_ptr_to.hpp"
 
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
@@ -37,6 +29,8 @@
 
 namespace chops {
 namespace test {
+
+inline std::size_t mock_hdr_decoder_func (const std::byte*, std::size_t) { return 0u; }
 
 struct io_handler_mock {
   using endpoint_type = asio::ip::udp::endpoint;

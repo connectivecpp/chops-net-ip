@@ -167,7 +167,7 @@ inline bool udp_start_io (chops::net::udp_io_interface io, bool receiving, test_
   return io.start_io(remote_endp);
 }
 
-asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
+inline asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
   return asio::ip::udp::endpoint(asio::ip::make_address(addr),
                            static_cast<unsigned short>(port_num));
 }
