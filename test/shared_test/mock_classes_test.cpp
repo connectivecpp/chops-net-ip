@@ -29,9 +29,9 @@
 #include "utility/make_byte_array.hpp"
 #include "marshall/shared_buffer.hpp"
 
-#include "net_ip_component/simple_variable_len_msg_frame.hpp"
+#include "net_ip/simple_variable_len_msg_frame.hpp"
 
-#include "net_ip/mock_classes_test.hpp"
+#include "shared_test/mock_classes_test.hpp"
 
 SCENARIO ( "Mock classes testing, io_handler_mock test",
            "[io_handler_mock]" ) {

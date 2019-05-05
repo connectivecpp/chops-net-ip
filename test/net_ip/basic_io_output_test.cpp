@@ -22,10 +22,10 @@
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
 
-#include "net_ip/mock_classes_test.hpp"
-
 #include "marshall/shared_buffer.hpp"
 #include "utility/make_byte_array.hpp"
+
+#include "shared_test/mock_classes_test.hpp"
 
 template <typename IOT>
 void basic_io_output_test_construction_and_release() {

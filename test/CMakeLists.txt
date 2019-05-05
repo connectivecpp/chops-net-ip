@@ -11,11 +11,13 @@ project ( chops-net-ip-test VERSION 1.0 LANGUAGES CXX )
 
 set ( test_source_dir "${CMAKE_SOURCE_DIR}/test" )
 set ( test_main_src "${test_source_dir}/main_test.cpp" )
-set ( test_include_dir "${test_source_dir}/include" )
+set ( test_include_dir "${test_source_dir}/shared_test" )
 set ( tester_suffix "_runner" )
 set ( main_test_lib_name "main_test_lib" )
 
 set ( test_sources 
+    "${test_source_dir}/shared_test/mock_classes_test.cpp"
+    "${test_source_dir}/shared_test/msg_handling_test.cpp"
     "${test_source_dir}/net_ip/detail/io_common_test.cpp"
     "${test_source_dir}/net_ip/detail/net_entity_common_test.cpp"
     "${test_source_dir}/net_ip/detail/output_queue_test.cpp"
@@ -25,14 +27,12 @@ set ( test_sources
     "${test_source_dir}/net_ip/detail/udp_entity_io_test.cpp"
     "${test_source_dir}/net_ip/net_ip_component/error_delivery_test.cpp"
     "${test_source_dir}/net_ip/net_ip_component/io_interface_delivery_test.cpp"
-    "${test_source_dir}/net_ip/net_ip_component/send_to_all_test.cpp"
-    "${test_source_dir}/net_ip/net_ip_component/simple_variable_len_msg_frame_test.cpp"
     "${test_source_dir}/net_ip/basic_io_interface_test.cpp"
-    "${test_source_dir}/net_ip/net_entity_test.cpp"
+    "${test_source_dir}/net_ip/basic_io_output_test.cpp"
     "${test_source_dir}/net_ip/endpoints_resolver_test.cpp"
+    "${test_source_dir}/net_ip/net_entity_test.cpp"
     "${test_source_dir}/net_ip/net_ip_error_test.cpp"
-    "${test_source_dir}/net_ip/shared_utility_test.cpp"
-    "${test_source_dir}/net_ip/shared_utility_func_test.cpp"
+    "${test_source_dir}/net_ip/simple_variable_len_msg_frame_test.cpp"
     "${test_source_dir}/net_ip/net_ip_test.cpp" )
 
 set ( OPTIONS "" )
@@ -57,10 +57,6 @@ endif()
 set ( asio_include_dir "${CMAKE_SOURCE_DIR}/../asio/asio/include" )
 if ( NOT $ENV{ASIO_INCLUDE_DIR} STREQUAL "" )
     set ( asio_include_dir $ENV{ASIO_INCLUDE_DIR}} )
-endif()
-set ( ring_span_lite_include_dir "${CMAKE_SOURCE_DIR}/../ring-span-lite/include" )
-if ( NOT $ENV{RING_SPAN_LITE_INCLUDE_DIR} STREQUAL "" )
-    set ( ring_span_lite_include_dir $ENV{RING_SPAN_LITE_INCLUDE_DIR}} )
 endif()
 set ( expected_lite_include_dir "${CMAKE_SOURCE_DIR}/../expected-lite/include" )
 if ( NOT $ENV{EXPECTED_LITE_INCLUDE_DIR} STREQUAL "" )
