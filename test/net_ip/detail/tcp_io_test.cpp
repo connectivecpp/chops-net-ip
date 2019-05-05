@@ -34,7 +34,8 @@
 #include "net_ip_component/worker.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
+#include "shared_test/msg_handling_test.hpp"
+
 #include "marshall/shared_buffer.hpp"
 
 // #include <iostream>
@@ -58,7 +59,7 @@ struct notify_me {
 
   notify_me(notify_prom_type prom) : m_prom(std::make_shared<notify_prom_type>(std::move(prom))) { }
 
-  void operator()(std::error_code e, chops::net::detail::tcp_io_ptr p) {
+  void operator()(std::error_code e, chops::net::detail::tcp_io_shared_ptr p) {
     p->close();
     m_prom->set_value(e);
   }
