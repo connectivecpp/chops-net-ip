@@ -3,12 +3,13 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief UDP broadcast demo
+ *  @brief UDP broadcast demo. Text messages are sent to the local network
+ *  UDP broadcast address.
  * 
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  5/4/19
+ *  5/5/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -25,14 +26,13 @@
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
 #include "net_ip/component/worker.hpp"
+
 const std::string HELP_PRM = "-h";
 const std::string ERR_PRM = "-e";
 const std::string BROAD_PRM = "-b";
 
-// process comannand line process_args
-bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_address, 
-                std::string& net_mask, int& port, std::string& broadcast_addr) {
-    const std::string USAGE = \
+auto print_useage = [] () {
+    const std::string USEAGE = \
     "usage:\n"
     "  ./udp_broad [-h]  Print useage\n"
     "  ./udp_broad [-e] <IP address> [subnet mask] [port]\n"
@@ -47,10 +47,17 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
     "        ex: 192.168.1.255, 172.145.255.255\n"
     "     port           Default: 5005";
 
+    std::cout << USEAGE << std::endl;
+};
+
+// process comannand line process_args
+bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_address, 
+                std::string& net_mask, int& port, std::string& broadcast_addr) {
+
     int offset = 0;
 
     if (argc == 1 || argv[1] == HELP_PRM) {
-        std::cout << USAGE << std::endl;
+        print_useage();
         return EXIT_FAILURE;
     }
 
@@ -60,13 +67,13 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
     }
 
     if (argc <= 1 + offset) {
-        std::cout << USAGE << std::endl;
+        print_useage();
         return EXIT_FAILURE;
     }
 
     if (argv[1 + offset] == BROAD_PRM) {
         if (argc <= 2 + offset) {
-            std::cout << USAGE << std::endl;
+            print_useage();
             return EXIT_FAILURE;
         }
         broadcast_addr = argv[2 + offset];
@@ -87,7 +94,7 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
         // too many params?
         if (argc >= 5 + offset) {
             std::cout << "too many parameters" << std::endl;
-            std::cout << USAGE << std::endl;
+            print_useage();
             return EXIT_FAILURE;
         }
         // calculate network mask
@@ -102,29 +109,24 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
 }
 
 int main(int argc, char* argv[]) {
-    std::string ip_address = "0.0.0.0";
+    std::string ip_address = "";
     std::string broadcast_addr = "";
     std::string net_mask = "255.255.255.0";
     const int PORT = 5005;
     bool print_errors = false;
-    chops::net::udp_io_interface udp_iof;
     int port = PORT;
+
+    chops::net::udp_io_interface udp_iof;
 
     if (process_args(argc, argv, print_errors, ip_address, net_mask,  port, 
             broadcast_addr) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
-    // // DEBUG
-    // std::cout << argc << std::endl;
-    // std::cout << "IP address:port = " << ip_address << ":" << port << std::endl;
-    // std::cout << "netmask = " << net_mask << std::endl;
-    // std::cout << "broadcast address = " << broadcast_addr << std::endl;
-    // std::cout << "print errors = " << (print_errors ? "true" : "false") << std::endl;
-    // return 0;
-
+    assert(broadcast_addr != "");
+    
     /**** lambda callbacks ****/
     // io state change handler
-    auto io_state_chng_hndlr = [&udp_iof, &port, &broadcast_addr ,print_errors] 
+    auto io_state_chng_hndlr = [&udp_iof, &port, &broadcast_addr, print_errors] 
         (chops::net::udp_io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
@@ -163,6 +165,16 @@ int main(int argc, char* argv[]) {
         }
     };
 
+    // begin
+    std::cout << "chops-net-ip UDP broadcast demo" << std::endl;
+    if (ip_address != "") {
+        std::cout << "  IP address:net mask = " << ip_address << ":" << net_mask << std::endl;
+    }
+    std::cout << "  broadcast address:port = " << broadcast_addr << ":" << port << std::endl;
+    std::cout << std::endl;
+    std::cout << "Enter text for UDP broadcast on this subnet" << std::endl;
+    std::cout << "Enter \'quit\' or empty string to exit proggram" << std::endl;
+
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
@@ -177,18 +189,8 @@ int main(int argc, char* argv[]) {
     // start it, emplace handlers
     udpne.start(io_state_chng_hndlr, err_func);
     
-    // begin
-    std::cout << "chops-net-ip UDP broadcast demo" << std::endl;
-    if (ip_address != "") {
-        std::cout << "  IP address:net mask = " << ip_address << ":" << net_mask << std::endl;
-    }
-    std::cout << "  broadcast address:port = " << broadcast_addr << ":" << port << std::endl;
-    std::cout << std::endl;
-    std::cout << "Enter text for UDP broadcast on this subnet" << std::endl;
-    std::cout << "Enter \'quit\' or empty string to exit proggram" << std::endl;
-
+    // get text from user, send to UDP broadcast address
     bool finished = false;
-
     while (!finished) {
         std::string s;
         getline(std::cin, s);
