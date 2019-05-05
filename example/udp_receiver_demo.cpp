@@ -33,17 +33,22 @@ int main(int argc, char* argv[]) {
     std::string port = PORT;
     std::size_t max_buf = 1024;
     bool print_errors = true;
+    bool first_msg = true;
     chops::net::udp_io_interface udp_iof;
 
     /**** lambda callbacks ****/
     // message handler
     // receive text, display to console
-    auto msg_hndlr = [] (asio::const_buffer buf, chops::net::udp_io_interface iof,
+    auto msg_hndlr = [&first_msg] (asio::const_buffer buf, chops::net::udp_io_interface iof,
         asio::ip::udp::endpoint ep) {
         // create string from buf
         std::string s (static_cast<const char*> (buf.data()), buf.size());
-        std::cout << "UPD message received from " << ep.address() << std::endl;
-        std::cout << "  " << s << std::endl;
+        if (first_msg) {
+            std::cout << "UPD broadcasts from " << ep.address() << ":\n";
+            first_msg = false;
+        }
+        
+        std::cout << "> " << s << std::endl;
     
         return true;
     };
@@ -54,8 +59,14 @@ int main(int argc, char* argv[]) {
         
         if (flag) {
             iof.start_io(max_buf, msg_hndlr);
-            udp_iof = iof; // return iof to main, used later to send text
+            if (print_errors) {
+                std::cout << "io state change: start_io" << std::endl;
+            }
+            // udp_iof = iof; // return iof to main, used later to send text
         } else {
+            if (print_errors) {
+                std::cout << "io state change: stop_io" << std::endl;
+            }
             iof.stop_io();
         }
     
@@ -81,7 +92,7 @@ int main(int argc, char* argv[]) {
 
     // create a @c network_entitiy
     chops::net::udp_net_entity udpne;
-    udpne = udp_receive.make_udp_unicast(port.c_str()); // send only, no reads
+    udpne = udp_receive.make_udp_unicast(port.c_str());
     assert(udpne.is_valid());
 
     udpne.start(io_state_chng_hndlr, err_func);
