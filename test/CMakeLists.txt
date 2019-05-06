@@ -11,7 +11,7 @@ project ( chops-net-ip-test VERSION 1.0 LANGUAGES CXX )
 
 set ( test_source_dir "${CMAKE_SOURCE_DIR}/test" )
 set ( test_main_src "${test_source_dir}/main_test.cpp" )
-set ( test_include_dir "${test_source_dir}/shared_test" )
+set ( test_include_dir "${test_source_dir}" )
 set ( tester_suffix "_runner" )
 set ( main_test_lib_name "main_test_lib" )
 

@@ -128,14 +128,14 @@ struct msg_hdlr {
       ++cnt;
       if (reply) {
         bool r = io_out.send(sh_buf, endp);
-        assert(r);
+        // assert(r);
       }
       return true;
     }
     if (reply) {
       // may not make it back to sender, depending on TCP connection or UDP reliability
       bool r = io_out.send(sh_buf, endp);
-      assert(r);
+      // assert(r);
     }
     return false;
   }

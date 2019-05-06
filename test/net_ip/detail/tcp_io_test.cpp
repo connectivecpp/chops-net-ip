@@ -60,7 +60,6 @@ struct notify_me {
   notify_me(notify_prom_type prom) : m_prom(std::make_shared<notify_prom_type>(std::move(prom))) { }
 
   void operator()(std::error_code e, chops::net::detail::tcp_io_shared_ptr p) {
-    p->close();
     m_prom->set_value(e);
   }
 };

@@ -147,9 +147,7 @@ public:
 
   bool stop_io() {
     if (is_io_started()) {
-      // causes net entity to eventually call close
-      m_notifier_cb(std::make_error_code(net_ip_errc::tcp_io_handler_stopped), 
-                    shared_from_this());
+      close(std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
       return true;
     }
     return false;
@@ -172,22 +170,18 @@ public:
     return send(buf);
   }
 
-public:
-  // this method can only be called through a net entity, assumes all error codes have already
-  // been reported back to the net entity
-  void close() {
+private:
+  void close(const std::error_code& err) {
     if (!m_io_common.stop()) {
       return; // already stopped
     }
-//    auto self { shared_from_this() };
-//    post(m_socket.get_executor(), [this, self] {
-    // attempt graceful shutdown
     std::error_code ec;
     m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-//    auto self { shared_from_this() };
-//  post(m_socket.get_executor(), [this, self, ec] () mutable { 
     m_socket.close(ec); 
-//    } );
+    auto self { shared_from_this() };
+    // notify the net entity via posting function object
+    post(m_socket.get_executor(), [this, self, err] () mutable { 
+      m_notifier_cb(err, self); } );
   }
 
 private:
@@ -199,7 +193,7 @@ private:
     std::error_code ec;
     m_remote_endp = m_socket.remote_endpoint(ec);
     if (ec) {
-      m_notifier_cb(ec, shared_from_this());
+      close(ec);
       return false;
     }
     return true;
@@ -249,7 +243,7 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
                          MH&& msg_hdlr, MF&& msg_frame) {
 
   if (err) {
-    m_notifier_cb(err, shared_from_this());
+    close(err);
     return;
   }
   // assert num_bytes == mbuf.size()
@@ -257,9 +251,13 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
   if (next_read_size == 0u) { // msg fully received, now invoke message handler
     if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
                   basic_io_output(this), m_remote_endp)) {
-      // message handler not happy, tear everything down
-      m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                    shared_from_this());
+      // message handler not happy, tear everything down, post function object
+      // instead of directly calling close to give a return message a possibility
+      // of getting through
+      auto err = std::make_error_code(net_ip_errc::message_handler_terminated);
+      auto self { shared_from_this() };
+      post(m_socket.get_executor(), [this, self, err] () mutable { 
+        close(err); } );
       return;
     }
     m_byte_vec.resize(m_read_size);
@@ -277,14 +275,16 @@ template <typename MH>
 void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
-    m_notifier_cb(err, shared_from_this());
+    close(err);
     return;
   }
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes),
                 basic_io_output(this), m_remote_endp)) {
-      m_notifier_cb(std::make_error_code(net_ip_errc::message_handler_terminated), 
-                    shared_from_this());
+      auto err = std::make_error_code(net_ip_errc::message_handler_terminated);
+      auto self { shared_from_this() };
+      post(m_socket.get_executor(), [this, self, err] () mutable { 
+        close(err); } );
     return;
   }
   m_byte_vec.erase(m_byte_vec.begin(), m_byte_vec.begin() + num_bytes);
