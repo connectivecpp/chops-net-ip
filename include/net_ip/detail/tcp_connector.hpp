@@ -155,28 +155,27 @@ public:
   }
 
   bool stop() {
-    if (!close()) {
-      return false;
+    if (!m_entity_common.is_started()) {
+      return false; // stop already called
     }
-    m_entity_common.call_error_cb(tcp_io_shared_ptr(), std::make_error_code(net_ip_errc::tcp_connector_stopped));
+    close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
     return true;
   }
 
 
 private:
 
-  bool close() {
+
+  bool close(const std::error_code& err) {
     if (!m_entity_common.stop()) {
-      return false; // stop already called
+      return false; // already closed
     }
     m_shutting_down = true;
     if (m_endpoints.empty()) { // may be in middle of resolve
       m_resolver.cancel();
     }
     if (m_io_handler) {
-      if (m_io_handler->is_io_started()) {
-        m_io_handler->close();
-      }
+      m_io_handler.stop_io();
       m_io_handler.reset();
     }
     else {
@@ -184,6 +183,7 @@ private:
       // or in middle of an async connect
       m_timer.cancel();
     }
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
     std::error_code ec;
     m_socket.close(ec);
     return true;
@@ -234,10 +234,12 @@ private:
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
     assert (iop == m_io_handler);
 
-    iop->close();
     m_entity_common.call_error_cb(iop, err);
-    m_entity_common.call_io_state_chg_cb(iop, 0, false);
-    stop();
+    if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
+    }
+    else {
+      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+    }
   }
 
 };

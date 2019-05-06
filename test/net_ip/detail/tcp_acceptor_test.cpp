@@ -43,7 +43,10 @@
 #include "net_ip_component/worker.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
+#include "net_ip/io_type_decls.hpp"
+
+#include "shared_test/msg_handling_test.hpp"
+
 #include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 
@@ -125,10 +128,11 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
 
         test_counter recv_cnt = 0;
         acc_ptr->start(
-          [reply, delim, &recv_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
+          [reply, delim, &recv_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
             if (starting) {
               tcp_start_io(io, reply, delim, recv_cnt);
             }
+	    return true;
           },
           [] (chops::net::tcp_io_interface io, std::error_code err) {
 // std::cerr << std::boolalpha << "err func, err: " << err <<

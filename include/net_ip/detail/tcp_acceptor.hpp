@@ -31,7 +31,7 @@
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
 
-#include "net_ip/basic_io_interface.hpp"
+#include "net_ip/basic_io_output.hpp"
 
 #include "utility/erase_where.hpp"
 
@@ -91,8 +91,7 @@ public:
       m_acceptor = asio::ip::tcp::acceptor(m_io_context, m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
-      m_entity_common.call_error_cb(tcp_io_shared_ptr(), se.code());
-      stop();
+      close(se.code());
       return false;
     }
     start_accept();
@@ -100,19 +99,29 @@ public:
   }
 
   bool stop() {
-    if (!m_entity_common.stop()) {
+    if (!m_entity_common.is_started()) {
       return false; // stop already called
+    }
+    close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+    return true;
+  }
+
+private:
+
+  void close(const std::error_code& err) {
+    if (!m_entity_common.stop()) {
+      return; // already closed
     }
     auto iohs = m_io_handlers;
     for (auto i : iohs) {
       i->stop_io();
     }
     // m_io_handlers.clear(); // the stop_io on each tcp_io handler should clear the container
-    m_entity_common.call_error_cb(tcp_io_shared_ptr(), std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
     std::error_code ec;
     m_acceptor.close(ec);
-    return true;
   }
+
 
 private:
 
@@ -123,24 +132,30 @@ private:
     m_acceptor.async_accept( [this, self] 
             (const std::error_code& err, asio::ip::tcp::socket sock) mutable {
         if (err) {
-          m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
-          stop(); // is this the right thing to do? what are possible causes of errors?
+          close(err);
           return;
         }
         tcp_io_shared_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
-        m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true);
-        start_accept();
+        if (m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true)) {
+          start_accept();
+        }
+        else {
+          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+        }
       }
     );
   }
 
+  // this method invoked via a posted function object, allowing the TCP IO handler
+  // to be shutting down
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    iop->close();
-    m_entity_common.call_error_cb(iop, err);
     chops::erase_where(m_io_handlers, iop);
-    m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
+    m_entity_common.call_error_cb(iop, err);
+    if (!m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
+      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+    }
   }
 
 };

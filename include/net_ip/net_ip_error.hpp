@@ -10,7 +10,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -35,6 +35,7 @@ enum class net_ip_errc {
   tcp_acceptor_stopped = 5,
   tcp_connector_stopped = 6,
   udp_entity_stopped = 7,
+  io_state_change_terminated = 8,
 };
 
 namespace detail {
@@ -46,7 +47,7 @@ struct net_ip_err_category : public std::error_category {
   virtual std::string message(int val) const override {
     switch (net_ip_errc(val)) {
     case net_ip_errc::message_handler_terminated:
-      return "message handler terminated";
+      return "message handler terminated via false return value";
     case net_ip_errc::weak_ptr_expired:
       return "weak pointer expired";
     case net_ip_errc::tcp_io_handler_stopped:
@@ -59,6 +60,8 @@ struct net_ip_err_category : public std::error_category {
       return "tcp connector stopped";
     case net_ip_errc::udp_entity_stopped:
       return "udp entity stopped";
+    case net_ip_errc::io_state_change_terminated:
+      return "io state change terminated via false return value";
     }
     return "(unknown error)";
   }
