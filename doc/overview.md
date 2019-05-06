@@ -44,7 +44,9 @@ All of the essential (core) Chops Net IP headers are in the `net_ip` and `detail
 
 ## Exceptions and Error Handling
 
-The public class methods (e.g. in `net_ip`, `basic_io_interface`, `basic_net_entity`) may throw exceptions, although these are kept to an essential minimum. All internal and asynchronous operations use error code reporting for all network errors. This means that any function objects passed in to the Chops Net IP library do not need to have `try / catch` blocks in any of their code.
+The public class methods (e.g. in `net_ip`, `basic_io_interface`, `net_entity`) may throw exceptions, although these are kept to an essential minimum. All internal and asynchronous operations use error code reporting for all network errors. This means that any function objects passed in to the Chops Net IP library do not need to have `try / catch` blocks in any of their code.
+
+A future enhancement (possibly for release 1.0) will change all exception handling to `std::expected` usage (an experimental version of `std::expected`).
 
 ## States and Transitions
 
