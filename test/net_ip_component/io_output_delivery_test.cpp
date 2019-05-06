@@ -2,11 +2,11 @@
  *
  *  @ingroup test_module
  *
- *  @brief Test scenarios for @c io_interface delivery functions.
+ *  @brief Test scenarios for @c basic_io_output delivery functions.
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -23,11 +23,10 @@
 #include "net_ip_component/io_interface_delivery.hpp"
 #include "net_ip_component/io_state_change.hpp"
 
-#include "net_ip/basic_net_entity.hpp"
-#include "net_ip/basic_io_interface.hpp"
+#include "net_ip/net_entity.hpp"
 #include "net_ip/net_ip_error.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
+#include "shared_test/mock_classes_test.hpp"
 
 
 SCENARIO ( "Testing make_io_interface_future_impl",

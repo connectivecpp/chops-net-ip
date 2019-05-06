@@ -25,7 +25,7 @@
 #include <chrono>
 
 #include "net_ip/basic_io_interface.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 #include "queue/wait_queue.hpp"
 
@@ -35,9 +35,9 @@ namespace net {
 
 /**
  *  @brief A "do nothing" error function template that can be used in the 
- *  @c basic_net_entity @c start method.
+ *  @c net_entity @c start method.
  *
- *  @relates basic_net_entity
+ *  @relates net_entity
  */
 template <typename IOT>
 void empty_error_func(basic_io_interface<IOT>, std::error_code) { } 
@@ -45,19 +45,19 @@ void empty_error_func(basic_io_interface<IOT>, std::error_code) { }
 /**
  *  @brief A "do nothing" error function for TCP @c basic_io_interface objects.
  *
- *  @relates basic_net_entity
+ *  @relates net_entity
  */
 inline void tcp_empty_error_func(tcp_io_interface, std::error_code) { }
 
 /**
  *  @brief A "do nothing" error function for UDP @c basic_io_interface objects.
  *
- *  @relates basic_net_entity
+ *  @relates net_entity
  */
 inline void udp_empty_error_func(udp_io_interface, std::error_code) { }
 
 /**
- *  @brief Data provided through an error function callbacks.
+ *  @brief Data provided through an error function callback.
  *
  *  This @c struct of data can be passed through a queue or other mechanism for logging
  *  or other error analysis purposes.

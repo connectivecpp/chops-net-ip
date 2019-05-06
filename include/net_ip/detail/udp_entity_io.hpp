@@ -121,11 +121,13 @@ public:
       }
     }
     catch (const std::system_error& se) {
-      err_notify(se.code());
-      stop();
+      close(se.code());
       return false;
     }
-    m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true);
+    if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
+      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+      return false;
+    }
     return true;
   }
 
@@ -166,22 +168,18 @@ public:
   }
 
   bool stop_io() {
-    if (!m_io_common.stop()) {
-      return false;
+    if (!m_io_common.is_io_started()) {
+      return false; // already stopped
     }
-    std::error_code ec;
-    m_socket.close(ec);
-    err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
-    m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
+    close(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
     return true;
   }
 
   bool stop() {
-    if (!m_entity_common.stop()) {
-      return false; // stop already called
+    if (!m_entity_common.is_started()) {
+      return false; // already stopped
     }
-    stop_io();
-    err_notify(std::make_error_code(net_ip_errc::udp_entity_stopped));
+    close(std::make_error_code(net_ip_errc::udp_entity_stopped));
     return true;
   }
 
@@ -225,16 +223,23 @@ private:
     );
   }
 
-  void err_notify (const std::error_code& err) {
-    m_entity_common.call_error_cb(shared_from_this(), err);
-  }
-
   template <typename MH>
   void handle_read(const std::error_code&, std::size_t, MH&&);
 
   void start_write(chops::const_shared_buffer, const endpoint_type&);
 
   void handle_write(const std::error_code&, std::size_t);
+
+private:
+
+  void close(const std::error_code& err) {
+    m_io_common.stop();
+    m_entity_common.stop();
+    m_entity_common.call_error_cb(shared_from_this(), err);
+    auto b = m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
+    std::error_code ec;
+    m_socket.close(ec);
+  }
 
 };
 
@@ -244,15 +249,13 @@ template <typename MH>
 void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
-    err_notify(err);
-    stop();
+    close(err);
     return;
   }
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
                 basic_io_output(this), m_sender_endp)) {
     // message handler not happy, tear everything down
-    err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
-    stop();
+    close(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;
   }
   start_read(std::forward<MH>(msg_hdlr));
@@ -269,8 +272,7 @@ inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const end
 
 inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (err) {
-    err_notify(err);
-    stop();
+    close(err);
     return;
   }
   auto elem = m_io_common.get_next_element();

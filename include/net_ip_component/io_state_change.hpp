@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_component_module
  *
- *  @brief Functions that create IO state change function objects used in the @c basic_net_entity
+ *  @brief Functions that create IO state change function objects used in the @c net_entity
  *  @c start method, each will invoke @c start_io.
  *
  *  The common logic in each of these function objects is calling @c start_io on 
@@ -37,9 +37,9 @@
 
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 
-#include "net_ip/io_interface.hpp"
+#include "net_ip/io_type_decls.hpp"
 
-#include "net_ip_component/simple_variable_len_msg_frame.hpp"
+#include "net_ip/simple_variable_len_msg_frame.hpp"
 
 namespace chops {
 namespace net {
@@ -62,12 +62,12 @@ namespace net {
 
 template <typename MH>
 auto make_simple_variable_len_msg_frame_io_state_change (std::size_t hdr_size, 
-                                                        hdr_decoder_func hd_func,
-                                                        MH&& msg_hdlr) {
+                                                         MH&& msg_hdlr,
+                                                         hdr_decoder_func hd_func) {
   return [hdr_size, hd_func, mh = std::move(msg_hdlr)] 
                   (tcp_io_interface io, std::size_t num, bool starting) mutable {
     if (starting) {
-      io.start_io(hdr_size, std::move(mh), make_simple_variable_len_msg_frame(hd_func));
+      io.start_io(hdr_size, std::move(mh), hd_func);
     }
   };
 }

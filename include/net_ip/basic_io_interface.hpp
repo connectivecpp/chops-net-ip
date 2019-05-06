@@ -495,10 +495,14 @@ public:
 /**
  *  @brief Stop IO processing and close the associated network IO handler.
  *
- *  After this call, connection or socket close processing will occur, a state change function 
- *  object callback will be invoked, and eventually the IO handler object will be destructed. 
- *  @c start_io cannot be called after @c stop_io (in other words, @c start_io followed by 
- *  @c stop_io followed by @c start_io, etc is not supported).
+ *  After this call, connection disconnect or socket close processing will occur, a state 
+ *  change function object callback will be invoked, and eventually the IO handler object 
+ *  will be destructed. @c start_io cannot be called after @c stop_io (in other words, 
+ *  @c start_io followed by @c stop_io followed by @c start_io, etc is not supported).
+ *
+ *  For TCP entities (connectors and acceptors), the TCP connection will be taken
+ *  down, but the entity will remain active. For UDP entities @c stop_io is equivalent
+ *  to calling @c stop.
  *
  *  @return @c false if already stopped, otherwise @c true.
  *

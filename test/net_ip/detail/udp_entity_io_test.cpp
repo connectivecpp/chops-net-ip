@@ -40,7 +40,6 @@
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip_component/worker.hpp"
-#include "net_ip_component/send_to_all.hpp"
 
 #include "net_ip/shared_utility_test.hpp"
 #include "net_ip/shared_utility_func_test.hpp"

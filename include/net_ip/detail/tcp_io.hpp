@@ -146,7 +146,7 @@ public:
 
 
   bool stop_io() {
-    if (is_io_started()) {
+    if (m_io_common.is_io_started()) {
       close(std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
       return true;
     }
