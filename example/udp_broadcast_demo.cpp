@@ -134,6 +134,7 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
 
     catch (std::exception& e) {
         std::cout << "malformed ipv4 address or network mask" << std::endl;
+        std::cout << "  what: " << e.what() << std::endl << std::endl;
         print_useage();
         return EXIT_FAILURE;
     }
