@@ -28,6 +28,7 @@
 #include <memory> // std::make_shared
 #include <utility> // std::move
 #include <thread>
+#include <future> // std::async
 #include <chrono>
 #include <vector>
 #include <functional> // std::ref, std::cref
@@ -35,7 +36,7 @@
 
 #include "net_ip/detail/udp_entity_io.hpp"
 
-#include "net_ip/io_interface.hpp"
+#include "net_ip/io_type_decls.hpp"
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip_component/worker.hpp"
@@ -71,16 +72,16 @@ void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int 
 
   std::vector<iosp> senders;
 
-  chops::repeat(num_senders, [&senders] (int i) {
+  chops::repeat(num_senders, [&ioc, &senders, &send_cnt, &err_wq] (int i) {
       auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
                                      make_udp_endpoint(test_addr, test_port_base+i+1));
       senders.push_back(send_ptr);
-      send_ptr.start([&send_cnt, &err_wq] (chops::net::udp_io_interface io, std::size_t, bool starting) {
+      send_ptr->start([&send_cnt] (chops::net::udp_io_interface io, std::size_t, bool starting) {
                 if (starting) {
 		  udp_start_io(io, false, send_cnt);
                 }
 	        return true; }
-            , chops::net::make_error_func_with_wait_queue<chops::udp_io>(err_wq));
+            , chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq));
     }
   );
   // send messages through all of the senders
@@ -130,11 +131,15 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
           std::ref(err_wq), std::ref(std::cerr));
 
         test_counter recv_cnt = 0;
-        recv_ptr.start([&recv_cnt, &err_wq, reply] (chops::net::udp_io_interface io, std::size_t, bool starting) {
+        recv_ptr->start(
+              [&recv_cnt, reply] (chops::net::udp_io_interface io, std::size_t, bool starting) {
                 if (starting) {
-		  udp_start_io(io, reply, recv_cnt);
+                  udp_start_io(io, reply, recv_cnt);
                 }
-	        return true; }, chops::net::make_error_func_with_wait_queue<chops::udp_io>(err_wq));
+	        return true;
+              },
+           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
+        );
 
         // sleep to make sure recv UDP is up and running; yes, it could be done with futures, but for this
 	// unit test keeping it simple
@@ -157,6 +162,8 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         err_wq.close();
+        auto cnt = err_fut.get();
+        INFO ("Number of messages passed thru error queue: " << cnt);
 
         std::size_t total_msgs = 2 * num_senders * in_msg_vec.size();
         // CHECK instead of REQUIRE since UDP is an unreliable protocol
