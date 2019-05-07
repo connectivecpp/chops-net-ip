@@ -142,7 +142,9 @@ private:
           start_accept();
         }
         else {
-          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+          asio::post(m_acceptor.get_executor(), [this, self] () mutable {
+              close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+            } );
         }
       }
     );
@@ -154,7 +156,10 @@ private:
     chops::erase_where(m_io_handlers, iop);
     m_entity_common.call_error_cb(iop, err);
     if (!m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
-      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+      auto self { shared_from_this() };
+      asio::post(m_acceptor.get_executor(), [this, self] () mutable {
+          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+        } );
     }
   }
 

@@ -38,7 +38,7 @@
 
 #include "net_ip/endpoints_resolver.hpp"
 
-#include <cassert>
+// #include <cassert>
 
 namespace chops {
 namespace net {
@@ -138,8 +138,7 @@ public:
         [this, self] 
              (std::error_code err, resolver_results res) mutable {
           if (err) {
-            m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
-            m_entity_common.stop();
+            close(err);
             return;
           }
           for (const auto& e : res) {
@@ -232,13 +231,16 @@ private:
   }
 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    assert (iop == m_io_handler);
+    // assert (iop == m_io_handler);
 
     m_entity_common.call_error_cb(iop, err);
     if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
     }
     else {
-      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+      auto self { shared_from_this() };
+      asio::post(m_socket.get_executor(), [this, self] () mutable {
+          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+        } );
     }
   }
 

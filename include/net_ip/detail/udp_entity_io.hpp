@@ -125,7 +125,10 @@ public:
       return false;
     }
     if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
-      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+      auto self { shared_from_this() };
+      asio::post(m_socket.get_executor(), [this, self] () mutable {
+          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+        } );
       return false;
     }
     return true;
@@ -185,7 +188,7 @@ public:
 
   bool send(chops::const_shared_buffer buf) {
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf] {
+    asio::post(m_socket.get_executor(), [this, self, buf] {
         if (!m_io_common.start_write_setup(buf)) {
           return false; // buf queued or shutdown happening
         }
@@ -197,7 +200,7 @@ public:
 
   bool send(chops::const_shared_buffer buf, const endpoint_type& endp) {
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf, endp] {
+    asio::post(m_socket.get_executor(), [this, self, buf, endp] {
         if (!m_io_common.start_write_setup(buf, endp)) {
           return false; // buf queued or shutdown happening
         }
@@ -255,7 +258,10 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
                 basic_io_output(this), m_sender_endp)) {
     // message handler not happy, tear everything down
-    close(std::make_error_code(net_ip_errc::message_handler_terminated));
+    auto self { shared_from_this() };
+    asio::post(m_socket.get_executor(), [this, self] () mutable {
+        close(std::make_error_code(net_ip_errc::message_handler_terminated));
+      } );
     return;
   }
   start_read(std::forward<MH>(msg_hdlr));

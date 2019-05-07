@@ -156,7 +156,7 @@ public:
   // use post for thread safety, multiple threads can call this method
   bool send(chops::const_shared_buffer buf) {
     auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf] {
+    asio::post(m_socket.get_executor(), [this, self, buf] {
         if (!m_io_common.start_write_setup(buf)) {
           return false; // buf queued or shutdown happening
         }
@@ -180,7 +180,7 @@ private:
     m_socket.close(ec); 
     auto self { shared_from_this() };
     // notify the net entity via posting function object
-    post(m_socket.get_executor(), [this, self, err] () mutable { 
+    asio::post(m_socket.get_executor(), [this, self, err] () mutable { 
       m_notifier_cb(err, self); } );
   }
 
@@ -256,7 +256,7 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
       // of getting through
       auto err = std::make_error_code(net_ip_errc::message_handler_terminated);
       auto self { shared_from_this() };
-      post(m_socket.get_executor(), [this, self, err] () mutable { 
+      asio::post(m_socket.get_executor(), [this, self, err] () mutable { 
         close(err); } );
       return;
     }
@@ -283,7 +283,7 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
                 basic_io_output(this), m_remote_endp)) {
       auto err = std::make_error_code(net_ip_errc::message_handler_terminated);
       auto self { shared_from_this() };
-      post(m_socket.get_executor(), [this, self, err] () mutable { 
+      asio::post(m_socket.get_executor(), [this, self, err] () mutable { 
         close(err); } );
     return;
   }
