@@ -100,6 +100,7 @@ void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int 
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
     std::cerr << "****** Senders total output queue size: " << sum << std::endl;
   }
+  std::cerr << "****** Senders total output queue size is now 0" << std::endl;
   // stop all handlers
   for (auto p : senders) {
     p->stop();
@@ -154,10 +155,12 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
                           send_cnt, ioc, err_wq, recv_endp);
 
 
-        INFO ("Stopping receiver");
+        INFO ("Pausing, then stopping receiver");
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         recv_ptr->stop();
 
 
+        INFO ("Waiting on error wait queue");
         while (!err_wq.empty()) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -236,11 +239,11 @@ SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 10"
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 5, many msgs",
-           "[udp_io] [var_len_msg] [two_way] [interval_20] [senders_5] [many]" ) {
+SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 30, senders 2, many msgs",
+           "[udp_io] [var_len_msg] [two_way] [interval_30] [senders_2] [many]" ) {
 
-  udp_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 40*NumMsgs),
-             true, 20, 5);
+  udp_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 10*NumMsgs),
+             true, 30, 2);
 
 }
 
@@ -260,6 +263,7 @@ SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 20, senders 5",
 
 }
 
+/*
 SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, many msgs",
            "[udp_io] [cr_lf_msg] [two_way] [interval_0] [senders_1] [many]" ) {
 
@@ -267,6 +271,7 @@ SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, m
              true, 0, 1);
 
 }
+*/
 
 SCENARIO ( "Udp IO handler test, LF msgs, one-way, interval 30, senders 1",
            "[udp_io] [lf_msg] [two-way] [interval_30] [senders_1]" ) {
@@ -287,7 +292,7 @@ SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 20, senders 10",
 SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 50, senders 2, many msgs",
            "[udp_io] [lf_msg] [two-way] [interval_50] [senders_2] [many]" ) {
 
-  udp_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 30*NumMsgs),
+  udp_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 20*NumMsgs),
              true, 50, 2);
 
 }
