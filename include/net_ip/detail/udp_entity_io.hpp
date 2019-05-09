@@ -97,7 +97,9 @@ public:
 
   template <typename F>
   void visit_io_output(F&& f) {
-    f(basic_io_output(this));
+    if (m_io_common.is_io_started()) {
+      f(basic_io_output(this));
+    }
   }
 
   output_queue_stats get_output_queue_stats() const noexcept {

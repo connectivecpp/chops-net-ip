@@ -247,11 +247,11 @@ SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 30, senders 2, 
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 30, senders 5",
-           "[udp_io] [cr_lf_msg] [one-way] [interval_30] [senders_5]" ) {
+SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 10, senders 5",
+           "[udp_io] [cr_lf_msg] [one-way] [interval_10] [senders_5]" ) {
 
   udp_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
-             false, 30, 5);
+             false, 10, 5);
 
 }
 
@@ -281,19 +281,19 @@ SCENARIO ( "Udp IO handler test, LF msgs, one-way, interval 30, senders 1",
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 20, senders 10",
-           "[udp_io] [lf_msg] [two-way] [interval_20] [senders_10]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 10",
+           "[udp_io] [lf_msg] [two-way] [interval_10] [senders_10]" ) {
 
   udp_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
-             true, 20, 10);
+             true, 10, 10);
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 50, senders 2, many msgs",
-           "[udp_io] [lf_msg] [two-way] [interval_50] [senders_2] [many]" ) {
+SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 2, many msgs",
+           "[udp_io] [lf_msg] [two-way] [interval_10] [senders_2] [many]" ) {
 
   udp_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 20*NumMsgs),
-             true, 50, 2);
+             true, 10, 2);
 
 }
 

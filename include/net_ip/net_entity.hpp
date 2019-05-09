@@ -29,6 +29,8 @@
 #include "net_ip/detail/tcp_connector.hpp"
 #include "net_ip/detail/udp_entity_io.hpp"
 
+#include "net_ip/io_type_decls.hpp"
+
 namespace chops {
 namespace net {
 
@@ -172,7 +174,8 @@ public:
  *    void (chops::udp_io_output); // UDP
  *  @endcode
  *
- *  The function object will be called 0 to N times depending on active IO handlers.
+ *  The function object will be called 0 to N times depending on active IO handlers. An
+ *  IO handler is active is @c start_io has been called on it.
  *
  *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
@@ -263,21 +266,23 @@ public:
  *
  *  1) A @c basic_io_interface object, which may or may not be valid (i.e @c is_valid may
  *  return either @c true or @c false), depending on the context of the error. No methods 
- *  on the @c basic_io_interface object should be called, as the underlying handler is being 
- *  destructed.
+ *  on the @c basic_io_interface object should be called, as the underlying handler, if
+ *  present, is likely being destructed. The @c basic_io_interface object is provided
+ *  as a key to associate multiple error codes to the same handler.
  *
- *  2) The error code associated with the shutdown. There are error codes associated 
- *  with application initiated closes and graceful shutdown as well as error codes for 
- *  network or system errors.
+ *  2) The error code associated with the invocation. There are error codes associated 
+ *  with application initiated closes, shutdowns, and other state changes as well as error 
+ *  codes for network or system errors.
  *
  *  The @c err_func callback may be invoked in contexts other than a network IO error - for
  *  example, if a TCP acceptor or UDP entity cannot bind to a local port, a system error 
- *  code will be provided.
+ *  code will be provided. It is also used to notify important state changes, such as 
+ *  a message handler shutdown or TCP connector state changes.
  *
  *  The error function object must be copyable (it will be stored in a @c std::function).
  *
  *  For use cases that don't care about error codes, a function named @c empty_error_func 
- *  is available in the @c error_delivery.hpp header in the @c net_ip_component directory.
+ *  is available.
  *
  *  @return @c false if already started, otherwise @c true.
  *
@@ -355,6 +360,32 @@ public:
   }
 
 };
+
+/**
+ *  @brief A "do nothing" error function template that can be used in the 
+ *  @c net_entity @c start method.
+ *
+ *  @relates net_entity
+ */
+template <typename IOT>
+void empty_error_func(basic_io_interface<IOT>, std::error_code) { } 
+
+/**
+ *  @brief A "do nothing" error function used in the @c net_entity @c start 
+ *  method, for TCP @c basic_io_interface objects.
+ *
+ *  @relates net_entity
+ */
+inline void tcp_empty_error_func(tcp_io_interface, std::error_code) { }
+
+/**
+ *  @brief A "do nothing" error function used in the @c net_entity @c start 
+ *  method, for UDP @c basic_io_interface objects.
+ *
+ *  @relates net_entity
+ */
+inline void udp_empty_error_func(udp_io_interface, std::error_code) { }
+
 
 } // end net namespace
 } // end chops namespace

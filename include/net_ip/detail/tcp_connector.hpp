@@ -55,6 +55,9 @@ private:
   using endpoints_iter = endpoints::const_iterator;
 
 private:
+  enum conn_state { closed, resolving, connecting, connected, timer };
+
+private:
   net_entity_common<tcp_io>     m_entity_common;
   asio_ip::tcp_socket           m_socket;
   tcp_io_shared_ptr             m_io_handler;
@@ -64,11 +67,7 @@ private:
   std::chrono::milliseconds     m_reconn_time;
   std::string                   m_remote_host;
   std::string                   m_remote_port;
-
-  // TODO: currently this flag is needed to distinguish whether a connect
-  // handler can't connect or whether the operation is cancelled and it's
-  // time to shutdown
-  bool                                  m_shutting_down;
+  conn_state                    m_state;
 
 public:
   template <typename Iter>
@@ -83,7 +82,7 @@ public:
       m_reconn_time(reconn_time),
       m_remote_host(),
       m_remote_port(),
-      m_shutting_down(false)
+      m_state(closed)
     { }
 
   tcp_connector(asio::io_context& ioc,
@@ -98,7 +97,7 @@ public:
       m_reconn_time(reconn_time),
       m_remote_host(remote_host),
       m_remote_port(remote_port),
-      m_shutting_down(false)
+      m_state(closed)
     { }
 
 private:
@@ -119,7 +118,7 @@ public:
 
   template <typename F>
   void visit_io_output(F&& f) {
-    if (m_io_handler) {
+    if (m_io_handler && m_io_handler->is_io_active()) {
       f(basic_io_output(m_io_handler));
     }
   }
@@ -130,7 +129,7 @@ public:
       // already started
       return false;
     }
-    m_shutting_down = false;
+    m_state = false;
     // empty endpoints container is the flag that a resolve is needed
     if (m_endpoints.empty()) {
       auto self = shared_from_this();
@@ -169,7 +168,7 @@ private:
     if (!m_entity_common.stop()) {
       return false; // already closed
     }
-    m_shutting_down = true;
+    m_state = true;
     if (m_endpoints.empty()) { // may be in middle of resolve
       m_resolver.cancel();
     }
@@ -203,7 +202,7 @@ private:
 
     if (err) {
       m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
-      if (!is_started() || m_shutting_down ) {
+      if (!is_started() || m_state ) {
 //      if (!is_started() || err.value() == something) {
         return;
       }

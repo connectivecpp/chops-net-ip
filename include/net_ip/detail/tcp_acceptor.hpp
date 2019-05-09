@@ -76,7 +76,9 @@ public:
   template <typename F>
   void visit_io_output(F&& f) {
     for (auto ioh : m_io_handlers) {
-      f(basic_io_output(ioh));
+      if (ioh->is_io_started()) {
+        f(basic_io_output(ioh));
+      }
     }
   }
 
