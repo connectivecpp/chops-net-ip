@@ -55,7 +55,7 @@ private:
   using endpoints_iter = endpoints::const_iterator;
 
 private:
-  enum conn_state { closed, resolving, connecting, connected, timer };
+  enum conn_state { closed, resolving, connecting, connected, timeout };
 
 private:
   net_entity_common<tcp_io>     m_entity_common;
@@ -129,9 +129,11 @@ public:
       // already started
       return false;
     }
-    m_state = false;
     // empty endpoints container is the flag that a resolve is needed
     if (m_endpoints.empty()) {
+      m_state = resolving;
+      m_entity_common.call_error_cb(tcp_io_shared_ptr(),
+                                    std::make_error_code(net_ip_errc::tcp_connector_resolving_addresses));
       auto self = shared_from_this();
       m_resolver.make_endpoints(false, m_remote_host, m_remote_port,
         [this, self] 
@@ -163,12 +165,10 @@ public:
 
 private:
 
-
   bool close(const std::error_code& err) {
     if (!m_entity_common.stop()) {
       return false; // already closed
     }
-    m_state = true;
     if (m_endpoints.empty()) { // may be in middle of resolve
       m_resolver.cancel();
     }
@@ -182,6 +182,8 @@ private:
       m_timer.cancel();
     }
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
+    m_state = closed;
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), net_ip_errc::tcp_connector_closed);
     std::error_code ec;
     m_socket.close(ec);
     return true;
