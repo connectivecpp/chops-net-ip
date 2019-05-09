@@ -28,19 +28,21 @@ namespace chops {
 namespace net {
 
 enum class net_ip_errc {
-  message_handler_terminated = 1,
-  weak_ptr_expired = 2,
-  tcp_io_handler_stopped = 3,
-  udp_io_handler_stopped = 4,
-  tcp_acceptor_stopped = 5,
-  tcp_connector_stopped = 6,
-  udp_entity_stopped = 7,
-  io_state_change_terminated = 8,
-  tcp_connector_closed = 9,
-  tcp_connector_resolving_addresses = 10,
-  tcp_connector_connecting = 11,
-  tcp_connector_connected = 12,
-  tcp_connector_timeout = 13,
+  weak_ptr_expired = 1,
+  message_handler_terminated = 2,
+  io_state_change_terminated = 3,
+  tcp_io_handler_stopped = 4,
+  udp_io_handler_stopped = 5,
+  tcp_acceptor_stopped = 6,
+  tcp_acceptor_closed = 7,
+  udp_entity_stopped = 8,
+  udp_entity_closed = 9,
+  tcp_connector_stopped = 10,
+  tcp_connector_closed = 11,
+  tcp_connector_resolving_addresses = 12,
+  tcp_connector_connecting = 13,
+  tcp_connector_connected = 14,
+  tcp_connector_timeout = 15,
 };
 
 namespace detail {
@@ -51,22 +53,26 @@ struct net_ip_err_category : public std::error_category {
   }
   virtual std::string message(int val) const override {
     switch (net_ip_errc(val)) {
-    case net_ip_errc::message_handler_terminated:
-      return "message handler terminated via false return value";
     case net_ip_errc::weak_ptr_expired:
       return "weak pointer expired";
+    case net_ip_errc::message_handler_terminated:
+      return "message handler terminated via false return value";
+    case net_ip_errc::io_state_change_terminated:
+      return "io state change terminated via false return value";
     case net_ip_errc::tcp_io_handler_stopped:
       return "tcp io handler stopped";
     case net_ip_errc::udp_io_handler_stopped:
       return "udp io handler stopped";
     case net_ip_errc::tcp_acceptor_stopped:
       return "tcp acceptor stopped";
-    case net_ip_errc::tcp_connector_stopped:
-      return "tcp connector stopped";
+    case net_ip_errc::tcp_acceptor_closed:
+      return "tcp acceptor closed";
     case net_ip_errc::udp_entity_stopped:
       return "udp entity stopped";
-    case net_ip_errc::io_state_change_terminated:
-      return "io state change terminated via false return value";
+    case net_ip_errc::udp_entity_closed:
+      return "udp entity closed";
+    case net_ip_errc::tcp_connector_stopped:
+      return "tcp connector stopped";
     case net_ip_errc::tcp_connector_closed:
       return "tcp connector closed";
     case net_ip_errc::tcp_connector_resolving_addresses:
