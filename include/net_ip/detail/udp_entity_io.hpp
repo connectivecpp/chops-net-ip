@@ -244,6 +244,11 @@ private:
     auto b = m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
     std::error_code ec;
     m_socket.close(ec);
+    if (ec) {
+      m_entity_common.call_error_cb(shared_from_this(), ec);
+    }
+    m_entity_common.call_error_cb(shared_from_this(), 
+          std::make_error_code(net_ip_errc::udp_entity_closed));
   }
 
 };

@@ -40,6 +40,12 @@
 
 // #include <cassert>
 
+// TCP connector has the most complicated states of any of the net entity detail
+// objects. The states transition from closed to resolving addresses to connecting
+// to connected, then back to connecting or closing depending on the transition.
+// There are multiple ways to transition through closing to closed, and the shutdown 
+// logic involved with it can be tricky.
+
 namespace chops {
 namespace net {
 namespace detail {
@@ -55,7 +61,7 @@ private:
   using endpoints_iter = endpoints::const_iterator;
 
 private:
-  enum conn_state { closed, resolving, connecting, connected, timeout };
+  enum conn_state { closed, resolving, connecting, connected, timeout, closing };
 
 private:
   net_entity_common<tcp_io>     m_entity_common;
@@ -190,6 +196,9 @@ private:
   }
 
   void start_connect() {
+    m_state = connecting;
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(),
+                                  std::make_error_code(net_ip_errc::tcp_connector_connecting));
     auto self = shared_from_this();
     asio::async_connect(m_socket, m_endpoints.cbegin(), m_endpoints.cend(),
           [this, self] 

@@ -102,7 +102,7 @@ public:
 
   bool stop() {
     if (!m_entity_common.is_started()) {
-      return false; // stop already called
+      return false; // stop already called, or shutdown is happening
     }
     close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
     return true;
@@ -114,14 +114,21 @@ private:
     if (!m_entity_common.stop()) {
       return; // already closed
     }
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
+    // the following copy is important, since the notify_me modifies the 
+    // m_io_handlers container
     auto iohs = m_io_handlers;
     for (auto i : iohs) {
       i->stop_io();
     }
     // m_io_handlers.clear(); // the stop_io on each tcp_io handler should clear the container
-    m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
     std::error_code ec;
     m_acceptor.close(ec);
+    if (ec) {
+      m_entity_common.call_error_cb(tcp_io_shared_ptr(), ec);
+    }
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), 
+          std::make_error_code(net_ip_errc::tcp_acceptor_closed));
   }
 
 
@@ -153,16 +160,25 @@ private:
   }
 
   // this method invoked via a posted function object, allowing the TCP IO handler
-  // to be shutting down
+  // to completely shut down 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
     chops::erase_where(m_io_handlers, iop);
     m_entity_common.call_error_cb(iop, err);
-    if (!m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
-      auto self { shared_from_this() };
-      asio::post(m_acceptor.get_executor(), [this, self] () mutable {
-          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-        } );
+    if (m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
+      return;
     }
+    // the following logic branches can be tricky; there are different paths to calling
+    // close - stop method (from app), error, or false return from state change
+    // callback; in all cases, the first time through the close method the 
+    // atomic started flag is set false, and this flag is checked in subsequent calls 
+    // to close, protecting recursive shutdown of various resources
+    if (!m_entity_common.is_started()) {
+      return;
+    }
+    auto self { shared_from_this() };
+    asio::post(m_acceptor.get_executor(), [this, self] () mutable {
+        close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+      } );
   }
 
 };
