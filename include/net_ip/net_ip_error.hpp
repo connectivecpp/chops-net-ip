@@ -36,6 +36,10 @@ enum class net_ip_errc {
   tcp_connector_stopped = 6,
   udp_entity_stopped = 7,
   io_state_change_terminated = 8,
+  tcp_connector_resolving_addresses = 9,
+  tcp_connector_connecting = 10,
+  tcp_connector_connected = 11,
+  tcp_connector_timeout = 12,
 };
 
 namespace detail {
@@ -62,6 +66,14 @@ struct net_ip_err_category : public std::error_category {
       return "udp entity stopped";
     case net_ip_errc::io_state_change_terminated:
       return "io state change terminated via false return value";
+    case net_ip_errc::tcp_connector_resolving_addresses:
+      return "tcp connector resolving addresses";
+    case net_ip_errc::tcp_connector_connecting:
+      return "tcp connector connecting";
+    case net_ip_errc::tcp_connector_connected:
+      return "tcp connector connected";
+    case net_ip_errc::tcp_connector_timeout:
+      return "tcp connector timeout";
     }
     return "(unknown error)";
   }
