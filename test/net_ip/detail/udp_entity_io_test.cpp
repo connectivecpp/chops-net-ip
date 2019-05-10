@@ -112,9 +112,6 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
   chops::net::worker wk;
   wk.start();
   auto& ioc = wk.get_io_context();
-//  io_context ioc;
-//  auto wg = make_work_guard(ioc);
-//  std::thread thr( [&ioc] { ioc.run(); } );
 
   GIVEN ("An executor work guard and a message set") {
  
@@ -137,13 +134,13 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
                 if (starting) {
                   udp_start_io(io, reply, recv_cnt);
                 }
-	        return true;
+                return true;
               },
            chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
         );
 
-        // sleep to make sure recv UDP is up and running; yes, it could be done with futures, but for this
-	// unit test keeping it simple
+  // sleep to make sure recv UDP is up and running; yes, it could be done with futures, but keeping
+  // it simple for this unit test
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         test_counter send_cnt = 0;
 
@@ -178,10 +175,7 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
     }
   } // end given
 
-//  wg.reset();
-//  thr.join();
   wk.reset();
-//  wk.stop();
 
 }
 

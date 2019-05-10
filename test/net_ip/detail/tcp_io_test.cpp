@@ -32,18 +32,16 @@
 #include "net_ip/detail/tcp_io.hpp"
 
 #include "net_ip_component/worker.hpp"
-#include "net_ip/endpoints_resolver.hpp"
 
 #include "shared_test/msg_handling_test.hpp"
 
+#include "net_ip/endpoints_resolver.hpp"
+
 #include "marshall/shared_buffer.hpp"
 
-// #include <iostream>
+#include <iostream>
 
 using namespace chops::test;
-
-// using notifier_cb = 
-//   typename chops::net::detail::io_base<chops::net::detail::tcp_io>::entity_notifier_cb;
 
 const char*   test_port = "30434";
 const char*   test_addr = "";
@@ -90,7 +88,7 @@ std::size_t connector_func (const vec_buf& in_msg_vec, asio::io_context& ioc,
 
   auto err = notify_fut.get();
 
-// std::cerr << "Inside connector func, err: " << err << ", " << err.message() << std::endl;
+  std::cerr << "TCP IO handler, conn side, err: " << err << ", " << err.message() << std::endl;
 
   return cnt.load();
 }
@@ -125,7 +123,9 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
         tcp_start_io(chops::net::tcp_io_interface(iohp), reply, delim, cnt);
 
         auto acc_err = notify_fut.get();
-// std::cerr << "Inside acc_conn_test, acc_err: " << acc_err << ", " << acc_err.message() << std::endl;
+
+        std::cerr << "TCP IO handler, acc side, err: " << acc_err << ", " << 
+                     acc_err.message() << std::endl;
 
         auto conn_cnt = conn_fut.get();
 
@@ -138,7 +138,6 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
   } // end given
 
   wk.reset();
-//  wk.stop();
 
 }
 

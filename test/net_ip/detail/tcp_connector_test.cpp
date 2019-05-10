@@ -27,7 +27,6 @@
 #include <memory> // std::make_shared
 #include <utility> // std::move, std::ref
 #include <thread>
-#include <future>
 #include <chrono>
 #include <functional> // std::ref, std::cref
 #include <string_view>
@@ -36,19 +35,19 @@
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/tcp_connector.hpp"
 
-#include "net_ip/net_entity.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/basic_io_output.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 #include "net_ip_component/worker.hpp"
-#include "net_ip_component/io_output_delivery.hpp"
+#include "net_ip_component/error_delivery.hpp"
 
 #include "shared_test/msg_handling_test.hpp"
-// #include "net_ip/shared_utility_func_test.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
+#include "queue/wait_queue.hpp"
 
 #include <iostream> // std::cerr for error sink
 
@@ -61,34 +60,46 @@ constexpr int ReconnTime = 100;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
+using io_wait_q = chops::wait_queue<chops::net::basic_io_output<chops::net::tcp_io> >;
+
 void start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc, 
                       int interval, int num_conns,
                       std::string_view delim, chops::const_shared_buffer empty_msg,
                       test_counter& conn_cnt, chops::net::err_wait_q& err_wq) {
 
-  chops::net::send_to_all<chops::net::tcp_io> sta { };
-
   std::vector<chops::net::detail::tcp_connector_ptr> connectors;
-  std::vector<chops::net::tcp_io_output_future> conn_fut_vec;
+  io_wait_q io_wq;
 
-  chops::repeat(num_conns, [&] () {
+  chops::repeat(num_conns, [&connectors, &io_wq, delim, &conn_cnt, &err_wq, &ioc] () {
       auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
                          std::string_view(test_port), std::string_view(test_host),
                          std::chrono::milliseconds(ReconnTime));
 
       connectors.push_back(conn_ptr);
 
-      auto conn_futs = get_tcp_io_futures(chops::net::tcp_connector_net_entity(conn_ptr), err_wq,
-                                          false, delim, conn_cnt);
-
-      auto conn_start_io = conn_futs.start_fut.get();
-      sta.add_io_interface(conn_start_io);
-      conn_fut_vec.emplace_back(std::move(conn_futs.stop_fut));
+      conn_ptr->start( [&io_wq, delim, &conn_cnt, &err_wq]
+                       (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
+            if (starting) {
+              tcp_start_io(io, false, delim, conn_cnt);
+              io_wq.push(io.make_io_output());
+              return true;
+            }
+            return false; // stop connector upon TCP connection going down
+          },
+        chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+      );
     }
   );
+  // get all of the io_output objects
+  std::vector<chops::net::tcp_io_output> io_outs;
+  chops::repeat(num_conns, [&io_wq, &io_outs] () {
+    io_outs.push(*(io_wq.wait_and_pop())); // will hang if num io_outputs popped doesn't match num pushed
+  }
   // send messages through all of the connectors
   for (const auto& buf : in_msg_vec) {
-    sta.send(buf);
+    for (auto ioh : connectors) {
+      ioh->send(buf);
+    }
   }
 
   auto qs = sta.get_total_output_queue_stats();

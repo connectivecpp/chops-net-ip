@@ -226,9 +226,9 @@ io_output_future<IOT> make_io_output_future(net_entity ent,
  */
 
 template <typename IOT, typename IOS, typename EF>
-io_output_future_pair<IOT> make_io_output_future_pair_impl(net_entity ent,
-                                                           IOS&& io_start,
-                                                           EF&& err_func) {
+io_output_future_pair<IOT> make_io_output_future_pair(net_entity ent,
+                                                      IOS&& io_start,
+                                                      EF&& err_func) {
 
   auto start_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto start_fut = start_prom_ptr->get_future();

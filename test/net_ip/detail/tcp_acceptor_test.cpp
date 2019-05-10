@@ -41,6 +41,8 @@
 #include "net_ip/detail/tcp_acceptor.hpp"
 
 #include "net_ip_component/worker.hpp"
+#include "net_ip_component/error_delivery.hpp"
+
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip/io_type_decls.hpp"
@@ -126,18 +128,20 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
 
         REQUIRE_FALSE(acc_ptr->is_started());
 
+        chops::net::err_wait_q err_wq;
+        auto err_fut = std::async(std::launch::async,
+          chops::net::ostream_error_sink_with_wait_queue,
+          std::ref(err_wq), std::ref(std::cerr));
+
         test_counter recv_cnt = 0;
         acc_ptr->start(
           [reply, delim, &recv_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
             if (starting) {
               tcp_start_io(io, reply, delim, recv_cnt);
             }
-	    return true;
+            return true;
           },
-          [] (chops::net::tcp_io_interface io, std::error_code err) {
-// std::cerr << std::boolalpha << "err func, err: " << err <<
-// ", " << err.message() << ", io state valid: " << io.is_valid() << std::endl;
-          }
+          chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
         );
 
         REQUIRE(acc_ptr->is_started());
@@ -155,6 +159,14 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         INFO ("Acceptor stopped");
 
         REQUIRE_FALSE(acc_ptr->is_started());
+
+        INFO ("Waiting on error wait queue");
+        while (!err_wq.empty()) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        err_wq.close();
+        auto cnt = err_fut.get();
+        INFO ("Number of messages passed thru error queue: " << cnt);
 
         std::size_t total_msgs = 2 * num_conns * in_msg_vec.size();
         REQUIRE (total_msgs == recv_cnt);
