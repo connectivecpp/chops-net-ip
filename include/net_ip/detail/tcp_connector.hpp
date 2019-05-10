@@ -61,7 +61,7 @@ private:
   using endpoints_iter = endpoints::const_iterator;
 
 private:
-  enum conn_state { closed, resolving, connecting, connected, timeout, closing };
+  enum conn_state { unstarted, resolving, connecting, connected, timeout, stopped };
 
 private:
   net_entity_common<tcp_io>     m_entity_common;
@@ -88,7 +88,7 @@ public:
       m_reconn_time(reconn_time),
       m_remote_host(),
       m_remote_port(),
-      m_state(closed)
+      m_state(unstarted)
     { }
 
   tcp_connector(asio::io_context& ioc,
@@ -103,7 +103,7 @@ public:
       m_reconn_time(reconn_time),
       m_remote_host(remote_host),
       m_remote_port(remote_port),
-      m_state(closed)
+      m_state(unstarted)
     { }
 
 private:
@@ -135,7 +135,7 @@ public:
       // already started
       return false;
     }
-    // empty endpoints container is the flag that a resolve is needed
+    // empty endpoints container is the indication that a resolve is needed
     if (m_endpoints.empty()) {
       m_state = resolving;
       m_entity_common.call_error_cb(tcp_io_shared_ptr(),
@@ -161,41 +161,58 @@ public:
   }
 
   bool stop() {
-    if (!m_entity_common.is_started()) {
-      return false; // stop already called
+    if (m_entity_common.is_started()) {
+      close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
+      return true;
     }
-    close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
-    return true;
+    return false; // stop already called
   }
 
 
 private:
 
   bool close(const std::error_code& err) {
+    // first one in wins, clean up whatever is in progress
     if (!m_entity_common.stop()) {
       return false; // already closed
     }
-    if (m_endpoints.empty()) { // may be in middle of resolve
-      m_resolver.cancel();
+    switch (m_state) {
+      case unstarted: {
+        return false;
+      }
+      case resolving: {
+        m_resolver.cancel();
+        break;
+      }
+      case connecting: {
+        // socket close should cancel connect attempt
+        break;
+      }
+      case connected: {
+        // notify_me will be called which will clean up m_ioh_handler
+        m_ioh_handler.stop_io();
+        break;
+      }
+      case timeout: {
+        m_timer.cancel();
+        break;
+      }
     }
-    if (m_io_handler) {
-      m_io_handler.stop_io();
-      m_io_handler.reset();
-    }
-    else {
-      // IO handler not created, may be waiting on timer
-      // or in middle of an async connect
-      m_timer.cancel();
-    }
+    m_state = stopped;
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
-    m_state = closed;
-    m_entity_common.call_error_cb(tcp_io_shared_ptr(), net_ip_errc::tcp_connector_closed);
     std::error_code ec;
     m_socket.close(ec);
+    if (ec) {
+      m_entity_common.call_error_cb(tcp_io_shared_ptr(), ec);
+    }
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(), net_ip_errc::tcp_connector_closed);
     return true;
   }
 
   void start_connect() {
+    if (m_state == stopped) {
+      return;
+    }
     m_state = connecting;
     m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                   std::make_error_code(net_ip_errc::tcp_connector_connecting));
@@ -213,38 +230,54 @@ private:
 
     if (err) {
       m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
-      if (!is_started() || m_state ) {
-//      if (!is_started() || err.value() == something) {
+      if (m_state == stopped) {
         return;
       }
       try {
         m_timer.expires_after(m_reconn_time);
       }
       catch (const std::system_error& se) {
-        m_entity_common.call_error_cb(tcp_io_shared_ptr(), se.code());
-        m_entity_common.stop();
+        close(se.code());
         return;
       }
+      m_state = timeout;
+      m_entity_common.call_error_cb(tcp_io_shared_ptr(),
+                                    std::make_error_code(net_ip_errc::tcp_connector_timeout));
       auto self = shared_from_this();
       m_timer.async_wait( [this, self] 
                           (const std::error_code& err) mutable {
-          if (!err) {
-            start_connect();
+          if (err) {
+            close(err);
+            return;
           }
+          start_connect();
         }
       );
       return;
     }
     m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
       tcp_io::entity_notifier_cb(std::bind(&tcp_connector::notify_me, shared_from_this(), _1, _2)));
-    m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true);
+    m_state = connected;
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(),
+                                  std::make_error_code(net_ip_errc::tcp_connector_connected));
+    if (!m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true)) {
+      auto self { shared_from_this() };
+      asio::post(m_socket.get_executor(), [this, self] () mutable {
+          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+        } );
+    }
   }
 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
     // assert (iop == m_io_handler);
 
+    // if here through stop_io from close, start_connect
+    // will exit by checking state, close will not run
+    // again because of atomic check
+    m_ioh_handler.reset();
     m_entity_common.call_error_cb(iop, err);
     if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
+      start_connect();
     }
     else {
       auto self { shared_from_this() };

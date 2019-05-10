@@ -101,11 +101,11 @@ public:
   }
 
   bool stop() {
-    if (!m_entity_common.is_started()) {
-      return false; // stop already called, or shutdown is happening
+    if (m_entity_common.is_started()) {
+      close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+      return true;
     }
-    close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
-    return true;
+    return false; // stop already called, or shutdown is happening
   }
 
 private:
@@ -172,9 +172,6 @@ private:
     // callback; in all cases, the first time through the close method the 
     // atomic started flag is set false, and this flag is checked in subsequent calls 
     // to close, protecting recursive shutdown of various resources
-    if (!m_entity_common.is_started()) {
-      return;
-    }
     auto self { shared_from_this() };
     asio::post(m_acceptor.get_executor(), [this, self] () mutable {
         close(std::make_error_code(net_ip_errc::io_state_change_terminated));

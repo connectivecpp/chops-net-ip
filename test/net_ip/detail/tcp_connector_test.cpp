@@ -9,7 +9,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -40,10 +40,10 @@
 #include "net_ip/io_interface.hpp"
 
 #include "net_ip_component/worker.hpp"
-#include "net_ip_component/send_to_all.hpp"
+#include "net_ip_component/io_output_delivery.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
-#include "net_ip/shared_utility_func_test.hpp"
+#include "shared_test/msg_handling_test.hpp"
+// #include "net_ip/shared_utility_func_test.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
 
@@ -69,7 +69,7 @@ void start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
   chops::net::send_to_all<chops::net::tcp_io> sta { };
 
   std::vector<chops::net::detail::tcp_connector_ptr> connectors;
-  std::vector<chops::net::tcp_io_interface_future> conn_fut_vec;
+  std::vector<chops::net::tcp_io_output_future> conn_fut_vec;
 
   chops::repeat(num_conns, [&] () {
       auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
