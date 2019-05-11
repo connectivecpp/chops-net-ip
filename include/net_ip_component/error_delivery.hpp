@@ -25,6 +25,7 @@
 #include <chrono>
 
 #include "net_ip/basic_io_interface.hpp"
+#include "net_ip/net_ip_error.hpp"
 
 #include "queue/wait_queue.hpp"
 

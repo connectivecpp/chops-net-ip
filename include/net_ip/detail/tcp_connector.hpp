@@ -65,7 +65,7 @@ private:
 
 private:
   net_entity_common<tcp_io>     m_entity_common;
-  asio_ip::tcp_socket           m_socket;
+  asio::ip::tcp::socket         m_socket;
   tcp_io_shared_ptr             m_io_handler;
   resolver_type                 m_resolver;
   endpoints                     m_endpoints;
@@ -124,8 +124,8 @@ public:
 
   template <typename F>
   void visit_io_output(F&& f) {
-    if (m_io_handler && m_io_handler->is_io_active()) {
-      f(basic_io_output(m_io_handler));
+    if (m_io_handler && m_io_handler->is_io_started()) {
+      f(basic_io_output<tcp_io>(m_io_handler));
     }
   }
 
@@ -189,8 +189,8 @@ private:
         break;
       }
       case connected: {
-        // notify_me will be called which will clean up m_ioh_handler
-        m_ioh_handler.stop_io();
+        // notify_me will be called which will clean up m_io_handler
+        m_io_handler->stop_io();
         break;
       }
       case timeout: {
@@ -205,7 +205,8 @@ private:
     if (ec) {
       m_entity_common.call_error_cb(tcp_io_shared_ptr(), ec);
     }
-    m_entity_common.call_error_cb(tcp_io_shared_ptr(), net_ip_errc::tcp_connector_closed);
+    m_entity_common.call_error_cb(tcp_io_shared_ptr(),
+                                  std::make_error_code(net_ip_errc::tcp_connector_closed));
     return true;
   }
 
@@ -274,7 +275,7 @@ private:
     // if here through stop_io from close, start_connect
     // will exit by checking state, close will not run
     // again because of atomic check
-    m_ioh_handler.reset();
+    m_io_handler.reset();
     m_entity_common.call_error_cb(iop, err);
     if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
       start_connect();
