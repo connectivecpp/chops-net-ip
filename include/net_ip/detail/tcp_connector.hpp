@@ -38,8 +38,6 @@
 
 #include "net_ip/endpoints_resolver.hpp"
 
-// #include <cassert>
-
 // TCP connector has the most complicated states of any of the net entity detail
 // objects. The states transition from closed to resolving addresses to connecting
 // to connected, then back to connecting or closing depending on the transition.
@@ -270,14 +268,12 @@ private:
   }
 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    // assert (iop == m_io_handler);
-
     // if here through stop_io from close, start_connect
     // will exit by checking state, close will not run
     // again because of atomic check
-    m_io_handler.reset();
     m_entity_common.call_error_cb(iop, err);
     if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
+      m_io_handler.reset();
       start_connect();
     }
     else {

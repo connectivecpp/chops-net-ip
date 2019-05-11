@@ -58,16 +58,16 @@ using namespace chops::test;
 const char* test_port = "30777";
 const char* test_host = "";
 constexpr int NumMsgs = 50;
-constexpr int ReconnTime = 100;
+constexpr int ReconnTime = 800;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
 using io_wait_q = chops::wait_queue<chops::net::basic_io_output<chops::net::tcp_io> >;
 
-void start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc, 
-                      int interval, int num_conns,
-                      std::string_view delim, chops::const_shared_buffer empty_msg,
-                      test_counter& conn_cnt, chops::net::err_wait_q& err_wq) {
+std::size_t start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc, 
+                             int interval, int num_conns,
+                             std::string_view delim, chops::const_shared_buffer empty_msg,
+                             test_counter& conn_cnt, chops::net::err_wait_q& err_wq) {
 
   std::vector<chops::net::detail::tcp_connector_shared_ptr> connectors;
   io_wait_q io_wq;
@@ -99,7 +99,7 @@ void start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
       io_outs.push_back(*(io_wq.wait_and_pop())); // will hang if num io_outputs popped doesn't match num pushed
     }
   );
-  std::cerr << "Size of io wait q after getting io outputs (should be 0)" << io_wq.size() << std::endl;
+  std::cerr << "Size of io wait q after getting io outputs (should be zero): " << io_wq.size() << std::endl;
   // send messages through all of the connectors
   for (const auto& buf : in_msg_vec) {
     for (auto& io : io_outs) {
@@ -126,7 +126,7 @@ void start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
       auto a = io_wq.wait_and_pop();
     }
   );
-  std::cerr << "Size of io wait q after stopping (should be 0)" << io_wq.size() << std::endl;
+  return io_wq.size();  // should be 0 after stopping
 }
 
 void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_conns,
@@ -147,17 +147,20 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
           std::ref(err_wq), std::ref(std::cerr));
 
         test_counter conn_cnt = 0;
-        INFO ("Creating first iteration of connectors, before acceptor, num: " << num_conns);
-        start_connectors(in_msg_vec, ioc, interval, num_conns,
-                      delim, empty_msg, conn_cnt, err_wq);
+        INFO ("First iteration of connectors, separate thread, before acceptor, num: " << num_conns);
+
+        auto conn_fut = std::async(std::launch::async, start_connectors,
+            std::cref(in_msg_vec), std::ref(ioc), interval, num_conns,
+            delim, empty_msg, std::ref(conn_cnt), std::ref(err_wq));
+
+        INFO ("Pausing 2 seconds to test connector re-connect timeout");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
 
         auto endp_seq = 
             chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 
-        INFO ("Pausing 2 seconds to test connector re-connect timeout");
-        std::this_thread::sleep_for(std::chrono::seconds(2));
 
         test_counter acc_cnt = 0;
         acc_ptr->start( [delim, reply, &acc_cnt, &err_wq]
@@ -170,11 +173,14 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
         );
         REQUIRE(acc_ptr->is_started());
-        INFO ("Acceptor created");
+        INFO ("Acceptor created, connectors should now connect");
 
-        INFO ("Creating second iteration of connectors, after acceptor");
-        start_connectors(in_msg_vec, ioc, interval, num_conns,
-                      delim, empty_msg, conn_cnt, err_wq);
+        REQUIRE(conn_fut.get() == 0u);
+
+        INFO ("Second iteration of connectors, after acceptor start, not in separate thread");
+        auto sz = start_connectors(in_msg_vec, ioc, interval, num_conns,
+                                   delim, empty_msg, conn_cnt, err_wq);
+        REQUIRE(sz == 0u);
 
         acc_ptr->stop();
         INFO ("Acceptor stopped");
@@ -260,15 +266,6 @@ SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors
 
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 30 connectors, many msgs", 
-           "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_30] [many]" ) {
-
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 100*NumMsgs),
-                  true, 0, 30,
-                  std::string_view(), make_empty_variable_len_msg() );
-
-}
-
 SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 20, 1 connectors", 
            "[tcp_conn] [cr_lf_msg] [one_way] [interval_20] [connectors_1]" ) {
 
@@ -296,11 +293,11 @@ SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 0, 20 connectors
 
 }
 
-SCENARIO ( "Tcp connector test, CR / LF msgs, two-way, interval 10, 20 connectors", 
-           "[tcp_conn] [cr_lf_msg] [two_way] [interval_10] [connectors_20]" ) {
+SCENARIO ( "Tcp connector test, CR / LF msgs, two-way, interval 10, 5 connectors", 
+           "[tcp_conn] [cr_lf_msg] [two_way] [interval_10] [connectors_5]" ) {
 
   acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
-                  true, 10, 20,
+                  true, 10, 5,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
@@ -323,20 +320,20 @@ SCENARIO ( "Tcp connector test, LF msgs, one-way, interval 40, 1 connectors",
 
 }
 
-SCENARIO ( "Tcp connector test, LF msgs, one-way, interval 0, 25 connectors", 
-           "[tcp_conn] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
+SCENARIO ( "Tcp connector test, LF msgs, one-way, interval 0, 15 connectors", 
+           "[tcp_conn] [lf_msg] [one_way] [interval_0] [connectors_15]" ) {
 
   acc_conn_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
-                  false, 0, 25,
+                  false, 0, 15,
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, LF msgs, two-way, interval 0, 25 connectors, many msgs", 
-           "[tcp_conn] [lf_msg] [two_way] [interval_0] [connectors_25] [many]" ) {
+SCENARIO ( "Tcp connector test, LF msgs, two-way, interval 0, 15 connectors, many msgs", 
+           "[tcp_conn] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
 
   acc_conn_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs),
-                  true, 0, 25, 
+                  true, 0, 15, 
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
