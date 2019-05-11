@@ -43,7 +43,7 @@ namespace net {
  *  UDP entity (which may be a UDP unicast sender or receiver, or a UDP
  *  multicast receiver).
  *
- *  Calling the @c stop method on an @c net_entity object will shutdown the 
+ *  Calling the @c stop method on a @c net_entity object will shutdown the 
  *  associated network resource. At this point, other @c net_entity objects 
  *  copied from the original will be affected.
  *
