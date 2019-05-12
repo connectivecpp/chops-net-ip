@@ -23,9 +23,9 @@
 
 #include "net_ip/net_entity.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
+bool udp_empty_io_state_func (chops::net::udp_io_interface, std::size_t, bool) { return true; }
 
-void net_entity_test_default_constructed() {
+SCENARIO ( "Net entity default construction", "[net_entity]" ) {
 
   chops::net::net_entity net_ent { };
 
@@ -38,7 +38,7 @@ void net_entity_test_default_constructed() {
     AND_WHEN ("methods are called on an invalid net_entity") {
       THEN ("an exception is thrown") {
         REQUIRE_THROWS (net_ent.is_started());
-        REQUIRE_THROWS (net_ent.start(chops::test::io_state_chg_mock, chops::test::err_func_mock));
+        REQUIRE_THROWS (net_ent.start(udp_empty_io_state_func, chops::net::udp_empty_error_func));
         REQUIRE_THROWS (net_ent.stop());
       }
     }
@@ -46,8 +46,8 @@ void net_entity_test_default_constructed() {
 
 }
 
-template <typename EH>
-void net_entity_test_methods() {
+/*
+SCENARIO ( "Net entity method testing", "[net_entity]" ) {
 
   chops::net::net_entity net_ent { };
 
@@ -82,8 +82,7 @@ void net_entity_test_methods() {
 
 }
 
-template <typename EH>
-void net_entity_test_compare() {
+SCENARIO ( "Net entity comparison testing", "[net_entity]" ) {
 
   chops::net::net_entity net_ent1 { };
   auto e1 = std::make_shared<EH>();
@@ -132,9 +131,6 @@ void net_entity_test_compare() {
 
 }
 
-SCENARIO ( "Basic net entity test", "[net_entity]" ) {
-  net_entity_test_default_constructed<chops::test::net_entity_mock>();
-  net_entity_test_methods<chops::test::net_entity_mock>();
-  net_entity_test_compare<chops::test::net_entity_mock>();
-}
+*/
+
 
