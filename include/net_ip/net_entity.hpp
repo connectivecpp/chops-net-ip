@@ -31,6 +31,8 @@
 
 #include "net_ip/io_type_decls.hpp"
 
+#include "utility/overloaded.hpp"
+
 namespace chops {
 namespace net {
 
@@ -319,47 +321,116 @@ public:
           throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
         }, m_wptr);
   }
+
+  friend bool operator==(const net_entity&, const net_entity&) noexcept;
+  friend bool operator<(const net_entity&, const net_entity&) noexcept;
+};
+
+template <typename T>
+inline bool operator==(const std::weak_ptr<T>& lhs, const std::weak_ptr<T>& rhs) noexcept {
+  auto lp = lhs.lock();
+  auto rp = rhs.lock();
+  return (lp && rp && lp == rp) || (!lp && !rp);
+}
+
+template <typename T>
+inline bool operator<(const std::weak_ptr<T>& lhs, const std::weak_ptr<T>& rhs) noexcept {
+  auto lp = lhs.lock();
+  auto rp = rhs.lock();
+  return (lp && rp && lp < rp) || (!lp && rp);
+}
+
 /**
  *  @brief Compare two @c net_entity objects for equality.
  *
- *  If both @c net_entity objects are valid, then a @c std::shared_ptr comparison is made.
- *  If both @c net_entity objects are invalid, @c true is returned (this implies that
- *  all invalid @c net_entity objects are equivalent). If one is valid and the other invalid,
- *  @c false is returned.
+ *  If the @ net_entity objects are not both pointing to the same type of network entity 
+ *  (TCP connector, TCP acceptor, etc), then they are not equal. If both are the same
+ *  type of network entity, then both are checked to be valid (i.e. the internal @c weak_ptr
+ *  is valid). If both are valid, then a @c std::shared_ptr comparison is made.
+ *
+ *  If both @c net_entity objects are invalid (and both same type of network entity), @c true 
+ *  is returned (this implies that all invalid @c net_entity objects are equivalent). If one 
+ *  is valid and the other invalid, @c false is returned.
  *
  *  @return As described in the comments.
  */
 
-  bool operator==(const net_entity& rhs) const noexcept {
-    return std::visit([] (const auto& lwp, const auto& rwp) {
-          auto lp = lwp.lock();
-          auto rp = rwp.lock();
-          return (lp && rp && lp == rp) || (!lp && !rp);
-        }, m_wptr, rhs.m_wptr);
-  }
+inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
+  return std::visit(chops::overloaded {
+    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+          return lwp == rwp;
+        },
+    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+          return false;
+        },
+    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+          return false;
+        },
+    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+          return lwp == rwp;
+        },
+    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+          return false;
+        },
+    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+          return false;
+        },
+    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+          return lwp == rwp;
+        },
+    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+          return false;
+        },
+    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+          return false;
+        },
+    }, lhs.m_wptr, rhs.m_wptr);
+}
 
 /**
  *  @brief Compare two @c net_entity objects for ordering purposes.
  *
- *  All invalid @c net_entity objects are less than valid ones. When both are valid,
- *  the @c std::shared_ptr ordering is returned.
+ *  Arbitrarily, a UDP network entity compares less than a TCP acceptor which compares
+ *  less than a TCP connector. If both network entities are the same and both of them
+ *  valid (@c weak_ptr is valid), then the @c std::shared_ptr ordering is returned.
  *
- *  Specifically, if both @c net_entity objects are invalid @c false is returned. 
- *  If the left @c net_entity object is invalid and the right is not, @c true is
- *  returned. If the right @c net_entity is invalid, but the left is not, @c false is 
- *  returned.
+ *  All invalid @c net_entity objects (of the same network entity type) are less than valid 
+ *  ones. If both @c net_entity objects are invalid and the same network entity type, 
+ *  they are considered equal, so @c operator< returns @c false.
  *
  *  @return As described in the comments.
  */
-  bool operator<(const net_entity& rhs) const noexcept {
-    return std::visit([] (const auto& lwp, const auto& rwp) {
-          auto lp = lwp.lock();
-          auto rp = rwp.lock();
-          return (lp && rp && lp < rp) || (!lp && rp);
-        }, m_wptr, rhs.m_wptr);
+inline bool operator<(const net_entity& lhs, const net_entity& rhs) noexcept {
+  return std::visit(chops::overloaded {
+    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+          return lwp < rwp;
+        },
+    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+          return true;
+        },
+    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+          return true;
+        },
+    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+          return lwp < rwp;
+        },
+    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+          return false;
+        },
+    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+          return true;
+        },
+    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+          return lwp < rwp;
+        },
+    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+          return false;
+        },
+    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+          return false;
+        },
+    }, lhs.m_wptr, rhs.m_wptr);
   }
-
-};
 
 /**
  *  @brief A "do nothing" error function template that can be used in the 
