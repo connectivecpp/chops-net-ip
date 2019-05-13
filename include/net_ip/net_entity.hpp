@@ -292,12 +292,27 @@ public:
  */
   template <typename F1, typename F2>
   bool start(F1&& io_state_chg_func, F2&& err_func) {
-    return std::visit([&io_state_chg_func, &err_func] (const auto& wp)->bool {
+    return std::visit(chops::overloaded {
+        [&io_state_chg_func, &err_func] (detail::udp_entity_io_weak_ptr wp)->bool {
           if (auto p = wp.lock()) {
             return p->start(io_state_chg_func, err_func);
           }
           throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
-        }, m_wptr);
+        }, 
+        [&io_state_chg_func, &err_func] (detail::tcp_acceptor_weak_ptr wp)->bool {
+          if (auto p = wp.lock()) {
+            return p->start(io_state_chg_func, err_func);
+          }
+          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        },
+        [&io_state_chg_func, &err_func] (detail::tcp_connector_weak_ptr wp)->bool {
+          if (auto p = wp.lock()) {
+            return p->start(io_state_chg_func, err_func);
+          }
+          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        },
+      },  m_wptr);
+   
   }
 
 /**
