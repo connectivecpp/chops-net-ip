@@ -36,6 +36,19 @@
 namespace chops {
 namespace net {
 
+namespace detail {
+
+template <typename EWP, typename F1, typename F2>
+bool start_entity(const EWP& entity_weak_ptr, F1&& io_state_chg_func, F2&& err_func) {
+        [&io_state_chg_func, &err_func] (detail::udp_entity_io_weak_ptr wp)->bool {
+          if (auto p = wp.lock()) {
+            return p->start(io_state_chg_func, err_func);
+          }
+          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        }, 
+
+}
+
 /**
  *  @brief The @c net_entity class provides the application interface 
  *  into the TCP acceptor, TCP connector, and UDP entity functionality.
