@@ -98,7 +98,7 @@ public:
   template <typename F>
   void visit_io_output(F&& f) {
     if (m_io_common.is_io_started()) {
-      f(basic_io_output(this));
+      f(basic_io_output(shared_from_this()));
     }
   }
 

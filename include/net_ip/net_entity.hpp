@@ -21,6 +21,8 @@
 #include <cstddef> // std::size_t 
 #include <utility> // std::move, std::forward
 #include <variant>
+#include <functional>
+#include <type_traits>
 #include <system_error> // std::make_error, std::error_code
 
 #include "net_ip/net_ip_error.hpp"
@@ -39,13 +41,12 @@ namespace net {
 namespace detail {
 
 template <typename EWP, typename F1, typename F2>
-bool start_entity(const EWP& entity_weak_ptr, F1&& io_state_chg_func, F2&& err_func) {
-        [&io_state_chg_func, &err_func] (detail::udp_entity_io_weak_ptr wp)->bool {
-          if (auto p = wp.lock()) {
-            return p->start(io_state_chg_func, err_func);
-          }
-          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
-        }, 
+bool start_entity(const EWP& wp, F1&& io_state_chg_func, F2&& err_func) {
+  if (auto p = wp.lock()) {
+    return p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func));
+  }
+  throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+} 
 
 }
 
@@ -305,24 +306,26 @@ public:
  */
   template <typename F1, typename F2>
   bool start(F1&& io_state_chg_func, F2&& err_func) {
+    using namespace std::placeholders; // _1, _2, etc
+
     return std::visit(chops::overloaded {
-        [&io_state_chg_func, &err_func] (detail::udp_entity_io_weak_ptr wp)->bool {
-          if (auto p = wp.lock()) {
-            return p->start(io_state_chg_func, err_func);
+        [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp)->bool {
+          if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
+                        std::is_invocable_v<F2, udp_io_interface, std::error_code>) {
+            return detail::start_entity(wp, io_state_chg_func, err_func);
           }
-          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
-        }, 
-        [&io_state_chg_func, &err_func] (detail::tcp_acceptor_weak_ptr wp)->bool {
-          if (auto p = wp.lock()) {
-            return p->start(io_state_chg_func, err_func);
-          }
-          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
         },
-        [&io_state_chg_func, &err_func] (detail::tcp_connector_weak_ptr wp)->bool {
-          if (auto p = wp.lock()) {
-            return p->start(io_state_chg_func, err_func);
+        [&io_state_chg_func, &err_func] (const detail::tcp_acceptor_weak_ptr& wp)->bool {
+          if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
+                        std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
+            return detail::start_entity(wp, io_state_chg_func, err_func);
           }
-          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+        },
+        [&io_state_chg_func, &err_func] (const detail::tcp_connector_weak_ptr& wp)->bool {
+          if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
+                        std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
+            return detail::start_entity(wp, io_state_chg_func, err_func);
+          }
         },
       },  m_wptr);
    
