@@ -25,9 +25,25 @@
 
 bool udp_empty_io_state_func (chops::net::udp_io_interface, std::size_t, bool) { return true; }
 
+struct socket_visitor {
+  bool func_called = false;
+  void operator() (asio::ip::udp::socket& sock) { func_called = true; }
+  void operator() (asio::ip::tcp::socket& sock) { func_called = true; }
+  void operator() (asio::ip::tcp::acceptor& sock) { func_called = true; }
+};
+
+struct io_output_visitor {
+  bool func_called = false;
+  void operator() (chops::net::tcp_io_output io) { func_called = true; }
+  void operator() (chops::net::udp_io_output io) { func_called = true; }
+};
+
 SCENARIO ( "Net entity default construction", "[net_entity]" ) {
 
   chops::net::net_entity net_ent { };
+
+  socket_visitor sv { };
+  io_output_visitor io_out { };
 
   GIVEN ("A default constructed net_entity") {
     WHEN ("is_valid is called") {
@@ -38,6 +54,8 @@ SCENARIO ( "Net entity default construction", "[net_entity]" ) {
     AND_WHEN ("methods are called on an invalid net_entity") {
       THEN ("an exception is thrown") {
         REQUIRE_THROWS (net_ent.is_started());
+        REQUIRE_THROWS (net_ent.visit_socket(sv));
+        REQUIRE_THROWS (net_ent.visit_io_output(io_out));
         REQUIRE_THROWS (net_ent.start(udp_empty_io_state_func, chops::net::udp_empty_error_func));
         REQUIRE_THROWS (net_ent.stop());
       }
@@ -46,7 +64,6 @@ SCENARIO ( "Net entity default construction", "[net_entity]" ) {
 
 }
 
-/*
 SCENARIO ( "Net entity method testing", "[net_entity]" ) {
 
   chops::net::net_entity net_ent { };
@@ -131,6 +148,5 @@ SCENARIO ( "Net entity comparison testing", "[net_entity]" ) {
 
 }
 
-*/
 
 

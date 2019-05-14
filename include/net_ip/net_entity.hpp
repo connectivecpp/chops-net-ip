@@ -21,8 +21,7 @@
 #include <cstddef> // std::size_t 
 #include <utility> // std::move, std::forward
 #include <variant>
-#include <functional>
-#include <type_traits>
+#include <type_traits> // std::is_invocable
 #include <system_error> // std::make_error, std::error_code
 
 #include "net_ip/net_ip_error.hpp"
@@ -40,6 +39,10 @@ namespace net {
 
 namespace detail {
 
+// the following functions separate out the common code from net_entity
+// methods that are member function templates, where each visitation lambda
+// needs if constexpr to enable or disable code
+  
 template <typename EWP, typename F1, typename F2>
 bool start_entity(const EWP& wp, F1&& io_state_chg_func, F2&& err_func) {
   if (auto p = wp.lock()) {
@@ -48,7 +51,23 @@ bool start_entity(const EWP& wp, F1&& io_state_chg_func, F2&& err_func) {
   throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
 } 
 
+template <typename EWP, typename F>
+void visit_entity_socket(const EWP& wp, F&& func) {
+  if (auto p = wp.lock()) {
+    p->visit_socket(std::forward<F>(func));
+  }
+  throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
 }
+
+template <typename EWP, typename F>
+void visit_entity_io_output(const EWP& wp, F&& func) {
+  if (auto p = wp.lock()) {
+    p->visit_io_output(std::forward<F>(func));
+  }
+  throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+}
+
+} // end detail namespace
 
 /**
  *  @brief The @c net_entity class provides the application interface 
@@ -165,13 +184,24 @@ public:
  *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
   template <typename F>
-  void visit_socket(F&& f) const {
-    std::visit([func = std::forward<F>(f)] (const auto& wp) { 
-        if (auto p = wp.lock()) {
-          p->visit_socket(func);
-        }
-        throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
-      }, m_wptr);
+  void visit_socket(F&& func) const {
+    return std::visit(chops::overloaded {
+        [&func] (const detail::udp_entity_io_weak_ptr& wp) {
+          if constexpr (std::is_invocable_v<F, asio::ip::udp::socket&>) {
+            detail::visit_entity_socket(wp, func);
+          }
+        },
+        [&func] (const detail::tcp_acceptor_weak_ptr& wp) {
+          if constexpr (std::is_invocable_v<F, asio::ip::tcp::acceptor&>) {
+            detail::visit_entity_socket(wp, func);
+          }
+        },
+        [&func] (const detail::tcp_connector_weak_ptr& wp) {
+          if constexpr (std::is_invocable_v<F, asio::ip::tcp::socket&>) {
+            detail::visit_entity_socket(wp, func);
+          }
+        },
+      },  m_wptr);
   }
 
 /**
@@ -186,8 +216,8 @@ public:
  *  The function object must have one of the following signatures, depending on TCP or UDP:
  *
  *  @code
- *    void (chops::tcp_io_output); // TCP
- *    void (chops::udp_io_output); // UDP
+ *    void (chops::net::tcp_io_output); // TCP
+ *    void (chops::net::udp_io_output); // UDP
  *  @endcode
  *
  *  The function object will be called 0 to N times depending on active IO handlers. An
@@ -196,13 +226,24 @@ public:
  *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
  */
   template <typename F>
-  void visit_io_output(F&& f) const {
-    std::visit([func = std::forward<F>(f)] (const auto& wp) { 
-        if (auto p = wp.lock()) {
-          p->visit_io_output(func);
-        }
-        throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
-      }, m_wptr);
+  void visit_io_output(F&& func) const {
+    return std::visit(chops::overloaded {
+        [&func] (const detail::udp_entity_io_weak_ptr& wp) {
+          if constexpr (std::is_invocable_v<F, chops::net::udp_io_output>) {
+            detail::visit_entity_io_output(wp, func);
+          }
+        },
+        [&func] (const detail::tcp_acceptor_weak_ptr& wp) {
+          if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
+            detail::visit_entity_io_output(wp, func);
+          }
+        },
+        [&func] (const detail::tcp_connector_weak_ptr& wp) {
+          if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
+            detail::visit_entity_io_output(wp, func);
+          }
+        },
+      },  m_wptr);
   }
 
 /**
@@ -306,8 +347,6 @@ public:
  */
   template <typename F1, typename F2>
   bool start(F1&& io_state_chg_func, F2&& err_func) {
-    using namespace std::placeholders; // _1, _2, etc
-
     return std::visit(chops::overloaded {
         [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp)->bool {
           if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
@@ -328,7 +367,6 @@ public:
           }
         },
       },  m_wptr);
-   
   }
 
 /**
