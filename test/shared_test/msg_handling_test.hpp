@@ -145,7 +145,7 @@ struct msg_hdlr {
 using tcp_msg_hdlr = msg_hdlr<chops::net::tcp_io>;
 using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
 
-inline bool tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
+inline auto tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
                    std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
     return io.start_io(2, tcp_msg_hdlr(reply, cnt), decode_variable_len_msg_hdr);
@@ -155,11 +155,11 @@ inline bool tcp_start_io (chops::net::tcp_io_interface io, bool reply,
 
 constexpr int udp_max_buf_size = 65507;
 
-inline bool udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
+inline auto udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
   return io.start_io(udp_max_buf_size, udp_msg_hdlr(reply, cnt));
 }
 
-inline bool udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
+inline auto udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
                           const asio::ip::udp::endpoint& remote_endp) {
   if (receiving) {
     return io.start_io(remote_endp, udp_max_buf_size, udp_msg_hdlr(false, cnt));

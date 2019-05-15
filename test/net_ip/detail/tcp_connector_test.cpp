@@ -82,11 +82,12 @@ std::size_t start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
       conn_ptr->start( [&io_wq, delim, &conn_cnt, &err_wq]
                        (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
             if (starting) {
-              tcp_start_io(io, false, delim, conn_cnt);
-              io_wq.push(io.make_io_output());
+              auto r = tcp_start_io(io, false, delim, conn_cnt);
+              // assert(r);
+              io_wq.push(*(io.make_io_output()));
               return true;
             }
-            io_wq.push(io.make_io_output());
+            io_wq.push(*(io.make_io_output()));
             return false; // stop connector upon TCP connection going down
           },
         chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
@@ -157,7 +158,7 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         auto endp_seq = 
-            chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+            *(chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port));
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 
@@ -166,7 +167,8 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         acc_ptr->start( [delim, reply, &acc_cnt, &err_wq]
                         (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
               if (starting) {
-                tcp_start_io(io, reply, delim, acc_cnt);
+                auto r = tcp_start_io(io, reply, delim, acc_cnt);
+                // assert(r);
               }
               return true;
             },

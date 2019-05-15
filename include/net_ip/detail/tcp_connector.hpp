@@ -151,11 +151,13 @@ public:
           for (const auto& e : res) {
             m_endpoints.push_back(e.endpoint());
           }
+          clear_strings();
           start_connect();
         }
       );
       return true;
     }
+    clear_strings();
     start_connect();
     return true;
   }
@@ -170,6 +172,13 @@ public:
 
 
 private:
+
+  void clear_strings() noexcept {
+    m_remote_host.clear(); // no longer need the string contents
+    m_remote_host.shrink_to_fit();
+    m_remote_port.clear();
+    m_remote_port.shrink_to_fit();
+  }
 
   bool close(const std::error_code& err) {
     // first one in wins, clean up whatever is in progress
