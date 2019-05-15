@@ -27,6 +27,10 @@
 #include <utility> // std::move, std::forward
 #include <cstddef> // for std::size_t
 #include <functional> // std::bind
+#include <string>
+#include <string_view>
+
+#include "nonstd/expected.hpp"
 
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
@@ -49,12 +53,22 @@ private:
   asio::ip::tcp::acceptor           m_acceptor;
   std::vector<tcp_io_shared_ptr>    m_io_handlers;
   endpoint_type                     m_acceptor_endp;
+  std::string                       m_local_port_or_service;
+  std::string                       m_listen_intf;
   bool                              m_reuse_addr;
 
 public:
   tcp_acceptor(asio::io_context& ioc, const endpoint_type& endp,
                bool reuse_addr) :
     m_entity_common(), m_io_context(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
+    m_local_port_or_service(), m_listen_intf(),
+    m_reuse_addr(reuse_addr) { }
+
+  tcp_acceptor(asio::io_context& ioc, 
+               std::string_view local_port_or_service, std::string_view listen_intf,
+               bool reuse_addr) :
+    m_entity_common(), m_io_context(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(), 
+    m_local_port_or_service(local_port_or_service), m_listen_intf(listen_intf),
     m_reuse_addr(reuse_addr) { }
 
 private:
@@ -86,28 +100,43 @@ public:
 
 
   template <typename F1, typename F2>
-  bool start(F1&& io_state_chg, F2&& err_func) {
+  auto start(F1&& io_state_chg, F2&& err_func) ->
+        nonstd::expected<void, std::error_code> {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func))) {
       // already started
-      return false;
+      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_acceptor_already_started));
+    }
+    if (!m_local_port_or_service.empty()) {
+      endpoints_resolver<asio::ip::tcp> resolver(m_ioc);
+      auto ret = resolver.make_endpoints(true, m_listen_intf, m_local_port_or_service);
+      if (!ret) {
+        return ret;
+      }
+      m_acceptor_endp = ret->cbegin()->endpoint();
+      m_local_port_or_service.clear();
+      m_local_port_or_service.shrink_to_fit();
+      m_listen_intf.clear();
+      m_listen_intf.shrink_to_fit();
     }
     try {
       m_acceptor = asio::ip::tcp::acceptor(m_io_context, m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
       close(se.code());
-      return false;
+      return nonstd::make_unexpected(se.code());
     }
     start_accept();
-    return true;
+    return { };
   }
 
-  bool stop() {
-    if (m_entity_common.is_started()) {
-      close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
-      return true;
+  auto stop() ->
+        nonstd::expected<void, std::error_code> {
+    if (!m_entity_common.is_started()) {
+      // already stopped
+      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped));
     }
-    return false; // stop already called, or shutdown is happening
+    close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+    return { };
   }
 
 private:

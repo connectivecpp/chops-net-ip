@@ -130,10 +130,11 @@ public:
   }
 
   template <typename F1, typename F2>
-  bool start(F1&& io_state_chg, F2&& err_cb) {
+  auto start(F1&& io_state_chg, F2&& err_cb) ->
+        nonstd::expected<void, std::error_code> {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
-      return false;
+      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_connector_already_started));
     }
     // empty endpoints container is the indication that a resolve is needed
     if (m_endpoints.empty()) {
@@ -155,19 +156,21 @@ public:
           start_connect();
         }
       );
-      return true;
+      return { };
     }
     clear_strings();
     start_connect();
-    return true;
+    return { };
   }
 
-  bool stop() {
-    if (m_entity_common.is_started()) {
-      close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
-      return true;
+  auto stop() ->
+        nonstd::expected<void, std::error_code> {
+    if (!m_entity_common.is_started()) {
+      // already stopped
+      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_connector_already_stopped));
     }
-    return false; // stop already called
+    close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
+    return { };
   }
 
 
@@ -243,6 +246,7 @@ private:
       if (m_state == stopped) {
         return;
       }
+// TODO: reconn_time of 0 needs to be handled
       try {
         m_timer.expires_after(m_reconn_time);
       }
@@ -283,15 +287,17 @@ private:
     // will exit by checking state, close will not run
     // again because of atomic check
     m_entity_common.call_error_cb(iop, err);
-    if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
-      m_io_handler.reset();
-      start_connect();
-    }
-    else {
+    auto ret = m_entity_common.call_io_state_chg_cb(iop, 0, false);
+    // TODO - clean up this logic, maybe add a new error code for reconn not attempted
+    if (!ret || m_reconn_time == 0) {
       auto self { shared_from_this() };
       asio::post(m_socket.get_executor(), [this, self] () mutable {
           close(std::make_error_code(net_ip_errc::io_state_change_terminated));
         } );
+    }
+    else {
+      m_io_handler.reset();
+      start_connect();
     }
   }
 

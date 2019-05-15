@@ -30,7 +30,6 @@
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
 #include "asio/ip/udp.hpp"
-#include "asio/post.hpp"
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
@@ -58,12 +57,13 @@ namespace net {
  *  network objects is created internal to the @c net_ip object, a @c net_entity 
  *  object is returned to the application, allowing further operations to occur.
  *
- *  Applications perform most operations with either a @c net_entity or a 
- *  @c basic_io_interface object. The @c net_ip object creates facade-like objects of 
- *  type @c net_entity, which allow further operations.
+ *  Applications perform operations with the @c net_entity and 
+ *  @c basic_io_interface and @c basic_io_output objects. The @c net_ip object 
+ *  creates facade-like objects of type @c net_entity, which allow further 
+ *  operations.
  *
- *  The general application usage pattern for the @ net_ip, @ net_entity, and
- *  @c basic_io_interface classes is:
+ *  The general application usage pattern for the @ net_ip, @ net_entity, 
+ *  @c basic_io_interface and @c basic_io_output classes is:
  *
  *  1. Instantiate a @c net_ip object.
  *
@@ -77,9 +77,9 @@ namespace net {
  *  connect or a listen. 
  *
  *  Local host and port and interface name lookups are performed immediately 
- *  using direct (synchronous) lookups. Remote host and port name lookups are 
- *  performed asynchronously (since these may take longer) and are started when 
- *  the @c net_entity @c start is called (this is only needed for TCP connectors).
+ *  using direct (synchronous) lookups when the @c net_entity @c start method
+ *  is called. Remote host and port name lookups are performed asynchronously 
+ *  (since these may take longer) and are only needed for TCP connectors.
  *  If this is not acceptable, the application can perform the lookup and the 
  *  endpoint (or endpoint sequence) can be passed in through the @c make method.
  *
@@ -88,12 +88,14 @@ namespace net {
  *
  *  4. When a @c basic_io_interface object is supplied to the application through
  *  the IO state change callback, input processing is started through a 
- *  @c start_io call, and outbound data is sent through @c send methods.
+ *  @c start_io call. For outbound data, a @c basic_io_output object can be created
+ *  from the @c basic_io_interface object, allowing data to be sent through @c send 
+ *  methods.
  *
  *  There are no executor operations available through the @c net_ip class. In 
  *  other words, no event loop or @c run methods are available. Instead, the
- *  @c net_ip class takes an @c io_context as a constructor parameter and 
- *  application code will use the Asio executor methods for invoking
+ *  @c net_ip class takes an @c asio @c io_context as a constructor parameter and 
+ *  application code will use the @c asio executor methods for invoking
  *  the underlying asynchronous operations.
  *
  *  For convenience, a class named @c worker in the @c net_ip_component directory 
@@ -111,7 +113,7 @@ namespace net {
  *  The @c net_ip class is safe for multiple threads to use concurrently. 
  *
  *  It should be noted, however, that race conditions are possible, especially for 
- *  similar operations invoked between @c net_entity and @c io_interface 
+ *  similar operations invoked between @c net_entity and @c basic_io_interface 
  *  objects. For example, starting and stopping network entities concurrently between 
  *  separate objects or threads could cause unexpected behavior.
  *
@@ -165,18 +167,15 @@ public:
  *
  *  @return @c net_entity object instantiated for a TCP acceptor.
  *
- *  @throw @c std::system_error if there is a name lookup failure.
- *
- *  @note The name and port lookup to create a TCP endpoint is immediately performed. The
- *  alternate TCP acceptor @c make method can be used if this is not acceptable.
- *
  */
   net_entity make_tcp_acceptor (std::string_view local_port_or_service, 
                                 std::string_view listen_intf = "",
                                 bool reuse_addr = true) {
-    endpoints_resolver<asio::ip::tcp> resolver(m_ioc);
-    auto results = resolver.make_endpoints(true, listen_intf, local_port_or_service);
-    return make_tcp_acceptor(results.cbegin()->endpoint(), reuse_addr);
+    auto p = std::make_shared<detail::tcp_acceptor>(m_ioc, local_port_or_service, 
+                                                    listen_intf, reuse_addr);
+    lg g(m_mutex);
+    m_acceptors.push_back(p);
+    return net_entity(p);
   }
 
 /**
@@ -198,7 +197,6 @@ public:
   net_entity make_tcp_acceptor (const asio::ip::tcp::endpoint& endp,
                                 bool reuse_addr = true) {
     auto p = std::make_shared<detail::tcp_acceptor>(m_ioc, endp, reuse_addr);
-//    asio::post(m_ioc.get_executor(), [p, this] () { m_acceptors.push_back(p); } );
     lg g(m_mutex);
     m_acceptors.push_back(p);
     return net_entity(p);
@@ -238,20 +236,9 @@ public:
 
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
                                                                   remote_host, reconn_time);
-//    asio::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     lg g(m_mutex);
     m_connectors.push_back(p);
     return net_entity(p);
-  }
-
-  // match const char* to string_view instead of templated iterator
-  net_entity make_tcp_connector (const char* remote_port_or_service,
-                                               const char* remote_host,
-                                               std::chrono::milliseconds reconn_time =
-                                                 std::chrono::milliseconds { } ) {
-    return make_tcp_connector(std::string_view(remote_port_or_service),
-                              std::string_view(remote_host),
-                              reconn_time);
   }
 
 /**
@@ -276,7 +263,6 @@ public:
                                  std::chrono::milliseconds reconn_time = 
                                    std::chrono::milliseconds { } ) {
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
-//    asio::post(m_ioc.get_executor(), [p, this] () { m_connectors.push_back(p); } );
     lg g(m_mutex);
     m_connectors.push_back(p);
     return net_entity(p);
@@ -326,8 +312,8 @@ public:
  *
  *  @note Common socket options on UDP datagram sockets, such as increasing the 
  *  "time to live" (hop limit), allowing UDP broadcast, or setting the socket 
- *  reuse flag can be set by using the @c net_entity @c get_socket method (or 
- *  @c io_interface @c get_socket method, which returns the same reference).
+ *  reuse flag can be set by using the @c net_entity @c visit_socket method (or 
+ *  @c basic_io_interface @c visit_socket method, which returns the same reference).
  *
  */
   net_entity make_udp_unicast (std::string_view local_port_or_service, 
@@ -352,7 +338,6 @@ public:
  */
   net_entity make_udp_unicast (const asio::ip::udp::endpoint& endp) {
     auto p = std::make_shared<detail::udp_entity_io>(m_ioc, endp);
-//    asio::post(m_ioc.get_executor(), [p, this] () { m_udp_entities.push_back(p); } );
     lg g(m_mutex);
     m_udp_entities.push_back(p);
     return net_entity(p);
@@ -382,11 +367,6 @@ public:
  *
  */
   void remove(net_entity ent) {
-//    asio::post(m_ioc.get_executor(), 
-//          [ent, this] () mutable {
-//        chops::erase_where(something);
-//      }
-//    );
     lg g(m_mutex);
     std::visit (chops::overloaded {
         [] (detail::tcp_acceptor_weak_ptr p) { chops::erase_where(m_acceptors, p.lock()); },
@@ -403,12 +383,6 @@ public:
  *
  */
   void remove_all() {
-//    asio::post(m_ioc.get_executor(), [this] () {
-//        m_udp_entities.clear();
-//        m_connectors.clear();
-//        m_acceptors.clear();
-//      }
-//    );
     lg g(m_mutex);
     m_udp_entities.clear();
     m_connectors.clear();
@@ -422,12 +396,6 @@ public:
  *
  */
   void stop_all() {
-//    asio::post(m_ioc.get_executor(), [this] () {
-//        for (auto i : m_udp_entities) { i->stop(); }
-//        for (auto i : m_connectors) { i->stop(); }
-//        for (auto i : m_acceptors) { i->stop(); }
-//      }
-//    );
     lg g(m_mutex);
     for (auto i : m_udp_entities) { i->stop(); }
     for (auto i : m_connectors) { i->stop(); }

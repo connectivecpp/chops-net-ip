@@ -33,17 +33,27 @@ enum class net_ip_errc {
   io_state_change_terminated = 3,
   tcp_io_handler_stopped = 4,
   udp_io_handler_stopped = 5,
+
   tcp_acceptor_stopped = 6,
   tcp_acceptor_closed = 7,
-  udp_entity_stopped = 8,
-  udp_entity_closed = 9,
-  tcp_connector_stopped = 10,
-  tcp_connector_closed = 11,
-  tcp_connector_resolving_addresses = 12,
-  tcp_connector_connecting = 13,
-  tcp_connector_connected = 14,
-  tcp_connector_timeout = 15,
-  functor_variant_mismatch = 16,
+  tcp_acceptor_already_started = 8,
+  tcp_acceptor_already_stopped = 9,
+
+  udp_entity_stopped = 10,
+  udp_entity_closed = 11,
+  udp_entity_already_started = 12,
+  udp_entity_already_stopped = 13,
+
+  tcp_connector_stopped = 14,
+  tcp_connector_closed = 15,
+  tcp_connector_resolving_addresses = 16,
+  tcp_connector_connecting = 17,
+  tcp_connector_connected = 18,
+  tcp_connector_timeout = 19,
+  tcp_connector_already_started = 20,
+  tcp_connector_already_stopped = 21,
+
+  functor_variant_mismatch = 21,
 };
 
 namespace detail {
@@ -64,14 +74,25 @@ struct net_ip_err_category : public std::error_category {
       return "tcp io handler stopped";
     case net_ip_errc::udp_io_handler_stopped:
       return "udp io handler stopped";
+
     case net_ip_errc::tcp_acceptor_stopped:
       return "tcp acceptor stopped";
     case net_ip_errc::tcp_acceptor_closed:
       return "tcp acceptor closed";
+    case net_ip_errc::tcp_acceptor_already_started:
+      return "tcp acceptor already started";
+    case net_ip_errc::tcp_acceptor_already_stopped:
+      return "tcp acceptor already stopped";
+
     case net_ip_errc::udp_entity_stopped:
       return "udp entity stopped";
     case net_ip_errc::udp_entity_closed:
       return "udp entity closed";
+    case net_ip_errc::udp_entity_already_started:
+      return "udp entity already started";
+    case net_ip_errc::udp_entity_already_stopped:
+      return "udp entity already stopped";
+
     case net_ip_errc::tcp_connector_stopped:
       return "tcp connector stopped";
     case net_ip_errc::tcp_connector_closed:
@@ -84,6 +105,11 @@ struct net_ip_err_category : public std::error_category {
       return "tcp connector connected";
     case net_ip_errc::tcp_connector_timeout:
       return "tcp connector timeout";
+    case net_ip_errc::tcp_connector_already_started:
+      return "tcp connector already started";
+    case net_ip_errc::tcp_connector_already_stopped:
+      return "tcp connector already stopped";
+
     case net_ip_errc::functor_variant_mismatch:
       return "function object does not match internal variant";
     }
