@@ -74,10 +74,12 @@ public:
   }
 
   template <typename F>
-  void visit_io_output(F&& f) {
+  std::size_t visit_io_output(F&& f) {
     for (auto ioh : m_io_handlers) {
+      std::size_t sum = 0u;
       if (ioh->is_io_started()) {
         f(basic_io_output(ioh));
+        sum += 1u;
       }
     }
   }

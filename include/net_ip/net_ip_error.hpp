@@ -43,6 +43,7 @@ enum class net_ip_errc {
   tcp_connector_connecting = 13,
   tcp_connector_connected = 14,
   tcp_connector_timeout = 15,
+  functor_variant_mismatch = 16,
 };
 
 namespace detail {
@@ -83,6 +84,8 @@ struct net_ip_err_category : public std::error_category {
       return "tcp connector connected";
     case net_ip_errc::tcp_connector_timeout:
       return "tcp connector timeout";
+    case net_ip_errc::functor_variant_mismatch:
+      return "function object does not match internal variant";
     }
     return "(unknown error)";
   }

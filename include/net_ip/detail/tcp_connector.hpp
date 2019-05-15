@@ -121,10 +121,12 @@ public:
   }
 
   template <typename F>
-  void visit_io_output(F&& f) {
+  std::size_t visit_io_output(F&& f) {
     if (m_io_handler && m_io_handler->is_io_started()) {
       f(basic_io_output(m_io_handler));
+      return 1u;
     }
+    return 0u;
   }
 
   template <typename F1, typename F2>

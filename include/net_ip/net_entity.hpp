@@ -24,6 +24,8 @@
 #include <type_traits> // std::is_invocable
 #include <system_error> // std::make_error, std::error_code
 
+#include "nonstd/expected.hpp"
+
 #include "net_ip/net_ip_error.hpp"
 
 #include "net_ip/detail/tcp_acceptor.hpp"
@@ -44,27 +46,30 @@ namespace detail {
 // needs if constexpr to enable or disable code
   
 template <typename EWP, typename F1, typename F2>
-bool start_entity(const EWP& wp, F1&& io_state_chg_func, F2&& err_func) {
+auto start_entity(const EWP& wp, F1&& io_state_chg_func, F2&& err_func) ->
+      nonstd::expected<bool, std::error_code> {
   if (auto p = wp.lock()) {
     return p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func));
   }
-  throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
 } 
 
 template <typename EWP, typename F>
-void visit_entity_socket(const EWP& wp, F&& func) {
+auto visit_entity_socket(const EWP& wp, F&& func) ->
+      nonstd::expected<void, std::error_code> {
   if (auto p = wp.lock()) {
     p->visit_socket(std::forward<F>(func));
   }
-  throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
 }
 
 template <typename EWP, typename F>
-void visit_entity_io_output(const EWP& wp, F&& func) {
+auto visit_entity_io_output(const EWP& wp, F&& func) ->
+      nonstd::expected<std::size_t, std::error_code> {
   if (auto p = wp.lock()) {
-    p->visit_io_output(std::forward<F>(func));
+    return p->visit_io_output(std::forward<F>(func));
   }
-  throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
 }
 
 } // end detail namespace
@@ -151,17 +156,18 @@ public:
 /**
  *  @brief Query whether the associated net entity is in a started or stopped state.
  *
- *  @return @c true if @c start has been called, @c false if not, or entity has
- *  stopped.
+ *  @return @c bool specifying whether @c start has been called 
+ *  (if @c false, the network entity has not been started or is in a stopped state);
+ *  if no associated network entity, a @c std::error_code is returned.
  *
- *  @throw A @c net_ip_exception is thrown if no association to a net entity.
  */
-  bool is_started() const {
+  auto is_started() const ->
+      nonstd::expected<bool, std::error_code> {
     return std::visit([] (const auto& wp)->bool { 
           if (auto p = wp.lock()) {
             return p->is_started();
           }
-          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
         }, m_wptr);
   }
 
@@ -181,25 +187,30 @@ public:
  *  Within the function object socket options can be queried or modified or any valid method
  *  called.
  *
- *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
+ *  @return If no associated network entity or if the function object does not match the
+ *  runtime net entity, a @c std::error_code is returned.
  */
   template <typename F>
-  void visit_socket(F&& func) const {
+  auto visit_socket(F&& func) const ->
+      nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
         [&func] (const detail::udp_entity_io_weak_ptr& wp) {
           if constexpr (std::is_invocable_v<F, asio::ip::udp::socket&>) {
-            detail::visit_entity_socket(wp, func);
+            return detail::visit_entity_socket(wp, func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_acceptor_weak_ptr& wp) {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::acceptor&>) {
-            detail::visit_entity_socket(wp, func);
+            return detail::visit_entity_socket(wp, func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_connector_weak_ptr& wp) {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::socket&>) {
-            detail::visit_entity_socket(wp, func);
+            return detail::visit_entity_socket(wp, func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
       },  m_wptr);
   }
@@ -216,32 +227,38 @@ public:
  *  The function object must have one of the following signatures, depending on TCP or UDP:
  *
  *  @code
- *    void (chops::net::tcp_io_output); // TCP
- *    void (chops::net::udp_io_output); // UDP
+ *    std::size_t (chops::net::tcp_io_output); // TCP
+ *    std::size_t (chops::net::udp_io_output); // UDP
  *  @endcode
  *
  *  The function object will be called 0 to N times depending on active IO handlers. An
- *  IO handler is active is @c start_io has been called on it.
+ *  IO handler is active is @c start_io has been called on it. The return value specifies
+ *  how many times the function object has been called.
  *
- *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
+ *  @return If no associated network entity or if the function object does not match the
+ *  runtime net entity, a @c std::error_code is returned.
  */
   template <typename F>
-  void visit_io_output(F&& func) const {
+  auto visit_io_output(F&& func) const ->
+      nonstd::expected<std::size_t, std::error_code> {
     return std::visit(chops::overloaded {
         [&func] (const detail::udp_entity_io_weak_ptr& wp) {
           if constexpr (std::is_invocable_v<F, chops::net::udp_io_output>) {
-            detail::visit_entity_io_output(wp, func);
+            return detail::visit_entity_io_output(wp, func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_acceptor_weak_ptr& wp) {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
-            detail::visit_entity_io_output(wp, func);
+            return detail::visit_entity_io_output(wp, func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_connector_weak_ptr& wp) {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
-            detail::visit_entity_io_output(wp, func);
+            return detail::visit_entity_io_output(wp, func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
       },  m_wptr);
   }
@@ -341,53 +358,59 @@ public:
  *  For use cases that don't care about error codes, a function named @c empty_error_func 
  *  is available.
  *
- *  @return @c false if already started, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
+ *  @return @c bool specifying whether @c start succeeds
+ *  (if @c false, the network entity has already been started);
+ *  if no associated network entity, a @c std::error_code is returned.
  */
   template <typename F1, typename F2>
-  bool start(F1&& io_state_chg_func, F2&& err_func) {
+  auto start(F1&& io_state_chg_func, F2&& err_func) ->
+      nonstd::expected<bool, std::error_code> {
     return std::visit(chops::overloaded {
-        [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp)->bool {
+        [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp) {
           if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, udp_io_interface, std::error_code>) {
             return detail::start_entity(wp, io_state_chg_func, err_func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&io_state_chg_func, &err_func] (const detail::tcp_acceptor_weak_ptr& wp)->bool {
+        [&io_state_chg_func, &err_func] (const detail::tcp_acceptor_weak_ptr& wp) {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
             return detail::start_entity(wp, io_state_chg_func, err_func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&io_state_chg_func, &err_func] (const detail::tcp_connector_weak_ptr& wp)->bool {
+        [&io_state_chg_func, &err_func] (const detail::tcp_connector_weak_ptr& wp) {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
             return detail::start_entity(wp, io_state_chg_func, err_func);
           }
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
       },  m_wptr);
   }
 
 /**
- *  @brief Stop network processing on the associated net entity after calling @c stop_io on
- *  each associated IO handler.
+ *  @brief Stop network processing on the associated network entity.
+ *
+ *  Internally, the network entity will call @c stop_io (or equivalent) on each associated
+ *  IO handler.
  *
  *  Stopping the network processing may involve closing connections, deallocating
  *  resources, unbinding from ports, and invoking application provided state change function 
  *  object callbacks. 
  *
- *  @return @c false if already stopped, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated net entity.
- *
+ *  @return @c bool specifying whether @c stop succeeds
+ *  (if @c false, the network entity has already been stopped);
+ *  if no associated network entity, a @c std::error_code is returned.
  */
-  bool stop() {
+  auto stop() ->
+      nonstd::expected<bool, std::error_code> {
     return std::visit([] (const auto& wp)->bool {
           if (auto p = wp.lock()) {
             return p->stop();
           }
-          throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+          return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
         }, m_wptr);
   }
 

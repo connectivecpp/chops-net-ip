@@ -23,6 +23,8 @@
 #include <cstddef> // std::size_t, std::byte
 #include <utility> // std::forward, std::move
 
+#include "nonstd/expected.hpp"
+
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/basic_io_output.hpp"
 
@@ -40,7 +42,8 @@ namespace net {
  *  network IO processing, whether TCP or UDP. This class provides methods to start IO
  *  processing (i.e. start read processing and enable write processing),
  *  stop IO processing (which typically does not need to be directly called), and access 
- *  the IO handler socket (e.g. to retrieve or modify socket options).
+ *  the IO handler socket (e.g. to retrieve or modify socket options). It also provides
+ *  a method to create a @c basic_io_output object for sending data.
  *
  *  This class is a lightweight value class, allowing @c basic_io_interface 
  *  objects to be copied and used in multiple places in an application, all of them 
@@ -76,6 +79,8 @@ namespace net {
  *  calling @c stop_io at the same time as @c start_io from multiple threads may result
  *  in undesired application behavior.
  *
+ *  Error handling is provided by returning a @c nonstd::expected object on most methods. 
+ *  
  */
 
 template <typename IOT>
@@ -91,7 +96,7 @@ public:
 /**
  *  @brief Default construct an @c basic_io_interface.
  *
- *  An @c basic_io_interface is not useful until an active @c basic_io_interface is assigned
+ *  A @c basic_io_interface is not useful until an active @c basic_io_interface is assigned
  *  into it.
  *  
  */
@@ -125,35 +130,37 @@ public:
  *
  *  A @c basic_io_output object is used for sending data. 
  *
- *  @return @c basic_io_output object, either a @c tcp_io_output or @c udp_io_output.
+ *  @return @c basic_io_output object, either a @c tcp_io_output or @c udp_io_output; 
+ *  if no associated IO handler, a @c std::error_code is returned.
  *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  basic_io_output<IOT> make_io_output() const {
+  auto make_io_output() const ->
+        nonstd::expected<basic_io_output<IOT>, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return basic_io_output(p);
+      return basic_io_output<IOT>(p);
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
  *  @brief Query whether an IO handler is in a started state or not.
  *
- *  @return @c true if @c start_io has been called, @c false if the IO handler
- *  has not been started or is in a stopped state.
+ *  @return @c bool specifying whether @c start_io on the IO handler has been called 
+ *  (if @c false, the IO handler has not been started or is in a stopped state);
+ *  if no associated IO handler, a @c std::error_code is returned.
  *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
-  bool is_io_started() const {
+  auto is_io_started() const ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->is_io_started();
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
- *  @brief Call an application supplied function object with a reference to the associated 
- *  IO handler socket.
+ *  @brief Provide an application supplied function object which will be called with a 
+ *  reference to the associated IO handler socket.
  *
  *  The function object must have one of the following signatures, depending on the IO handler
  *  type:
@@ -166,15 +173,16 @@ public:
  *  Within the function object socket options can be queried or modified or any valid method
  *  called.
  *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ *  @return If no associated IO handler, a @c std::error_code is returned.
  */
   template <typename F>
-  void visit_socket(F&& f) {
+  auto visit_socket(F&& f) ->
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       p->visit_socket(std::forward<F>(f));
-      return;
+      return { };
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -239,16 +247,18 @@ public:
  *  The message frame function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c false if already started, otherwise @c true.
+ *  @return @c bool specifying whether the @c start_io call succeeds or not 
+ *  (@c false if already started);
+ *  if no associated IO handler, a @c std::error_code is returned.
  *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
  */
   template <typename MH, typename MF>
-  bool start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) {
+  auto start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(header_size, std::forward<MH>(msg_handler), std::forward<MF>(msg_frame));
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -281,7 +291,7 @@ public:
  *  @c basic_io_output can be used for sending a reply. The endpoint is the remote 
  *  endpoint that sent the data (not used in the @c send method call, but may be
  *  useful for other purposes). 
-
+ *
  *  Returning @c false from the message handler callback causes the connection to be 
  *  closed.
  *
@@ -290,16 +300,17 @@ public:
  *
  *  @param func A function that is of type @c hdr_decoder_func.
  *
- *  @return @c false if already started, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ *  @return @c bool specifying whether the @c start_io call succeeds or not 
+ *  (@c false if already started);
+ *  if no associated IO handler, a @c std::error_code is returned.
  */
   template <typename MH>
-  bool start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) {
+  auto start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(header_size, std::forward<MH>(msg_handler), func);
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -335,17 +346,18 @@ public:
  *  The message handler function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c false if already started, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ *  @return @c bool specifying whether the @c start_io call succeeds or not 
+ *  (@c false if already started);
+ *  if no associated IO handler, a @c std::error_code is returned.
  *
  */
   template <typename MH>
-  bool start_io(std::string_view delimiter, MH&& msg_handler) {
+  auto start_io(std::string_view delimiter, MH&& msg_handler) ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(delimiter, std::forward<MH>(msg_handler));
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -385,17 +397,17 @@ public:
  *  The message handler function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c false if already started, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
- *
+ *  @return @c bool specifying whether the @c start_io call succeeds or not 
+ *  (@c false if already started);
+ *  if no associated IO handler, a @c std::error_code is returned.
  */
   template <typename MH>
-  bool start_io(std::size_t read_size, MH&& msg_handler) {
+  auto start_io(std::size_t read_size, MH&& msg_handler) ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(read_size, std::forward<MH>(msg_handler));
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -431,17 +443,17 @@ public:
  *  The message handler function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c false if already started, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
- *
+ *  @return @c bool specifying whether the @c start_io call succeeds or not 
+ *  (@c false if already started);
+ *  if no associated IO handler, a @c std::error_code is returned.
  */
   template <typename MH>
-  bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
+  auto start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(endp, max_size, std::forward<MH>(msg_handler));
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -457,15 +469,16 @@ public:
  *  the read completes it is due to an error condition). For UDP IO handlers, no
  *  reads are started.
  *
- *  @return @c false if already started, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ *  @return @c bool specifying whether the @c start_io call succeeds or not 
+ *  (@c false if already started);
+ *  if no associated IO handler, a @c std::error_code is returned.
  */
-  bool start_io() {
+  auto start_io() ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io();
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**
@@ -481,15 +494,16 @@ public:
  *
  *  @param endp Default destination @c asio::ip::udp::endpoint.
  *
- *  @return @c false if already started, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ *  @return @c bool specifying whether the @c start_io call succeeds or not 
+ *  (@c false if already started);
+ *  if no associated IO handler, a @c std::error_code is returned.
  */
-  bool start_io(const endpoint_type& endp) {
+  auto start_io(const endpoint_type& endp) ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->start_io(endp);
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
  
 /**
@@ -504,15 +518,16 @@ public:
  *  down, but the entity will remain active. For UDP entities @c stop_io is equivalent
  *  to calling @c stop.
  *
- *  @return @c false if already stopped, otherwise @c true.
- *
- *  @throw A @c net_ip_exception is thrown if there is not an associated IO handler.
+ *  @return @c bool specifying whether the @c stop_io call succeeds or not 
+ *  (@c false if already stopped);
+ *  if no associated IO handler, a @c std::error_code is returned.
  */
-  bool stop_io() {
+  auto stop_io() ->
+        nonstd::expected<bool, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
       return p->stop_io();
     }
-    throw net_ip_exception(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
 
 /**

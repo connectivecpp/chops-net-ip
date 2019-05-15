@@ -96,10 +96,12 @@ public:
   }
 
   template <typename F>
-  void visit_io_output(F&& f) {
+  std::size_t visit_io_output(F&& f) {
     if (m_io_common.is_io_started()) {
       f(basic_io_output(shared_from_this()));
+      return 1u;
     }
+    return 0u;
   }
 
   output_queue_stats get_output_queue_stats() const noexcept {

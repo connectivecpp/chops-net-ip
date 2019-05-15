@@ -23,6 +23,8 @@
 #include <string>
 #include <utility> // std::move, std::forward
 
+#include "nonstd/expected.hpp"
+
 namespace chops {
 namespace net {
 
@@ -124,20 +126,24 @@ public:
  *  except that a container of endpoints is returned instead of a function object callback 
  *  invocation happening at a later point.
  *
- *  @return @c asio::ip::basic_resolver_results<Protocol>, where Protocol
- *  is either @c asio::ip::tcp or @c asio::ip::udp.
- *
- *  @throw @c std::system_error on failure.
+ *  @return @c expected, on success contains @c asio::ip::basic_resolver_results<Protocol>, 
+ *  where Protocol is either @c asio::ip::tcp or @c asio::ip::udp; on failure returns 
+ *  a @c std::error_code.
  */
 
-  auto make_endpoints(bool local, std::string_view host_or_intf_name, std::string_view service_or_port) {
+  auto make_endpoints(bool local, std::string_view host_or_intf_name, std::string_view service_or_port) ->
+      nonstd::expected<asio::ip::basic_resolver_results<Protocol>, std::error_code> {
 
-    if (local) {
-      return m_resolver.resolve(host_or_intf_name, service_or_port,
-          asio::ip::resolver_base::flags(asio::ip::resolver_base::passive | 
-                                         asio::ip::resolver_base::address_configured));
+    std::error_code ec;
+    auto res = m_resolver.resolve(host_or_intf_name, service_or_port,
+          (local ? asio::ip::resolver_base::flags(asio::ip::resolver_base::passive | 
+                                                  asio::ip::resolver_base::address_configured) :
+                   asio::ip::resolver_base::flags()), ec);
+    if (ec) {
+      return nonstd::make_unexpected(ec);
     }
-    return m_resolver.resolve(std::string(host_or_intf_name), std::string(service_or_port));
+    return res;
+
   }
 
 };

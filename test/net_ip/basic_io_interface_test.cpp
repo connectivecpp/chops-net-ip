@@ -38,25 +38,27 @@ void basic_io_interface_test_default_constructed() {
       }
     }
     AND_WHEN ("any method but comparison is called on an invalid basic_io_interface") {
-      THEN ("an exception is thrown") {
+      THEN ("an error is returned") {
 
         using endp_t = typename IOT::endpoint_type;
 
-        REQUIRE_THROWS (io_intf.is_io_started());
+        auto r = io_intf.make_io_output();
+        REQUIRE_FALSE (r);
+        INFO ("Error: " << r.error().message());
 
-        REQUIRE_THROWS (io_intf.make_io_output());
+        REQUIRE_FALSE (io_intf.is_io_started());
 
-        REQUIRE_THROWS (io_intf.visit_socket([] (double&) { } ));
+        REQUIRE_FALSE (io_intf.visit_socket([] (double&) { } ));
 
-        REQUIRE_THROWS (io_intf.start_io(0, [] { }, [] { }));
-        REQUIRE_THROWS (io_intf.start_io(0, [] { }, do_nothing_hdr_decoder));
-        REQUIRE_THROWS (io_intf.start_io("testing, hah!", [] { }));
-        REQUIRE_THROWS (io_intf.start_io(0, [] { }));
-        REQUIRE_THROWS (io_intf.start_io(endp_t(), 0, [] { }));
-        REQUIRE_THROWS (io_intf.start_io());
-        REQUIRE_THROWS (io_intf.start_io(endp_t()));
+        REQUIRE_FALSE (io_intf.start_io(0, [] { }, [] { }));
+        REQUIRE_FALSE (io_intf.start_io(0, [] { }, do_nothing_hdr_decoder));
+        REQUIRE_FALSE (io_intf.start_io("testing, hah!", [] { }));
+        REQUIRE_FALSE (io_intf.start_io(0, [] { }));
+        REQUIRE_FALSE (io_intf.start_io(endp_t(), 0, [] { }));
+        REQUIRE_FALSE (io_intf.start_io());
+        REQUIRE_FALSE (io_intf.start_io(endp_t()));
 
-        REQUIRE_THROWS (io_intf.stop_io());
+        REQUIRE_FALSE (io_intf.stop_io());
 
       }
     }
@@ -80,7 +82,7 @@ void basic_io_interface_test_methods() {
     }
     AND_WHEN ("is_io_started is called") {
       THEN ("false is returned") {
-        REQUIRE_FALSE (io_intf.is_io_started());
+        REQUIRE_FALSE (*io_intf.is_io_started());
       }
     }
     AND_WHEN ("start_io or stop_io is called") {
@@ -90,40 +92,42 @@ void basic_io_interface_test_methods() {
 
         REQUIRE (io_intf.is_valid());
 
-        REQUIRE (io_intf.start_io(0, [] { }, [] { }));
-        REQUIRE (io_intf.is_io_started());
-        REQUIRE (io_intf.stop_io());
-        REQUIRE_FALSE (io_intf.is_io_started());
-        REQUIRE (io_intf.start_io("testing, hah!", [] { }));
-        REQUIRE (io_intf.is_io_started());
-        REQUIRE (io_intf.stop_io());
-        REQUIRE (io_intf.start_io(0, [] { }));
-        REQUIRE (io_intf.is_io_started());
-        REQUIRE (io_intf.stop_io());
-        REQUIRE (io_intf.start_io(endp_t(), 0, [] { }));
-        REQUIRE (io_intf.is_io_started());
-        REQUIRE (io_intf.stop_io());
-        REQUIRE (io_intf.start_io(endp_t()));
-        REQUIRE (io_intf.is_io_started());
-        REQUIRE (io_intf.stop_io());
-        REQUIRE (io_intf.start_io());
-        REQUIRE (io_intf.is_io_started());
-        REQUIRE (io_intf.stop_io());
-        REQUIRE_FALSE (io_intf.is_io_started());
+        REQUIRE (*io_intf.start_io(0, [] { }, [] { }));
+        REQUIRE (*io_intf.is_io_started());
+        REQUIRE (*io_intf.stop_io());
+        REQUIRE_FALSE (*io_intf.is_io_started());
+        REQUIRE (*io_intf.start_io("testing, hah!", [] { }));
+        REQUIRE (*io_intf.is_io_started());
+        REQUIRE (*io_intf.stop_io());
+        REQUIRE (*io_intf.start_io(0, [] { }));
+        REQUIRE (*io_intf.is_io_started());
+        REQUIRE (*io_intf.stop_io());
+        REQUIRE (*io_intf.start_io(endp_t(), 0, [] { }));
+        REQUIRE (*io_intf.is_io_started());
+        REQUIRE (*io_intf.stop_io());
+        REQUIRE (*io_intf.start_io(endp_t()));
+        REQUIRE (*io_intf.is_io_started());
+        REQUIRE (*io_intf.stop_io());
+        REQUIRE (*io_intf.start_io());
+        REQUIRE (*io_intf.is_io_started());
+        REQUIRE (*io_intf.stop_io());
+        REQUIRE_FALSE (*io_intf.is_io_started());
       }
     }
     AND_WHEN ("make_io_output is called") {
       THEN ("a basic_io_output object is returned") {
         REQUIRE (io_intf.is_valid());
-	auto io_out = io_intf.make_io_output();
-        REQUIRE (io_out.is_valid());
+        auto io_out = io_intf.make_io_output();
+        REQUIRE (io_out);
+        REQUIRE ((*io_out).is_valid());
       }
     }
     AND_WHEN ("visit_socket is called") {
       THEN ("the io handler value is modified") {
         REQUIRE (io_intf.is_valid());
-        io_intf.visit_socket([] (double& d) { d += 1.0; } );
-	REQUIRE (ioh->mock_sock == 43.0);
+        auto r = io_intf.visit_socket([] (double& d) { d += 1.0; } );
+        REQUIRE (r);
+        REQUIRE (ioh->mock_sock == 43.0);
       }
     }
 

@@ -45,8 +45,9 @@ void basic_io_output_test_construction_and_release() {
     WHEN ("make_io_output is called on the basic_io_interface") {
       auto io_out = io_intf.make_io_output();
       THEN ("a valid basic_io_output object is created and in a non-started state") {
-        REQUIRE(io_out.is_valid());
-        REQUIRE_FALSE(io_out.is_io_started());
+        REQUIRE (io_out);
+        REQUIRE(io_out->is_valid());
+        REQUIRE_FALSE(io_out->is_io_started());
       }
     }
   } // end given
