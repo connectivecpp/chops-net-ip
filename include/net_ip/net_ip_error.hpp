@@ -50,10 +50,11 @@ enum class net_ip_errc {
   tcp_connector_connecting = 17,
   tcp_connector_connected = 18,
   tcp_connector_timeout = 19,
-  tcp_connector_already_started = 20,
-  tcp_connector_already_stopped = 21,
+  tcp_connector_no_reconnect_attempted = 20,
+  tcp_connector_already_started = 21,
+  tcp_connector_already_stopped = 22,
 
-  functor_variant_mismatch = 21,
+  functor_variant_mismatch = 23,
 };
 
 namespace detail {
@@ -105,6 +106,8 @@ struct net_ip_err_category : public std::error_category {
       return "tcp connector connected";
     case net_ip_errc::tcp_connector_timeout:
       return "tcp connector timeout";
+    case net_ip_errc::tcp_connector_no_reconnect_attempted:
+      return "tcp connector no reconnect attempted since reconnect timeout is 0";
     case net_ip_errc::tcp_connector_already_started:
       return "tcp connector already started";
     case net_ip_errc::tcp_connector_already_stopped:

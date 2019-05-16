@@ -47,7 +47,7 @@ namespace detail {
   
 template <typename EWP, typename F1, typename F2>
 auto start_entity(const EWP& wp, F1&& io_state_chg_func, F2&& err_func) ->
-      nonstd::expected<bool, std::error_code> {
+      nonstd::expected<void, std::error_code> {
   if (auto p = wp.lock()) {
     return p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func));
   }
@@ -59,6 +59,7 @@ auto visit_entity_socket(const EWP& wp, F&& func) ->
       nonstd::expected<void, std::error_code> {
   if (auto p = wp.lock()) {
     p->visit_socket(std::forward<F>(func));
+    return { };
   }
   return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
 }
@@ -187,8 +188,7 @@ public:
  *  Within the function object socket options can be queried or modified or any valid method
  *  called.
  *
- *  @return If no associated network entity or if the function object does not match the
- *  runtime net entity, a @c std::error_code is returned.
+ *  @return If error, a @c std::error_code is returned.
  */
   template <typename F>
   auto visit_socket(F&& func) const ->
@@ -235,8 +235,7 @@ public:
  *  IO handler is active is @c start_io has been called on it. The return value specifies
  *  how many times the function object has been called.
  *
- *  @return If no associated network entity or if the function object does not match the
- *  runtime net entity, a @c std::error_code is returned.
+ *  @return Number of times function object called, or a @c std::error_code is returned.
  */
   template <typename F>
   auto visit_io_output(F&& func) const ->
@@ -358,13 +357,11 @@ public:
  *  For use cases that don't care about error codes, a function named @c empty_error_func 
  *  is available.
  *
- *  @return @c bool specifying whether @c start succeeds
- *  (if @c false, the network entity has already been started);
- *  if no associated network entity, a @c std::error_code is returned.
+ *  @return If error, a @c std::error_code is returned.
  */
   template <typename F1, typename F2>
   auto start(F1&& io_state_chg_func, F2&& err_func) ->
-      nonstd::expected<bool, std::error_code> {
+      nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
         [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp) {
           if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
@@ -400,12 +397,10 @@ public:
  *  resources, unbinding from ports, and invoking application provided state change function 
  *  object callbacks. 
  *
- *  @return @c bool specifying whether @c stop succeeds
- *  (if @c false, the network entity has already been stopped);
- *  if no associated network entity, a @c std::error_code is returned.
+ *  @return If error, a @c std::error_code is returned.
  */
   auto stop() ->
-      nonstd::expected<bool, std::error_code> {
+      nonstd::expected<void, std::error_code> {
     return std::visit([] (const auto& wp)->bool {
           if (auto p = wp.lock()) {
             return p->stop();

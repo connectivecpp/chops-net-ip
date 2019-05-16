@@ -247,9 +247,7 @@ public:
  *  The message frame function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c bool specifying whether the @c start_io call succeeds or not 
- *  (@c false if already started);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return If an error occurs, a @c std::error_code is returned.
  *
  */
   template <typename MH, typename MF>

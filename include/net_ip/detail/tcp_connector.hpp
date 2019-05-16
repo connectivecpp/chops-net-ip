@@ -197,7 +197,7 @@ private:
         break;
       }
       case connecting: {
-        // socket close should cancel connect attempt
+        // socket close should cancel any connect attempts
         break;
       }
       case connected: {
@@ -246,7 +246,10 @@ private:
       if (m_state == stopped) {
         return;
       }
-// TODO: reconn_time of 0 needs to be handled
+      if (m_reconn_time == std::chrono::milliseconds(0)) {
+        close(std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted));
+        return;
+      }
       try {
         m_timer.expires_after(m_reconn_time);
       }
@@ -287,18 +290,20 @@ private:
     // will exit by checking state, close will not run
     // again because of atomic check
     m_entity_common.call_error_cb(iop, err);
-    auto ret = m_entity_common.call_io_state_chg_cb(iop, 0, false);
-    // TODO - clean up this logic, maybe add a new error code for reconn not attempted
-    if (!ret || m_reconn_time == 0) {
-      auto self { shared_from_this() };
-      asio::post(m_socket.get_executor(), [this, self] () mutable {
-          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-        } );
+    std::error_code ec;
+    if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
+      if (m_reconn_time != std::chrono::milliseconds(0)) {
+        m_io_handler.reset();
+        start_connect();
+        return;
+      }
+      ec = std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted);
     }
     else {
-      m_io_handler.reset();
-      start_connect();
+      ec = std::make_error_code(net_ip_errc::io_state_change_terminated);
     }
+    auto self { shared_from_this() };
+    asio::post(m_socket.get_executor(), [this, self, ec] () mutable { close(ec); } );
   }
 
 };
