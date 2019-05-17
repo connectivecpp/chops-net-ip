@@ -92,26 +92,26 @@ void basic_io_interface_test_methods() {
 
         REQUIRE (io_intf.is_valid());
 
-        REQUIRE (*io_intf.start_io(0, [] { }, [] { }));
-        REQUIRE (*io_intf.is_io_started());
-        REQUIRE (*io_intf.stop_io());
-        REQUIRE_FALSE (*io_intf.is_io_started());
-        REQUIRE (*io_intf.start_io("testing, hah!", [] { }));
-        REQUIRE (*io_intf.is_io_started());
-        REQUIRE (*io_intf.stop_io());
-        REQUIRE (*io_intf.start_io(0, [] { }));
-        REQUIRE (*io_intf.is_io_started());
-        REQUIRE (*io_intf.stop_io());
-        REQUIRE (*io_intf.start_io(endp_t(), 0, [] { }));
-        REQUIRE (*io_intf.is_io_started());
-        REQUIRE (*io_intf.stop_io());
-        REQUIRE (*io_intf.start_io(endp_t()));
-        REQUIRE (*io_intf.is_io_started());
-        REQUIRE (*io_intf.stop_io());
-        REQUIRE (*io_intf.start_io());
-        REQUIRE (*io_intf.is_io_started());
-        REQUIRE (*io_intf.stop_io());
-        REQUIRE_FALSE (*io_intf.is_io_started());
+        REQUIRE (io_intf.start_io(0, [] { }, [] { }));
+        REQUIRE (*(io_intf.is_io_started()));
+        REQUIRE (io_intf.stop_io());
+        REQUIRE_FALSE (*(io_intf.is_io_started()));
+        REQUIRE (io_intf.start_io("testing, hah!", [] { }));
+        REQUIRE (*(io_intf.is_io_started()));
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io(0, [] { }));
+        REQUIRE (*(io_intf.is_io_started()));
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io(endp_t(), 0, [] { }));
+        REQUIRE (*(io_intf.is_io_started()));
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io(endp_t()));
+        REQUIRE (*(io_intf.is_io_started()));
+        REQUIRE (io_intf.stop_io());
+        REQUIRE (io_intf.start_io());
+        REQUIRE (*(io_intf.is_io_started()));
+        REQUIRE (io_intf.stop_io());
+        REQUIRE_FALSE (*(io_intf.is_io_started()));
       }
     }
     AND_WHEN ("make_io_output is called") {
@@ -119,7 +119,7 @@ void basic_io_interface_test_methods() {
         REQUIRE (io_intf.is_valid());
         auto io_out = io_intf.make_io_output();
         REQUIRE (io_out);
-        REQUIRE ((*io_out).is_valid());
+        REQUIRE (io_out->is_valid());
       }
     }
     AND_WHEN ("visit_socket is called") {

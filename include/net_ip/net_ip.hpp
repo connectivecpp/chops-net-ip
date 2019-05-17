@@ -37,7 +37,6 @@
 #include "net_ip/detail/tcp_connector.hpp"
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/udp_entity_io.hpp"
-#include "net_ip/detail/tcp_io.hpp"
 
 #include "utility/erase_where.hpp"
 #include "utility/overloaded.hpp"
@@ -226,8 +225,8 @@ public:
  *
  *  @return @c net_entity object instantiated for a TCP connector.
  *
- *  @note The name and port lookup to create a sequence of remote TCP endpoints is not performed
- *  until the @c net_entity @c start method is called. If this is not acceptable, the
+ *  @note The name and port lookup to create a sequence of remote TCP endpoints is performed
+ *  when the @c net_entity @c start method is called. If this is not acceptable, the
  *  endpoints can be looked up by the application and the alternate @c make_tcp_connector
  *  method called.
  *

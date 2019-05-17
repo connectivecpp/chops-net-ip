@@ -157,10 +157,9 @@ public:
 /**
  *  @brief Query whether the associated net entity is in a started or stopped state.
  *
- *  @return @c bool specifying whether @c start has been called 
- *  (if @c false, the network entity has not been started or is in a stopped state);
- *  if no associated network entity, a @c std::error_code is returned.
- *
+ *  @return @c nonstd::expected - @c bool on success, specifying whether @c start been 
+ *  called (if @c false, the network entity has not been started or is in a stopped state); 
+ *  on error (if no associated IO handler), a @c std::error_code is returned.
  */
   auto is_started() const ->
       nonstd::expected<bool, std::error_code> {
@@ -188,7 +187,8 @@ public:
  *  Within the function object socket options can be queried or modified or any valid method
  *  called.
  *
- *  @return If error, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - socket has been visited on success; on error (if no 
+ *  associated IO handler), a @c std::error_code is returned.
  */
   template <typename F>
   auto visit_socket(F&& func) const ->
@@ -236,6 +236,8 @@ public:
  *  how many times the function object has been called.
  *
  *  @return Number of times function object called, or a @c std::error_code is returned.
+ *  @return @c nonstd::expected - on success returns number of times function object has
+ *  been called; on error (if no associated IO handler), a @c std::error_code is returned.
  */
   template <typename F>
   auto visit_io_output(F&& func) const ->
@@ -357,7 +359,8 @@ public:
  *  For use cases that don't care about error codes, a function named @c empty_error_func 
  *  is available.
  *
- *  @return If error, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - on success network entity is started; on error, a 
+ *  @c std::error_code is returned.
  */
   template <typename F1, typename F2>
   auto start(F1&& io_state_chg_func, F2&& err_func) ->
@@ -397,7 +400,8 @@ public:
  *  resources, unbinding from ports, and invoking application provided state change function 
  *  object callbacks. 
  *
- *  @return If error, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - on success network entity is stopped; on error, a 
+ *  @c std::error_code is returned.
  */
   auto stop() ->
       nonstd::expected<void, std::error_code> {

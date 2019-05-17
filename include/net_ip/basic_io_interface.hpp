@@ -33,6 +33,19 @@
 namespace chops {
 namespace net {
 
+namespace detail {
+
+inline auto start_io_helper(bool started) ->
+      nonstd::expected<void, std::error_code> {
+  if (!started) {
+    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::io_already_started));
+  }
+  return { };
+}
+
+} // end detail namespace
+
+
 /**
  *  @brief The @c basic_io_interface class template provides access to an underlying 
  *  network IO handler (TCP or UDP IO handler), primarily for calling the @c start_io
@@ -130,8 +143,9 @@ public:
  *
  *  A @c basic_io_output object is used for sending data. 
  *
- *  @return @c basic_io_output object, either a @c tcp_io_output or @c udp_io_output; 
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - @c basic_io_output on success, either a @c tcp_io_output 
+ *  or @c udp_io_output; on error (if no associated IO handler), a @c std::error_code is 
+ *  returned.
  *
  */
   auto make_io_output() const ->
@@ -145,9 +159,10 @@ public:
 /**
  *  @brief Query whether an IO handler is in a started state or not.
  *
- *  @return @c bool specifying whether @c start_io on the IO handler has been called 
- *  (if @c false, the IO handler has not been started or is in a stopped state);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - @c bool on success, specifying whether 
+ *  @c start_io on the IO handler has been called (if @c false, the IO handler has not 
+ *  been started or is in a stopped state); on error (if no associated IO handler), a 
+ *  @c std::error_code is returned.
  *
  */
   auto is_io_started() const ->
@@ -173,7 +188,8 @@ public:
  *  Within the function object socket options can be queried or modified or any valid method
  *  called.
  *
- *  @return If no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - socket has been visited on success; on error (if no 
+ *  associated IO handler), a @c std::error_code is returned.
  */
   template <typename F>
   auto visit_socket(F&& f) ->
@@ -247,14 +263,15 @@ public:
  *  The message frame function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return If an error occurs, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  *
  */
   template <typename MH, typename MF>
   auto start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->start_io(header_size, std::forward<MH>(msg_handler), std::forward<MF>(msg_frame));
+      return detail::start_io_helper(p->start_io(header_size, std::forward<MH>(msg_handler), std::forward<MF>(msg_frame)));
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -298,15 +315,14 @@ public:
  *
  *  @param func A function that is of type @c hdr_decoder_func.
  *
- *  @return @c bool specifying whether the @c start_io call succeeds or not 
- *  (@c false if already started);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  */
   template <typename MH>
   auto start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->start_io(header_size, std::forward<MH>(msg_handler), func);
+      return detail::start_io_helper(p->start_io(header_size, std::forward<MH>(msg_handler), func));
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -344,16 +360,15 @@ public:
  *  The message handler function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c bool specifying whether the @c start_io call succeeds or not 
- *  (@c false if already started);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  *
  */
   template <typename MH>
   auto start_io(std::string_view delimiter, MH&& msg_handler) ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->start_io(delimiter, std::forward<MH>(msg_handler));
+      return detail::start_io_helper(p->start_io(delimiter, std::forward<MH>(msg_handler)));
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -395,15 +410,14 @@ public:
  *  The message handler function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c bool specifying whether the @c start_io call succeeds or not 
- *  (@c false if already started);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  */
   template <typename MH>
   auto start_io(std::size_t read_size, MH&& msg_handler) ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->start_io(read_size, std::forward<MH>(msg_handler));
+      return detail::start_io_helper(p->start_io(read_size, std::forward<MH>(msg_handler)));
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -441,15 +455,14 @@ public:
  *  The message handler function object is moved if possible, otherwise it is copied. 
  *  State data should be movable or copyable.
  *
- *  @return @c bool specifying whether the @c start_io call succeeds or not 
- *  (@c false if already started);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  */
   template <typename MH>
   auto start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->start_io(endp, max_size, std::forward<MH>(msg_handler));
+      return detail::start_io_helper(p->start_io(endp, max_size, std::forward<MH>(msg_handler)));
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -467,14 +480,13 @@ public:
  *  the read completes it is due to an error condition). For UDP IO handlers, no
  *  reads are started.
  *
- *  @return @c bool specifying whether the @c start_io call succeeds or not 
- *  (@c false if already started);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  */
   auto start_io() ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->start_io();
+      return detail::start_io_helper(p->start_io());
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -492,14 +504,13 @@ public:
  *
  *  @param endp Default destination @c asio::ip::udp::endpoint.
  *
- *  @return @c bool specifying whether the @c start_io call succeeds or not 
- *  (@c false if already started);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  */
   auto start_io(const endpoint_type& endp) ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->start_io(endp);
+      return detail::start_io_helper(p->start_io(endp));
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
@@ -516,14 +527,16 @@ public:
  *  down, but the entity will remain active. For UDP entities @c stop_io is equivalent
  *  to calling @c stop.
  *
- *  @return @c bool specifying whether the @c stop_io call succeeds or not 
- *  (@c false if already stopped);
- *  if no associated IO handler, a @c std::error_code is returned.
+ *  @return @c nonstd::expected - IO is started on success; on error, a 
+ *  @c std::error_code is returned.
  */
   auto stop_io() ->
-        nonstd::expected<bool, std::error_code> {
+        nonstd::expected<void, std::error_code> {
     if (auto p = m_ioh_wptr.lock()) {
-      return p->stop_io();
+      if (!p->stop_io()) {
+        return nonstd::make_unexpected(std::make_error_code(net_ip_errc::io_already_stopped));
+      }
+      return { };
     }
     return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
   }
