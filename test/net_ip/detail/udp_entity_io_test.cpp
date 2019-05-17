@@ -73,8 +73,8 @@ void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int 
   std::vector<iosp> senders;
 
   chops::repeat(num_senders, [&ioc, &senders, &send_cnt, &err_wq] (int i) {
-      auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
-                                     make_udp_endpoint(test_addr, test_port_base+i+1));
+      std::string port_num = std::to_string(test_port_base + i + 1);
+      auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, port_num, test_addr);
       senders.push_back(send_ptr);
       send_ptr->start([&send_cnt] (chops::net::udp_io_interface io, std::size_t, bool starting) {
                 if (starting) {

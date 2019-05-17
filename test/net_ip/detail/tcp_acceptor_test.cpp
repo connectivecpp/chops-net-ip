@@ -43,9 +43,8 @@
 #include "net_ip_component/worker.hpp"
 #include "net_ip_component/error_delivery.hpp"
 
-#include "net_ip/endpoints_resolver.hpp"
-
 #include "net_ip/io_type_decls.hpp"
+#include "net_ip/endpoints_resolver.hpp"
 
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/start_funcs.hpp"
@@ -122,12 +121,8 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
     WHEN ("an acceptor and one or more connectors are created") {
       THEN ("the futures provide synchronization and data returns") {
 
-        auto ret =
-            chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
-        REQUIRE(ret);
-        auto endp_seq = *ret;
-        auto acc_ptr = 
-            std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
+        auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                                  std::string_view(test_port), std::string_view(), true);
 
         REQUIRE_FALSE(acc_ptr->is_started());
 

@@ -46,8 +46,6 @@
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/start_funcs.hpp"
 
-#include "net_ip/endpoints_resolver.hpp"
-
 #include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
 #include "queue/wait_queue.hpp"
@@ -158,10 +156,8 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         INFO ("Pausing 2 seconds to test connector re-connect timeout");
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        auto endp_seq = 
-            *(chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port));
         auto acc_ptr = 
-            std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
+            std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port, "", true);
 
 
         test_counter acc_cnt = 0;

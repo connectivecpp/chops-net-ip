@@ -132,8 +132,7 @@ public:
       endpoints_resolver<asio::ip::udp> resolver(m_ioc);
       auto ret = resolver.make_endpoints(true, m_local_intf, m_local_port_or_service);
       if (!ret) {
-        m_entity_common.stop();
-        return nonstd::make_unexpected(ret.error());
+        return start_error(ret.error());
       }
       m_local_endp = ret->cbegin()->endpoint();
       m_local_port_or_service.clear();
@@ -141,23 +140,19 @@ public:
       m_local_intf.clear();
       m_local_intf.shrink_to_fit();
     }
-    try {
-      // assume default constructed endpoints compare equal
-      if (m_local_endp == endpoint_type()) {
-// TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
-        m_socket.open(asio::ip::udp::v4());
-      }
-      else {
-        m_socket = asio::ip::udp::socket(m_ioc, m_local_endp);
-      }
+    std::error_code ec;
+    m_socket.open(m_local_endp.protocol(), ec);
+    if (ec) {
+      return start_error(ec);
     }
-    catch (const std::system_error& se) {
-      m_entity_common.stop();
-      return nonstd::make_unexpected(se.code());
+    if (m_local_endp != endpoint_type()) { // local bind needed
+      m_socket.bind(m_local_endp, ec);
+      if (ec) {
+        return start_error(ec);
+      }
     }
     if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
-      m_entity_common.stop();
-      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::io_state_change_terminated));
+      return start_error(std::make_error_code(net_ip_errc::io_state_change_terminated));
     }
     return { };
   }
@@ -212,6 +207,7 @@ public:
       // already stopped
       return nonstd::make_unexpected(std::make_error_code(net_ip_errc::udp_entity_already_stopped));
     }
+    close(std::make_error_code(net_ip_errc::udp_entity_stopped));
     return { };
   }
 
@@ -273,16 +269,19 @@ private:
     auto b = m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
     std::error_code ec;
     m_socket.close(ec);
-    if (ec) {
-      m_entity_common.call_error_cb(shared_from_this(), ec);
-    }
     m_entity_common.call_error_cb(shared_from_this(), 
           std::make_error_code(net_ip_errc::udp_entity_closed));
   }
 
+  auto start_error(const std::error_code& ec) ->
+        nonstd::expected<void, std::error_code> {
+    close(ec);
+    return nonstd::make_unexpected(ec);
+  }
+
 };
 
-// method implementations, just to make the class declaration a little more readable
+// method implementations, split out just to make the class declaration a little more readable
 
 template <typename MH>
 void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
