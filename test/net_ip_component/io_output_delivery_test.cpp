@@ -26,7 +26,7 @@
 #include "net_ip/net_entity.hpp"
 #include "net_ip/net_ip_error.hpp"
 
-#include "shared_test/mock_classes_test.hpp"
+#include "shared_test/mock_classes.hpp"
 
 
 SCENARIO ( "Testing make_io_interface_future_impl",

@@ -31,7 +31,7 @@
 
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 
-#include "shared_test/mock_classes_test.hpp"
+#include "shared_test/mock_classes.hpp"
 
 SCENARIO ( "Mock classes testing, io_handler_mock test",
            "[io_handler_mock]" ) {

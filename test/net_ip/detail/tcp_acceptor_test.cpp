@@ -47,7 +47,8 @@
 
 #include "net_ip/io_type_decls.hpp"
 
-#include "shared_test/msg_handling_test.hpp"
+#include "shared_test/msg_handling.hpp"
+#include "shared_test/start_funcs.hpp"
 
 #include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
@@ -68,7 +69,7 @@ std::size_t connector_func (const vec_buf& in_msg_vec, asio::io_context& ioc,
                             bool read_reply, int interval, chops::const_shared_buffer empty_msg) {
 
   asio::ip::tcp::socket sock(ioc);
-  auto endp_seq = chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+  auto endp_seq = *(chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port));
   asio::ip::tcp::endpoint endp = asio::connect(sock, endp_seq);
 
   std::size_t cnt = 0;
@@ -121,8 +122,10 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
     WHEN ("an acceptor and one or more connectors are created") {
       THEN ("the futures provide synchronization and data returns") {
 
-        auto endp_seq = 
+        auto ret =
             chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port);
+        REQUIRE(ret);
+        auto endp_seq = *ret;
         auto acc_ptr = 
             std::make_shared<chops::net::detail::tcp_acceptor>(ioc, *(endp_seq.cbegin()), true);
 

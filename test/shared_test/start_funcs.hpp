@@ -14,24 +14,58 @@
  *
  */
 
-#ifndef SHARED_UTILITY_FUNC_TEST_HPP_INCLUDED
-#define SHARED_UTILITY_FUNC_TEST_HPP_INCLUDED
+#ifndef START_FUNCS_HPP_INCLUDED
+#define START_FUNCS_HPP_INCLUDED
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
 
 #include "asio/ip/udp.hpp" // udp endpoint
 
-#include "net_ip/shared_utility_test.hpp"
+#include "net_ip/io_type_decls.hpp"
+#include "net_ip/simple_variable_len_msg_frame.hpp"
 
-#include "net_ip_component/simple_variable_len_msg_frame.hpp"
-#include "net_ip_component/io_interface_delivery.hpp"
-#include "net_ip_component/io_state_change.hpp"
-#include "net_ip_component/error_delivery.hpp"
+#include "shared_test/msg_handling.hpp"
+
+// #include "net_ip_component/io_interface_delivery.hpp"
+// #include "net_ip_component/io_state_change.hpp"
+// #include "net_ip_component/error_delivery.hpp"
 
 namespace chops {
 namespace test {
 
+using tcp_msg_hdlr = msg_hdlr<chops::net::tcp_io>;
+using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
+
+inline auto tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
+                   std::string_view delim, test_counter& cnt) {
+  if (delim.empty()) {
+    return io.start_io(2, tcp_msg_hdlr(reply, cnt), decode_variable_len_msg_hdr);
+  }
+  return io.start_io(delim, tcp_msg_hdlr(reply, cnt));
+}
+
+constexpr int udp_max_buf_size = 65507;
+
+inline auto udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
+  return io.start_io(udp_max_buf_size, udp_msg_hdlr(reply, cnt));
+}
+
+inline auto udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
+                          const asio::ip::udp::endpoint& remote_endp) {
+  if (receiving) {
+    return io.start_io(remote_endp, udp_max_buf_size, udp_msg_hdlr(false, cnt));
+  }
+  return io.start_io(remote_endp);
+}
+
+inline asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
+  return asio::ip::udp::endpoint(asio::ip::make_address(addr),
+                           static_cast<unsigned short>(port_num));
+}
+
+
+/*
 
 inline auto get_tcp_io_futures(chops::net::tcp_connector_net_entity conn, chops::net::err_wait_q& wq,
                                bool reply, std::string_view delim, test_counter& cnt) {
@@ -83,8 +117,11 @@ inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net
            chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
 
+*/
+
 } // end namespace test
 } // end namespace chops
+
 
 #endif
 

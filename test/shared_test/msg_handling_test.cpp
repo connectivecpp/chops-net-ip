@@ -37,8 +37,8 @@
 
 #include "net_ip/basic_io_output.hpp"
 
-#include "shared_test/msg_handling_test.hpp"
-#include "shared_test/mock_classes_test.hpp"
+#include "shared_test/msg_handling.hpp"
+#include "shared_test/mock_classes.hpp"
 
 void make_msg_test() {
   using namespace chops::test;

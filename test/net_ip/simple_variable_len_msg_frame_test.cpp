@@ -20,7 +20,7 @@
 #include "utility/make_byte_array.hpp"
 
 #include "net_ip/simple_variable_len_msg_frame.hpp"
-#include "shared_test/msg_handling_test.hpp"
+#include "shared_test/msg_handling.hpp"
 
 SCENARIO ( "Simple variable length message frame",
            "[simple_variable_len_msg_frame]" ) {

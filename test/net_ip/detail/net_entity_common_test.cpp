@@ -25,7 +25,7 @@
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/net_ip_error.hpp"
 
-#include "shared_test/mock_classes_test.hpp"
+#include "shared_test/mock_classes.hpp"
 
 template<typename IOT>
 struct io_state_change {

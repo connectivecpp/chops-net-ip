@@ -3,7 +3,7 @@
  *  @ingroup test_module
  *
  *  @brief Declarations and implementations for shared test code dealing with test
- *  message building and handler function object classes.
+ *  message building and message handler function object classes.
  *
  *  The general Chops Net IP test strategy is to have message senders and message 
  *  receivers, with a flag specifying whether the receiver is to loop back the
@@ -28,8 +28,8 @@
  *
  */
 
-#ifndef MSG_HANDLING_TEST_HPP_INCLUDED
-#define MSG_HANDLING_TEST_HPP_INCLUDED
+#ifndef MSG_HANDLING_HPP_INCLUDED
+#define MSG_HANDLING_HPP_INCLUDED
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
@@ -51,7 +51,7 @@
 #include "marshall/extract_append.hpp"
 #include "marshall/shared_buffer.hpp"
 
-#include "net_ip/io_type_decls.hpp"
+#include "net_ip/basic_io_output.hpp"
 
 namespace chops {
 namespace test {
@@ -141,37 +141,6 @@ struct msg_hdlr {
   }
 
 };
-
-using tcp_msg_hdlr = msg_hdlr<chops::net::tcp_io>;
-using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
-
-inline auto tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
-                   std::string_view delim, test_counter& cnt) {
-  if (delim.empty()) {
-    return io.start_io(2, tcp_msg_hdlr(reply, cnt), decode_variable_len_msg_hdr);
-  }
-  return io.start_io(delim, tcp_msg_hdlr(reply, cnt));
-}
-
-constexpr int udp_max_buf_size = 65507;
-
-inline auto udp_start_io (chops::net::udp_io_interface io, bool reply, test_counter& cnt) {
-  return io.start_io(udp_max_buf_size, udp_msg_hdlr(reply, cnt));
-}
-
-inline auto udp_start_io (chops::net::udp_io_interface io, bool receiving, test_counter& cnt,
-                          const asio::ip::udp::endpoint& remote_endp) {
-  if (receiving) {
-    return io.start_io(remote_endp, udp_max_buf_size, udp_msg_hdlr(false, cnt));
-  }
-  return io.start_io(remote_endp);
-}
-
-inline asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
-  return asio::ip::udp::endpoint(asio::ip::make_address(addr),
-                           static_cast<unsigned short>(port_num));
-}
-
 
 } // end namespace test
 } // end namespace chops

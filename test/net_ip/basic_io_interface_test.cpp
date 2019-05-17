@@ -22,7 +22,7 @@
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
 
-#include "shared_test/mock_classes_test.hpp"
+#include "shared_test/mock_classes.hpp"
 
 std::size_t do_nothing_hdr_decoder (const std::byte*, std::size_t) { return 0u; }
 

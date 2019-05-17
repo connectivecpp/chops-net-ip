@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef MOCK_CLASSES_TEST_HPP_INCLUDED
-#define MOCK_CLASSES_TEST_HPP_INCLUDED
+#ifndef MOCK_CLASSES_HPP_INCLUDED
+#define MOCK_CLASSES_HPP_INCLUDED
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte

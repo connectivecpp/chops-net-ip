@@ -44,13 +44,17 @@ All of the essential (core) Chops Net IP headers are in the `net_ip` and `detail
 
 ## Exceptions and Error Handling
 
-The public class methods (e.g. in `net_ip`, `basic_io_interface`, `net_entity`) may throw exceptions, although these are kept to an essential minimum. All internal and asynchronous operations use error code reporting for all network errors. This means that any function objects passed in to the Chops Net IP library do not need to have `try / catch` blocks in any of their code.
+There are no exceptions thrown by Chops Net IP code. All exceptions thrown by the Asio library are caught and reported through other error mechanisms.
 
-A future enhancement (possibly for release 1.0) will change all exception handling to `std::expected` usage (an experimental version of `std::expected`).
+Many public methods use an experimental version of `std::expected` to report errors. A `std::expected` object either evaluates to `true` and provides a return value (as needed, through pointer syntax), or evaluates to `false` and provides an error code.
+
+(The experimental version of `std::expected` is provided by Martin Moene, and uses the namespace `nonstd`. See [References](doc/references.md)).
+
+Besides the `std::expected` return value, errors are also reported through a function object callback specified in the `net_entity` `start` method.
 
 ## States and Transitions
 
-Chops Net IP states and transitions match existing standard network protocol behavior. For example, when a TCP connector is created, an actual TCP data connection does not exist until the connect succeeds. When this happens (connect succeeds), the abstract state transitions from unconnected to connected. In Chops Net IP, when a TCP connector connects, a data connection object is created and an application state transition function object callback is invoked containing the connection object.
+Chops Net IP states and transitions match existing standard network protocol behavior. For example, when a TCP connector is created, an actual TCP data connection does not exist until the connect succeeds. When this happens (connect succeeds), the abstract state transitions from unconnected to connected. In Chops Net IP, when a TCP connector connects, a data connection object is created and an application state transition function object callback is invoked containing a handle object to the connection object.
 
 Even though an implicit state transition table exists within the Chops Net IP library (matching network protocol behavior), there are not any explicit state flags or methods to query the state through the API. Instead, state transitions are handled through application supplied function object callbacks, which notify the application that something interesting has happened and containing objects for further interaction and processing. In other words, there is not an "is_connected" method with the Chops Net IP library. Instead, an application can layer its own state on top of Chops Net IP (if desired), using the function object callbacks to manage the state.
 

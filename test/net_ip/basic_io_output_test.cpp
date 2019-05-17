@@ -25,7 +25,7 @@
 #include "marshall/shared_buffer.hpp"
 #include "utility/make_byte_array.hpp"
 
-#include "shared_test/mock_classes_test.hpp"
+#include "shared_test/mock_classes.hpp"
 
 template <typename IOT>
 void basic_io_output_test_construction_and_release() {

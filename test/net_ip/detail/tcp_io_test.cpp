@@ -33,7 +33,8 @@
 
 #include "net_ip_component/worker.hpp"
 
-#include "shared_test/msg_handling_test.hpp"
+#include "shared_test/msg_handling.hpp"
+#include "shared_test/start_funcs.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
 
@@ -65,10 +66,10 @@ struct notify_me {
 std::size_t connector_func (const vec_buf& in_msg_vec, asio::io_context& ioc, 
                             int interval, std::string_view delim, chops::const_shared_buffer empty_msg) {
 
-  auto endps = 
+  auto res = 
       chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
   asio::ip::tcp::socket sock(ioc);
-  asio::connect(sock, endps);
+  asio::connect(sock, *res);
 
   notify_prom_type notify_prom;
   auto notify_fut = notify_prom.get_future();
@@ -105,9 +106,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
     WHEN ("an acceptor and connector are created") {
       THEN ("the futures provide synchronization and data returns") {
 
-        auto endps = 
+        auto res = 
             chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
-        asio::ip::tcp::acceptor acc(ioc, *(endps.cbegin()));
+        REQUIRE(res);
+        asio::ip::tcp::acceptor acc(ioc, *(res->cbegin()));
 
         INFO ("Creating connector asynchronously, msg interval: " << interval);
 

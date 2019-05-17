@@ -43,7 +43,8 @@
 #include "net_ip_component/worker.hpp"
 #include "net_ip_component/error_delivery.hpp"
 
-#include "shared_test/msg_handling_test.hpp"
+#include "shared_test/msg_handling.hpp"
+#include "shared_test/start_funcs.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
 

@@ -37,6 +37,7 @@
 #include "net_ip/net_ip_error.hpp"
 
 #include "net_ip/basic_io_output.hpp"
+#include "net_ip/endpoints_resolver.hpp"
 
 #include "marshall/shared_buffer.hpp"
 
@@ -55,10 +56,13 @@ private:
 
   io_common<udp_entity_io>          m_io_common;
   net_entity_common<udp_entity_io>  m_entity_common;
-  asio::io_context&                 m_io_context;
+  asio::io_context&                 m_ioc;
   asio::ip::udp::socket             m_socket;
   endpoint_type                     m_local_endp;
   endpoint_type                     m_default_dest_endp;
+  std::string                       m_local_port_or_service;
+  std::string                       m_local_intf;
+
   // TODO: multicast stuff
 
   // following members could be passed through handler, but are members for 
@@ -68,10 +72,19 @@ private:
   endpoint_type                     m_sender_endp;
 
 public:
+
   udp_entity_io(asio::io_context& ioc, 
                 const endpoint_type& local_endp) noexcept : 
-    m_io_common(), m_entity_common(), m_io_context(ioc),
+    m_io_common(), m_entity_common(), m_ioc(ioc),
     m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
+    m_local_port_or_service(), m_local_intf(),
+    m_byte_vec(), m_max_size(0), m_sender_endp() { }
+
+  udp_entity_io(asio::io_context& ioc, 
+                std::string_view local_port_or_service, std::string_view local_intf) noexcept :
+    m_io_common(), m_entity_common(), m_ioc(ioc),
+    m_socket(ioc), m_local_endp(), m_default_dest_endp(), 
+    m_local_port_or_service(local_port_or_service), m_local_intf(local_intf),
     m_byte_vec(), m_max_size(0), m_sender_endp() { }
 
 private:
@@ -109,10 +122,24 @@ public:
   }
 
   template <typename F1, typename F2>
-  bool start(F1&& io_state_chg, F2&& err_cb) {
+  auto start(F1&& io_state_chg, F2&& err_cb) ->
+        nonstd::expected<void, std::error_code> {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
-      return false;
+      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::udp_entity_already_started));
+    }
+    if (!m_local_port_or_service.empty()) {
+      endpoints_resolver<asio::ip::udp> resolver(m_ioc);
+      auto ret = resolver.make_endpoints(true, m_local_intf, m_local_port_or_service);
+      if (!ret) {
+        m_entity_common.stop();
+        return nonstd::make_unexpected(ret.error());
+      }
+      m_local_endp = ret->cbegin()->endpoint();
+      m_local_port_or_service.clear();
+      m_local_port_or_service.shrink_to_fit();
+      m_local_intf.clear();
+      m_local_intf.shrink_to_fit();
     }
     try {
       // assume default constructed endpoints compare equal
@@ -121,18 +148,18 @@ public:
         m_socket.open(asio::ip::udp::v4());
       }
       else {
-        m_socket = asio::ip::udp::socket(m_io_context, m_local_endp);
+        m_socket = asio::ip::udp::socket(m_ioc, m_local_endp);
       }
     }
     catch (const std::system_error& se) {
-      close(se.code());
-      return false;
+      m_entity_common.stop();
+      return nonstd::make_unexpected(se.code());
     }
     if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
-      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-      return false;
+      m_entity_common.stop();
+      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::io_state_change_terminated));
     }
-    return true;
+    return { };
   }
 
   template <typename MH>
@@ -179,12 +206,13 @@ public:
     return false; // already stopped
   }
 
-  bool stop() {
-    if (m_entity_common.is_started()) {
-      close(std::make_error_code(net_ip_errc::udp_entity_stopped));
-      return true;
+  auto stop() ->
+        nonstd::expected<void, std::error_code> {
+    if (!m_entity_common.is_started()) {
+      // already stopped
+      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::udp_entity_already_stopped));
     }
-    return false; // already stopped
+    return { };
   }
 
   bool send(chops::const_shared_buffer buf) {

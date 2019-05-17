@@ -30,7 +30,7 @@
 
 #include "queue/wait_queue.hpp"
 
-#include "shared_test/mock_classes_test.hpp"
+#include "shared_test/mock_classes.hpp"
 
 SCENARIO ( "Testing ostream_error_sink_with_wait_queue function",
            "[error_delivery]" ) {

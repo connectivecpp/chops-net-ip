@@ -33,7 +33,6 @@
 
 #include "net_ip/net_ip_error.hpp"
 #include "net_ip/net_entity.hpp"
-#include "net_ip/endpoints_resolver.hpp"
 
 #include "net_ip/detail/tcp_connector.hpp"
 #include "net_ip/detail/tcp_acceptor.hpp"
@@ -155,6 +154,9 @@ public:
  *  @brief Create a TCP acceptor @c net_entity, which will listen on a port for incoming
  *  connections (once started).
  *
+ *  The port (and optional listen interface) passed in to this constructor will be
+ *  resolved (name lookup) when @c start is called on the @c net_entity.
+ *
  *  @param local_port_or_service Port number or service name to bind to for incoming TCP 
  *  connects.
  *
@@ -207,7 +209,8 @@ public:
  *  connect to the specified host and port (once started).
  *
  *  Internally a sequence of remote endpoints will be looked up through a name resolver,
- *  and each endpoint will be tried in succession.
+ *  (after @c start on the @c net_entity is called), and each endpoint will be tried in 
+ *  succession.
  *
  *  If a reconnect timeout is provided (parm > 0), connect failures result in reconnect 
  *  attempts after the timeout period. Reconnect attempts will continue until a connect is 
@@ -298,15 +301,13 @@ public:
  *  as unicast, multicast, or broadcast this can be performed by inspecting the remote 
  *  endpoint address as supplied through the message handler callback.
  *
- *  A bind to the local endpoint is not started until the @c net_entity @c start method is 
- *  called, and a read is not started until the @c io_interface @c start_io method is
- *  called.
+ *  Names are resolved and a bind to the local endpoint started when the 
+ *  @c net_entity @c start method is called, and a read is not started until the 
+ *  @c io_interface @c start_io method is called.
  *
  *  @param local_port_or_service Port number or service name for local binding.
  *
  *  @param local_intf Local interface name, otherwise the default is "any address".
- *
- *  @throw @c std::system_error if there is a name lookup failure.
  *
  *  @return @c net_entity object instantiated for UDP.
  *
@@ -318,9 +319,10 @@ public:
  */
   net_entity make_udp_unicast (std::string_view local_port_or_service, 
                                std::string_view local_intf = "") {
-    endpoints_resolver<asio::ip::udp> resolver(m_ioc);
-    auto results = resolver.make_endpoints(true, local_intf, local_port_or_service);
-    return make_udp_unicast(results.cbegin()->endpoint());
+    auto p = std::make_shared<detail::udp_entity_io>(m_ioc, local_port_or_service, local_intf);
+    lg g(m_mutex);
+    m_udp_entities.push_back(p);
+    return net_entity(p);
   }
 
 /**
@@ -333,7 +335,7 @@ public:
  *  @param endp A @c asio::ip::udp::endpoint used for the local bind 
  *  (when @c start is called).
  *
- *  @return @c entity object.
+ *  @return @c net_entity object instantiated for UDP.
  *
  */
   net_entity make_udp_unicast (const asio::ip::udp::endpoint& endp) {

@@ -292,8 +292,8 @@ private:
     m_entity_common.call_error_cb(iop, err);
     std::error_code ec;
     if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
+      m_io_handler.reset();
       if (m_reconn_time != std::chrono::milliseconds(0)) {
-        m_io_handler.reset();
         start_connect();
         return;
       }

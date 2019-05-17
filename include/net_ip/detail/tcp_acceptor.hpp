@@ -32,6 +32,7 @@
 
 #include "nonstd/expected.hpp"
 
+#include "net_ip/endpoints_resolver.hpp"
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
 
@@ -49,7 +50,7 @@ public:
 
 private:
   net_entity_common<tcp_io>         m_entity_common;
-  asio::io_context&                 m_io_context;
+  asio::io_context&                 m_ioc;
   asio::ip::tcp::acceptor           m_acceptor;
   std::vector<tcp_io_shared_ptr>    m_io_handlers;
   endpoint_type                     m_acceptor_endp;
@@ -60,14 +61,14 @@ private:
 public:
   tcp_acceptor(asio::io_context& ioc, const endpoint_type& endp,
                bool reuse_addr) :
-    m_entity_common(), m_io_context(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
+    m_entity_common(), m_ioc(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
     m_local_port_or_service(), m_listen_intf(),
     m_reuse_addr(reuse_addr) { }
 
   tcp_acceptor(asio::io_context& ioc, 
                std::string_view local_port_or_service, std::string_view listen_intf,
                bool reuse_addr) :
-    m_entity_common(), m_io_context(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(), 
+    m_entity_common(), m_ioc(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(), 
     m_local_port_or_service(local_port_or_service), m_listen_intf(listen_intf),
     m_reuse_addr(reuse_addr) { }
 
@@ -110,7 +111,8 @@ public:
       endpoints_resolver<asio::ip::tcp> resolver(m_ioc);
       auto ret = resolver.make_endpoints(true, m_listen_intf, m_local_port_or_service);
       if (!ret) {
-        return ret;
+        close(ret.error());
+        return nonstd::make_unexpected(ret.error());
       }
       m_acceptor_endp = ret->cbegin()->endpoint();
       m_local_port_or_service.clear();
@@ -119,7 +121,7 @@ public:
       m_listen_intf.shrink_to_fit();
     }
     try {
-      m_acceptor = asio::ip::tcp::acceptor(m_io_context, m_acceptor_endp, m_reuse_addr);
+      m_acceptor = asio::ip::tcp::acceptor(m_ioc, m_acceptor_endp, m_reuse_addr);
     }
     catch (const std::system_error& se) {
       close(se.code());
