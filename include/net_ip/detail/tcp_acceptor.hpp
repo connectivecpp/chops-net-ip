@@ -120,13 +120,26 @@ public:
       m_listen_intf.clear();
       m_listen_intf.shrink_to_fit();
     }
-    try {
-      m_acceptor = asio::ip::tcp::acceptor(m_ioc, m_acceptor_endp, m_reuse_addr);
+    std::error_code ec;
+    m_acceptor.open(m_acceptor_endp.protocol(), ec);
+    if (ec) {
+      return start_error(ec);
     }
-    catch (const std::system_error& se) {
-      close(se.code());
-      return nonstd::make_unexpected(se.code());
+    if (m_reuse_addr) {
+      m_acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+      if (ec) {
+        return start_error(ec);
+      }
     }
+    m_acceptor.bind(m_acceptor_endp, ec);
+    if (ec) {
+      return start_error(ec);
+    }
+    m_acceptor.listen(asio::socket_base::max_listen_connections, ec);
+    if (ec) {
+      return start_error(ec);
+    }
+
     start_accept();
     return { };
   }
@@ -164,6 +177,12 @@ private:
           std::make_error_code(net_ip_errc::tcp_acceptor_closed));
   }
 
+
+  auto start_error(const std::error_code& ec) ->
+        nonstd::expected<void, std::error_code> {
+    close(ec);
+    return nonstd::make_unexpected(ec);
+  }
 
 private:
 
