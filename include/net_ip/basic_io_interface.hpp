@@ -38,19 +38,23 @@ namespace detail {
 template <typename R, typename WP, typename F>
 auto wp_helper(const WP& wp, F&& func) ->
       nonstd::expected<R, std::error_code> {
-  
   if (auto sp = wp.lock()) {
-    return sp->func();
+    return func(sp);
   }
   return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
 }
 
-inline auto start_io_helper(bool started) ->
+template <typename WP, typename F>
+auto wp_helper_void(const WP& wp, F&& func) ->
       nonstd::expected<void, std::error_code> {
-  if (!started) {
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::io_already_started));
+  if (auto sp = wp.lock()) {
+    auto r = func(sp);
+    if (r) {
+      return nonstd::make_unexpected(r);
+    }
+    return { };
   }
-  return { };
+  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
 }
 
 } // end detail namespace
@@ -160,10 +164,8 @@ public:
  */
   auto make_io_output() const ->
         nonstd::expected<basic_io_output<IOT>, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return basic_io_output<IOT>(p);
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper<basic_io_output<IOT>>( m_ioh_wptr, 
+          [] (std::shared_ptr<IOT> sp) { return basic_io_output<IOT>(sp); } );
   }
 
 /**
@@ -177,10 +179,8 @@ public:
  */
   auto is_io_started() const ->
         nonstd::expected<bool, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return p->is_io_started();
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper<bool>( m_ioh_wptr, 
+          [] (std::shared_ptr<IOT> sp) { return sp->is_io_started(); } );
   }
 
 /**
@@ -202,13 +202,10 @@ public:
  *  associated IO handler), a @c std::error_code is returned.
  */
   template <typename F>
-  auto visit_socket(F&& f) ->
+  auto visit_socket(F&& func) ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      p->visit_socket(std::forward<F>(f));
-      return { };
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr, [&func] (std::shared_ptr<IOT> sp) {
+            sp->visit_socket(func); return std::error_code { }; } );
   }
 
 /**
@@ -280,10 +277,11 @@ public:
   template <typename MH, typename MF>
   auto start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return detail::start_io_helper(p->start_io(header_size, std::forward<MH>(msg_handler), std::forward<MF>(msg_frame)));
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [header_size, &msg_handler, &msg_frame] (std::shared_ptr<IOT> sp) {
+            return sp->start_io(header_size, msg_handler, msg_frame) ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_started);
+        } );
   }
 
 /**
@@ -331,10 +329,11 @@ public:
   template <typename MH>
   auto start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return detail::start_io_helper(p->start_io(header_size, std::forward<MH>(msg_handler), func));
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [header_size, &msg_handler, func] (std::shared_ptr<IOT> sp) {
+            return sp->start_io(header_size, msg_handler, func) ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_started);
+        } );
   }
 
 /**
@@ -377,10 +376,11 @@ public:
   template <typename MH>
   auto start_io(std::string_view delimiter, MH&& msg_handler) ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return detail::start_io_helper(p->start_io(delimiter, std::forward<MH>(msg_handler)));
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [delimiter, &msg_handler] (std::shared_ptr<IOT> sp) {
+            return sp->start_io(delimiter, msg_handler) ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_started);
+        } );
   }
 
 /**
@@ -426,10 +426,11 @@ public:
   template <typename MH>
   auto start_io(std::size_t read_size, MH&& msg_handler) ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return detail::start_io_helper(p->start_io(read_size, std::forward<MH>(msg_handler)));
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [read_size, &msg_handler] (std::shared_ptr<IOT> sp) {
+            return sp->start_io(read_size, msg_handler) ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_started);
+        } );
   }
 
 /**
@@ -471,10 +472,11 @@ public:
   template <typename MH>
   auto start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return detail::start_io_helper(p->start_io(endp, max_size, std::forward<MH>(msg_handler)));
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [endp, max_size, &msg_handler] (std::shared_ptr<IOT> sp) {
+            return sp->start_io(endp, max_size, msg_handler) ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_started);
+        } );
   }
 
 /**
@@ -495,10 +497,11 @@ public:
  */
   auto start_io() ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return detail::start_io_helper(p->start_io());
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [] (std::shared_ptr<IOT> sp) {
+            return sp->start_io() ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_started);
+        } );
   }
 
 /**
@@ -519,10 +522,11 @@ public:
  */
   auto start_io(const endpoint_type& endp) ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      return detail::start_io_helper(p->start_io(endp));
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [endp] (std::shared_ptr<IOT> sp) {
+            return sp->start_io(endp) ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_started);
+        } );
   }
  
 /**
@@ -542,13 +546,11 @@ public:
  */
   auto stop_io() ->
         nonstd::expected<void, std::error_code> {
-    if (auto p = m_ioh_wptr.lock()) {
-      if (!p->stop_io()) {
-        return nonstd::make_unexpected(std::make_error_code(net_ip_errc::io_already_stopped));
-      }
-      return { };
-    }
-    return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+    return detail::wp_helper_void( m_ioh_wptr,
+                [] (std::shared_ptr<IOT> sp) {
+            return sp->stop_io() ? std::error_code() :
+                                std::make_error_code(net_ip_errc::io_already_stopped);
+        } );
   }
 
 /**
