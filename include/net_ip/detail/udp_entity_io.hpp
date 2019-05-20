@@ -122,17 +122,17 @@ public:
   }
 
   template <typename F1, typename F2>
-  auto start(F1&& io_state_chg, F2&& err_cb) ->
-        nonstd::expected<void, std::error_code> {
+  std::error_code start(F1&& io_state_chg, F2&& err_cb) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
-      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::udp_entity_already_started));
+      return std::make_error_code(net_ip_errc::udp_entity_already_started);
     }
     if (!m_local_port_or_service.empty()) {
       endpoints_resolver<asio::ip::udp> resolver(m_ioc);
       auto ret = resolver.make_endpoints(true, m_local_intf, m_local_port_or_service);
       if (!ret) {
-        return start_error(ret.error());
+        close(ret.error());
+        return ret.error();
       }
       m_local_endp = ret->cbegin()->endpoint();
       m_local_port_or_service.clear();
@@ -143,16 +143,20 @@ public:
     std::error_code ec;
     m_socket.open(m_local_endp.protocol(), ec);
     if (ec) {
-      return start_error(ec);
+      close(ec);
+      return ec;
     }
     if (m_local_endp != endpoint_type()) { // local bind needed
       m_socket.bind(m_local_endp, ec);
       if (ec) {
-        return start_error(ec);
+        close(ec);
+        return ec;
       }
     }
     if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
-      return start_error(std::make_error_code(net_ip_errc::io_state_change_terminated));
+      auto err = std::make_error_code(net_ip_errc::io_state_change_terminated);
+      close(err);
+      return err;
     }
     return { };
   }
@@ -201,11 +205,10 @@ public:
     return false; // already stopped
   }
 
-  auto stop() ->
-        nonstd::expected<void, std::error_code> {
+  std::error_code stop() {
     if (!m_entity_common.is_started()) {
       // already stopped
-      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::udp_entity_already_stopped));
+      return std::make_error_code(net_ip_errc::udp_entity_already_stopped);
     }
     close(std::make_error_code(net_ip_errc::udp_entity_stopped));
     return { };
@@ -271,12 +274,6 @@ private:
     m_socket.close(ec);
     m_entity_common.call_error_cb(shared_from_this(), 
           std::make_error_code(net_ip_errc::udp_entity_closed));
-  }
-
-  auto start_error(const std::error_code& ec) ->
-        nonstd::expected<void, std::error_code> {
-    close(ec);
-    return nonstd::make_unexpected(ec);
   }
 
 };

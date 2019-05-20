@@ -30,8 +30,6 @@
 #include <string>
 #include <string_view>
 
-#include "nonstd/expected.hpp"
-
 #include "net_ip/endpoints_resolver.hpp"
 #include "net_ip/detail/tcp_io.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
@@ -101,18 +99,17 @@ public:
 
 
   template <typename F1, typename F2>
-  auto start(F1&& io_state_chg, F2&& err_func) ->
-        nonstd::expected<void, std::error_code> {
+  std::error_code start(F1&& io_state_chg, F2&& err_func) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func))) {
       // already started
-      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_acceptor_already_started));
+      return std::make_error_code(net_ip_errc::tcp_acceptor_already_started);
     }
     if (!m_local_port_or_service.empty()) {
       endpoints_resolver<asio::ip::tcp> resolver(m_ioc);
       auto ret = resolver.make_endpoints(true, m_listen_intf, m_local_port_or_service);
       if (!ret) {
         close(ret.error());
-        return nonstd::make_unexpected(ret.error());
+        return ret.error();
       }
       m_acceptor_endp = ret->cbegin()->endpoint();
       m_local_port_or_service.clear();
@@ -123,32 +120,35 @@ public:
     std::error_code ec;
     m_acceptor.open(m_acceptor_endp.protocol(), ec);
     if (ec) {
-      return start_error(ec);
+      close(ec);
+      return ec;
     }
     if (m_reuse_addr) {
       m_acceptor.set_option(asio::socket_base::reuse_address(true), ec);
       if (ec) {
-        return start_error(ec);
+        close(ec);
+        return ec;
       }
     }
     m_acceptor.bind(m_acceptor_endp, ec);
     if (ec) {
-      return start_error(ec);
+      close(ec);
+      return ec;
     }
     m_acceptor.listen(asio::socket_base::max_listen_connections, ec);
     if (ec) {
-      return start_error(ec);
+      close(ec);
+      return ec;
     }
 
     start_accept();
     return { };
   }
 
-  auto stop() ->
-        nonstd::expected<void, std::error_code> {
+  std::error_code stop() {
     if (!m_entity_common.is_started()) {
       // already stopped
-      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped));
+      return std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped);
     }
     close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
     return { };
@@ -175,13 +175,6 @@ private:
     }
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), 
           std::make_error_code(net_ip_errc::tcp_acceptor_closed));
-  }
-
-
-  auto start_error(const std::error_code& ec) ->
-        nonstd::expected<void, std::error_code> {
-    close(ec);
-    return nonstd::make_unexpected(ec);
   }
 
 private:

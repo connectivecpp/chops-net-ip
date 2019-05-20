@@ -35,6 +35,16 @@ namespace net {
 
 namespace detail {
 
+template <typename R, typename WP, typename F>
+auto wp_helper(const WP& wp, F&& func) ->
+      nonstd::expected<R, std::error_code> {
+  
+  if (auto sp = wp.lock()) {
+    return sp->func();
+  }
+  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
+}
+
 inline auto start_io_helper(bool started) ->
       nonstd::expected<void, std::error_code> {
   if (!started) {

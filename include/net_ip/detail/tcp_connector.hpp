@@ -130,11 +130,10 @@ public:
   }
 
   template <typename F1, typename F2>
-  auto start(F1&& io_state_chg, F2&& err_cb) ->
-        nonstd::expected<void, std::error_code> {
+  std::error_code start(F1&& io_state_chg, F2&& err_cb) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
-      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_connector_already_started));
+      return std::make_error_code(net_ip_errc::tcp_connector_already_started);
     }
     // empty endpoints container is the indication that a resolve is needed
     if (m_endpoints.empty()) {
@@ -163,11 +162,10 @@ public:
     return { };
   }
 
-  auto stop() ->
-        nonstd::expected<void, std::error_code> {
+  std::error_code stop() {
     if (!m_entity_common.is_started()) {
       // already stopped
-      return nonstd::make_unexpected(std::make_error_code(net_ip_errc::tcp_connector_already_stopped));
+      return std::make_error_code(net_ip_errc::tcp_connector_already_stopped);
     }
     close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
     return { };

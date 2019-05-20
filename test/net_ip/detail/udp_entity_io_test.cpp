@@ -78,9 +78,9 @@ void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int 
       senders.push_back(send_ptr);
       send_ptr->start([&send_cnt] (chops::net::udp_io_interface io, std::size_t, bool starting) {
                 if (starting) {
-		  udp_start_io(io, false, send_cnt);
+                  udp_start_io(io, false, send_cnt);
                 }
-	        return true; }
+                return true; }
             , chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq));
     }
   );
