@@ -40,7 +40,9 @@
 
 // using namespace chops::test;
 
-const char* test_port = "30555";
+const char* test_port_udp = "30555";
+const char* test_port_tcp1 = "30556";
+const char* test_port_tcp2 = "30557";
 const char* test_host = "";
 constexpr int NumMsgs = 30;
 constexpr int ReconnTime = 400;
@@ -109,7 +111,8 @@ void test_methods (std::shared_ptr<EH> sp, chops::net::err_wait_q& err_wq) {
     }
     AND_WHEN ("is_started is called") {
       THEN ("false is returned") {
-        REQUIRE_FALSE (*(net_ent.is_started()));
+        auto r = net_ent.is_started();
+        REQUIRE_FALSE (*r);
       }
     }
     AND_WHEN ("stop is called") {
@@ -123,7 +126,8 @@ void test_methods (std::shared_ptr<EH> sp, chops::net::err_wait_q& err_wq) {
       THEN ("the call succeeds and is_started is true") {
         REQUIRE (net_ent.start(io_state_chg<IOT>(), 
                  chops::net::make_error_func_with_wait_queue<IOT>(err_wq)));
-        REQUIRE (*(net_ent.is_started()));
+        auto r = net_ent.is_started();
+        REQUIRE (*r);
       }
     }
     AND_WHEN ("visit_socket is called") {
@@ -163,15 +167,15 @@ SCENARIO ( "Net entity method testing, UDP entity, TCP acceptor, TCP connector",
   chops::net::ostream_error_sink_with_wait_queue, std::ref(err_wq), std::ref(std::cerr));
 
 
-  auto sp1 = std::make_shared<chops::net::detail::tcp_connector>(ioc, std::string_view(test_port),
+  auto sp1 = std::make_shared<chops::net::detail::tcp_connector>(ioc, std::string_view(test_port_tcp1),
                                                                 std::string_view(test_host),
                                                                 std::chrono::milliseconds(ReconnTime));
   test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(sp1, err_wq);
 
-  auto sp2 = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port, test_host, true);
+  auto sp2 = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port_tcp2, test_host, true);
   test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(sp2, err_wq);
 
-  auto sp3 = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port, test_host);
+  auto sp3 = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port_udp, test_host);
   test_methods<chops::net::udp_io, asio::ip::udp::socket>(sp3, err_wq);
 
   std::this_thread::sleep_for(std::chrono::seconds(1)); // give connector time to shut down

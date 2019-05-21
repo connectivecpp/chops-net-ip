@@ -137,15 +137,15 @@ public:
   auto is_started() const -> 
           nonstd::expected<bool, std::error_code> {
     return std::visit(chops::overloaded {
-        [] (const detail::udp_entity_io_weak_ptr& wp) {
+        [] (const detail::udp_entity_io_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
           return detail::wp_helper<bool>(wp, 
                  [] (detail::udp_entity_io_shared_ptr sp) { return sp->is_started(); } );
         },
-        [] (const detail::tcp_acceptor_weak_ptr& wp) {
+        [] (const detail::tcp_acceptor_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
           return detail::wp_helper<bool>(wp,
                  [] (detail::tcp_acceptor_shared_ptr sp) { return sp->is_started(); } );
         },
-        [] (const detail::tcp_connector_weak_ptr& wp) {
+        [] (const detail::tcp_connector_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
           return detail::wp_helper<bool>(wp,
                  [] (detail::tcp_connector_shared_ptr sp) { return sp->is_started(); } );
         },
