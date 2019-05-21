@@ -39,67 +39,15 @@
 namespace chops {
 namespace net {
 
-namespace detail {
 
-// the following functions separate out the common code from net_entity
-// methods that are member function templates, where each visitation lambda
-// needs if constexpr to enable or disable code
+// Helper function templates from basic_io_interface.hpp are used in the implementations
+// of these methods, specifically detail::wp_helper and detail::wp_helper_void.
+//
+// Cliff note: when C++ 20 lambda templates are available much of this code can be simplified,
+// since most of it is generic (just doesn't have the specific type parameter available as 
+// needed in the right place). Stating it another way, there is waaaaaaay too much boilerplate 
+// code (it may be possible to simplify with C++17 techniques that I don't know about yet).
   
-template <typename EWP>
-auto entity_is_started(const EWP& wp) ->
-      nonstd::expected<bool, std::error_code> {
-  if (auto p = wp.lock()) {
-    return p->is_started();
-  }
-  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
-}
-
-template <typename EWP, typename F>
-auto entity_visit_socket(const EWP& wp, F&& func) ->
-      nonstd::expected<void, std::error_code> {
-  if (auto p = wp.lock()) {
-    p->visit_socket(std::forward<F>(func));
-    return { };
-  }
-  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
-}
-
-template <typename EWP, typename F>
-auto entity_visit_io_output(const EWP& wp, F&& func) ->
-      nonstd::expected<std::size_t, std::error_code> {
-  if (auto p = wp.lock()) {
-    return p->visit_io_output(std::forward<F>(func));
-  }
-  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
-}
-
-template <typename EWP, typename F1, typename F2>
-auto entity_start(const EWP& wp, F1&& io_state_chg_func, F2&& err_func) ->
-      nonstd::expected<void, std::error_code> {
-  if (auto p = wp.lock()) {
-    return p->start(std::forward<F1>(io_state_chg_func), std::forward<F2>(err_func));
-  }
-  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
-} 
-
-template <typename EWP>
-auto entity_stop(const EWP& wp) ->
-      nonstd::expected<void, std::error_code> {
-  if (auto p = wp.lock()) {
-    return p->stop();
-  }
-  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
-}
-
-// Cliff note - some of these methods, in my opinion, should have worked with lambda
-// auto parameters. However, I could never find the right combination, including specifying
-// the return type on std::visit, that would work with nonstd::expected. I've seen various
-// improvements merged into gcc 9.x that deal with visitation on std::variant, so maybe
-// newer versions of gcc will allow more generic code than what is implemented below.
-// Improvement suggestions are gladly welcome.
-
-} // end detail namespace
-
 /**
  *  @brief The @c net_entity class provides the application interface 
  *  into the TCP acceptor, TCP connector, and UDP entity functionality.
@@ -190,13 +138,16 @@ public:
           nonstd::expected<bool, std::error_code> {
     return std::visit(chops::overloaded {
         [] (const detail::udp_entity_io_weak_ptr& wp) {
-          return detail::entity_is_started(wp);
+          return detail::wp_helper<bool>(wp, 
+                 [] (detail::udp_entity_io_shared_ptr sp) { return sp->is_started(); } );
         },
         [] (const detail::tcp_acceptor_weak_ptr& wp) {
-          return detail::entity_is_started(wp);
+          return detail::wp_helper<bool>(wp,
+                 [] (detail::tcp_acceptor_shared_ptr sp) { return sp->is_started(); } );
         },
         [] (const detail::tcp_connector_weak_ptr& wp) {
-          return detail::entity_is_started(wp);
+          return detail::wp_helper<bool>(wp,
+                 [] (detail::tcp_connector_shared_ptr sp) { return sp->is_started(); } );
         },
       },  m_wptr);
   }
@@ -224,21 +175,24 @@ public:
   auto visit_socket(F&& func) const ->
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
-        [&func] (const detail::udp_entity_io_weak_ptr& wp) {
+        [&func] (const detail::udp_entity_io_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::udp::socket&>) {
-            return detail::entity_visit_socket(wp, func);
+            return detail::wp_helper_void(wp,
+                [&func] (detail::udp_entity_io_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_acceptor_weak_ptr& wp) {
+        [&func] (const detail::tcp_acceptor_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::acceptor&>) {
-            return detail::entity_visit_socket(wp, func);
+            return detail::wp_helper_void(wp,
+                [&func] (detail::tcp_acceptor_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_connector_weak_ptr& wp) {
+        [&func] (const detail::tcp_connector_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::socket&>) {
-            return detail::entity_visit_socket(wp, func);
+            return detail::wp_helper_void(wp,
+                [&func] (detail::tcp_connector_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
@@ -273,21 +227,24 @@ public:
   auto visit_io_output(F&& func) const ->
           nonstd::expected<std::size_t, std::error_code> {
     return std::visit(chops::overloaded {
-        [&func] (const detail::udp_entity_io_weak_ptr& wp) {
+        [&func] (const detail::udp_entity_io_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::udp_io_output>) {
-            return detail::entity_visit_io_output(wp, func);
+            return detail::wp_helper<std::size_t>(wp,
+                [&func] (detail::udp_entity_io_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_acceptor_weak_ptr& wp) {
+        [&func] (const detail::tcp_acceptor_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
-            return detail::entity_visit_io_output(wp, func);
+            return detail::wp_helper<std::size_t>(wp,
+                [&func] (detail::tcp_acceptor_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_connector_weak_ptr& wp) {
+        [&func] (const detail::tcp_connector_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
-            return detail::entity_visit_io_output(wp, func);
+            return detail::wp_helper<std::size_t>(wp,
+                [&func] (detail::tcp_connector_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
@@ -396,24 +353,30 @@ public:
   auto start(F1&& io_state_chg_func, F2&& err_func) ->
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
-        [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp) {
+        [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, udp_io_interface, std::error_code>) {
-            return detail::entity_start(wp, io_state_chg_func, err_func);
+            return detail::wp_helper_void(wp,
+                [&io_state_chg_func, &err_func] (detail::udp_entity_io_shared_ptr sp) 
+                  { return sp->start(io_state_chg_func, err_func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&io_state_chg_func, &err_func] (const detail::tcp_acceptor_weak_ptr& wp) {
+        [&io_state_chg_func, &err_func] (const detail::tcp_acceptor_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
-            return detail::entity_start(wp, io_state_chg_func, err_func);
+            return detail::wp_helper_void(wp,
+                [&io_state_chg_func, &err_func] (detail::tcp_acceptor_shared_ptr sp) 
+                  { return sp->start(io_state_chg_func, err_func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&io_state_chg_func, &err_func] (const detail::tcp_connector_weak_ptr& wp) {
+        [&io_state_chg_func, &err_func] (const detail::tcp_connector_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
-            return detail::entity_start(wp, io_state_chg_func, err_func);
+            return detail::wp_helper_void(wp,
+                [&io_state_chg_func, &err_func] (detail::tcp_connector_shared_ptr sp) 
+                  { return sp->start(io_state_chg_func, err_func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
@@ -436,14 +399,17 @@ public:
   auto stop() ->
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
-        [] (const detail::udp_entity_io_weak_ptr& wp) {
-          return detail::entity_stop(wp);
+        [] (const detail::udp_entity_io_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+          return detail::wp_helper_void(wp, 
+              [] (detail::udp_entity_io_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
-        [] (const detail::tcp_acceptor_weak_ptr& wp) {
-          return detail::entity_stop(wp);
+        [] (const detail::tcp_acceptor_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+          return detail::wp_helper_void(wp, 
+              [] (detail::tcp_acceptor_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
-        [] (const detail::tcp_connector_weak_ptr& wp) {
-          return detail::entity_stop(wp);
+        [] (const detail::tcp_connector_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+          return detail::wp_helper_void(wp, 
+              [] (detail::tcp_connector_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
       },  m_wptr);
   }
