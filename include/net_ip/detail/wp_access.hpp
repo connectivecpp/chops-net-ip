@@ -51,7 +51,10 @@ auto wp_helper_void(const WP& wp, F&& func) ->
   }
   return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
 }
+
 } // end detail namespace
+} // end net namespace
+} // end chops namespace
 
 #endif
 

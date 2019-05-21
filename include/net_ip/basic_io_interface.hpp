@@ -30,35 +30,10 @@
 
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 
+#include "net_ip/detail/wp_access.hpp"
+
 namespace chops {
 namespace net {
-
-namespace detail {
-
-template <typename R, typename WP, typename F>
-auto wp_helper(const WP& wp, F&& func) ->
-      nonstd::expected<R, std::error_code> {
-  if (auto sp = wp.lock()) {
-    return func(sp);
-  }
-  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
-}
-
-template <typename WP, typename F>
-auto wp_helper_void(const WP& wp, F&& func) ->
-      nonstd::expected<void, std::error_code> {
-  if (auto sp = wp.lock()) {
-    auto r = func(sp);
-    if (r) {
-      return nonstd::make_unexpected(r);
-    }
-    return { };
-  }
-  return nonstd::make_unexpected(std::make_error_code(net_ip_errc::weak_ptr_expired));
-}
-
-} // end detail namespace
-
 
 /**
  *  @brief The @c basic_io_interface class template provides access to an underlying 

@@ -32,6 +32,8 @@
 #include "net_ip/detail/tcp_connector.hpp"
 #include "net_ip/detail/udp_entity_io.hpp"
 
+#include "net_ip/detail/wp_access.hpp"
+
 #include "net_ip/io_type_decls.hpp"
 
 #include "utility/overloaded.hpp"
@@ -39,10 +41,6 @@
 namespace chops {
 namespace net {
 
-
-// Helper function templates from basic_io_interface.hpp are used in the implementations
-// of these methods, specifically detail::wp_helper and detail::wp_helper_void.
-//
 // Cliff note: when C++ 20 lambda templates are available much of this code can be simplified,
 // since most of it is generic (just doesn't have the specific type parameter available as 
 // needed in the right place). Stating it another way, there is waaaaaaay too much boilerplate 
