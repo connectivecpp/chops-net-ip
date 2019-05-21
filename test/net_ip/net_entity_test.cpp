@@ -16,10 +16,14 @@
 #include "catch2/catch.hpp"
 
 #include <memory> // std::shared_ptr
-#include <functional>
+#include <functional> // std::ref
 #include <system_error> // std::error_code
 #include <set>
+#include <chrono>
+#include <thread>
+#include <future>
 #include <cstddef> // std::size_t
+#include <iostream> // std::cerr
 
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
@@ -30,6 +34,16 @@
 #include "net_ip/detail/udp_entity_io.hpp"
 
 #include "net_ip/io_type_decls.hpp"
+
+#include "net_ip_component/worker.hpp"
+#include "net_ip_component/error_delivery.hpp"
+
+// using namespace chops::test;
+
+const char* test_port = "30555";
+const char* test_host = "";
+constexpr int NumMsgs = 30;
+constexpr int ReconnTime = 400;
 
 template <typename IOT>
 struct io_state_chg {
@@ -82,42 +96,98 @@ SCENARIO ( "Net entity default construction", "[net_entity]" ) {
 
 }
 
-/*
-SCENARIO ( "Net entity method testing", "[net_entity]" ) {
+template <typename IOT, typename S, typename EH>
+void test_methods (std::shared_ptr<EH> sp, chops::net::err_wait_q& err_wq) {
 
-  chops::net::net_entity net_ent { };
+  chops::net::net_entity net_ent(sp);
 
-  auto e = std::make_shared<EH>();
-  net_ent = chops::net::net_entity(e); // want a weak ptr to the shared ptr
-
-  GIVEN ("A default constructed net_entity and an io handler") {
-    WHEN ("a net_entity with a weak ptr to the io handler is assigned to it") {
+  GIVEN ("A constructed net_entity") {
+    WHEN ("is_valid is called") {
       THEN ("is_valid is true") {
         REQUIRE (net_ent.is_valid());
       }
     }
     AND_WHEN ("is_started is called") {
       THEN ("false is returned") {
-        REQUIRE_FALSE (net_ent.is_started());
+        REQUIRE_FALSE (*(net_ent.is_started()));
       }
     }
-    AND_WHEN ("start or stop is called") {
+    AND_WHEN ("stop is called") {
+      THEN ("false is returned") {
+        auto r = net_ent.stop();
+        REQUIRE_FALSE (r);
+        INFO("Error code: " << r.error());
+      }
+    }
+    AND_WHEN ("start is called") {
+      THEN ("the call succeeds and is_started is true") {
+        REQUIRE (net_ent.start(io_state_chg<IOT>(), 
+                 chops::net::make_error_func_with_wait_queue<IOT>(err_wq)));
+        REQUIRE (*(net_ent.is_started()));
+      }
+    }
+    AND_WHEN ("visit_socket is called") {
+      THEN ("the call succeeds and a visit flag is set") {
+        socket_visitor<S> sv;
+        REQUIRE_FALSE (sv.called);
+        REQUIRE (net_ent.visit_socket(sv));
+        REQUIRE (sv.called);
+      }
+    }
+    AND_WHEN ("stop is called") {
       THEN ("true is returned") {
-        REQUIRE (net_ent.start(chops::test::io_state_chg_mock, chops::test::err_func_mock));
-        REQUIRE (net_ent.is_started());
         REQUIRE (net_ent.stop());
-        REQUIRE_FALSE (net_ent.is_started());
       }
     }
-    AND_WHEN ("get_socket is called") {
-      THEN ("a reference is returned") {
-        REQUIRE (net_ent.get_socket() == chops::test::net_entity_mock::special_val);
+    AND_WHEN ("visit_io_output is called") {
+      THEN ("the call succeeds and 0 is returned") {
+        io_output_visitor<IOT> iov;
+        REQUIRE_FALSE (iov.called);
+        auto r = net_ent.visit_io_output(iov);
+        REQUIRE (r);
+        REQUIRE (*r == 0u);
       }
     }
   } // end given
+}
+
+SCENARIO ( "Net entity method testing, UDP entity, TCP acceptor, TCP connector", 
+           "[net_entity] [udp_entity] [tcp_acceptor] [tcp_connector]" ) {
+
+  chops::net::worker wk;
+  wk.start();
+  auto& ioc = wk.get_io_context();
+
+  chops::net::err_wait_q err_wq;
+  auto err_fut = std::async(std::launch::async, 
+  chops::net::ostream_error_sink_with_wait_queue, std::ref(err_wq), std::ref(std::cerr));
+
+
+  auto sp1 = std::make_shared<chops::net::detail::tcp_connector>(ioc, std::string_view(test_port),
+                                                                std::string_view(test_host),
+                                                                std::chrono::milliseconds(ReconnTime));
+  test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(sp1, err_wq);
+
+  auto sp2 = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port, test_host, true);
+  test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(sp2, err_wq);
+
+  auto sp3 = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port, test_host);
+  test_methods<chops::net::udp_io, asio::ip::udp::socket>(sp3, err_wq);
+
+  std::this_thread::sleep_for(std::chrono::seconds(1)); // give connector time to shut down
+
+  while (!err_wq.empty()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  err_wq.close();
+  auto err_cnt = err_fut.get();
+  INFO ("Num err messages in sink: " << err_cnt);
+
+  wk.reset();
 
 }
 
+/*
 SCENARIO ( "Net entity comparison testing", "[net_entity]" ) {
 
   chops::net::net_entity net_ent1 { };
@@ -166,7 +236,7 @@ SCENARIO ( "Net entity comparison testing", "[net_entity]" ) {
   } // end given
 
 }
-
 */
+
 
 

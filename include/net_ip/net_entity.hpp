@@ -114,7 +114,7 @@ public:
  */
 
   template <typename ET>
-  explicit net_entity (std::weak_ptr<ET> p) noexcept : m_wptr(p) { }
+  explicit net_entity (const std::shared_ptr<ET>& p) noexcept : m_wptr(p) { }
 
 /**
  *  @brief Query whether an internal net entity is associated with this object.
