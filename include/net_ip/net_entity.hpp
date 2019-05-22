@@ -82,9 +82,12 @@ namespace net {
 
 class net_entity {
 private:
-  std::variant<detail::udp_entity_io_weak_ptr,
-               detail::tcp_acceptor_weak_ptr,
-               detail::tcp_connector_weak_ptr> m_wptr;
+  using udp_wp = detail::udp_entity_io_weak_ptr;
+  using acc_wp = detail::tcp_acceptor_weak_ptr;
+  using conn_wp = detail::tcp_connector_weak_ptr;
+
+private:
+  std::variant<udp_wp, acc_wp, conn_wp> m_wptr;
 
 private:
   friend class net_ip;
@@ -135,15 +138,15 @@ public:
   auto is_started() const -> 
           nonstd::expected<bool, std::error_code> {
     return std::visit(chops::overloaded {
-        [] (const detail::udp_entity_io_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
+        [] (const udp_wp& wp) -> nonstd::expected<bool, std::error_code> {
           return detail::wp_access<bool>(wp, 
                  [] (detail::udp_entity_io_shared_ptr sp) { return sp->is_started(); } );
         },
-        [] (const detail::tcp_acceptor_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
+        [] (const acc_wp& wp) -> nonstd::expected<bool, std::error_code> {
           return detail::wp_access<bool>(wp,
                  [] (detail::tcp_acceptor_shared_ptr sp) { return sp->is_started(); } );
         },
-        [] (const detail::tcp_connector_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
+        [] (const conn_wp& wp) -> nonstd::expected<bool, std::error_code> {
           return detail::wp_access<bool>(wp,
                  [] (detail::tcp_connector_shared_ptr sp) { return sp->is_started(); } );
         },
@@ -173,21 +176,21 @@ public:
   auto visit_socket(F&& func) const ->
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
-        [&func] (const detail::udp_entity_io_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
+        [&func] (const udp_wp& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::udp::socket&>) {
             return detail::wp_access_void(wp,
                 [&func] (detail::udp_entity_io_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_acceptor_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
+        [&func] (const acc_wp& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::acceptor&>) {
             return detail::wp_access_void(wp,
                 [&func] (detail::tcp_acceptor_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_connector_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
+        [&func] (const conn_wp& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::socket&>) {
             return detail::wp_access_void(wp,
                 [&func] (detail::tcp_connector_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
@@ -225,21 +228,21 @@ public:
   auto visit_io_output(F&& func) const ->
           nonstd::expected<std::size_t, std::error_code> {
     return std::visit(chops::overloaded {
-        [&func] (const detail::udp_entity_io_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
+        [&func] (const udp_wp& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::udp_io_output>) {
             return detail::wp_access<std::size_t>(wp,
                 [&func] (detail::udp_entity_io_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_acceptor_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
+        [&func] (const acc_wp& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
             return detail::wp_access<std::size_t>(wp,
                 [&func] (detail::tcp_acceptor_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&func] (const detail::tcp_connector_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
+        [&func] (const conn_wp& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
             return detail::wp_access<std::size_t>(wp,
                 [&func] (detail::tcp_connector_shared_ptr sp) { return sp->visit_io_output(func); } );
@@ -351,7 +354,7 @@ public:
   auto start(F1&& io_state_chg_func, F2&& err_func) ->
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
-        [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+        [&io_state_chg_func, &err_func] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, udp_io_interface, std::error_code>) {
             return detail::wp_access_void(wp,
@@ -360,7 +363,7 @@ public:
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&io_state_chg_func, &err_func] (const detail::tcp_acceptor_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+        [&io_state_chg_func, &err_func] (const acc_wp& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
             return detail::wp_access_void(wp,
@@ -369,7 +372,7 @@ public:
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
-        [&io_state_chg_func, &err_func] (const detail::tcp_connector_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+        [&io_state_chg_func, &err_func] (const conn_wp& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
             return detail::wp_access_void(wp,
@@ -397,15 +400,15 @@ public:
   auto stop() ->
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
-        [] (const detail::udp_entity_io_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+        [] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
               [] (detail::udp_entity_io_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
-        [] (const detail::tcp_acceptor_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+        [] (const acc_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
               [] (detail::tcp_acceptor_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
-        [] (const detail::tcp_connector_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
+        [] (const conn_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
               [] (detail::tcp_connector_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
@@ -447,31 +450,31 @@ inline bool operator<(const std::weak_ptr<T>& lhs, const std::weak_ptr<T>& rhs) 
 
 inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
   return std::visit(chops::overloaded {
-    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+    [] (const net_entity::udp_wp& lwp, const net_entity::udp_wp& rwp) {
           return lwp == rwp;
         },
-    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+    [] (const net_entity::udp_wp& lwp, const net_entity::acc_wp& rwp) {
           return false;
         },
-    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+    [] (const net_entity::udp_wp& lwp, const net_entity::conn_wp& rwp) {
           return false;
         },
-    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+    [] (const net_entity::acc_wp& lwp, const net_entity::acc_wp& rwp) {
           return lwp == rwp;
         },
-    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+    [] (const net_entity::acc_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;
         },
-    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+    [] (const net_entity::acc_wp& lwp, const net_entity::conn_wp& rwp) {
           return false;
         },
-    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+    [] (const net_entity::conn_wp& lwp, const net_entity::conn_wp& rwp) {
           return lwp == rwp;
         },
-    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+    [] (const net_entity::conn_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;
         },
-    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+    [] (const net_entity::conn_wp& lwp, const net_entity::acc_wp& rwp) {
           return false;
         },
     }, lhs.m_wptr, rhs.m_wptr);
@@ -492,31 +495,31 @@ inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
  */
 inline bool operator<(const net_entity& lhs, const net_entity& rhs) noexcept {
   return std::visit(chops::overloaded {
-    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+    [] (const net_entity::udp_wp& lwp, const net_entity::udp_wp& rwp) {
           return lwp < rwp;
         },
-    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+    [] (const net_entity::udp_wp& lwp, const net_entity::acc_wp& rwp) {
           return true;
         },
-    [] (const detail::udp_entity_io_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+    [] (const net_entity::udp_wp& lwp, const net_entity::conn_wp& rwp) {
           return true;
         },
-    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+    [] (const net_entity::acc_wp& lwp, const net_entity::acc_wp& rwp) {
           return lwp < rwp;
         },
-    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+    [] (const net_entity::acc_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;
         },
-    [] (const detail::tcp_acceptor_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+    [] (const net_entity::acc_wp& lwp, const net_entity::conn_wp& rwp) {
           return true;
         },
-    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_connector_weak_ptr& rwp) {
+    [] (const net_entity::conn_wp& lwp, const net_entity::conn_wp& rwp) {
           return lwp < rwp;
         },
-    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::udp_entity_io_weak_ptr& rwp) {
+    [] (const net_entity::conn_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;
         },
-    [] (const detail::tcp_connector_weak_ptr& lwp, const detail::tcp_acceptor_weak_ptr& rwp) {
+    [] (const net_entity::conn_wp& lwp, const net_entity::acc_wp& rwp) {
           return false;
         },
     }, lhs.m_wptr, rhs.m_wptr);
