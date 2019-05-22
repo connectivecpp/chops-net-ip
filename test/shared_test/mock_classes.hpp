@@ -18,6 +18,7 @@
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
+#include <system_error>
 
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 
@@ -26,6 +27,8 @@
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
 #include "net_ip/simple_variable_len_msg_frame.hpp"
+#include "net_ip/net_ip_error.hpp"
+
 
 namespace chops {
 namespace test {
@@ -99,6 +102,46 @@ struct io_handler_mock {
 
   bool stop_io() {
     return started ? started = false, true : false;
+  }
+
+};
+
+struct net_entity_mock {
+
+  io_handler_mock mock_ioh;
+
+  float mock_sock = 11.0f;
+
+  bool started = false;
+
+  bool is_started() const { return started; }
+
+  template <typename F>
+  void visit_socket(F&& f) {
+    f(mock_sock);
+  }
+
+  template <typename F>
+  std::size_t visit_io_output(F&& f) {
+    f(chops::net::basic_io_output<io_handler_mock>(&mock_ioh));
+    return 1u;
+  }
+
+  template <typename F1, typename F2>
+  std::error_code start(F1&&, F2&&) {
+    if (started) {
+      return std::make_error_code(std::errc::too_many_files_open);
+    }
+    started = true;
+    return std::error_code {};
+  }
+
+  std::error_code stop() {
+    if (!started) {
+      return std::make_error_code(std::errc::too_many_files_open);
+    }
+    started = false;
+    return std::error_code {};
   }
 
 };

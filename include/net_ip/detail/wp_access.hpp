@@ -31,7 +31,7 @@ namespace net {
 namespace detail {
 
 template <typename R, typename WP, typename F>
-auto wp_helper(const WP& wp, F&& func) ->
+auto wp_access(const WP& wp, F&& func) ->
       nonstd::expected<R, std::error_code> {
   if (auto sp = wp.lock()) {
     return func(sp);
@@ -40,7 +40,7 @@ auto wp_helper(const WP& wp, F&& func) ->
 }
 
 template <typename WP, typename F>
-auto wp_helper_void(const WP& wp, F&& func) ->
+auto wp_access_void(const WP& wp, F&& func) ->
       nonstd::expected<void, std::error_code> {
   if (auto sp = wp.lock()) {
     auto r = func(sp);

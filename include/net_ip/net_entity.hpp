@@ -136,15 +136,15 @@ public:
           nonstd::expected<bool, std::error_code> {
     return std::visit(chops::overloaded {
         [] (const detail::udp_entity_io_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
-          return detail::wp_helper<bool>(wp, 
+          return detail::wp_access<bool>(wp, 
                  [] (detail::udp_entity_io_shared_ptr sp) { return sp->is_started(); } );
         },
         [] (const detail::tcp_acceptor_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
-          return detail::wp_helper<bool>(wp,
+          return detail::wp_access<bool>(wp,
                  [] (detail::tcp_acceptor_shared_ptr sp) { return sp->is_started(); } );
         },
         [] (const detail::tcp_connector_weak_ptr& wp) -> nonstd::expected<bool, std::error_code> {
-          return detail::wp_helper<bool>(wp,
+          return detail::wp_access<bool>(wp,
                  [] (detail::tcp_connector_shared_ptr sp) { return sp->is_started(); } );
         },
       },  m_wptr);
@@ -175,21 +175,21 @@ public:
     return std::visit(chops::overloaded {
         [&func] (const detail::udp_entity_io_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::udp::socket&>) {
-            return detail::wp_helper_void(wp,
+            return detail::wp_access_void(wp,
                 [&func] (detail::udp_entity_io_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_acceptor_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::acceptor&>) {
-            return detail::wp_helper_void(wp,
+            return detail::wp_access_void(wp,
                 [&func] (detail::tcp_acceptor_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_connector_weak_ptr& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::tcp::socket&>) {
-            return detail::wp_helper_void(wp,
+            return detail::wp_access_void(wp,
                 [&func] (detail::tcp_connector_shared_ptr sp) { sp->visit_socket(func); return std::error_code(); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
@@ -227,21 +227,21 @@ public:
     return std::visit(chops::overloaded {
         [&func] (const detail::udp_entity_io_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::udp_io_output>) {
-            return detail::wp_helper<std::size_t>(wp,
+            return detail::wp_access<std::size_t>(wp,
                 [&func] (detail::udp_entity_io_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_acceptor_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
-            return detail::wp_helper<std::size_t>(wp,
+            return detail::wp_access<std::size_t>(wp,
                 [&func] (detail::tcp_acceptor_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&func] (const detail::tcp_connector_weak_ptr& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::tcp_io_output>) {
-            return detail::wp_helper<std::size_t>(wp,
+            return detail::wp_access<std::size_t>(wp,
                 [&func] (detail::tcp_connector_shared_ptr sp) { return sp->visit_io_output(func); } );
           }
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
@@ -354,7 +354,7 @@ public:
         [&io_state_chg_func, &err_func] (const detail::udp_entity_io_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, udp_io_interface, std::error_code>) {
-            return detail::wp_helper_void(wp,
+            return detail::wp_access_void(wp,
                 [&io_state_chg_func, &err_func] (detail::udp_entity_io_shared_ptr sp) 
                   { return sp->start(io_state_chg_func, err_func); } );
           }
@@ -363,7 +363,7 @@ public:
         [&io_state_chg_func, &err_func] (const detail::tcp_acceptor_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
-            return detail::wp_helper_void(wp,
+            return detail::wp_access_void(wp,
                 [&io_state_chg_func, &err_func] (detail::tcp_acceptor_shared_ptr sp) 
                   { return sp->start(io_state_chg_func, err_func); } );
           }
@@ -372,7 +372,7 @@ public:
         [&io_state_chg_func, &err_func] (const detail::tcp_connector_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
-            return detail::wp_helper_void(wp,
+            return detail::wp_access_void(wp,
                 [&io_state_chg_func, &err_func] (detail::tcp_connector_shared_ptr sp) 
                   { return sp->start(io_state_chg_func, err_func); } );
           }
@@ -398,15 +398,15 @@ public:
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
         [] (const detail::udp_entity_io_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
-          return detail::wp_helper_void(wp, 
+          return detail::wp_access_void(wp, 
               [] (detail::udp_entity_io_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
         [] (const detail::tcp_acceptor_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
-          return detail::wp_helper_void(wp, 
+          return detail::wp_access_void(wp, 
               [] (detail::tcp_acceptor_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
         [] (const detail::tcp_connector_weak_ptr& wp)->nonstd::expected<void, std::error_code> {
-          return detail::wp_helper_void(wp, 
+          return detail::wp_access_void(wp, 
               [] (detail::tcp_connector_shared_ptr sp) { sp->stop(); return std::error_code(); } );
         },
       },  m_wptr);

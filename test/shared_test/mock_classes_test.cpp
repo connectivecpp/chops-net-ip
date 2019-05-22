@@ -33,6 +33,11 @@
 
 #include "shared_test/mock_classes.hpp"
 
+chops::const_shared_buffer make_small_buf() {
+  auto ba = chops::make_byte_array(0x40, 0x41, 0x42);
+  return chops::const_shared_buffer(ba.data(), ba.size());
+}
+
 SCENARIO ( "Mock classes testing, io_handler_mock test",
            "[io_handler_mock]" ) {
   using namespace chops::test;
@@ -47,7 +52,7 @@ SCENARIO ( "Mock classes testing, io_handler_mock test",
   REQUIRE_FALSE (io_mock.send_sio_called);
   REQUIRE_FALSE (io_mock.send_endp_sio_called);
 
-  auto t = io_mock.mock_sock;
+  REQUIRE_FALSE (io_mock.send_called);
 
   GIVEN ("A default constructed io_handler_mock") {
     WHEN ("is_io_started is called") {
@@ -87,12 +92,84 @@ SCENARIO ( "Mock classes testing, io_handler_mock test",
         REQUIRE (io_mock.send_endp_sio_called);
       }
     }
-    AND_WHEN ("stop_io is called") {
+    AND_WHEN ("send is called") {
+      THEN ("the send flag is set true") {
+        io_mock.send(make_small_buf());
+        REQUIRE (io_mock.send_called);
+      }
+    }
+    AND_WHEN ("stop_io is called after start_io") {
       THEN ("is_io_started is false") {
         io_mock.start_io(std::string_view(), [] { });
         REQUIRE (io_mock.is_io_started());
         io_mock.stop_io();
         REQUIRE_FALSE (io_mock.is_io_started());
+      }
+    }
+  } // end given
+}
+
+SCENARIO ( "Mock classes testing, net_entity_mock test",
+           "[net_entity_mock]" ) {
+  using namespace chops::test;
+
+  net_entity_mock ne_mock { };
+
+  REQUIRE_FALSE (ne_mock.started);
+  REQUIRE_FALSE (ne_mock.mock_ioh.send_called);
+
+  GIVEN ("A default constructed net_entity_mock") {
+    WHEN ("is_started is called") {
+      THEN ("the return is false") {
+        REQUIRE_FALSE (ne_mock.is_started());
+      }
+    }
+    AND_WHEN ("visit_socket is called") {
+      THEN ("the correct value is set") {
+        ne_mock.visit_socket([] (float& v) { v += 2.0; });
+        REQUIRE (ne_mock.mock_sock == 13.0f);
+      }
+    }
+    AND_WHEN ("visit_io_output is called") {
+      THEN ("the correct flag is set") {
+        ne_mock.visit_io_output(
+            [] (chops::net::basic_io_output<io_handler_mock> ioh) {
+                   ioh.send(make_small_buf());
+               }
+        );
+        REQUIRE (ne_mock.mock_ioh.send_called);
+      }
+    }
+    AND_WHEN ("the start method is called") {
+      THEN ("is_started flag is true") {
+        auto r = ne_mock.start([] { }, [] { });
+        REQUIRE_FALSE (r);
+        REQUIRE (ne_mock.is_started());
+      }
+    }
+    AND_WHEN ("stop is called after start") {
+      THEN ("is_started is false") {
+        auto r1 = ne_mock.start([] { }, [] { });
+        REQUIRE_FALSE (r1);
+        auto r2 = ne_mock.stop();
+        REQUIRE_FALSE (r2);
+        REQUIRE_FALSE (ne_mock.is_started());
+      }
+    }
+    AND_WHEN ("stop is called before start") {
+      THEN ("an error is returned") {
+        auto r = ne_mock.stop();
+        REQUIRE (r);
+        INFO ("Error code is: " << r.message());
+      }
+    }
+    AND_WHEN ("start is called twice") {
+      THEN ("an error is returned") {
+        auto r1 = ne_mock.start([] { }, [] { });
+        REQUIRE_FALSE (r1);
+        auto r2 = ne_mock.start([] { }, [] { });
+        REQUIRE (r2);
+        INFO ("Error code is: " << r2.message());
       }
     }
   } // end given

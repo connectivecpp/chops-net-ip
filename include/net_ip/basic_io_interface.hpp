@@ -139,7 +139,7 @@ public:
  */
   auto make_io_output() const ->
         nonstd::expected<basic_io_output<IOT>, std::error_code> {
-    return detail::wp_helper<basic_io_output<IOT>>( m_ioh_wptr, 
+    return detail::wp_access<basic_io_output<IOT>>( m_ioh_wptr, 
           [] (std::shared_ptr<IOT> sp) { return basic_io_output<IOT>(sp); } );
   }
 
@@ -154,7 +154,7 @@ public:
  */
   auto is_io_started() const ->
         nonstd::expected<bool, std::error_code> {
-    return detail::wp_helper<bool>( m_ioh_wptr, 
+    return detail::wp_access<bool>( m_ioh_wptr, 
           [] (std::shared_ptr<IOT> sp) { return sp->is_io_started(); } );
   }
 
@@ -179,7 +179,7 @@ public:
   template <typename F>
   auto visit_socket(F&& func) ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr, [&func] (std::shared_ptr<IOT> sp) {
+    return detail::wp_access_void( m_ioh_wptr, [&func] (std::shared_ptr<IOT> sp) {
             sp->visit_socket(func); return std::error_code { }; } );
   }
 
@@ -252,7 +252,7 @@ public:
   template <typename MH, typename MF>
   auto start_io(std::size_t header_size, MH&& msg_handler, MF&& msg_frame) ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [header_size, &msg_handler, &msg_frame] (std::shared_ptr<IOT> sp) {
             return sp->start_io(header_size, msg_handler, msg_frame) ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_started);
@@ -304,7 +304,7 @@ public:
   template <typename MH>
   auto start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [header_size, &msg_handler, func] (std::shared_ptr<IOT> sp) {
             return sp->start_io(header_size, msg_handler, func) ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_started);
@@ -351,7 +351,7 @@ public:
   template <typename MH>
   auto start_io(std::string_view delimiter, MH&& msg_handler) ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [delimiter, &msg_handler] (std::shared_ptr<IOT> sp) {
             return sp->start_io(delimiter, msg_handler) ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_started);
@@ -401,7 +401,7 @@ public:
   template <typename MH>
   auto start_io(std::size_t read_size, MH&& msg_handler) ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [read_size, &msg_handler] (std::shared_ptr<IOT> sp) {
             return sp->start_io(read_size, msg_handler) ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_started);
@@ -447,7 +447,7 @@ public:
   template <typename MH>
   auto start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [endp, max_size, &msg_handler] (std::shared_ptr<IOT> sp) {
             return sp->start_io(endp, max_size, msg_handler) ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_started);
@@ -472,7 +472,7 @@ public:
  */
   auto start_io() ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [] (std::shared_ptr<IOT> sp) {
             return sp->start_io() ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_started);
@@ -497,7 +497,7 @@ public:
  */
   auto start_io(const endpoint_type& endp) ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [endp] (std::shared_ptr<IOT> sp) {
             return sp->start_io(endp) ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_started);
@@ -521,7 +521,7 @@ public:
  */
   auto stop_io() ->
         nonstd::expected<void, std::error_code> {
-    return detail::wp_helper_void( m_ioh_wptr,
+    return detail::wp_access_void( m_ioh_wptr,
                 [] (std::shared_ptr<IOT> sp) {
             return sp->stop_io() ? std::error_code() :
                                 std::make_error_code(net_ip_errc::io_already_stopped);
