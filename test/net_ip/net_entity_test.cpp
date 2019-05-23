@@ -98,10 +98,8 @@ SCENARIO ( "Net entity default construction", "[net_entity]" ) {
 
 }
 
-template <typename IOT, typename S, typename EH>
-void test_methods (std::shared_ptr<EH> sp, chops::net::err_wait_q& err_wq) {
-
-  chops::net::net_entity net_ent(sp);
+template <typename IOT, typename S>
+void test_methods (chops::net::net_entity& net_ent, chops::net::err_wait_q& err_wq) {
 
   GIVEN ("A constructed net_entity") {
     WHEN ("is_valid is called") {
@@ -170,15 +168,18 @@ SCENARIO ( "Net entity method testing, UDP entity, TCP acceptor, TCP connector",
   auto sp1 = std::make_shared<chops::net::detail::tcp_connector>(ioc, std::string_view(test_port_tcp1),
                                                                 std::string_view(test_host),
                                                                 std::chrono::milliseconds(ReconnTime));
-  test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(sp1, err_wq);
+  chops::net::net_entity ne1(sp1);
+  test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne1, err_wq);
 
   auto sp2 = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port_tcp2, test_host, true);
-  test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(sp2, err_wq);
+  chops::net::net_entity ne2(sp2);
+  test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(ne2, err_wq);
 
   auto sp3 = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port_udp, test_host);
-  test_methods<chops::net::udp_io, asio::ip::udp::socket>(sp3, err_wq);
+  chops::net::net_entity ne3(sp3);
+  test_methods<chops::net::udp_io, asio::ip::udp::socket>(ne3, err_wq);
 
-  std::this_thread::sleep_for(std::chrono::seconds(1)); // give connector time to shut down
+  std::this_thread::sleep_for(std::chrono::seconds(1)); // give network entities time to shut down
 
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
