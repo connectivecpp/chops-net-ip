@@ -419,20 +419,6 @@ public:
   friend bool operator<(const net_entity&, const net_entity&) noexcept;
 };
 
-template <typename T>
-inline bool operator==(const std::weak_ptr<T>& lhs, const std::weak_ptr<T>& rhs) noexcept {
-  auto lp = lhs.lock();
-  auto rp = rhs.lock();
-  return (lp && rp && lp == rp) || (!lp && !rp);
-}
-
-template <typename T>
-inline bool operator<(const std::weak_ptr<T>& lhs, const std::weak_ptr<T>& rhs) noexcept {
-  auto lp = lhs.lock();
-  auto rp = rhs.lock();
-  return (lp && rp && lp < rp) || (!lp && rp);
-}
-
 /**
  *  @brief Compare two @c net_entity objects for equality.
  *
@@ -451,7 +437,7 @@ inline bool operator<(const std::weak_ptr<T>& lhs, const std::weak_ptr<T>& rhs) 
 inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
   return std::visit(chops::overloaded {
     [] (const net_entity::udp_wp& lwp, const net_entity::udp_wp& rwp) {
-          return lwp == rwp;
+          return lwp.lock() == rwp.lock();
         },
     [] (const net_entity::udp_wp& lwp, const net_entity::acc_wp& rwp) {
           return false;
@@ -460,7 +446,7 @@ inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
           return false;
         },
     [] (const net_entity::acc_wp& lwp, const net_entity::acc_wp& rwp) {
-          return lwp == rwp;
+          return lwp.lock() == rwp.lock();
         },
     [] (const net_entity::acc_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;
@@ -469,7 +455,7 @@ inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
           return false;
         },
     [] (const net_entity::conn_wp& lwp, const net_entity::conn_wp& rwp) {
-          return lwp == rwp;
+          return lwp.lock() == rwp.lock();
         },
     [] (const net_entity::conn_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;
@@ -484,8 +470,8 @@ inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
  *  @brief Compare two @c net_entity objects for ordering purposes.
  *
  *  Arbitrarily, a UDP network entity compares less than a TCP acceptor which compares
- *  less than a TCP connector. If both network entities are the same and both of them
- *  valid (@c weak_ptr is valid), then the @c std::shared_ptr ordering is returned.
+ *  less than a TCP connector. If both network entities are the same then the 
+ *  @c std::shared_ptr ordering is returned.
  *
  *  All invalid @c net_entity objects (of the same network entity type) are less than valid 
  *  ones. If both @c net_entity objects are invalid and the same network entity type, 
@@ -496,7 +482,7 @@ inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
 inline bool operator<(const net_entity& lhs, const net_entity& rhs) noexcept {
   return std::visit(chops::overloaded {
     [] (const net_entity::udp_wp& lwp, const net_entity::udp_wp& rwp) {
-          return lwp < rwp;
+          return lwp.lock() < rwp.lock();
         },
     [] (const net_entity::udp_wp& lwp, const net_entity::acc_wp& rwp) {
           return true;
@@ -505,7 +491,7 @@ inline bool operator<(const net_entity& lhs, const net_entity& rhs) noexcept {
           return true;
         },
     [] (const net_entity::acc_wp& lwp, const net_entity::acc_wp& rwp) {
-          return lwp < rwp;
+          return lwp.lock() < rwp.lock();
         },
     [] (const net_entity::acc_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;
@@ -514,7 +500,7 @@ inline bool operator<(const net_entity& lhs, const net_entity& rhs) noexcept {
           return true;
         },
     [] (const net_entity::conn_wp& lwp, const net_entity::conn_wp& rwp) {
-          return lwp < rwp;
+          return lwp.lock() < rwp.lock();
         },
     [] (const net_entity::conn_wp& lwp, const net_entity::udp_wp& rwp) {
           return false;

@@ -531,36 +531,29 @@ public:
 /**
  *  @brief Compare two @c basic_io_interface objects for equality.
  *
- *  If both @c basic_io_interface objects are valid, then a @c std::shared_ptr comparison 
- *  is made. If both @c basic_io_interface objects are invalid, @c true is returned (this 
+ *  The comparison is made through the @c std::shared_ptr @c operator== method. The 
+ *  comparison is made on addresses if both @c basic_io_interface objects are valid. If 
+ *  both @c basic_io_interface objects are invalid, @c true is returned (this 
  *  implies that all invalid @c basic_io_interface objects are equivalent). If one is valid 
  *  and the other invalid, @c false is returned.
  *
  *  @return As described in the comments.
  */
   bool operator==(const basic_io_interface<IOT>& rhs) const noexcept {
-    auto lp = m_ioh_wptr.lock();
-    auto rp = rhs.m_ioh_wptr.lock();
-    return (lp && rp && lp == rp) || (!lp && !rp);
+    return (m_ioh_wptr.lock() == rhs.m_ioh_wptr.lock());
   }
 
 /**
  *  @brief Compare two @c basic_io_interface objects for ordering purposes.
  *
+ *  The comparison is made through the @c std::shared_ptr @c operator< method. 
  *  All invalid @c basic_io_interface objects are less than valid ones. When both are valid,
- *  the @c std::shared_ptr ordering is returned.
- *
- *  Specifically, if both @c basic_io_interface objects are invalid @c false is returned. 
- *  If the left @c basic_io_interface object is invalid and the right is not, @c true is
- *  returned. If the right @c basic_io_interface is invalid, but the left is not, @c false is 
- *  returned.
+ *  the address ordering is returned.
  *
  *  @return As described in the comments.
  */
   bool operator<(const basic_io_interface<IOT>& rhs) const noexcept {
-    auto lp = m_ioh_wptr.lock();
-    auto rp = rhs.m_ioh_wptr.lock();
-    return (lp && rp && lp < rp) || (!lp && rp);
+    return (m_ioh_wptr.lock() < rhs.m_ioh_wptr.lock());
   }
 
 /**

@@ -124,7 +124,71 @@ void test_methods (chops::net::net_entity& net_ent, chops::net::err_wait_q& err_
   REQUIRE (*r4 == 0u);
 }
 
-SCENARIO ( "Net entity method testing, UDP entity, TCP acceptor, TCP connector", 
+
+void comparison_test(const chops::net::net_entity& ne_def,
+                     const chops::net::net_entity& ne_udp,
+                     const chops::net::net_entity& ne_acc,
+                     const chops::net::net_entity& ne_conn) {
+
+
+  GIVEN ("One default constructed and three different net entities") {
+    WHEN ("they are compared for equality") {
+      THEN ("none compare equal") {
+        REQUIRE_FALSE (ne_def == ne_udp);
+        REQUIRE_FALSE (ne_def == ne_acc);
+        REQUIRE_FALSE (ne_def == ne_conn);
+        REQUIRE_FALSE (ne_udp == ne_def);
+        REQUIRE_FALSE (ne_udp == ne_acc);
+        REQUIRE_FALSE (ne_udp == ne_conn);
+        REQUIRE_FALSE (ne_acc == ne_def);
+        REQUIRE_FALSE (ne_acc == ne_udp);
+        REQUIRE_FALSE (ne_acc == ne_conn);
+        REQUIRE_FALSE (ne_conn == ne_def);
+        REQUIRE_FALSE (ne_conn == ne_udp);
+        REQUIRE_FALSE (ne_conn == ne_acc);
+      }
+    }
+    AND_WHEN ("same net entities or two default net entities are compared for equality") {
+      THEN ("they compare equal") {
+        chops::net::net_entity def(ne_def);
+        REQUIRE (ne_def == def);
+        chops::net::net_entity acc(ne_acc);
+        REQUIRE (ne_acc == acc);
+        chops::net::net_entity conn(ne_conn);
+        REQUIRE (ne_conn == conn);
+      }
+    }
+    AND_WHEN ("the net entities are compared less than") {
+      THEN ("they compare appropriately") {
+        REQUIRE (ne_def < ne_udp);
+        REQUIRE (ne_def < ne_acc);
+        REQUIRE (ne_def < ne_conn);
+        REQUIRE (ne_udp < ne_acc);
+        REQUIRE (ne_udp < ne_conn);
+        REQUIRE (ne_acc < ne_conn);
+        REQUIRE_FALSE (ne_conn < ne_acc);
+        REQUIRE_FALSE (ne_conn < ne_udp);
+        REQUIRE_FALSE (ne_conn < ne_def);
+        REQUIRE_FALSE (ne_acc < ne_udp);
+        REQUIRE_FALSE (ne_acc < ne_def);
+        REQUIRE_FALSE (ne_udp < ne_def);
+      }
+    }
+    AND_WHEN ("a multiset is created") {
+      std::multiset<chops::net::net_entity> a_set { ne_conn, ne_acc, ne_def, ne_udp };
+      THEN ("the net entities are put in the correct order") {
+        auto i = a_set.cbegin();
+        REQUIRE (*i == ne_def); ++i;
+        REQUIRE (*i == ne_udp); ++i;
+        REQUIRE (*i == ne_acc); ++i;
+        REQUIRE (*i == ne_conn); ++i;
+      }
+    }
+  } // end given
+
+}
+
+SCENARIO ( "Net entity method and comparison testing, UDP entity, TCP acceptor, TCP connector", 
            "[net_entity] [udp_entity] [tcp_acceptor] [tcp_connector]" ) {
 
   chops::net::worker wk;
@@ -136,22 +200,24 @@ SCENARIO ( "Net entity method testing, UDP entity, TCP acceptor, TCP connector",
   chops::net::ostream_error_sink_with_wait_queue, std::ref(err_wq), std::ref(std::cerr));
 
 
-  auto sp1 = std::make_shared<chops::net::detail::tcp_connector>(ioc, std::string_view(test_port_tcp1),
-                                                                std::string_view(test_host),
-                                                                std::chrono::milliseconds(ReconnTime));
-  chops::net::net_entity ne1(sp1);
-  test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne1, err_wq);
+  auto sp_conn = std::make_shared<chops::net::detail::tcp_connector>(ioc, std::string_view(test_port_tcp1),
+                                                                     std::string_view(test_host),
+                                                                     std::chrono::milliseconds(ReconnTime));
+  chops::net::net_entity ne_conn(sp_conn);
+  test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne_conn, err_wq);
 
-  auto sp2 = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port_tcp2, test_host, true);
-  chops::net::net_entity ne2(sp2);
-  test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(ne2, err_wq);
+  auto sp_acc = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port_tcp2, test_host, true);
+  chops::net::net_entity ne_acc(sp_acc);
+  test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(ne_acc, err_wq);
 
-  auto sp3 = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port_udp, test_host);
-  chops::net::net_entity ne3(sp3);
-  test_methods<chops::net::udp_io, asio::ip::udp::socket>(ne3, err_wq);
+  auto sp_udp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port_udp, test_host);
+  chops::net::net_entity ne_udp(sp_udp);
+  test_methods<chops::net::udp_io, asio::ip::udp::socket>(ne_udp, err_wq);
 
   std::this_thread::sleep_for(std::chrono::seconds(1)); // give network entities time to shut down
 
+  comparison_test(chops::net::net_entity(), ne_udp, ne_acc, ne_conn);
+  
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -162,57 +228,5 @@ SCENARIO ( "Net entity method testing, UDP entity, TCP acceptor, TCP connector",
   wk.reset();
 
 }
-
-/*
-SCENARIO ( "Net entity comparison testing", "[net_entity]" ) {
-
-  chops::net::net_entity net_ent1 { };
-  auto e1 = std::make_shared<EH>();
-  chops::net::net_entity net_ent2(e1);
-  chops::net::net_entity net_ent3 { };
-  auto e2 = std::make_shared<EH>();
-  chops::net::net_entity net_ent4(e2);
-  chops::net::net_entity net_ent5 { };
-
-  GIVEN ("Three default constructed net_entities and two with entities") {
-    WHEN ("all three are inserted in a multiset") {
-      std::multiset<chops::net::net_entity> a_set { net_ent1, net_ent2, net_ent3, net_ent4, net_ent5 };
-      THEN ("the invalid net_entitie are first in the set") {
-        REQUIRE (a_set.size() == 5);
-        auto i = a_set.cbegin();
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
-      }
-    }
-    AND_WHEN ("two invalid net_entities are compared for equality") {
-      THEN ("they compare equal") {
-        REQUIRE (net_ent1 == net_ent3);
-        REQUIRE (net_ent3 == net_ent5);
-      }
-    }
-    AND_WHEN ("two valid net_entities are compared for equality") {
-      THEN ("they compare equal if both point to the same io handler") {
-        REQUIRE_FALSE (net_ent2 == net_ent4);
-        net_ent2 = net_ent4;
-        REQUIRE (net_ent2 == net_ent4);
-      }
-    }
-    AND_WHEN ("an invalid net_entity is order compared with a valid net_entity") {
-      THEN ("the invalid compares less than the valid") {
-        REQUIRE (net_ent1 < net_ent2);
-      }
-    }
-  } // end given
-
-}
-*/
-
 
 
