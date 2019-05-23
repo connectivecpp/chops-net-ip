@@ -101,56 +101,27 @@ SCENARIO ( "Net entity default construction", "[net_entity]" ) {
 template <typename IOT, typename S>
 void test_methods (chops::net::net_entity& net_ent, chops::net::err_wait_q& err_wq) {
 
-  GIVEN ("A constructed net_entity") {
-    WHEN ("is_valid is called") {
-      THEN ("is_valid is true") {
-        REQUIRE (net_ent.is_valid());
-      }
-    }
-    AND_WHEN ("is_started is called") {
-      THEN ("false is returned") {
-        auto r = net_ent.is_started();
-        REQUIRE_FALSE (*r);
-      }
-    }
-    AND_WHEN ("stop is called") {
-      THEN ("false is returned") {
-        auto r = net_ent.stop();
-        REQUIRE_FALSE (r);
-        INFO("Error code: " << r.error());
-      }
-    }
-    AND_WHEN ("start is called") {
-      THEN ("the call succeeds and is_started is true") {
-        REQUIRE (net_ent.start(io_state_chg<IOT>(), 
-                 chops::net::make_error_func_with_wait_queue<IOT>(err_wq)));
-        auto r = net_ent.is_started();
-        REQUIRE (*r);
-      }
-    }
-    AND_WHEN ("visit_socket is called") {
-      THEN ("the call succeeds and a visit flag is set") {
-        socket_visitor<S> sv;
-        REQUIRE_FALSE (sv.called);
-        REQUIRE (net_ent.visit_socket(sv));
-        REQUIRE (sv.called);
-      }
-    }
-    AND_WHEN ("stop is called") {
-      THEN ("true is returned") {
-        REQUIRE (net_ent.stop());
-      }
-    }
-    AND_WHEN ("visit_io_output is called") {
-      THEN ("the call succeeds and 0 is returned") {
-        io_output_visitor<IOT> iov;
-        REQUIRE_FALSE (iov.called);
-        auto r = net_ent.visit_io_output(iov);
-        REQUIRE (r);
-        REQUIRE (*r == 0u);
-      }
-    }
-  } // end given
+// having problems with GIVEN, WHEN, etc, so just REQUIREs here for now
+  REQUIRE (net_ent.is_valid());
+  auto r1 = net_ent.is_started();
+  REQUIRE (r1.has_value());
+  REQUIRE_FALSE (*r1);
+  auto r2 = net_ent.stop();
+  REQUIRE_FALSE (r2.has_value());
+  REQUIRE (net_ent.start(io_state_chg<IOT>(), 
+           chops::net::make_error_func_with_wait_queue<IOT>(err_wq)));
+  auto r3 = net_ent.is_started();
+  REQUIRE (*r3);
+  socket_visitor<S> sv;
+  REQUIRE_FALSE (sv.called);
+  REQUIRE (net_ent.visit_socket(sv));
+  REQUIRE (sv.called);
+  REQUIRE (net_ent.stop());
+  io_output_visitor<IOT> iov;
+  REQUIRE_FALSE (iov.called);
+  auto r4 = net_ent.visit_io_output(iov);
+  REQUIRE (r4);
+  REQUIRE (*r4 == 0u);
 }
 
 SCENARIO ( "Net entity method testing, UDP entity, TCP acceptor, TCP connector", 

@@ -38,10 +38,6 @@
 
 #include "utility/overloaded.hpp"
 
-//
-#include <iostream> // debugging
-//
-
 namespace chops {
 namespace net {
 
@@ -143,17 +139,14 @@ public:
           nonstd::expected<bool, std::error_code> {
     return std::visit(chops::overloaded {
         [] (const udp_wp& wp) -> nonstd::expected<bool, std::error_code> {
-std::cerr << "Inside UDP overload" << std::endl;
           return detail::wp_access<bool>(wp, 
                  [] (detail::udp_entity_io_shared_ptr sp) { return sp->is_started(); } );
         },
         [] (const acc_wp& wp) -> nonstd::expected<bool, std::error_code> {
-std::cerr << "Inside TCP acceptor overload" << std::endl;
           return detail::wp_access<bool>(wp,
                  [] (detail::tcp_acceptor_shared_ptr sp) { return sp->is_started(); } );
         },
         [] (const conn_wp& wp) -> nonstd::expected<bool, std::error_code> {
-std::cerr << "Inside TCP connector overload" << std::endl;
           return detail::wp_access<bool>(wp,
                  [] (detail::tcp_connector_shared_ptr sp) { return sp->is_started(); } );
         },
@@ -409,15 +402,15 @@ std::cerr << "Inside TCP connector overload" << std::endl;
     return std::visit(chops::overloaded {
         [] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
-              [] (detail::udp_entity_io_shared_ptr sp) { sp->stop(); return std::error_code(); } );
+              [] (detail::udp_entity_io_shared_ptr sp) { return sp->stop(); } );
         },
         [] (const acc_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
-              [] (detail::tcp_acceptor_shared_ptr sp) { sp->stop(); return std::error_code(); } );
+              [] (detail::tcp_acceptor_shared_ptr sp) { return sp->stop(); } );
         },
         [] (const conn_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
-              [] (detail::tcp_connector_shared_ptr sp) { sp->stop(); return std::error_code(); } );
+              [] (detail::tcp_connector_shared_ptr sp) { return sp->stop(); } );
         },
       },  m_wptr);
   }
