@@ -24,6 +24,7 @@
 
 #include "net_ip/io_type_decls.hpp"
 #include "net_ip/simple_variable_len_msg_frame.hpp"
+#include "net_ip/net_entity.hpp"
 
 #include "shared_test/msg_handling.hpp"
 
@@ -65,9 +66,7 @@ inline asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num)
 }
 
 
-/*
-
-inline auto get_tcp_io_futures(chops::net::tcp_connector_net_entity conn, chops::net::err_wait_q& wq,
+inline auto get_tcp_io_futures(chops::net::net_entity conn, chops::net::err_wait_q& wq,
                                bool reply, std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
     return chops::net::make_tcp_io_interface_future_pair(conn,
@@ -80,7 +79,7 @@ inline auto get_tcp_io_futures(chops::net::tcp_connector_net_entity conn, chops:
            chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
 }
 
-inline void start_tcp_acceptor(chops::net::tcp_acceptor_net_entity acc, chops::net::err_wait_q& wq,
+inline void start_tcp_acceptor(chops::net::net_entity acc, chops::net::err_wait_q& wq,
                                bool reply, std::string_view delim, test_counter& cnt) {
 
   if (delim.empty()) {
@@ -94,14 +93,14 @@ inline void start_tcp_acceptor(chops::net::tcp_acceptor_net_entity acc, chops::n
   }
 }
 
-inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net::err_wait_q& wq,
+inline auto get_udp_io_futures(chops::net::net_entity udp_entity, chops::net::err_wait_q& wq,
                                bool reply, test_counter& cnt) {
   return chops::net::make_udp_io_interface_future_pair(udp_entity,
            chops::net::make_read_io_state_change(udp_max_buf_size, udp_msg_hdlr(reply, cnt)),
            chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
 
-inline auto get_udp_io_futures(chops::net::udp_net_entity udp_entity, chops::net::err_wait_q& wq,
+inline auto get_udp_io_futures(chops::net::net_entity udp_entity, chops::net::err_wait_q& wq,
                                bool receiving, test_counter& cnt,
                                const asio::ip::udp::endpoint& remote_endp) {
 

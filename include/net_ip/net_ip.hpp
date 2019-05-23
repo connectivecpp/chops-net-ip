@@ -24,6 +24,7 @@
 #include <vector>
 #include <chrono>
 #include <variant> // std::visit
+#include <type_traits>
 
 #include <mutex>
 
@@ -264,6 +265,9 @@ public:
   net_entity make_tcp_connector (Iter beg, Iter end,
                                  std::chrono::milliseconds reconn_time = 
                                    std::chrono::milliseconds { } ) {
+    if constexpr (std::is_same<char *, std::remove_cv_t<Iter>>) {
+      return make_tcp_connector (std::string_view(beg), std::string_view(end), reconn_time);
+    }
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
     lg g(m_mutex);
     m_connectors.push_back(p);

@@ -28,14 +28,12 @@
 
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/io_interface.hpp"
 #include "net_ip/net_entity.hpp"
 
 #include "net_ip_component/worker.hpp"
-#include "net_ip_component/send_to_all.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
-#include "net_ip/shared_utility_func_test.hpp"
+#include "shared_test/msg_handling.hpp"
+#include "shared_test/start_funcs.hpp"
 
 #include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
