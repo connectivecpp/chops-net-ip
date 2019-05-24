@@ -66,7 +66,7 @@ inline asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num)
 }
 
 
-inline auto get_tcp_io_futures(chops::net::net_entity conn, chops::net::err_wait_q& wq,
+inline auto get_tcp_io_futures(chops::net::net_entity ent, chops::net::err_wait_q& wq,
                                bool reply, std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
     return chops::net::make_tcp_io_interface_future_pair(conn,

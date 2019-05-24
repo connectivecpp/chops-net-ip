@@ -14,7 +14,7 @@
  *  then call @c start on the @c net_entity using the @c start_io function object and then
  *  return a @c basic_io_output object through various mechanisms.
  *
- *  Empty ("do nothing") error functions are available in the @c error_delivery.hpp header. These
+ *  Empty ("do nothing") error functions are available in the @c net_entity.hpp header. These
  *  can be used for the error function object parameters.
  *
  *  The @c io_state_change.hpp header provides a collection of functions that create @c start_io

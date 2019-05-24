@@ -35,16 +35,11 @@ namespace net {
  *  send data and query output queue stats.
  *
  *  Unless default constructed or released, a @c basic_io_output object has an association 
- *  to an IO handler object. This association will keep the IO handler object in memory,
- *  even after the TCP connection or UDP socket has been closed. When output is done,
- *  either by application notification or because 
+ *  to an IO handler object. This association may keep the IO handler object in memory,
+ *  even after the TCP connection or UDP socket has been closed. When output processing 
+ *  is finished, the @c release method should be called.
  *
- *  This class provides an association to a network IO handler. It may participate in
- *  the lifetime of the network IO handler, depending on how an object of this type is 
- *  created. It does not check for a valid reference, as opposed to the 
- *  @c basic_io_interface class template and the @c net_entity class.
- *
- *  To , the context for a @ basic_io_output object is as follows:
+ *  The context for a @ basic_io_output object is as follows:
  *  1) In a message handler invocation - the reference will always be valid.
  *  2) A @c basic_io_output object can be obtained from a valid @c basic_io_interface object.
  *  As long as the originating @c basic_io_interface object is valid, the @c basic_io_output
@@ -56,38 +51,43 @@ namespace net {
  *
  *  All @c basic_io_output @c send methods can be called concurrently from multiple threads.
  *
+ *  @note The design and usage of this class may change; in particular, it may change to use
+ *  a @c std::weak_ptr like the @c net_entity and @c basic_io_interface classes. The
+ *  performance gains from using a raw pointer may not offset the safety and consistency of
+ *  using the @c std::weak_ptr.
  */
 
-template <typename IOH>
+template <typename IOT>
 class basic_io_output {
 
 private:
-  using iohsp = std::shared_ptr<IOH>;
+  using iohsp = std::shared_ptr<IOT>;
 private:
   // order of declaration is important, iohptr is obtained from iohsp
-  iohsp    m_iohsp;
-  IOH*     m_iohptr;
+  iohsp    m_ioh_sp;
+  IOT*     m_ioh_ptr;
 
 public:
-  using endpoint_type = typename IOH::endpoint_type;
+  using endpoint_type = typename IOT::endpoint_type;
 
 public:
 
-  basic_io_output() noexcept : m_iohsp(), m_iohptr(nullptr) { }
+  basic_io_output() noexcept : m_ioh_sp(), m_ioh_ptr(nullptr) { }
 
 /**
  *  @brief Construct with a pointer to an internal IO handler, where the @c shared_ptr
  *  lifetime is not needed. This constructor is for internal use only and not to be used
  *  by application code.
  */
-  explicit basic_io_output(IOH* ioh) noexcept : m_iohsp(), m_iohptr(ioh) { }
+  explicit basic_io_output(IOT* ioh) noexcept : m_ioh_sp(), m_ioh_ptr(ioh) { }
 
 /**
  *  @brief Construct with a @c std::shared_ptr to an internal IO handler, allowing IO 
  *  handler lifetime to be controlled. This constructor is for internal use only and not to 
  *  be used by application code.
  */
-  explicit basic_io_output(iohsp sp) noexcept : m_iohsp(sp), m_iohptr(m_iohsp.get()) { }
+  explicit basic_io_output(iohsp sp) noexcept : m_ioh_sp(sp), m_ioh_ptr(m_ioh_sp.get()) { }
+
 
 /**
  *  @brief Query whether an IO handler is associated with this object.
@@ -98,7 +98,7 @@ public:
  *
  *  @return @c true if associated with an IO handler.
  */
-  bool is_valid() const noexcept { return m_iohptr != nullptr; }
+  bool is_valid() const noexcept { return m_ioh_ptr != nullptr; }
 
 /**
  *  @brief Query whether an IO handler is in a started state or not.
@@ -108,7 +108,7 @@ public:
  *
  */
   bool is_io_started() const {
-    m_iohptr->is_io_started();
+    m_ioh_ptr->is_io_started();
   }
 
 /**
@@ -119,8 +119,8 @@ public:
  *  object will result in dereferencing a null pointer.
  */
   void release() noexcept {
-    m_iohsp.reset();
-    m_iohptr = nullptr;
+    m_ioh_sp.reset();
+    m_ioh_ptr = nullptr;
   }
 
 /**
@@ -133,7 +133,7 @@ public:
  *  equals @c true).
  */
   output_queue_stats get_output_queue_stats() const {
-    return m_iohptr->get_output_queue_stats();
+    return m_ioh_ptr->get_output_queue_stats();
   }
 
 /**
@@ -166,7 +166,7 @@ public:
  *  equals @c true).
  */
   bool send(chops::const_shared_buffer buf) const {
-    return m_iohptr->send(buf);
+    return m_ioh_ptr->send(buf);
   }
 
 /**
@@ -236,7 +236,7 @@ public:
  *  equals @c true).
  */
   bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
-    return m_iohptr->send(buf, endp);
+    return m_ioh_ptr->send(buf, endp);
   }
 
 /**
@@ -257,6 +257,26 @@ public:
  */
   bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
     return send(chops::const_shared_buffer(std::move(buf)), endp);
+  }
+
+/**
+ *  @brief Compare two @c basic_io_output objects for equality.
+ *
+ *  @return @c true if both @c basic_io_output object point to the same internal
+ *  IO handler.
+ */
+  bool operator==(const basic_io_output<IOT>& rhs) const noexcept {
+    return (m_ioh_ptr == rhs.m_ioh_ptr);
+  }
+
+/**
+ *  @brief Compare two @c basic_io_output objects for ordering purposes.
+ *
+ *  @return Comparison made through IO handler pointers, no association
+ *  will compare less than one with an association.
+ */
+  bool operator<(const basic_io_output<IOT>& rhs) const noexcept {
+    return (m_ioh_ptr < rhs.m_ioh_ptr);
   }
 
 };

@@ -16,6 +16,7 @@
 #include "catch2/catch.hpp"
 
 #include <memory> // std::shared_ptr
+#include <set>
 #include <cstddef> // std::size_t
 
 #include "net_ip/queue_stats.hpp"
@@ -105,6 +106,60 @@ void basic_io_output_test_sends() {
         io_out.send(chops::mutable_shared_buffer(), endp_t());
         REQUIRE(ioh->send_called);
 
+      }
+    }
+  } // end given
+
+}
+
+template <typename IOT>
+void basic_io_output_test_compare() {
+
+  chops::net::basic_io_output<IOT> io_intf1 { };
+
+  auto ioh1 = std::make_shared<IOT>();
+  chops::net::basic_io_output<IOT> io_intf2(ioh1);
+
+  chops::net::basic_io_output<IOT> io_intf3 { };
+
+  auto ioh2 = std::make_shared<IOT>();
+  chops::net::basic_io_output<IOT> io_intf4(ioh2);
+
+  chops::net::basic_io_output<IOT> io_intf5 { };
+
+  GIVEN ("Three default constructed basic_io_outputs and two with io handlers") {
+    WHEN ("all are inserted in a set") {
+      std::set<chops::net::basic_io_output<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
+      THEN ("the invalid basic_io_outputs are first in the set") {
+        REQUIRE (a_set.size() == 5);
+        auto i = a_set.cbegin();
+        REQUIRE_FALSE (i->is_valid());
+        ++i;
+        REQUIRE_FALSE (i->is_valid());
+        ++i;
+        REQUIRE_FALSE (i->is_valid());
+        ++i;
+        REQUIRE (i->is_valid());
+        ++i;
+        REQUIRE (i->is_valid());
+      }
+    }
+    AND_WHEN ("two invalid basic_io_outputs are compared for equality") {
+      THEN ("they compare equal") {
+        REQUIRE (io_intf1 == io_intf3);
+        REQUIRE (io_intf3 == io_intf5);
+      }
+    }
+    AND_WHEN ("two valid basic_outputs are compared for equality") {
+      THEN ("they compare equal if both point to the same io handler") {
+        REQUIRE_FALSE (io_intf2 == io_intf4);
+        io_intf2 = io_intf4;
+        REQUIRE (io_intf2 == io_intf4);
+      }
+    }
+    AND_WHEN ("an invalid basic_output is order compared with a valid basic_io_output") {
+      THEN ("the invalid compares less than the valid") {
+        REQUIRE (io_intf1 < io_intf2);
       }
     }
   } // end given

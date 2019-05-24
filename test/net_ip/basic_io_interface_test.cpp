@@ -151,15 +151,11 @@ void basic_io_interface_test_compare() {
   chops::net::basic_io_interface<IOT> io_intf5 { };
 
   GIVEN ("Three default constructed basic_io_interfaces and two with io handlers") {
-    WHEN ("all three are inserted in a multiset") {
-      std::multiset<chops::net::basic_io_interface<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
-      THEN ("the invalid basic_io_interfaces are first in the set") {
-        REQUIRE (a_set.size() == 5);
+    WHEN ("all are inserted in a set") {
+      std::set<chops::net::basic_io_interface<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
+      THEN ("only one invalid entry is in the set, and the others are present") {
+        REQUIRE (a_set.size() == 3u);
         auto i = a_set.cbegin();
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
         REQUIRE_FALSE (i->is_valid());
         ++i;
         REQUIRE (i->is_valid());

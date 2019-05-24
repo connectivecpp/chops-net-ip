@@ -124,6 +124,18 @@ void test_methods (chops::net::net_entity& net_ent, chops::net::err_wait_q& err_
   REQUIRE (*r4 == 0u);
 }
 
+void check_set (const std::set<chops::net::net_entity>& ent_set,
+                const chops::net::net_entity& ne_def,
+                const chops::net::net_entity& ne_udp,
+                const chops::net::net_entity& ne_acc,
+                const chops::net::net_entity& ne_conn) {
+  REQUIRE (ent_set.size() == 4u);
+  auto i = ent_set.cbegin();
+  REQUIRE (*i == ne_def); ++i;
+  REQUIRE (*i == ne_udp); ++i;
+  REQUIRE (*i == ne_acc); ++i;
+  REQUIRE (*i == ne_conn); ++i;
+}
 
 void comparison_test(const chops::net::net_entity& ne_def,
                      const chops::net::net_entity& ne_udp,
@@ -174,14 +186,17 @@ void comparison_test(const chops::net::net_entity& ne_def,
         REQUIRE_FALSE (ne_udp < ne_def);
       }
     }
-    AND_WHEN ("a multiset is created") {
-      std::multiset<chops::net::net_entity> a_set { ne_conn, ne_acc, ne_def, ne_udp };
+    AND_WHEN ("a set is created") {
+      std::set<chops::net::net_entity> a_set { ne_conn, ne_acc, ne_def, ne_udp };
       THEN ("the net entities are put in the correct order") {
-        auto i = a_set.cbegin();
-        REQUIRE (*i == ne_def); ++i;
-        REQUIRE (*i == ne_udp); ++i;
-        REQUIRE (*i == ne_acc); ++i;
-        REQUIRE (*i == ne_conn); ++i;
+        check_set(a_set, ne_def, ne_udp, ne_acc, ne_conn);
+      }
+    }
+    AND_WHEN ("a set is created with multiple same entities") {
+      std::set<chops::net::net_entity> a_set 
+            { ne_conn, ne_conn, ne_acc, ne_def, ne_udp, ne_acc, ne_acc, ne_def, ne_def };
+      THEN ("same entities are not duplicated") {
+        check_set(a_set, ne_def, ne_udp, ne_acc, ne_conn);
       }
     }
   } // end given
