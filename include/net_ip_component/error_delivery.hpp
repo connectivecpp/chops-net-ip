@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_component_module
  *
- *  @brief Functions and classes for error callback handling.
+ *  @brief Functions and classes for error callback handling and basic logging.
  *
  *  @author Cliff Green
  *
@@ -39,8 +39,8 @@ namespace net {
  *  This @c struct of data can be passed through a queue or other mechanism for logging
  *  or other error analysis purposes.
  *
- *  A @c basic_io_interface is not part of the data since the referenced handler
- *  is likely to soon go away. Instead, a @c void pointer of the underlying
+ *  A @c basic_io_interface or @c basic_io_output is not part of the data since the referenced 
+ *  handler is likely to soon go away. Instead, a @c void pointer of the underlying
  *  handler is used. Another reason for not storing a @c basic_io_interface is that
  *  the IO handler type parameterization is no longer needed, so this can be used for
  *  both TCP and UDP error data. The pointer address is used for logging purposes only.
