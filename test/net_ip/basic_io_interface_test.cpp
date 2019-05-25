@@ -136,6 +136,20 @@ void basic_io_interface_test_methods() {
 }
 
 template <typename IOT>
+void check_set (const std::set<chops::net::basic_io_interface<IOT>>& io_intf_set,
+                const chops::net::net_entity& ne_def,
+                const chops::net::net_entity& ne_udp,
+                const chops::net::net_entity& ne_acc,
+                const chops::net::net_entity& ne_conn) {
+  REQUIRE (ent_set.size() == 4u);
+  auto i = ent_set.cbegin();
+  REQUIRE (*i == ne_def); ++i;
+  REQUIRE (*i == ne_udp); ++i;
+  REQUIRE (*i == ne_acc); ++i;
+  REQUIRE (*i == ne_conn); ++i;
+}
+
+template <typename IOT>
 void basic_io_interface_test_compare() {
 
   chops::net::basic_io_interface<IOT> io_intf1 { };
@@ -151,19 +165,7 @@ void basic_io_interface_test_compare() {
   chops::net::basic_io_interface<IOT> io_intf5 { };
 
   GIVEN ("Three default constructed basic_io_interfaces and two with io handlers") {
-    WHEN ("all are inserted in a set") {
-      std::set<chops::net::basic_io_interface<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
-      THEN ("only one invalid entry is in the set, and the others are present") {
-        REQUIRE (a_set.size() == 3u);
-        auto i = a_set.cbegin();
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
-      }
-    }
-    AND_WHEN ("two invalid basic_io_interfaces are compared for equality") {
+    WHEN ("two invalid basic_io_interfaces are compared for equality") {
       THEN ("they compare equal") {
         REQUIRE (io_intf1 == io_intf3);
         REQUIRE (io_intf3 == io_intf5);
@@ -179,6 +181,18 @@ void basic_io_interface_test_compare() {
     AND_WHEN ("an invalid basic_io_interface is order compared with a valid basic_io_interface") {
       THEN ("the invalid compares less than the valid") {
         REQUIRE (io_intf1 < io_intf2);
+      }
+    }
+    AND_WHEN ("all are inserted in a set") {
+      std::set<chops::net::basic_io_interface<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
+      THEN ("only one invalid entry is in the set, and the others are present") {
+        REQUIRE (a_set.size() == 3u);
+        auto i = a_set.cbegin();
+        REQUIRE_FALSE (i->is_valid());
+        ++i;
+        REQUIRE (i->is_valid());
+        ++i;
+        REQUIRE (i->is_valid());
       }
     }
   } // end given
