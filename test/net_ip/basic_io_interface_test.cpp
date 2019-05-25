@@ -136,17 +136,18 @@ void basic_io_interface_test_methods() {
 }
 
 template <typename IOT>
-void check_set (const std::set<chops::net::basic_io_interface<IOT>>& io_intf_set,
-                const chops::net::net_entity& ne_def,
-                const chops::net::net_entity& ne_udp,
-                const chops::net::net_entity& ne_acc,
-                const chops::net::net_entity& ne_conn) {
-  REQUIRE (ent_set.size() == 4u);
-  auto i = ent_set.cbegin();
-  REQUIRE (*i == ne_def); ++i;
-  REQUIRE (*i == ne_udp); ++i;
-  REQUIRE (*i == ne_acc); ++i;
-  REQUIRE (*i == ne_conn); ++i;
+void check_set (const std::set<chops::net::basic_io_interface<IOT>>& io_set,
+                const chops::net::basic_io_interface<IOT>& io1,
+                const chops::net::basic_io_interface<IOT>& io2,
+                const chops::net::basic_io_interface<IOT>& io3) {
+  REQUIRE (io_set.size() == 3u);
+  auto i = io_set.cbegin();
+  REQUIRE_FALSE (i->is_valid());
+  REQUIRE (*i == io1); ++i;
+  REQUIRE (i->is_valid());
+  REQUIRE (*i == io2); ++i;
+  REQUIRE (i->is_valid());
+  REQUIRE (*i == io3); ++i;
 }
 
 template <typename IOT>
@@ -181,18 +182,31 @@ void basic_io_interface_test_compare() {
     AND_WHEN ("an invalid basic_io_interface is order compared with a valid basic_io_interface") {
       THEN ("the invalid compares less than the valid") {
         REQUIRE (io_intf1 < io_intf2);
+        REQUIRE (io_intf3 < io_intf4);
       }
     }
     AND_WHEN ("all are inserted in a set") {
-      std::set<chops::net::basic_io_interface<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
+      std::set<chops::net::basic_io_interface<IOT> > a_set { io_intf5, io_intf4, io_intf3, io_intf2, io_intf1 };
       THEN ("only one invalid entry is in the set, and the others are present") {
-        REQUIRE (a_set.size() == 3u);
-        auto i = a_set.cbegin();
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
+        check_set(a_set, io_intf1, io_intf2, io_intf4);
+      }
+    }
+    AND_WHEN ("a set is created with copied entries") {
+      chops::net::basic_io_interface<IOT> io_intfa(io_intf1);
+      chops::net::basic_io_interface<IOT> io_intfb(io_intf1);
+      chops::net::basic_io_interface<IOT> io_intfc(io_intf1);
+      chops::net::basic_io_interface<IOT> io_intfd(io_intf2);
+      chops::net::basic_io_interface<IOT> io_intfe(io_intf2);
+      chops::net::basic_io_interface<IOT> io_intff(io_intf4);
+      chops::net::basic_io_interface<IOT> io_intfg(io_intf4);
+      chops::net::basic_io_interface<IOT> io_intfh(io_intf4);
+      chops::net::basic_io_interface<IOT> io_intfi(io_intf4);
+      
+      std::set<chops::net::basic_io_interface<IOT> > a_set {
+          io_intfa, io_intfb, io_intfc, io_intfd, io_intfe, io_intfg, io_intfh, io_intfi };
+
+      THEN ("same entries are not duplicated") {
+        check_set(a_set, io_intf1, io_intf2, io_intf4);
       }
     }
   } // end given

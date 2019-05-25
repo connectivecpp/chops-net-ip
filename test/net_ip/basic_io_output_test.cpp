@@ -113,53 +113,66 @@ void basic_io_output_test_sends() {
 }
 
 template <typename IOT>
+void check_set (const std::set<chops::net::basic_io_output<IOT>>& io_set,
+                const chops::net::basic_io_output<IOT>& io1,
+                const chops::net::basic_io_output<IOT>& io2,
+                const chops::net::basic_io_output<IOT>& io3) {
+  REQUIRE (io_set.size() == 3u);
+  auto i = io_set.cbegin();
+  REQUIRE_FALSE (i->is_valid());
+  REQUIRE (*i == io1); ++i;
+  REQUIRE (i->is_valid());
+  REQUIRE (*i == io2); ++i;
+  REQUIRE (i->is_valid());
+  REQUIRE (*i == io3); ++i;
+}
+
+template <typename IOT>
 void basic_io_output_test_compare() {
 
-  chops::net::basic_io_output<IOT> io_intf1 { };
+  chops::net::basic_io_output<IOT> io_emp1 { };
+  chops::net::basic_io_output<IOT> io_emp2(io_emp1);
 
   auto ioh1 = std::make_shared<IOT>();
-  chops::net::basic_io_output<IOT> io_intf2(ioh1);
-
-  chops::net::basic_io_output<IOT> io_intf3 { };
+  chops::net::basic_io_interface<IOT> io_intf1(ioh1);
+  auto io_out1 = *(io_intf1.make_io_output());
 
   auto ioh2 = std::make_shared<IOT>();
-  chops::net::basic_io_output<IOT> io_intf4(ioh2);
+  chops::net::basic_io_interface<IOT> io_intf2(ioh2);
+  auto io_out2 = *(io_intf2.make_io_output());
 
-  chops::net::basic_io_output<IOT> io_intf5 { };
+  auto io_out3 = io_out1;
+  auto io_out4 = io_out2;
 
-  GIVEN ("Three default constructed basic_io_outputs and two with io handlers") {
-    WHEN ("all are inserted in a set") {
-      std::set<chops::net::basic_io_output<IOT> > a_set { io_intf1, io_intf2, io_intf3, io_intf4, io_intf5 };
-      THEN ("the invalid basic_io_outputs are first in the set") {
-        REQUIRE (a_set.size() == 5);
-        auto i = a_set.cbegin();
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE_FALSE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
-        ++i;
-        REQUIRE (i->is_valid());
-      }
-    }
-    AND_WHEN ("two invalid basic_io_outputs are compared for equality") {
+  GIVEN ("Two default constructed basic_io_outputs and two with io handlers") {
+    WHEN ("two invalid basic_io_outputs are compared for equality") {
       THEN ("they compare equal") {
-        REQUIRE (io_intf1 == io_intf3);
-        REQUIRE (io_intf3 == io_intf5);
+        REQUIRE (io_emp1 == io_emp2);
       }
     }
     AND_WHEN ("two valid basic_outputs are compared for equality") {
       THEN ("they compare equal if both point to the same io handler") {
-        REQUIRE_FALSE (io_intf2 == io_intf4);
-        io_intf2 = io_intf4;
-        REQUIRE (io_intf2 == io_intf4);
+        REQUIRE_FALSE (io_out1 == io_out2);
+        REQUIRE_FALSE (io_out3 == io_out4);
+        REQUIRE (io_out1 == io_out3);
+        REQUIRE (io_out2 == io_out4);
       }
     }
     AND_WHEN ("an invalid basic_output is order compared with a valid basic_io_output") {
       THEN ("the invalid compares less than the valid") {
-        REQUIRE (io_intf1 < io_intf2);
+        REQUIRE (io_emp1 < io_out1);
+        REQUIRE (io_emp2 < io_out1);
+        REQUIRE (io_emp1 < io_out2);
+        REQUIRE (io_emp2 < io_out2);
+        REQUIRE (io_emp1 < io_out3);
+        REQUIRE (io_emp1 < io_out4);
+      }
+    }
+    AND_WHEN ("all are inserted in a set") {
+      std::set<chops::net::basic_io_output<IOT> > a_set {
+          io_out4, io_out3, io_out2, io_out1, io_emp2, io_emp1 };
+      THEN ("only one empty entry, followed by each unique entry") {
+        check_set(a_set, io_emp1, io_out1, io_out2);
       }
     }
   } // end given
@@ -170,5 +183,6 @@ SCENARIO ( "Basic io output test, io_handler_mock used for IO handler type",
            "[basic_io_output] [io_handler_mock]" ) {
   basic_io_output_test_construction_and_release<chops::test::io_handler_mock>();
   basic_io_output_test_sends<chops::test::io_handler_mock>();
+  basic_io_output_test_compare<chops::test::io_handler_mock>();
 }
 

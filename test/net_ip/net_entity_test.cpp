@@ -131,9 +131,13 @@ void check_set (const std::set<chops::net::net_entity>& ent_set,
                 const chops::net::net_entity& ne_conn) {
   REQUIRE (ent_set.size() == 4u);
   auto i = ent_set.cbegin();
+  REQUIRE_FALSE (i->is_valid());
   REQUIRE (*i == ne_def); ++i;
+  REQUIRE (i->is_valid());
   REQUIRE (*i == ne_udp); ++i;
+  REQUIRE (i->is_valid());
   REQUIRE (*i == ne_acc); ++i;
+  REQUIRE (i->is_valid());
   REQUIRE (*i == ne_conn); ++i;
 }
 
