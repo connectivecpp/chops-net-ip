@@ -55,9 +55,6 @@
 
 #include "queue/wait_queue.hpp"
 
-////
-#include <iostream>
-
 namespace chops {
 namespace net {
 
@@ -103,13 +100,14 @@ using udp_io_wait_q = io_wait_q<chops::net::udp_io>;
  *
  *  @param err_func Error function object.
  *
+ *  @return Same as return type from @c net_entity @c start.
  */
 template <typename IOT, typename IOS, typename EF>
-void start_with_io_wait_queue (net_entity ne, 
+auto start_with_io_wait_queue (net_entity ne, 
                                IOS&& io_start,
                                io_wait_q<IOT>& wq, 
                                EF&& err_func) {
-  ne.start( [ios = std::move(io_start), &wq]
+  return ne.start( [ios = std::move(io_start), &wq]
                    (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
         ios(io, num, starting);
@@ -190,7 +188,6 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
   auto start_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto start_fut = start_prom_ptr->get_future();
 
-std::cerr << "Ready to call start on entity" << std::endl;
   ent.start( [ios = std::move(io_start), start_prom_ptr] 
                     (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
@@ -199,7 +196,6 @@ std::cerr << "Ready to call start on entity" << std::endl;
       }
     }, std::forward<EF>(err_func)
   );
-std::cerr << "Start called, returning future" << std::endl;
   return start_fut;
 }
 

@@ -20,6 +20,8 @@
 
 #include <future>
 #include <memory>
+#include <thread>
+#include <chrono>
 #include <string_view>
 #include <cstddef>
 
@@ -29,11 +31,39 @@
 #include "net_ip/net_entity.hpp"
 #include "net_ip/io_type_decls.hpp"
 
-const char* test_port = "30222";
+///
+#include <iostream>
+
+const char* test_port_acc = "30222";
+const char* test_port_conn = "30223";
+const char* test_port_udp = "30224";
 const char* test_host = "";
 
 template <typename IOT>
 bool io_state_chg (chops::net::basic_io_interface<IOT>, std::size_t, bool) { return true; }
+
+template <typename IOT>
+void test_io_wait_q(chops::net::net_entity net_ent, int exp_entries) {
+
+    auto r = net_ent.is_started();
+    REQUIRE (r);
+    REQUIRE_FALSE (*r);
+    chops::net::io_wait_q<IOT> wq;
+    auto t = chops::net::start_with_io_wait_queue<IOT>(net_ent, io_state_chg<IOT>, wq, 
+                                              chops::net::empty_error_func<IOT>);
+//    REQUIRE (t);
+std::cerr << "Error return: " << t.error().message() << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+/*
+    net_ent.stop();
+    while (exp_entries > 0) {
+      auto r = wq.wait_and_pop();
+      REQUIRE (r);
+      --exp_entries;
+    }
+*/
+}
 
 SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
            "[io_output_delivery]" ) {
@@ -43,13 +73,24 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
   auto& ioc = wk.get_io_context();
 
   {
-    auto ent_sp = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
-                             std::string_view(test_port), std::string_view(test_host), true);
-    chops::net::net_entity net_ent(ent_sp);
+    auto sp_acc = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                             std::string_view(test_port_acc), std::string_view(test_host), true);
+    chops::net::net_entity ne_acc(sp_acc);
+    REQUIRE (ne_acc.is_valid());
+    test_io_wait_q<chops::net::tcp_io>(ne_acc, 0);
 
-    chops::net::tcp_io_wait_q wq;
+    auto sp_conn = std::make_shared<chops::net::detail::tcp_connector>(ioc, 
+                             std::string_view(test_port_conn), std::string_view(test_host), 
+                             std::chrono::milliseconds(500));
+    chops::net::net_entity ne_conn(sp_conn);
+    REQUIRE (ne_conn.is_valid());
+    test_io_wait_q<chops::net::tcp_io>(ne_conn, 0);
 
-    REQUIRE (net_ent.is_valid());
+    auto sp_udp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
+                             std::string_view(test_port_udp), std::string_view(test_host));
+    chops::net::net_entity ne_udp(sp_udp);
+    REQUIRE (ne_udp.is_valid());
+    test_io_wait_q<chops::net::udp_io>(ne_udp, 2);
 
 /*
     auto fut = chops::net::make_io_output_future<chops::net::tcp_io>(net_ent, 
@@ -79,17 +120,6 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
     auto io3 = pair_fut.stop_fut.get();
 
 */
-    chops::net::start_with_io_wait_queue<chops::net::tcp_io>(net_ent, 
-            io_state_chg<chops::net::tcp_io>, wq, chops::net::tcp_empty_error_func);
-    net_ent.stop();
-    auto p1 = wq.wait_and_pop();
-    REQUIRE (p1);
-    REQUIRE (p1->num_handlers == 1u);
-    REQUIRE (p1->starting);
-    auto p2 = wq.wait_and_pop();
-    REQUIRE (p2);
-    REQUIRE(p2->num_handlers == 0u);
-    REQUIRE_FALSE(p2->starting);
 
   }
 
