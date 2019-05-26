@@ -99,7 +99,7 @@ SCENARIO ( "Net entity default construction", "[net_entity]" ) {
 }
 
 template <typename IOT, typename S>
-void test_methods (chops::net::net_entity& net_ent, chops::net::err_wait_q& err_wq) {
+void test_methods (chops::net::net_entity net_ent, chops::net::err_wait_q& err_wq) {
 
 // having problems with GIVEN, WHEN, etc, so just REQUIREs here for now
   REQUIRE (net_ent.is_valid());

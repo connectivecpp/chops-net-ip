@@ -116,7 +116,7 @@ SCENARIO ( "Mock classes testing, net_entity_mock test",
   net_entity_mock ne_mock { };
 
   REQUIRE_FALSE (ne_mock.started);
-  REQUIRE_FALSE (ne_mock.mock_ioh.send_called);
+  REQUIRE_FALSE (ne_mock.mock_ioh_sp->send_called);
 
   GIVEN ("A default constructed net_entity_mock") {
     WHEN ("is_started is called") {
@@ -133,23 +133,23 @@ SCENARIO ( "Mock classes testing, net_entity_mock test",
     AND_WHEN ("visit_io_output is called") {
       THEN ("the correct flag is set") {
         ne_mock.visit_io_output(
-            [] (chops::net::basic_io_output<io_handler_mock> ioh) {
+            [] (io_output_mock ioh) {
                    ioh.send(make_small_buf());
                }
         );
-        REQUIRE (ne_mock.mock_ioh.send_called);
+        REQUIRE (ne_mock.mock_ioh_sp->send_called);
       }
     }
     AND_WHEN ("the start method is called") {
       THEN ("is_started flag is true") {
-        auto r = ne_mock.start([] { }, [] { });
+        auto r = ne_mock.start(io_state_chg_mock, err_func_mock);
         REQUIRE_FALSE (r);
         REQUIRE (ne_mock.is_started());
       }
     }
     AND_WHEN ("stop is called after start") {
       THEN ("is_started is false") {
-        auto r1 = ne_mock.start([] { }, [] { });
+        auto r1 = ne_mock.start(io_state_chg_mock, err_func_mock);
         REQUIRE_FALSE (r1);
         auto r2 = ne_mock.stop();
         REQUIRE_FALSE (r2);
@@ -165,9 +165,9 @@ SCENARIO ( "Mock classes testing, net_entity_mock test",
     }
     AND_WHEN ("start is called twice") {
       THEN ("an error is returned") {
-        auto r1 = ne_mock.start([] { }, [] { });
+        auto r1 = ne_mock.start(io_state_chg_mock, err_func_mock);
         REQUIRE_FALSE (r1);
-        auto r2 = ne_mock.start([] { }, [] { });
+        auto r2 = ne_mock.start(io_state_chg_mock, err_func_mock);
         REQUIRE (r2);
         INFO ("Error code is: " << r2.message());
       }

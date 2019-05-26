@@ -16,6 +16,7 @@
 #ifndef MOCK_CLASSES_HPP_INCLUDED
 #define MOCK_CLASSES_HPP_INCLUDED
 
+#include <memory> // std::shared_ptr
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
 #include <system_error>
@@ -106,13 +107,18 @@ struct io_handler_mock {
 
 };
 
+using io_interface_mock = chops::net::basic_io_interface<io_handler_mock>;
+using io_output_mock = chops::net::basic_io_output<io_handler_mock>;
+
 struct net_entity_mock {
 
-  io_handler_mock mock_ioh;
+  using ios_chg_func = std::function<bool (io_interface_mock, std::size_t, bool)>;
+  ios_chg_func                       io_cb;
+  std::shared_ptr<io_handler_mock>   mock_ioh_sp = std::make_shared<io_handler_mock>();
+  float                              mock_sock = 11.0f;
+  bool                               started = false;
 
-  float mock_sock = 11.0f;
-
-  bool started = false;
+// methods below
 
   bool is_started() const { return started; }
 
@@ -123,16 +129,19 @@ struct net_entity_mock {
 
   template <typename F>
   std::size_t visit_io_output(F&& f) {
-    f(chops::net::basic_io_output<io_handler_mock>(&mock_ioh));
+    f(io_output_mock(mock_ioh_sp));
     return 1u;
   }
 
   template <typename F1, typename F2>
-  std::error_code start(F1&&, F2&&) {
+  std::error_code start(F1&& ios, F2&&) {
     if (started) {
       return std::make_error_code(std::errc::too_many_files_open);
     }
     started = true;
+    io_cb = ios;
+    // immediately invoke state_chg
+    io_cb(io_interface_mock(mock_ioh_sp), 1u, true);
     return std::error_code {};
   }
 
@@ -141,15 +150,13 @@ struct net_entity_mock {
       return std::make_error_code(std::errc::too_many_files_open);
     }
     started = false;
+    io_cb(io_interface_mock(mock_ioh_sp), 0u, false);
     return std::error_code {};
   }
 
 };
 
-using io_interface_mock = chops::net::basic_io_interface<io_handler_mock>;
-using io_output_mock = chops::net::basic_io_output<io_handler_mock>;
-
-inline bool io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
+inline bool io_state_chg_mock(io_interface_mock, std::size_t, bool) { return true; }
 inline void err_func_mock(io_interface_mock, std::error_code) { }
 
 

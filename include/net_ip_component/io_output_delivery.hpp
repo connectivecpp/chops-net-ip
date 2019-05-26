@@ -5,8 +5,9 @@
  *  @brief Functions that deliver a @c basic_io_output object, either through @c std::future 
  *  objects or through other mechanisms, such as a @c wait_queue.
  *
- *  When all of the IO processing can be performed in the message handler object, there is
- *  not a need to keep a separate @c basic_io_output object for sending data. But when there is a
+ *  When all IO processing can be performed in the message handler callback, there is
+ *  not a need to keep a separate @c basic_io_output object for sending data (since a 
+ *  @c basic_io_output object is provided as part of the callback). But when there is a
  *  need for non-reply sends, component functions in this header package up much of the needed 
  *  logic.
  *
@@ -21,13 +22,12 @@
  *  function objects, each packaged with the logic and data needed to call @c start_io.
  *
  *  There are two ways the @c basic_io_output object can be delivered - 1) by @c std::future, or 
- *  2) by a @c wait_queue. Futures are appropriate for TCP connectors and UDP entities, since there 
- *  is only a single state change for IO start and a single state change for IO stop. Futures are
- *  not appropriate for a TCP acceptor, since there are multiple IO start and stop state changes
- *  during the lifetime of the acceptor and futures are single use. For a TCP acceptor the state 
- *  change data is delivered through a @c wait_queue. Obviously a TCP connector or UDP entity 
- *  can also use the @c wait_queue delivery mechanism, which may be more appropriate than futures 
- *  for many use cases.
+ *  2) by a @c wait_queue. While a @c std::future can be used with any type of net entity (TCP
+ *  connector, TCP acceptor, UDP) it is of limited use since a @c std::future can only be satisfied
+ *  once. This works well for a single open / close UDP session, or the first connect / disconnect
+ *  lifetime of a TCP connector. It is questionable (at best) when futures are used for a TCP
+ *  acceptor. @c basic_io_output objects delivered through a @c wait_queue are appropriate for
+ *  any of the network entity types.
  *
  *  @author Cliff Green
  *
@@ -54,6 +54,9 @@
 #include "net_ip/io_type_decls.hpp"
 
 #include "queue/wait_queue.hpp"
+
+////
+#include <iostream>
 
 namespace chops {
 namespace net {
@@ -91,7 +94,7 @@ using udp_io_wait_q = io_wait_q<chops::net::udp_io>;
  *  calls @c start_io and also passes @c basic_io_output data through a 
  *  @c wait_queue.
  *
- *  @param entity A @c net_entity object, @c start is immediately called.
+ *  @param ne A @c net_entity object, @c start is immediately called.
  *
  *  @param io_start A function object which will invoke @c start_io on a
  *  @c basic_io_interface object.
@@ -102,16 +105,16 @@ using udp_io_wait_q = io_wait_q<chops::net::udp_io>;
  *
  */
 template <typename IOT, typename IOS, typename EF>
-void start_with_wait_queue (net_entity entity, 
-                            IOS&& io_start,
-                            io_wait_q<IOT>& wq, 
-                            EF&& err_func) {
-  entity.start( [ios = std::move(io_start), &wq]
+void start_with_io_wait_queue (net_entity ne, 
+                               IOS&& io_start,
+                               io_wait_q<IOT>& wq, 
+                               EF&& err_func) {
+  ne.start( [ios = std::move(io_start), &wq]
                    (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
         ios(io, num, starting);
       }
-      wq.emplace_push(io.make_io_output(), num, starting);
+      wq.emplace_push(*(io.make_io_output()), num, starting);
     },
     std::forward<EF>(err_func)
   );
@@ -135,10 +138,10 @@ using udp_io_output_future = io_output_future<udp_io>;
 
 /**
  *  @brief A @c struct containing two @c std::future objects that deliver @c basic_io_output objects
- *  corresponding to the creation and destruction (start, stop) of an IO handler (TCP connection, 
- *  UDP socket).
+ *  corresponding to the creation and destruction (start, stop) of an IO handler (typically used for
+ *  a UDP socket or the first TCP connection of a TCP connector). 
  *
- *  @note A @c std::pair could be used, but this provides a name for each element.
+ *  @note A @c std::pair or @c std::tuple could be used, but this provides a name for each element.
  */
 template <typename IOT>
 struct io_output_future_pair {
@@ -175,11 +178,11 @@ using udp_io_output_future_pair = io_output_future_pair<udp_io>;
  *  @return An @c io_output_future, either a @c tcp_io_output_future or a 
  *  @c udp_io_output_future.
  *
- *  @note For TCP acceptors this will work for only the first connection that is
- *  created. Once a @c std::promise is delivered it cannot be delivered again.
+ *  @note For TCP (whether acceptor or connector) this works for only the first connection 
+ *  that is created (once a @c std::promise is delivered it cannot be delivered again).
  */
 template <typename IOT, typename IOS, typename EF>
-io_output_future<IOT> make_io_output_future(net_entity ent,
+io_output_future<IOT> make_io_output_future(net_entity& ent,
                                             IOS&& io_start,
                                             EF&& err_func) {
   // io state change function object must be copyable since it will
@@ -187,14 +190,16 @@ io_output_future<IOT> make_io_output_future(net_entity ent,
   auto start_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto start_fut = start_prom_ptr->get_future();
 
+std::cerr << "Ready to call start on entity" << std::endl;
   ent.start( [ios = std::move(io_start), start_prom_ptr] 
                     (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
         ios(io, num, starting);
-        start_prom_ptr->set_value(io.make_io_output());
+        start_prom_ptr->set_value(*(io.make_io_output()));
       }
     }, std::forward<EF>(err_func)
   );
+std::cerr << "Start called, returning future" << std::endl;
   return start_fut;
 }
 
@@ -221,12 +226,12 @@ io_output_future<IOT> make_io_output_future(net_entity ent,
  *  @return An @c io_output_future_pair, either a @c tcp_io_output_future_pair or
  *  @c udp_io_output_future_pair.
  *
- *  @note For TCP acceptors this will work for only the first connection that is
- *  created. Once a @c std::promise is delivered it cannot be delivered again.
+ *  @note For TCP (whether acceptor or connector) this works for only the first connection 
+ *  that is created (once a @c std::promise is delivered it cannot be delivered again).
  */
 
 template <typename IOT, typename IOS, typename EF>
-io_output_future_pair<IOT> make_io_output_future_pair(net_entity ent,
+io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
                                                       IOS&& io_start,
                                                       EF&& err_func) {
 
@@ -239,10 +244,10 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity ent,
                 (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
       if (starting) {
         ios(io, num, starting);
-        start_prom_ptr->set_value(io.make_io_output());
+        start_prom_ptr->set_value(*(io.make_io_output()));
       }
       else {
-        stop_prom_ptr->set_value(io.make_io_output());
+        stop_prom_ptr->set_value(*(io.make_io_output()));
       }
     }, std::forward<EF>(err_func)
   );

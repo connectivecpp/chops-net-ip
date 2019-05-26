@@ -63,7 +63,7 @@ SCENARIO ( "Weak pointer access utility functions testing",
     AND_WHEN ("start is called followed by is_started followed by stop") {
       THEN ("all calls succeed") {
         auto r1 = chops::net::detail::wp_access_void(wp,
-            [] (ne_sp nesp) { return nesp->start([] (ne_sp) { }, [] (ne_sp) { } ); }
+            [] (ne_sp nesp) { return nesp->start(chops::test::io_state_chg_mock, chops::test::err_func_mock ); }
         );
         REQUIRE (r1);
         auto r2 = chops::net::detail::wp_access<bool>(wp, [] (ne_sp nesp) { return nesp->is_started(); } );
