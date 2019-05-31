@@ -167,7 +167,11 @@ public:
       // already stopped
       return std::make_error_code(net_ip_errc::tcp_connector_already_stopped);
     }
-    close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
+    auto self { shared_from_this() };
+    asio::post(m_socket.get_executor(), [this, self] () mutable {
+        close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
+      }
+    );
     return { };
   }
 
@@ -300,6 +304,8 @@ private:
     else {
       ec = std::make_error_code(net_ip_errc::io_state_change_terminated);
     }
+    // if fall through to here, either io state chg has been terminated, or reconnect
+    // time is 0 and no reconnects will be attempted
     auto self { shared_from_this() };
     asio::post(m_socket.get_executor(), [this, self, ec] () mutable { close(ec); } );
   }

@@ -41,6 +41,9 @@
 
 #include "marshall/shared_buffer.hpp"
 
+///
+#include <iostream>
+
 namespace chops {
 namespace net {
 namespace detail {
@@ -123,6 +126,8 @@ public:
 
   template <typename F1, typename F2>
   std::error_code start(F1&& io_state_chg, F2&& err_cb) {
+///
+std::cerr << "Inside UDP start" << std::endl;
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
       // already started
       return std::make_error_code(net_ip_errc::udp_entity_already_started);
@@ -141,6 +146,8 @@ public:
       m_local_intf.shrink_to_fit();
     }
     std::error_code ec;
+///
+std::cerr << "Calling UDP socket open" << std::endl;
     m_socket.open(m_local_endp.protocol(), ec);
     if (ec) {
       close(ec);

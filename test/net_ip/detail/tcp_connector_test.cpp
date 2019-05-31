@@ -119,6 +119,7 @@ std::size_t start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
 
   for (auto& io : io_outs) {
     io.send(empty_msg);
+    io.release();
   }
 
   // wait for stop indication
