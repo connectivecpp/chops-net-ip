@@ -42,7 +42,7 @@
 #include "shared_test/start_funcs.hpp"
 
 using namespace chops::test;
-using io_wait_q = chops::wait_queue<chops::net::basic_io_output<chops::net::tcp_io> >;
+using tcp_out_wq = chops::wait_queue<chops::net::basic_io_output<chops::net::tcp_io> >;
 
 const char* test_port_udp = "30555";
 const char* test_port_tcp1 = "30556";
@@ -136,18 +136,17 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   REQUIRE_FALSE (*(net_acc.is_started()));
   REQUIRE_FALSE (*(net_conn.is_started()));
 
-  io_wait_q io_wq;
+  tcp_out_wq out_wq;
 
   test_counter acc_cnt = 0;
   test_counter conn_cnt = 0;
 
-  net_conn.start ( [&io_wq, &conn_cnt, &err_wq]
+  net_conn.start ( [&out_wq, &conn_cnt, &err_wq]
                      (chops::net::tcp_io_interface io, std::size_t num, bool starting )-> bool {
         if (starting) {
           auto r = tcp_start_io(io, false, "", conn_cnt);
-          io_wq.push(*(io.make_io_output()));
         }
-        io_wq.push(*(io.make_io_output()));
+        out_wq.push(*(io.make_io_output()));
         return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
@@ -166,7 +165,7 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   REQUIRE (*(net_acc.is_started()));
   REQUIRE (*(net_conn.is_started()));
 
-  auto io_out = *(io_wq.wait_and_pop());
+  auto io_out = *(out_wq.wait_and_pop());
 
   for (const auto& buf : in_msg_vec) {
     io_out.send(buf);
@@ -174,7 +173,7 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
 
   io_out.send(make_empty_variable_len_msg());
   // wait for another io_output to signal end of processing
-  io_out = *(io_wq.wait_and_pop());
+  io_out = *(out_wq.wait_and_pop());
 
   net_conn.stop();
   net_acc.stop();
@@ -189,18 +188,55 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
 
 void test_udp_msg_send (const vec_buf& in_msg_vec,
                         chops::net::net_entity net_udp_recv, chops::net::net_entity net_udp_send,
-                        chops::net::err_wait_q& err_wq) {
+                        chops::net::err_wait_q& err_wq,
+                        const asio::ip::udp::endpoint& dest_endp) {
   REQUIRE (net_udp_recv.is_valid());
   REQUIRE (net_udp_send.is_valid());
   REQUIRE_FALSE (*(net_udp_recv.is_started()));
   REQUIRE_FALSE (*(net_udp_send.is_started()));
 
-  test_counter acc_cnt = 0;
-  test_counter conn_cnt = 0;
+  test_counter recv_cnt = 0;
+  test_counter send_cnt = 0;
 
+  net_udp_recv.start ( [&recv_cnt, &err_wq]
+                     (chops::net::udp_io_interface io, std::size_t num, bool starting )-> bool {
+        if (starting) {
+          auto r = udp_start_io(io, false, recv_cnt);
+        }
+        return true;
+      },
+    chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
+  );
 
+  net_udp_send.start ( [&send_cnt, &err_wq, dest_endp] 
+                    (chops::net::udp_io_interface io, std::size_t num, bool starting) -> bool {
+        if (starting) {
+          auto r = udp_start_io(io, false, send_cnt, dest_endp);
+        }
+        return true;
+      },
+    chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+  );
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
+  for (const auto& buf : in_msg_vec) {
+    net_udp_send.visit_io_output([buf] (chops::net::udp_io_output io) { io.send(buf); } );
+  }
+  net_udp_send.visit_io_output([] (chops::net::udp_io_output io) {
+      io.send(make_empty_variable_len_msg());
+    }
+  );
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  net_udp_send.stop();
+  net_udp_recv.stop();
+
+  REQUIRE_FALSE (*(net_udp_send.is_started()));
+  REQUIRE_FALSE (*(net_udp_recv.is_started()));
+
+  REQUIRE (in_msg_vec.size() == recv_cnt);
 
 }
 
@@ -327,7 +363,8 @@ SCENARIO ( "Net entity method and comparison testing, UDP entity, TCP acceptor, 
   auto sp_udp2 = std::make_shared<chops::net::detail::udp_entity_io>(ioc, asio::ip::udp::endpoint());
   chops::net::net_entity ne_udp2(sp_udp2);
 
-  test_udp_msg_send(msg_vec, ne_udp1, ne_udp2, err_wq);
+  test_udp_msg_send(msg_vec, ne_udp1, ne_udp2, err_wq, 
+                    make_udp_endpoint(test_host, std::stoi(test_port_udp)));
 
   std::this_thread::sleep_for(std::chrono::seconds(1)); // give network entities time to shut down
 
