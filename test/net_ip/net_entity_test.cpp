@@ -49,7 +49,7 @@ const char* test_host_udp = "127.0.0.1";
 const char* test_port_tcp1 = "30556";
 const char* test_port_tcp2 = "30557";
 const char* test_host_tcp = "";
-constexpr int NumMsgs = 30;
+constexpr int NumMsgs = 2000;
 constexpr int ReconnTime = 400;
 
 template <typename IOT>
@@ -190,16 +190,12 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   REQUIRE (in_msg_vec.size() == acc_cnt);
   REQUIRE (in_msg_vec.size() == conn_cnt);
 
-std::cerr << "Exiting TCP sending and receiving" << std::endl;
-
 }
 
 void test_udp_msg_send (const vec_buf& in_msg_vec,
                         chops::net::net_entity net_udp_recv, chops::net::net_entity net_udp_send,
                         chops::net::err_wait_q& err_wq,
                         const asio::ip::udp::endpoint& dest_endp) {
-
-std::cerr << "Entering UDP sending and receiving" << std::endl;
 
   REQUIRE (net_udp_recv.is_valid());
   REQUIRE (net_udp_send.is_valid());
@@ -220,19 +216,15 @@ std::cerr << "Entering UDP sending and receiving" << std::endl;
   );
   REQUIRE (r1);
 
-  auto r2 = net_udp_send.start ( [&send_cnt, &err_wq, dest_endp] 
+  auto r2 = net_udp_send.start ( [&send_cnt, &err_wq, &dest_endp] 
                     (chops::net::udp_io_interface io, std::size_t num, bool starting) -> bool {
         if (starting) {
           auto r = udp_start_io(io, false, send_cnt, dest_endp);
-if (!r) {
-std::cerr << "Error from start_io: " << r.error().message() << std::endl;
-}
         }
         return true;
       },
-    chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+    chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
   );
-std::cerr << "Error from r2: " << r2.error().message() << std::endl;
   REQUIRE (r2);
 
   std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -256,8 +248,6 @@ std::cerr << "Error from r2: " << r2.error().message() << std::endl;
   REQUIRE_FALSE (*(net_udp_recv.is_started()));
 
   REQUIRE (in_msg_vec.size() == recv_cnt);
-
-std::cerr << "Exiting UDP sending and receiving" << std::endl;
 
 }
 

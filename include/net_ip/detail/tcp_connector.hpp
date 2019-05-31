@@ -39,10 +39,14 @@
 #include "net_ip/endpoints_resolver.hpp"
 
 // TCP connector has the most complicated states of any of the net entity detail
-// objects. The states transition from closed to resolving addresses to connecting
-// to connected, then back to connecting or closing depending on the transition.
-// There are multiple ways to transition through closing to closed, and the shutdown 
-// logic involved with it can be tricky.
+// objects. The states transition from unstarted to resolving addresses to connecting
+// to connected, then back to connecting or stopped depending on the transition. 
+// There is also a timeout state for when a connection is refused. As typical, the
+// shutdown logic is non-trivial.
+//
+// The states and transitions could be implemented with a more formal state transition
+// table, including some nice state transition classes from Boost or elsewhere, but
+// for now everything is hard-coded and manually set.
 
 namespace chops {
 namespace net {

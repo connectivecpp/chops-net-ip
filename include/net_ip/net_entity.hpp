@@ -23,6 +23,7 @@
 #include <variant>
 #include <type_traits> // std::is_invocable
 #include <system_error> // std::make_error, std::error_code
+#include <string_view>
 
 #include "nonstd/expected.hpp"
 
@@ -44,7 +45,7 @@ namespace net {
 // Cliff note: when C++ 20 lambda templates are available much of this code can be simplified,
 // since most of it is generic (just doesn't have the specific type parameter available as 
 // needed in the right place). Stating it another way, there is waaaaaaay too much boilerplate 
-// code (it may be possible to simplify with C++17 techniques that I don't know about yet).
+// code (it may be possible to simplify with C++17 techniques that I don't know yet).
   
 /**
  *  @brief The @c net_entity class provides the application interface 
@@ -415,8 +416,25 @@ public:
       },  m_wptr);
   }
 
+/**
+ *  @brief Provide a display string of the internal type, whether for logging or
+ *  debugging purposes.
+ *
+ *  @return A @c std::string_view formatted with the network entity type, either
+ *  UDP, TCP acceptor, or TCP connector.
+ *
+ */
+  std::string_view stream_out() const noexcept {
+    return std::visit(chops::overloaded {
+        [] (const udp_wp& wp) { return "[UDP network entity]"; },
+        [] (const acc_wp& wp) { return "[TCP acceptor network entity]"; },
+        [] (const conn_wp& wp) { return "[TCP connector network entity]"; },
+      },  m_wptr);
+  }
+
   friend bool operator==(const net_entity&, const net_entity&) noexcept;
   friend bool operator<(const net_entity&, const net_entity&) noexcept;
+
 };
 
 /**
