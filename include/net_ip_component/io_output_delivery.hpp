@@ -107,14 +107,15 @@ auto start_with_io_wait_queue (net_entity ne,
                                IOS&& io_start,
                                io_wait_q<IOT>& wq, 
                                EF&& err_func) {
-  return ne.start( [ios = std::move(io_start), &wq]
-                   (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
+  return ne.start( [&io_start, &wq]
+                   (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
       if (starting) {
-        ios(io, num, starting);
+        io_start(io, num, starting);
       }
       wq.emplace_push(*(io.make_io_output()), num, starting);
+      return true;
     },
-    std::forward<EF>(err_func)
+    err_func
   );
 }
 
@@ -188,13 +189,14 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
   auto start_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto start_fut = start_prom_ptr->get_future();
 
-  ent.start( [ios = std::move(io_start), start_prom_ptr] 
-                    (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
+  ent.start( [&io_start, start_prom_ptr] 
+                    (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
       if (starting) {
-        ios(io, num, starting);
+        io_start(io, num, starting);
         start_prom_ptr->set_value(*(io.make_io_output()));
       }
-    }, std::forward<EF>(err_func)
+      return true;
+    }, err_func
   );
   return start_fut;
 }
@@ -236,16 +238,17 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
   auto stop_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto stop_fut = stop_prom_ptr->get_future();
 
-  ent.start( [ios = std::move(io_start), start_prom_ptr, stop_prom_ptr] 
-                (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
+  ent.start( [&io_start, start_prom_ptr, stop_prom_ptr] 
+                (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
       if (starting) {
-        ios(io, num, starting);
+        io_start(io, num, starting);
         start_prom_ptr->set_value(*(io.make_io_output()));
       }
       else {
         stop_prom_ptr->set_value(*(io.make_io_output()));
       }
-    }, std::forward<EF>(err_func)
+      return true;
+    }, err_func
   );
 
   return io_output_future_pair<IOT> { std::move(start_fut), std::move(stop_fut) };
