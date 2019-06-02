@@ -78,11 +78,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
 
         start_tcp_acceptor(acc, err_wq, reply, delim, acc_cnt);
         INFO ("Acceptor created");
-        REQUIRE(acc.is_started());
+        REQUIRE(acc.is_valid());
+        auto r1 = acc.is_started(); REQUIRE(r1); REQUIRE(*r1);
 
-        chops::net::send_to_all<chops::net::tcp_io> sta { };
-
-        std::vector< chops::net::tcp_connector_net_entity > connectors;
+        std::vector< chops::net::net_entity > connectors;
         std::vector< std::future<chops::net::tcp_io_interface> > conn_fut_vec;
 
         test_counter conn_cnt = 0;

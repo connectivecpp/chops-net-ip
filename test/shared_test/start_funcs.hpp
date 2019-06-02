@@ -66,16 +66,16 @@ inline asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num)
 }
 
 
-/*
 inline auto get_tcp_io_futures(chops::net::net_entity ent, chops::net::err_wait_q& wq,
                                bool reply, std::string_view delim, test_counter& cnt) {
   if (delim.empty()) {
-    return chops::net::make_tcp_io_interface_future_pair(conn,
-           chops::net::make_simple_variable_len_msg_frame_io_state_change(2, decode_variable_len_msg_hdr,
-                                                                          tcp_msg_hdlr(reply, cnt)),
+    return chops::net::make_io_output_future_pair<chops::net::tcp_io>(ent,
+           chops::net::make_simple_variable_len_msg_frame_io_state_change(2, 
+                                                                          tcp_msg_hdlr(reply, cnt),
+                                                                          decode_variable_len_msg_hdr),
            chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
   }
-  return chops::net::make_tcp_io_interface_future_pair(conn,
+  return chops::net::make_io_output_future_pair<chops::net::tcp_io>(ent,
            chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
            chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
 }
@@ -84,8 +84,9 @@ inline void start_tcp_acceptor(chops::net::net_entity acc, chops::net::err_wait_
                                bool reply, std::string_view delim, test_counter& cnt) {
 
   if (delim.empty()) {
-    acc.start(chops::net::make_simple_variable_len_msg_frame_io_state_change(2, decode_variable_len_msg_hdr,
-                                                                             tcp_msg_hdlr(reply, cnt)),
+    acc.start(chops::net::make_simple_variable_len_msg_frame_io_state_change(2,
+                                                                             tcp_msg_hdlr(reply, cnt),
+                                                                             decode_variable_len_msg_hdr),
            chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
   }
   else {
@@ -94,30 +95,28 @@ inline void start_tcp_acceptor(chops::net::net_entity acc, chops::net::err_wait_
   }
 }
 
-inline auto get_udp_io_futures(chops::net::net_entity udp_entity, chops::net::err_wait_q& wq,
+inline auto get_udp_io_futures(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
                                bool reply, test_counter& cnt) {
-  return chops::net::make_udp_io_interface_future_pair(udp_entity,
+  return chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent,
            chops::net::make_read_io_state_change(udp_max_buf_size, udp_msg_hdlr(reply, cnt)),
            chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
 
-inline auto get_udp_io_futures(chops::net::net_entity udp_entity, chops::net::err_wait_q& wq,
+inline auto get_udp_io_futures(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
                                bool receiving, test_counter& cnt,
                                const asio::ip::udp::endpoint& remote_endp) {
 
   if (receiving) {
-    return chops::net::make_udp_io_interface_future_pair(udp_entity,
+    return chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent,
              chops::net::make_default_endp_io_state_change(remote_endp, 
                                                            udp_max_buf_size, 
                                                            udp_msg_hdlr(false, cnt)),
              chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
   }
-  return chops::net::make_udp_io_interface_future_pair(udp_entity,
+  return chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent,
            chops::net::make_send_only_default_endp_io_state_change(remote_endp),
            chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
-
-*/
 
 } // end namespace test
 } // end namespace chops

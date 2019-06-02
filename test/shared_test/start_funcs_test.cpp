@@ -20,9 +20,14 @@
 
 #include "asio/ip/udp.hpp"
 
-#include "net_ip/shared_utility_func_test.hpp"
-
 #include "net_ip/net_entity.hpp"
+
+#include "net_ip_component/error_delivery.hpp"
+#include "net_ip_component/io_state_change.hpp"
+#include "net_ip_component/io_output_delivery.hpp"
+
+#include "shared_test/msg_handling.hpp"
+#include "shared_test/start_funcs.hpp"
 
 // currently these tests won't run, they are in place for compile testing
 
@@ -32,7 +37,7 @@ SCENARIO ( "Shared Net IP test utility, get_tcp_io_futures",
 
   chops::net::err_wait_q wq;
   test_counter cnt;
-  auto futs = get_tcp_io_futures(chops::net::tcp_connector_net_entity(), wq,
+  auto futs = get_tcp_io_futures(chops::net::net_entity { }, wq,
                                  true, std::string_view(), cnt);
 }
 
@@ -42,9 +47,9 @@ SCENARIO ( "Shared Net IP test utility, get_udp_io_futures",
 
   chops::net::err_wait_q wq;
   test_counter cnt;
-  auto futs1 = get_udp_io_futures(chops::net::udp_net_entity(), wq,
+  auto futs1 = get_udp_io_futures(chops::net::net_entity { }, wq,
                                   true, cnt);
-  auto futs2 = get_udp_io_futures(chops::net::udp_net_entity(), wq,
+  auto futs2 = get_udp_io_futures(chops::net::net_entity { }, wq,
                                   true, cnt, asio::ip::udp::endpoint());
 }
 
@@ -54,7 +59,7 @@ SCENARIO ( "Shared Net IP test utility, start TCP acceptor",
 
   chops::net::err_wait_q wq;
   test_counter cnt;
-  start_tcp_acceptor(chops::net::tcp_acceptor_net_entity(), wq, 
+  start_tcp_acceptor(chops::net::net_entity { }, wq, 
                      false, std::string_view(), cnt);
 }
 
