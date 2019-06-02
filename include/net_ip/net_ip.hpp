@@ -265,7 +265,7 @@ public:
   net_entity make_tcp_connector (Iter beg, Iter end,
                                  std::chrono::milliseconds reconn_time = 
                                    std::chrono::milliseconds { } ) {
-    if constexpr (std::is_same<char *, std::remove_cv_t<Iter>>) {
+    if constexpr (std::is_same<char *, std::remove_cv_t<Iter>>::value) {
       return make_tcp_connector (std::string_view(beg), std::string_view(end), reconn_time);
     }
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
@@ -374,9 +374,9 @@ public:
   void remove(net_entity ent) {
     lg g(m_mutex);
     std::visit (chops::overloaded {
-        [] (detail::tcp_acceptor_weak_ptr p) { chops::erase_where(m_acceptors, p.lock()); },
-        [] (detail::tcp_connector_weak_ptr p) { chops::erase_where(m_connectors, p.lock()); },
-        [] (detail::udp_entity_io_weak_ptr p) { chops::erase_where(m_udp_entities, p.lock()); },
+        [this] (detail::tcp_acceptor_weak_ptr p) { chops::erase_where(m_acceptors, p.lock()); },
+        [this] (detail::tcp_connector_weak_ptr p) { chops::erase_where(m_connectors, p.lock()); },
+        [this] (detail::udp_entity_io_weak_ptr p) { chops::erase_where(m_udp_entities, p.lock()); },
       }, ent.m_wptr);
   }
 

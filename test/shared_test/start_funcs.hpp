@@ -28,9 +28,9 @@
 
 #include "shared_test/msg_handling.hpp"
 
-// #include "net_ip_component/io_interface_delivery.hpp"
-// #include "net_ip_component/io_state_change.hpp"
-// #include "net_ip_component/error_delivery.hpp"
+#include "net_ip_component/io_state_change.hpp"
+#include "net_ip_component/io_output_delivery.hpp"
+#include "net_ip_component/error_delivery.hpp"
 
 namespace chops {
 namespace test {
