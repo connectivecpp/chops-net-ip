@@ -1,6 +1,6 @@
 # Chops Net IP Release Status
 
-## Release 0.4
+## Release 1.0
 
 Release 0.4 is under development. The main change will be using the (future standard) C++ facility `std::expected` for all public error handling returns (instead of throwing exceptions). In advance of C++ 20, this will be implemented with Martin Moene's `expected-lite` library.
 

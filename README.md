@@ -1,6 +1,6 @@
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
-Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming Asio, easier and safer, without significantly sacrificing performance. It is layered on top of the Asio asynchronous networking library, which is not an easy library to use correctly. It handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer, without significantly sacrificing performance. It is layered on top of the Asio asynchronous networking library, which is not an easy library to use correctly. It handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 Chops Net IP is not like any other high-level, general purpose C++ socket library.
 
@@ -10,7 +10,7 @@ This project is distributed under the [Boost Software License](LICENSE.txt).
 
 ## Chops Net IP Release Status
 
-Release 1.0 is under development as of March 2019, awaiting `std::expected` (proposed for C++ 20) error handling improvement, CMake config file completion, and additional testing under multiple compilers and platforms.
+Release 1.0 is under development as of June 2019, awaiting CMake config file completion, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
@@ -51,7 +51,7 @@ Example environments where Chops Net IP is a good fit:
 - Applications that are event driven or highly asynchronous in nature.
 - Applications where data is generated and handled in a non-symmetric manner. For example, data may be generated on the TCP acceptor side, or may be generated on a TCP connector side, or on both sides depending on the use case. Similarly, applications where the data flow is bi-directional and sends or receives are data-driven versus pattern-driven work well with this library.
 - Applications interacting with multiple (many) connections (e.g. handling multiple sensors or inputs or outputs), each with low to moderate throughput needs (i.e. IoT environments, chat networks, gaming networks).
-- Small footprint or embedded environments, where all network processing is run inside a single thread. In particular, environments where a JVM (or similar run-time support) is too costly in terms of system resource, but have a relatively rich operating environment (e.g. Linux running on a small chip) are a very good fit. (Currently the main constraint is small system support in the Networking TS implementation.)
+- Small footprint or embedded environments, where all network processing is run inside a single thread. In particular, environments where a JVM (or similar run-time support) is too costly in terms of system resources, but have a relatively rich operating environment (e.g. Linux running on a small chip) are a very good fit. (Currently the main constraint is small system support in the Asio library implementation.)
 - Applications with relatively simple network processing that need an easy-to-use and quick-for-development networking library.
 - Applications with configuration driven networks that may need to switch (for example) between TCP connect versus TCP accept for a given connection, or between TCP and UDP for a given communication path.
 - Peer-to-peer applications where the application doesn't care which side connects or accepts.
@@ -69,7 +69,7 @@ A detailed overview, a C++ socket library comparison, and a FAQ is [available he
 
 C++ 17 is the primary standards baseline for this repository. There is also one future C++ facility in use (`std::expected`, for better and simpler error handling).
 
-A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use, although they tend to be relatively simple features of those standards (e.g. `std::byte`, structured bindings). For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards (see [References](doc/references.md)).
+A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use such as `std::byte`, `std::variant` and `auto` parameters in lambda functions. For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards (see [References](doc/references.md)).
 
 While the main production branch will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
 
