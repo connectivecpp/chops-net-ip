@@ -25,6 +25,8 @@
 #include <cstddef> // std::size_t
 #include <iostream> // std::cerr
 
+#include <cassert>
+
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
 #include "net_ip/net_entity.hpp"
@@ -146,6 +148,7 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
                      (chops::net::tcp_io_interface io, std::size_t num, bool starting )-> bool {
         if (starting) {
           auto r = tcp_start_io(io, false, "", conn_cnt);
+          assert (r);
         }
         out_wq.push(*(io.make_io_output()));
         return true;
@@ -158,6 +161,7 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
                     (chops::net::tcp_io_interface io, std::size_t num, bool starting) ->bool {
         if (starting) {
           auto r = tcp_start_io(io, true, "", acc_cnt);
+          assert (r);
         }
         return true;
       },
@@ -209,6 +213,7 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
                      (chops::net::udp_io_interface io, std::size_t num, bool starting )-> bool {
         if (starting) {
           auto r = udp_start_io(io, false, recv_cnt);
+          assert (r);
         }
         return true;
       },
@@ -220,6 +225,7 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
                     (chops::net::udp_io_interface io, std::size_t num, bool starting) -> bool {
         if (starting) {
           auto r = udp_start_io(io, false, send_cnt, dest_endp);
+          assert (r);
         }
         return true;
       },

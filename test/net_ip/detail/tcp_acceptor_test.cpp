@@ -38,6 +38,8 @@
 #include <string_view>
 #include <vector>
 
+#include <cassert>
+
 #include "net_ip/detail/tcp_acceptor.hpp"
 
 #include "net_ip_component/worker.hpp"
@@ -135,7 +137,8 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         acc_ptr->start(
           [reply, delim, &recv_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
             if (starting) {
-              tcp_start_io(io, reply, delim, recv_cnt);
+              auto r = tcp_start_io(io, reply, delim, recv_cnt);
+              assert (r);
             }
             return true;
           },

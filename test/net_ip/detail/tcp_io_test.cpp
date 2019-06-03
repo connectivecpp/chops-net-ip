@@ -29,6 +29,8 @@
 #include <functional> // std::ref, std::cref
 #include <string_view>
 
+#include <cassert>
+
 #include "net_ip/detail/tcp_io.hpp"
 
 #include "net_ip_component/worker.hpp"
@@ -79,7 +81,8 @@ std::size_t connector_func (const vec_buf& in_msg_vec, asio::io_context& ioc,
                                                            notify_me(std::move(notify_prom)));
 
   test_counter cnt = 0;
-  tcp_start_io(chops::net::tcp_io_interface(iohp), false, delim, cnt);
+  auto r = tcp_start_io(chops::net::tcp_io_interface(iohp), false, delim, cnt);
+  assert (r);
 
   for (auto buf : in_msg_vec) {
     iohp->send(buf);
@@ -122,7 +125,8 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, std::st
         auto iohp = std::make_shared<chops::net::detail::tcp_io>(std::move(acc.accept()), 
                                                                  notify_me(std::move(notify_prom)));
         test_counter cnt = 0;
-        tcp_start_io(chops::net::tcp_io_interface(iohp), reply, delim, cnt);
+        auto r = tcp_start_io(chops::net::tcp_io_interface(iohp), reply, delim, cnt);
+        assert (r);
 
         auto acc_err = notify_fut.get();
 

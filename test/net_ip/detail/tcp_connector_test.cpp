@@ -34,6 +34,8 @@
 #include <vector>
 #include <numeric> // std::accumulate
 
+#include <cassert>
+
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/tcp_connector.hpp"
 
@@ -82,7 +84,7 @@ std::size_t start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
                        (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
             if (starting) {
               auto r = tcp_start_io(io, false, delim, conn_cnt);
-              // assert(r);
+              assert(r);
               io_wq.push(*(io.make_io_output()));
               return true;
             }
@@ -166,7 +168,7 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
                         (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
               if (starting) {
                 auto r = tcp_start_io(io, reply, delim, acc_cnt);
-                // assert(r);
+                assert(r);
               }
               return true;
             },

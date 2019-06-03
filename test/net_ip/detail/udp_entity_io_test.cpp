@@ -34,6 +34,8 @@
 #include <functional> // std::ref, std::cref
 #include <numeric> // std::accumulate
 
+#include <cassert>
+
 #include "net_ip/detail/udp_entity_io.hpp"
 
 #include "net_ip/io_type_decls.hpp"
@@ -78,7 +80,8 @@ void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int 
       senders.push_back(send_ptr);
       send_ptr->start([&send_cnt] (chops::net::udp_io_interface io, std::size_t, bool starting) {
                 if (starting) {
-                  udp_start_io(io, false, send_cnt);
+                  auto r = udp_start_io(io, false, send_cnt);
+                  assert (r);
                 }
                 return true; }
             , chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq));
@@ -132,7 +135,8 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
         recv_ptr->start(
               [&recv_cnt, reply] (chops::net::udp_io_interface io, std::size_t, bool starting) {
                 if (starting) {
-                  udp_start_io(io, reply, recv_cnt);
+                  auto r = udp_start_io(io, reply, recv_cnt);
+                  assert (r);
                 }
                 return true;
               },
