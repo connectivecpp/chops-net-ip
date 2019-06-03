@@ -24,7 +24,6 @@
 #include <vector>
 #include <chrono>
 #include <variant> // std::visit
-#include <type_traits>
 
 #include <mutex>
 
@@ -234,18 +233,17 @@ public:
  */
   net_entity make_tcp_connector (std::string_view remote_port_or_service,
                                  std::string_view remote_host,
-                                 std::chrono::milliseconds reconn_time = 
-                                   std::chrono::milliseconds { } ) {
+                                 int reconn_time = 0) {
 
-    auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, 
-                                                                  remote_host, reconn_time);
+    auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, remote_host, 
+                                                     std::chrono::milliseconds(reconn_time));
     lg g(m_mutex);
     m_connectors.push_back(p);
     return net_entity(p);
   }
 
 /**
- *  @brief Create a TCP connector @c net_entity, using an already created sequence of 
+ *  @brief Create a TCP connector @c net_entity with the 
  *  endpoints.
  *
  *  This allows flexibility in creating the remote endpoints for the connector to use.
@@ -262,16 +260,38 @@ public:
  *
  */
   template <typename Iter>
-  net_entity make_tcp_connector (Iter beg, Iter end,
-                                 std::chrono::milliseconds reconn_time = 
-                                   std::chrono::milliseconds { } ) {
-    if constexpr (std::is_same<char *, std::remove_cv_t<Iter>>::value) {
-      return make_tcp_connector (std::string_view(beg), std::string_view(end), reconn_time);
-    }
-    auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, reconn_time);
+  net_entity make_tcp_connector (Iter beg, Iter end, int reconn_time = 0) {
+    auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, 
+                                                     std::chrono::milliseconds(reconn_time));
     lg g(m_mutex);
     m_connectors.push_back(p);
     return net_entity(p);
+  }
+
+/**
+ *  @brief Create a TCP connector @c net_entity, which will perform an active TCP
+ *  connect to the specified host and port (once started).
+ *
+ *  This method provides a @c const @c char* overload for the remote port and remote
+ *  host that doesn't conflict with the templatized iterator method.
+ *
+ *  @param remote_port_or_service Port number or service name on remote host.
+ *
+ *  @param remote_host Remote host name or IP address.
+ *
+ *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
+ *  reconnects are attempted (default is 0).
+ *
+ *  @return @c net_entity object instantiated for a TCP connector.
+ *
+ */
+
+  net_entity make_tcp_connector (const char* remote_port_or_service,
+                                 const char* remote_host,
+                                 int reconn_time = 0) {
+    return make_tcp_connector (std::string_view(remote_port_or_service), 
+                               std::string_view(remote_host),
+                               reconn_time);
   }
 
 /**
@@ -286,9 +306,7 @@ public:
  *  @return @c net_entity object instantiated for a TCP connector.
  *
  */
-  net_entity make_tcp_connector (const asio::ip::tcp::endpoint& endp, 
-                                               std::chrono::milliseconds reconn_time = 
-                                                 std::chrono::milliseconds { } ) {
+  net_entity make_tcp_connector (const asio::ip::tcp::endpoint& endp, int reconn_time = 0) {
     std::vector<asio::ip::tcp::endpoint> vec { endp };
     return make_tcp_connector(vec.cbegin(), vec.cend(), reconn_time);
   }

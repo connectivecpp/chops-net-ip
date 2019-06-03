@@ -76,8 +76,7 @@ std::size_t acc_conn_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq
 
   chops::repeat(num_conns, [&] () {
 
-      auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host,
-                                               std::chrono::milliseconds(ReconnTime));
+      auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host, ReconnTime);
       auto conn_futs = get_tcp_io_futures(conn, err_wq,
                                           false, delim, conn_cnt);
 
@@ -94,10 +93,12 @@ std::size_t acc_conn_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq
   }
   for (auto io : send_vec) {
     io.send(empty_msg);
+    io.release();
   }
 
   for (auto& fut : conn_fut_vec) {
-    auto t = fut.get(); // block for all disconnects
+    auto io = fut.get(); // block for all disconnects
+    io.release();
   }
 
   acc.stop();
