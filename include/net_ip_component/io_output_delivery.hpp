@@ -189,15 +189,21 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
   auto start_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto start_fut = start_prom_ptr->get_future();
 
-  ent.start( [&io_start, start_prom_ptr] 
+  auto lam = [&io_start, start_prom_ptr] 
                     (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
-      if (starting) {
-        io_start(io, num, starting);
+    if (starting) {
+      auto r = io_start(io, num, starting);
+      if (r) {
         start_prom_ptr->set_value(*(io.make_io_output()));
       }
-      return true;
-    }, err_func
-  );
+      else {
+      }
+    }
+    return true;
+  };
+
+  auto e = ent.start(lam, err_func);
+
   return start_fut;
 }
 
