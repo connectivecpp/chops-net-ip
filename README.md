@@ -57,9 +57,11 @@ Example environments where Chops Net IP is a good fit:
 - Peer-to-peer applications where the application doesn't care which side connects or accepts.
 - Frameworks or groups of applications where abstracting wire-protocol logic from message processing logic makes sense.
 
-## A Short Example
+## Examples
 
-(fill in code here)
+Example demo programs are in the ['/example'](https://connectivecpp.github.io/chops-net-ip/example) directory. 
+
+The `simple_chat_demo.cpp` program has a listing of the multiple steps to set up working example.
 
 ## Want More?
 
@@ -79,14 +81,15 @@ The libraries and API's have minimal (as possible) library dependencies (there a
 
 Production external dependencies:
 
-- Version 1.12 (or later) of Chris Kohlhoff's `asio` repository is required. Note that it is the stand-alone library, not the Boost Asio implementation.
-- Version 0.9 (or later) of `utility-rack`, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
-- Version 0.1 (or later) of Martin Moene's `expected-lite` library.
+- Version 1.12 (or later) of Chris Kohlhoff's [`asio`](https://think-async.com/Asio/) repository is required. Note that it is the stand-alone library, not the Boost Asio implementation.
+- Version 0.9 (or later) of [`utility-rack`](https://connectivecpp.github.io/utility-rack), which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
+- ~~Version 0.1 (or later) of Martin Moene's `expected-lite` library.~~
+- Version 1.65.1 (or later) of the [Boost library](https://www.boost.org/).  
 
 Test external dependencies:
 
-- Version 2.1.0 (or later) of Phil Nash's Catch 2 is required for all test scenarios.
-- Version 1.65.1 (or later) of the Boost library is required in some test scenarios (`boost.endian` at minimum).
+- Version 2.1.0 (or later) of Phil Nash's [Catch 2](https://github.com/catchorg/Catch2) is required for all test scenarios.
+- ~~Version 1.65.1 (or later) of the Boost library is required in some test scenarios (`boost.endian` at minimum).~~
 
 See [References](doc/references.md) for additional details on the above libraries.
 
