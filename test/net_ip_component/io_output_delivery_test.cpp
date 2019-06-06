@@ -4,9 +4,6 @@
  *
  *  @brief Test scenarios for @c basic_io_output delivery functions.
  *
- *  Very little runtime processing and testing is performed in these unit tests. It
- *  is primarily used for compilation and API testing purposes.
- *
  *  @author Cliff Green
  *
  *  Copyright (c) 2018-2019 by Cliff Green
@@ -83,16 +80,19 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
     REQUIRE (ne_acc.is_valid());
     test_io_wait_q<chops::net::tcp_io>(ne_acc, err_wq, 0);
 
-    auto sp_conn = std::make_shared<chops::net::detail::tcp_connector>(ioc, 
+    auto sp_conn1 = std::make_shared<chops::net::detail::tcp_connector>(ioc, 
                              std::string_view(test_port_conn), std::string_view(test_host), 
                              std::chrono::milliseconds(500));
-    chops::net::net_entity ne_conn(sp_conn);
-    REQUIRE (ne_conn.is_valid());
-    test_io_wait_q<chops::net::tcp_io>(ne_conn, err_wq, 0);
+    chops::net::net_entity ne_conn1(sp_conn1);
+    REQUIRE (ne_conn1.is_valid());
+    test_io_wait_q<chops::net::tcp_io>(ne_conn1, err_wq, 0);
 
     auto sp_udp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
                              std::string_view(test_port_udp), std::string_view(test_host));
     chops::net::net_entity ne_udp(sp_udp);
+
+
+
     REQUIRE (ne_udp.is_valid());
     test_io_wait_q<chops::net::udp_io>(ne_udp, err_wq, 2);
 
@@ -125,6 +125,31 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
     REQUIRE (r4);
     REQUIRE_FALSE (*r4);
     auto io3 = pair_fut.stop_fut.get();
+
+    auto t2 = ne_acc.start(io_state_chg<chops::net::tcp_io>(),
+                                   chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
+    REQUIRE (t2);
+
+    auto sp_conn2 = std::make_shared<chops::net::detail::tcp_connector>(ioc, 
+                             std::string_view(test_port_acc), std::string_view(test_host), 
+                             std::chrono::milliseconds(500));
+    chops::net::net_entity ne_conn2(sp_conn2);
+    REQUIRE (ne_conn2.is_valid());
+
+    auto conn_pair_fut = chops::net::make_io_output_future_pair<chops::net::tcp_io>(ne_conn2, 
+                      io_state_chg<chops::net::tcp_io>(),
+                      chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
+    auto r5 = ne_conn2.is_started();
+    REQUIRE (r5);
+    REQUIRE (*r5);
+    auto io5 = conn_pair_fut.start_fut.get();
+    ne_conn2.stop();
+    ne_acc.stop();
+    auto io6 = conn_pair_fut.stop_fut.get();
+
+    auto r6 = ne_conn2.is_started();
+    REQUIRE (r6);
+    REQUIRE_FALSE (*r6);
 
     while (!err_wq.empty()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));

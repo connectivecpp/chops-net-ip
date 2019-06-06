@@ -55,6 +55,9 @@
 
 #include "queue/wait_queue.hpp"
 
+////
+#include <iostream>
+
 namespace chops {
 namespace net {
 
@@ -193,7 +196,8 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
                     (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
     if (starting) {
       io_start(io, num, starting);
-      start_prom_ptr->set_value(*(io.make_io_output());
+      start_prom_ptr->set_value(*(io.make_io_output()));
+std::cerr << "Just set single fut value" << std::endl;
     }
     return true;
   };
@@ -241,19 +245,26 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
   auto stop_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto stop_fut = stop_prom_ptr->get_future();
 
-  ent.start( [&io_start, start_prom_ptr, stop_prom_ptr] 
+  auto lam = [&io_start, start_prom_ptr, stop_prom_ptr] 
                 (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
-      if (starting) {
-        io_start(io, num, starting);
-        start_prom_ptr->set_value(*(io.make_io_output()));
-      }
-      else {
-        stop_prom_ptr->set_value(*(io.make_io_output()));
-      }
-      return true;
-    }, err_func
-  );
+    if (starting) {
+      io_start(io, num, starting);
+      start_prom_ptr->set_value(*(io.make_io_output()));
+std::cerr << "Just set start fut value" << std::endl;
+    }
+    else {
+      stop_prom_ptr->set_value(*(io.make_io_output()));
+std::cerr << "Just set stop fut value" << std::endl;
+    }
+    return true;
+  };
 
+  auto e = ent.start(lam, err_func);
+  if (!e) { // error return from net_entity start method
+    auto ep = std::make_exception_ptr(std::system_error(e.error()));
+    start_prom_ptr->set_exception(ep);
+    stop_prom_ptr->set_exception(ep);
+  }
   return io_output_future_pair<IOT> { std::move(start_fut), std::move(stop_fut) };
 }
 
