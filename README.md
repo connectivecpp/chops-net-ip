@@ -59,7 +59,7 @@ Example environments where Chops Net IP is a good fit:
 
 ## Examples
 
-Example demo programs are in the [`/example`](https://github.com/chops-net-ip) directory. 
+Example demo programs are in the [`/example`](https://github.com/connectivecpp/chops-net-ip) directory. 
 
 The `simple_chat_demo.cpp` program has a listing of the multiple steps to set up working example.
 
