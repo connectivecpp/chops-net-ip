@@ -45,7 +45,7 @@
 #include <utility> // std::move, std::pair
 #include <system_error>
 #include <memory>
-
+#include <exception>
 #include <future>
 
 #include "net_ip/net_entity.hpp"
@@ -192,18 +192,15 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
   auto lam = [&io_start, start_prom_ptr] 
                     (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
     if (starting) {
-      auto r = io_start(io, num, starting);
-      if (r) {
-        start_prom_ptr->set_value(*(io.make_io_output()));
-      }
-      else {
-      }
+      io_start(io, num, starting);
+      start_prom_ptr->set_value(*(io.make_io_output());
     }
     return true;
   };
-
   auto e = ent.start(lam, err_func);
-
+  if (!e) { // error return from net_entity start method
+    start_prom_ptr->set_exception(std::make_exception_ptr(std::system_error(e.error())));
+  }
   return start_fut;
 }
 
