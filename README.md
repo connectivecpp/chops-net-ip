@@ -59,7 +59,7 @@ Example environments where Chops Net IP is a good fit:
 
 ## Examples
 
-Example demo programs are in the ['/example'](https://connectivecpp.github.io/chops-net-ip/example) directory. 
+Example demo programs are in the [`/example`](https://github.com/chops-net-ip) directory. 
 
 The `simple_chat_demo.cpp` program has a listing of the multiple steps to set up working example.
 
@@ -77,14 +77,16 @@ While the main production branch will always be developed and tested with C++ 17
 
 # External Dependencies
 
-The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code.
+The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). ~~There are more dependencies in the test code than in the production code.~~
+
+All the dependencies listed below have links that will take you to the library or repository.
 
 Production external dependencies:
 
 - Version 1.12 (or later) of Chris Kohlhoff's [`asio`](https://think-async.com/Asio/) repository is required. Note that it is the stand-alone library, not the Boost Asio implementation.
 - Version 0.9 (or later) of [`utility-rack`](https://connectivecpp.github.io/utility-rack), which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
 - ~~Version 0.1 (or later) of Martin Moene's `expected-lite` library.~~
-- Version 1.65.1 (or later) of the [Boost library](https://www.boost.org/).  
+- Version 1.65.1 (or later) of the [Boost library](https://www.boost.org/). We are currently using version `1.69.0`.
 
 Test external dependencies:
 
@@ -112,7 +114,7 @@ See [References](doc/references.md) for details on dependencies and inspirations
 
 The primary author of Chops is Cliff Green, cliffg at connectivecpp dot com. The primary co-author is Thurman Gillespy, thurmang at connectivecpp dot com, and Roxanne Agerone roxannea at connectivecpp dot com.
 
-Contributors include ...
+Collaborators include Roxanne Agerone and Nathan Deutsch.
 
 Additional information including author comments is [available here](doc/about.md).
 
