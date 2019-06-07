@@ -188,9 +188,6 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   net_conn.stop();
   net_acc.stop();
 
-  REQUIRE_FALSE (*(net_acc.is_started()));
-  REQUIRE_FALSE (*(net_conn.is_started()));
-
   REQUIRE (in_msg_vec.size() == acc_cnt);
   REQUIRE (in_msg_vec.size() == conn_cnt);
 
