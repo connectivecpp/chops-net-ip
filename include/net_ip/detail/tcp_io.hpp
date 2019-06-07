@@ -146,11 +146,11 @@ public:
 
 
   bool stop_io() {
-    if (m_io_common.is_io_started()) {
-      close(std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
-      return true;
-    }
-    return false;
+    // handle start_io never called - close the open socket, notify acceptor
+    // or connector so tcp_io object can be removed
+    bool ret = !m_io_common.is_io_started();
+    close(std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
+    return ret;
   }
 
   // use post for thread safety, multiple threads can call this method
@@ -173,7 +173,7 @@ public:
 private:
   void close(const std::error_code& err) {
     if (!m_io_common.stop()) {
-      return; // already stopped
+      return; // already stopped, short circuit any late handler callbacks
     }
     std::error_code ec;
     m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);

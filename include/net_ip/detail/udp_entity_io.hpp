@@ -198,11 +198,10 @@ public:
   }
 
   bool stop_io() {
-    if (m_io_common.is_io_started()) {
-      close(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
-      return true;
-    }
-    return false; // already stopped
+    // handle start_io never called - close the open socket, etc
+    bool ret = !m_io_common.is_io_started();
+    close(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
+    return ret;
   }
 
   std::error_code stop() {

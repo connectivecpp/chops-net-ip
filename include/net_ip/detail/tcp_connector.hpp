@@ -171,11 +171,7 @@ public:
       // already stopped
       return std::make_error_code(net_ip_errc::tcp_connector_already_stopped);
     }
-    auto self { shared_from_this() };
-    asio::post(m_socket.get_executor(), [this, self] () mutable {
-        close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
-      }
-    );
+    close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
     return { };
   }
 
