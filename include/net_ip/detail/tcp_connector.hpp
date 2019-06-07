@@ -192,7 +192,7 @@ private:
     }
     switch (m_state) {
       case unstarted: {
-        return false;
+        break;
       }
       case resolving: {
         m_resolver.cancel();
@@ -209,6 +209,9 @@ private:
       }
       case timeout: {
         m_timer.cancel();
+        break;
+      }
+      case stopped: {
         break;
       }
     }
@@ -280,21 +283,20 @@ private:
     m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                   std::make_error_code(net_ip_errc::tcp_connector_connected));
     if (!m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true)) {
-      auto self { shared_from_this() };
-      asio::post(m_socket.get_executor(), [this, self] () mutable {
-          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-        } );
+      // in close method, the connected state logic will kick in
+      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
     }
   }
 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
+    // clean up data member, note that iop keeps the tcp_io object alive for a bit longer
+    m_io_handler.reset();
     // if here through stop_io from close, start_connect
     // will exit by checking state, close will not run
     // again because of atomic check
     m_entity_common.call_error_cb(iop, err);
     std::error_code ec;
     if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
-      m_io_handler.reset();
       if (m_reconn_time != std::chrono::milliseconds(0)) {
         start_connect();
         return;
@@ -304,10 +306,10 @@ private:
     else {
       ec = std::make_error_code(net_ip_errc::io_state_change_terminated);
     }
+    m_state = stopped;
     // if fall through to here, either io state chg has been terminated, or reconnect
     // time is 0 and no reconnects will be attempted
-    auto self { shared_from_this() };
-    asio::post(m_socket.get_executor(), [this, self, ec] () mutable { close(ec); } );
+    close(ec);
   }
 
 };

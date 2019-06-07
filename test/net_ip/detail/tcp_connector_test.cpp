@@ -127,6 +127,8 @@ std::size_t start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
   // wait for stop indication
   chops::repeat(num_conns, [&io_wq] () {
       auto a = io_wq.wait_and_pop();
+      assert (a);
+      a->release();
     }
   );
   return io_wq.size();  // should be 0 after stopping
