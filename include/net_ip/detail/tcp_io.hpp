@@ -146,9 +146,13 @@ public:
 
 
   bool stop_io() {
-    // handle start_io never called - close the open socket, notify acceptor
-    // or connector so tcp_io object can be removed
-    bool ret = !m_io_common.is_io_started();
+    bool ret = true;
+    if (!m_io_common.is_io_started()) {
+      // handle incongruous case where start_io never called - close the open socket, 
+      // notify acceptor or connector so tcp_io object can be removed
+      ret = false;
+       m_io_common.set_io_started();
+    }
     close(std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
     return ret;
   }

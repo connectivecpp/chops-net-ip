@@ -55,9 +55,6 @@
 
 #include "queue/wait_queue.hpp"
 
-////
-#include <iostream>
-
 namespace chops {
 namespace net {
 
@@ -197,7 +194,6 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
     if (starting) {
       io_start(io, num, starting);
       start_prom_ptr->set_value(*(io.make_io_output()));
-std::cerr << "Just set single fut value" << std::endl;
     }
     return true;
   };
@@ -250,11 +246,9 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
     if (starting) {
       io_start(io, num, starting);
       start_prom_ptr->set_value(*(io.make_io_output()));
-std::cerr << "Just set start fut value" << std::endl;
     }
     else {
       stop_prom_ptr->set_value(*(io.make_io_output()));
-std::cerr << "Just set stop fut value" << std::endl;
     }
     return true;
   };
