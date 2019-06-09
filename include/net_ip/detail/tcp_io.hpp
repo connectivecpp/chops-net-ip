@@ -148,10 +148,10 @@ public:
   bool stop_io() {
     bool ret = true;
     if (!m_io_common.is_io_started()) {
-      // handle incongruous case where start_io never called - close the open socket, 
+      // handle degenerate case where start_io never called - close the open socket, 
       // notify acceptor or connector so tcp_io object can be removed
       ret = false;
-       m_io_common.set_io_started();
+      m_io_common.set_io_started();
     }
     close(std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
     return ret;
@@ -182,10 +182,8 @@ private:
     std::error_code ec;
     m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
     m_socket.close(ec); 
-    auto self { shared_from_this() };
-    // notify the net entity via posting function object
-    asio::post(m_socket.get_executor(), [this, self, err] () mutable { 
-      m_notifier_cb(err, self); } );
+    // notify the acceptor or connector that this tcp_io object is closed
+    m_notifier_cb(err, shared_from_this());
   }
 
 private:
@@ -258,10 +256,9 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
       // message handler not happy, tear everything down, post function object
       // instead of directly calling close to give a return message a possibility
       // of getting through
-      auto err = std::make_error_code(net_ip_errc::message_handler_terminated);
       auto self { shared_from_this() };
       asio::post(m_socket.get_executor(), [this, self, err] () mutable { 
-        close(err); } );
+        close(std::make_error_code(net_ip_errc::message_handler_terminated)); } );
       return;
     }
     m_byte_vec.resize(m_read_size);
@@ -285,10 +282,9 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes),
                 basic_io_output(this), m_remote_endp)) {
-      auto err = std::make_error_code(net_ip_errc::message_handler_terminated);
       auto self { shared_from_this() };
-      asio::post(m_socket.get_executor(), [this, self, err] () mutable { 
-        close(err); } );
+      asio::post(m_socket.get_executor(), [this, self] () mutable { 
+        close(std::make_error_code(net_ip_errc::message_handler_terminated)); } );
     return;
   }
   m_byte_vec.erase(m_byte_vec.begin(), m_byte_vec.begin() + num_bytes);

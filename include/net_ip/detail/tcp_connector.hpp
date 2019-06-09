@@ -190,7 +190,9 @@ private:
     if (!m_entity_common.stop()) {
       return false; // already closed
     }
-    switch (m_state) {
+    auto sav_state = m_state;
+    m_state = stopped;
+    switch (sav_state) {
       case unstarted: {
         break;
       }
@@ -215,7 +217,6 @@ private:
         break;
       }
     }
-    m_state = stopped;
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
     std::error_code ec;
     m_socket.close(ec);
@@ -247,10 +248,10 @@ private:
     using namespace std::placeholders;
 
     if (err) {
-      m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
       if (m_state == stopped) {
         return;
       }
+      m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
       if (m_reconn_time == std::chrono::milliseconds(0)) {
         close(std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted));
         return;

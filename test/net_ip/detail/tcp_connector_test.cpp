@@ -97,18 +97,17 @@ std::size_t start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc,
   );
   // get all of the io_output objects
   std::vector<chops::net::tcp_io_output> io_outs;
-  chops::repeat(num_conns, [&io_wq, &io_outs] () {
-      io_outs.push_back(*(io_wq.wait_and_pop())); // will hang if num io_outputs popped doesn't match num pushed
+  chops::repeat(num_conns, [&io_wq, &io_outs, &in_msg_vec, interval] () {
+      auto io = *(io_wq.wait_and_pop()); // will hang if num io_outputs popped doesn't match num pushed
+      io_outs.push_back(io);
+      // send messages through this connector
+      for (const auto& buf : in_msg_vec) {
+        io.send(buf);
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(interval));
     }
   );
-  std::cerr << "Size of io wait q after getting io outputs (should be zero): " << io_wq.size() << std::endl;
-  // send messages through all of the connectors
-  for (const auto& buf : in_msg_vec) {
-    for (auto& io : io_outs) {
-      io.send(buf);
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-  }
+//  std::cerr << "Size of io wait q after getting io outputs (should be zero): " << io_wq.size() << std::endl;
 
   // poll output queue size of all handlers until 0
   std::size_t sum = 0;
