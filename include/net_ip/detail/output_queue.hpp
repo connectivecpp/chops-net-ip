@@ -83,6 +83,10 @@ public:
     // };
   }
 
+  void clear() noexcept {
+    std::queue<queue_element>().swap(m_output_queue);
+  }
+
 private:
 
   void add_element(const chops::const_shared_buffer& buf, opt_endpoint&& opt_endp) {

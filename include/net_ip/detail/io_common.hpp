@@ -75,6 +75,10 @@ public:
 
   outq_opt_el get_next_element();
 
+  void clear() noexcept {
+    m_outq.clear();
+  }
+
 };
 
 template <typename IOT>

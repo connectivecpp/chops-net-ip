@@ -179,6 +179,7 @@ private:
     if (!m_io_common.stop()) {
       return; // already stopped, short circuit any late handler callbacks
     }
+    m_io_common.clear();
     std::error_code ec;
     m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
     m_socket.close(ec); 

@@ -267,6 +267,7 @@ private:
     if (!m_entity_common.stop()) {
       return; // already closed
     }
+    m_io_common.clear();
     m_entity_common.call_error_cb(shared_from_this(), err);
     auto b = m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
     std::error_code ec;
