@@ -148,7 +148,7 @@ public:
       m_resolver.make_endpoints(false, m_remote_host, m_remote_port,
         [this, self] 
              (std::error_code err, resolver_results res) mutable {
-          if (err) {
+          if (err || m_state == stopped) {
             close(err);
             return;
           }
