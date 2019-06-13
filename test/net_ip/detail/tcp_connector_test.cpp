@@ -65,6 +65,34 @@ constexpr int ReconnTime = 800;
 
 using io_wait_q = chops::wait_queue<chops::net::basic_io_output<chops::net::tcp_io> >;
 
+struct no_start_io_state_chg {
+  bool operator() (chops::net::tcp_io_interface, std::size_t, bool) {
+    return true;
+  }
+};
+
+
+void stress_start_stop_connector(asio::io_context& ioc, int interval, int num_start_stops,
+                                 chops::net::err_wait_q& err_wq) {
+
+  {
+    auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                       std::string_view(test_port), std::string_view(test_host),
+                       std::chrono::milliseconds(0)); // no reconnect logic
+
+    while (num_start_stops > 0) {
+      auto r1 = conn_ptr->start( no_start_io_state_chg(), 
+                                 chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
+      REQUIRE(r1.value() == 0);
+      std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+      auto r2 = conn_ptr->stop();
+      REQUIRE(r2.value() == 0);
+      --num_start_stops;
+    }
+  }
+  // std::this_thread::sleep_for(std::chrono::seconds(1));
+}
+                                  
 std::size_t start_connectors(const vec_buf& in_msg_vec, asio::io_context& ioc, 
                              int interval, int num_conns,
                              std::string_view delim, chops::const_shared_buffer empty_msg,
@@ -184,6 +212,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         auto sz = start_connectors(in_msg_vec, ioc, interval, num_conns,
                                    delim, empty_msg, conn_cnt, err_wq);
         REQUIRE(sz == 0u);
+
+        INFO ("Stress testing start and stop of a single connector, not in separate thread");
+        stress_start_stop_connector(ioc, interval, num_conns, err_wq);
+
 
         acc_ptr->stop();
         INFO ("Acceptor stopped");

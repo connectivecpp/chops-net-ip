@@ -55,7 +55,7 @@ constexpr int NumMsgs = 2000;
 constexpr int ReconnTime = 400;
 
 template <typename IOT>
-struct io_state_chg {
+struct no_start_io_state_chg {
   bool called = false;
   bool operator() (chops::net::basic_io_interface<IOT>, std::size_t, bool) {
     called = true;
@@ -94,9 +94,9 @@ SCENARIO ( "Net entity default construction", "[net_entity]" ) {
         REQUIRE_FALSE (net_ent.visit_socket(socket_visitor<asio::ip::tcp::acceptor>()));
         REQUIRE_FALSE (net_ent.visit_io_output(io_output_visitor<chops::net::tcp_io>()));
         REQUIRE_FALSE (net_ent.visit_io_output(io_output_visitor<chops::net::udp_io>()));
-        REQUIRE_FALSE (net_ent.start(io_state_chg<chops::net::udp_io>(), 
+        REQUIRE_FALSE (net_ent.start(no_start_io_state_chg<chops::net::udp_io>(), 
                                      chops::net::udp_empty_error_func));
-        REQUIRE_FALSE (net_ent.start(io_state_chg<chops::net::tcp_io>(), 
+        REQUIRE_FALSE (net_ent.start(no_start_io_state_chg<chops::net::tcp_io>(), 
                                      chops::net::tcp_empty_error_func));
         REQUIRE_FALSE (net_ent.stop());
       }
@@ -115,7 +115,7 @@ void test_methods (chops::net::net_entity net_ent, chops::net::err_wait_q& err_w
   REQUIRE_FALSE (*r1);
   auto r2 = net_ent.stop();
   REQUIRE_FALSE (r2.has_value());
-  REQUIRE (net_ent.start(io_state_chg<IOT>(), 
+  REQUIRE (net_ent.start(no_start_io_state_chg<IOT>(), 
            chops::net::make_error_func_with_wait_queue<IOT>(err_wq)));
   auto r3 = net_ent.is_started();
   REQUIRE (*r3);
@@ -349,40 +349,44 @@ SCENARIO ( "Net entity method and comparison testing, UDP entity, TCP acceptor, 
   chops::net::ostream_error_sink_with_wait_queue, std::ref(err_wq), std::ref(std::cerr));
 
 
-  auto sp_conn1 = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                                                            std::string_view(test_port_tcp1),
-                                                            std::string_view(test_host_tcp),
-                                                            std::chrono::milliseconds(ReconnTime));
-  chops::net::net_entity ne_conn1(sp_conn1);
-  test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne_conn1, err_wq);
+  {
+    auto sp_conn1 = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                                                              std::string_view(test_port_tcp1),
+                                                              std::string_view(test_host_tcp),
+                                                              std::chrono::milliseconds(ReconnTime));
 
-  auto sp_acc = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port_tcp2, test_host_tcp, true);
-  chops::net::net_entity ne_acc(sp_acc);
-  test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(ne_acc, err_wq);
+    chops::net::net_entity ne_conn1(sp_conn1);
+    test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne_conn1, err_wq);
 
-  auto sp_udp_recv = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port_udp, test_host_udp);
-  chops::net::net_entity ne_udp_recv(sp_udp_recv);
-  test_methods<chops::net::udp_io, asio::ip::udp::socket>(ne_udp_recv, err_wq);
+    auto sp_acc = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port_tcp2, test_host_tcp, true);
+    chops::net::net_entity ne_acc(sp_acc);
+    test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(ne_acc, err_wq);
 
-  auto msg_vec = make_msg_vec (make_variable_len_msg, "Having fun?", 'F', NumMsgs);
+    auto sp_udp_recv = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port_udp, test_host_udp);
+    chops::net::net_entity ne_udp_recv(sp_udp_recv);
+    test_methods<chops::net::udp_io, asio::ip::udp::socket>(ne_udp_recv, err_wq);
 
-  auto sp_conn2 = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                                                             std::string_view(test_port_tcp2),
-                                                             std::string_view(test_host_tcp),
-                                                             std::chrono::milliseconds(ReconnTime));
-  chops::net::net_entity ne_conn2(sp_conn2);
+    auto msg_vec = make_msg_vec (make_variable_len_msg, "Having fun?", 'F', NumMsgs);
 
-  test_tcp_msg_send(msg_vec, ne_acc, ne_conn2, err_wq);
+    auto sp_conn2 = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                                                               std::string_view(test_port_tcp2),
+                                                               std::string_view(test_host_tcp),
+                                                               std::chrono::milliseconds(ReconnTime));
+    chops::net::net_entity ne_conn2(sp_conn2);
 
-  auto sp_udp_send = std::make_shared<chops::net::detail::udp_entity_io>(ioc, asio::ip::udp::endpoint());
-  chops::net::net_entity ne_udp_send(sp_udp_send);
+    test_tcp_msg_send(msg_vec, ne_acc, ne_conn2, err_wq);
 
-  test_udp_msg_send(msg_vec, ne_udp_recv, ne_udp_send, err_wq, 
-                    make_udp_endpoint(test_host_udp, std::stoi(std::string(test_port_udp))));
+    auto sp_udp_send = std::make_shared<chops::net::detail::udp_entity_io>(ioc, asio::ip::udp::endpoint());
+    chops::net::net_entity ne_udp_send(sp_udp_send);
 
-  std::this_thread::sleep_for(std::chrono::seconds(1)); // give network entities time to shut down
+    test_udp_msg_send(msg_vec, ne_udp_recv, ne_udp_send, err_wq, 
+                      make_udp_endpoint(test_host_udp, std::stoi(std::string(test_port_udp))));
 
-  comparison_test(chops::net::net_entity(), ne_udp_recv, ne_acc, ne_conn1);
+    std::this_thread::sleep_for(std::chrono::seconds(1)); // give network entities time to shut down
+
+    comparison_test(chops::net::net_entity(), ne_udp_recv, ne_acc, ne_conn1);
+
+  }
   
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
