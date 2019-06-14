@@ -21,6 +21,7 @@
 #include <numeric> // std::accumulate
 
 #include "net_ip/queue_stats.hpp"
+#include "net_ip/basic_io_output.hpp"
 
 namespace chops {
 namespace net {
@@ -31,6 +32,10 @@ namespace net {
  *
  *  The @c basic_io_output object can be of either @c tcp_io_output or
  *  @c udp_io_output types.
+ *
+ *  @note If multiple @c basic_io_output objects are associated with the
+ *  same IO handler, the accumulated counts may be inflated. This does
+ *  not matter if comparing against counts of 0.
  *
  *  @param beg Beginning iterator of sequence of @c basic_io_output
  *  objects.
@@ -44,8 +49,8 @@ output_queue_stats accumulate_output_queue_stats(Iter beg, Iter end) {
   return std::accumulate(beg, end, output_queue_stats(),
 			  [] (const output_queue_stats& sum, const auto& io) {
           auto rhs = io.get_output_queue_stats();
-          return output_queue_stats(sum.output_queue_size + rhs.output_queue_size,
-                                    sum.bytes_in_output_queue + rhs.bytes_in_output_queue);
+          return output_queue_stats {sum.output_queue_size + rhs.output_queue_size,
+                                    sum.bytes_in_output_queue + rhs.bytes_in_output_queue};
     }
   );
 }
@@ -92,7 +97,7 @@ output_queue_stats accumulate_output_queue_stats(Iter beg, Iter end) {
  */
 template <typename Iter, typename Cond>
 void accumulate_output_queue_stats_until(Iter beg, Iter end, Cond&& cond) {
-  while (cond(accumulate_output_queue_stats(beg, end)) {
+  while (!cond(accumulate_output_queue_stats(beg, end))) {
     ; // no-op, tight loop
   }
 }
@@ -146,7 +151,7 @@ output_queue_stats accumulate_net_entity_output_queue_stats(Iter beg, Iter end) 
  */
 template <typename IOT, typename Iter, typename Cond>
 void accumulate_net_entity_output_queue_stats_until(Iter beg, Iter end, Cond&& cond) {
-  while (cond(accumulate_net_entity_output_queue_stats(beg, end)) {
+  while (!cond(accumulate_net_entity_output_queue_stats(beg, end))) {
     ; // no-op, tight loop
   }
 }

@@ -17,6 +17,7 @@
 
 #include <thread>
 #include <chrono>
+#include <vector>
 
 #include "net_ip_component/output_queue_stats.hpp"
 
@@ -26,6 +27,34 @@
 
 #include "shared_test/mock_classes.hpp"
 
+SCENARIO ( "Testing accumulate_output_queue_stats for io_output objects",
+           "[accumulate_output_queue_stats]" ) {
+
+  using namespace chops::test;
+  using io_out_mock = chops::net::basic_io_output<io_handler_mock>;
+
+  io_handler_mock ioh_mock{};
+
+  io_out_mock io_out1(&ioh_mock);
+  auto io_out2 = io_out1;
+  auto io_out3 = io_out1;
+
+  std::vector<io_out_mock> io_out_vec { io_out1, io_out2, io_out3 };
+
+  auto s = chops::net::accumulate_output_queue_stats(io_out_vec.cbegin(), io_out_vec.cend());
+
+  REQUIRE (s.output_queue_size == 3*io_handler_mock::qs_base);
+  REQUIRE (s.bytes_in_output_queue == 3*(io_handler_mock::qs_base+1));
+  
+  chops::net::accumulate_output_queue_stats_until(io_out_vec.cbegin(), io_out_vec.cend(),
+      [] (const chops::net::output_queue_stats& st) {
+        return st.output_queue_size == 3*io_handler_mock::qs_base;
+      }
+  );
+
+}
+
+/*
 SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
            "[io_output_delivery]" ) {
 
@@ -132,4 +161,5 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
   wk.reset();
 }
 
+*/
 
