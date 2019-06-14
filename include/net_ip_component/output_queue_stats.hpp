@@ -123,12 +123,13 @@ output_queue_stats accumulate_net_entity_output_queue_stats(Iter beg, Iter end) 
 			  [] (const output_queue_stats& sum, const auto& ne) {
           output_queue_stats st{};
           ne.visit_io_output([&st] (basic_io_output<IOT> io) {
-              st.output_queue_size += io.output_queue_size;
-              st.bytes_in_output_queue += io.bytes_in_output_queue;
+              auto rhs = io.get_output_queue_stats();
+              st.output_queue_size += rhs.output_queue_size;
+              st.bytes_in_output_queue += rhs.bytes_in_output_queue;
             }
           );
-          return output_queue_stats(sum.output_queue_size + st.output_queue_size,
-                                    sum.bytes_in_output_queue + st.bytes_in_output_queue);
+          return output_queue_stats {sum.output_queue_size + st.output_queue_size,
+                                     sum.bytes_in_output_queue + st.bytes_in_output_queue};
     }
   );
 }
@@ -151,7 +152,7 @@ output_queue_stats accumulate_net_entity_output_queue_stats(Iter beg, Iter end) 
  */
 template <typename IOT, typename Iter, typename Cond>
 void accumulate_net_entity_output_queue_stats_until(Iter beg, Iter end, Cond&& cond) {
-  while (!cond(accumulate_net_entity_output_queue_stats(beg, end))) {
+  while (!cond(accumulate_net_entity_output_queue_stats<IOT>(beg, end))) {
     ; // no-op, tight loop
   }
 }
