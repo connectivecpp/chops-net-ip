@@ -18,10 +18,6 @@
 #define OUTPUT_QUEUE_STATS_HPP_INCLUDED
 
 #include <cstddef> // std::size_t
-#include <utility> // std::move, std::pair
-#include <system_error>
-#include <memory>
-#include <exception>
 #include <numeric> // std::accumulate
 
 #include "net_ip/queue_stats.hpp"
