@@ -25,7 +25,7 @@
 #include <functional> // std::ref, std::cref
 #include <string_view>
 #include <vector>
-
+#include <numeric> // std::accumulate
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
@@ -61,12 +61,15 @@ std::size_t acc_conn_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq
   auto acc = nip.make_tcp_acceptor(tcp_test_port, tcp_test_host);
 
   test_counter acc_cnt = 0;
-  start_tcp_acceptor(acc, err_wq, reply, delim, acc_cnt);
+  auto r1 = start_tcp_acceptor(acc, err_wq, reply, delim, acc_cnt);
+  REQUIRE (r1);
 
   INFO ("Acceptor created");
 
   REQUIRE(acc.is_valid());
-  auto r1 = acc.is_started(); REQUIRE(r1); REQUIRE(*r1);
+  auto r2 = acc.is_started();
+  REQUIRE(r2);
+  REQUIRE(*r2);
 
   std::vector< chops::net::tcp_io_output > send_vec;
   std::vector< chops::net::tcp_io_output_future > conn_fut_vec;
@@ -86,7 +89,7 @@ std::size_t acc_conn_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq
     }
   );
 
-  for (auto buf : in_msg_vec) {
+  for (const auto& buf : in_msg_vec) {
     for (auto io : send_vec) {
       io.send(buf);
     }
@@ -116,15 +119,14 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
                       const vec_buf& in_msg_vec, int interval, int num_udp_pairs, 
                       chops::const_shared_buffer empty_msg) {
 
-  test_counter recv_cnt = 0;
-
-/*
   chops::net::net_ip nip(ioc);
 
   INFO ("Creating " << num_udp_pairs << " udp sender receiver pairs");
 
   test_counter recv_cnt = 0;
   test_counter send_cnt = 0;
+
+  std::vector<chops::net::net_entity> senders;
 
   chops::repeat(num_udp_pairs, [&] (int i) {
       auto recv_endp = make_udp_endpoint(udp_test_addr, udp_port_base + i);
@@ -133,39 +135,46 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
       auto recv_futs = get_udp_io_futures(udp_receiver, err_wq,
                                             false, recv_cnt );
       auto udp_sender = nip.make_udp_sender();
+      senders.push_back(udp_sender);
 
       auto sender_futs = get_udp_io_futures(udp_sender, err_wq,
                                             false, send_cnt, recv_endp );
-      auto send_io = sender_futs.start_fut.get();
-      sta.add_io_interface(send_io);
+      recv_futs.start_fut.get(); // block until receiver ready
+      sender_futs.start_fut.get(); // block until sender ready
     }
   );
 
   // send messages through all of the senders
   std::this_thread::sleep_for(std::chrono::milliseconds(interval));
-  for (auto buf : in_msg_vec) {
-    sta.send(buf);
+  for (const auto& buf : in_msg_vec) {
+    for (auto s : senders) {
+      auto r = s.visit_io_output([&buf] (chops::net::udp_io_output io) { io.send(buf); } );
+      REQUIRE (r);
+      REQUIRE (*r == 1u);
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
-  // poll output queue size of all handlers until 0
-  auto qs = sta.get_total_output_queue_stats();
-std::cerr << "UDP senders total output queue size: " << qs.output_queue_size << std::endl;
-  while (qs.output_queue_size > 0) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    qs = sta.get_total_output_queue_stats();
-std::cerr << "UDP senders total output queue size: " << qs.output_queue_size << std::endl;
+  // poll output queue size of all senders until 0
+  std::size_t sum = 0;
+  while (sum = std::accumulate(senders.begin(), senders.end(), 0u,
+			  [] (std::size_t s, chops::net::net_entity ne) {
+            ne.visit_io_output([&s] (chops::net::udp_io_output io) {
+                s += io.get_output_queue_stats().output_queue_size; } ); } ) 
+       > 0) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    std::cerr << "****** Senders total output queue size: " << sum << std::endl;
   }
+  std::cerr << "****** Senders total output queue size is now 0" << std::endl;
+
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   nip.stop_all();
   nip.remove_all();
   INFO("All UDP entities stopped and removed");
 
-        std::size_t total_msgs = num_udp_pairs * in_msg_vec.size();
-        // CHECK instead of REQUIRE since UDP is an unreliable protocol
-        CHECK (total_msgs == recv_cnt);
-        CHECK (send_cnt == 0); // no reply
-*/
+  std::size_t total_msgs = num_udp_pairs * in_msg_vec.size();
+  // CHECK instead of REQUIRE since UDP is an unreliable protocol
+  CHECK (total_msgs == recv_cnt);
   return recv_cnt;
 }
 

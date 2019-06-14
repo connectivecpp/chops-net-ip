@@ -213,15 +213,13 @@ public:
  *  The function object must have one of the following signatures, depending on TCP or UDP:
  *
  *  @code
- *    std::size_t (chops::net::tcp_io_output); // TCP
- *    std::size_t (chops::net::udp_io_output); // UDP
+ *    void (chops::net::tcp_io_output); // TCP
+ *    void (chops::net::udp_io_output); // UDP
  *  @endcode
  *
  *  The function object will be called 0 to N times depending on active IO handlers. An
- *  IO handler is active is @c start_io has been called on it. The return value specifies
- *  how many times the function object has been called.
+ *  IO handler is active if @c start_io has been called on it.
  *
- *  @return Number of times function object called, or a @c std::error_code is returned.
  *  @return @c nonstd::expected - on success returns number of times function object has
  *  been called; on error (if no associated IO handler), a @c std::error_code is returned.
  */

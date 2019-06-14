@@ -88,13 +88,14 @@ public:
 
   template <typename F>
   std::size_t visit_io_output(F&& f) {
-    for (auto ioh : m_io_handlers) {
-      std::size_t sum = 0u;
+    std::size_t sum = 0u;
+    for (auto& ioh : m_io_handlers) {
       if (ioh->is_io_started()) {
         f(basic_io_output(ioh));
         sum += 1u;
       }
     }
+    return sum;
   }
 
 
