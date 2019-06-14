@@ -102,7 +102,7 @@ void accumulate_output_queue_stats_until(Iter beg, Iter end, Cond&& cond) {
  *  @c net_entity objects, using the @c visit_io_output method on each
  *  @c net_entity.
  *
- *  @tparam IOT IO type, either @c tcp_io or @c udp_io.
+ *  @tparam IOT Either @c chops::net::tcp_io or @c chops::net::udp_io.
  *
  *  @param beg Beginning iterator of sequence of @c net_entity
  *  objects.
@@ -126,6 +126,29 @@ output_queue_stats accumulate_net_entity_output_queue_stats(Iter beg, Iter end) 
                                     sum.bytes_in_output_queue + st.bytes_in_output_queue);
     }
   );
+}
+
+/**
+ *  @brief Accumulate @c output_queue_stats on a sequence of
+ *  @c net_entity objects until a condition is satisfied.
+ *
+ *  Given a sequence of @c net_entity objects, accumulate statistics
+ *  until a supplied condition function object is satisfied.
+ *
+ *  @param beg Beginning iterator of sequence of @c net_entity
+ *  objects.
+ *
+ *  @param end Ending iterator of sequence.
+ *
+ *  @param cond Condition function object invoked after each accumulation,
+ *  returning @c true causes accumulation loop to finish. 
+ *
+ */
+template <typename IOT, typename Iter, typename Cond>
+void accumulate_net_entity_output_queue_stats_until(Iter beg, Iter end, Cond&& cond) {
+  while (cond(accumulate_net_entity_output_queue_stats(beg, end)) {
+    ; // no-op, tight loop
+  }
 }
 
 } // end net namespace
