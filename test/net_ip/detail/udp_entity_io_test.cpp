@@ -32,16 +32,19 @@
 #include <chrono>
 #include <vector>
 #include <functional> // std::ref, std::cref
-#include <numeric> // std::accumulate
+#include <algorithm> // std::transform
+#include <iterator> // std::back_inserter
 
 #include <cassert>
 
 #include "net_ip/detail/udp_entity_io.hpp"
 
+#include "net_ip/basic_io_output.hpp"
 #include "net_ip/io_type_decls.hpp"
 
 #include "net_ip_component/worker.hpp"
 #include "net_ip_component/error_delivery.hpp"
+#include "net_ip_component/output_queue_stats.hpp"
 
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/start_funcs.hpp"
@@ -97,13 +100,12 @@ void start_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, int 
   }
 
   // poll output queue size of all handlers until 0
-  std::size_t sum = 0;
-  while ((sum = std::accumulate(senders.begin(), senders.end(), 0u,
-			  [] (std::size_t s, const iosp& p) { return s + (p->get_output_queue_stats()).output_queue_size; } )) > 0) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    std::cerr << "****** Senders total output queue size: " << sum << std::endl;
-  }
-  std::cerr << "****** Senders total output queue size is now 0" << std::endl;
+  std::vector<chops::net::udp_io_output> io_outs;
+  std::transform(senders.cbegin(), senders.cend(), std::back_inserter(io_outs),
+    [] (const iosp& s) { return chops::net::udp_io_output(s); } );
+  chops::net::accumulate_output_queue_stats_until(io_outs.cbegin(), io_outs.cend(),
+        poll_output_queue_cond(200, std::cerr));
+  
   // stop all handlers
   for (auto p : senders) {
     p->stop();

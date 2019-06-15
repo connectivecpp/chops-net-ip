@@ -37,6 +37,9 @@
 #include <vector>
 #include <utility> // std::forward, std::move
 #include <atomic>
+#include <ostream>
+#include <chrono>
+#include <thread>
 
 #include <cassert>
 #include <limits>
@@ -52,6 +55,7 @@
 #include "marshall/shared_buffer.hpp"
 
 #include "net_ip/basic_io_output.hpp"
+#include "net_ip/queue_stats.hpp"
 
 namespace chops {
 namespace test {
@@ -137,6 +141,25 @@ struct msg_hdlr {
       bool r = io_out.send(sh_buf, endp);
       // assert(r);
     }
+    return false;
+  }
+};
+
+class poll_output_queue_cond {
+private:
+  int m_sleep_time;
+  std::ostream& m_log;
+
+public:
+  poll_output_queue_cond(int sleep_time, std::ostream& log) noexcept :
+        m_sleep_time(sleep_time), m_log(log) { }
+
+  bool operator()(const chops::net::output_queue_stats& stats) const {
+    if (stats.output_queue_size == 0u) {
+      return true;
+    }
+    m_log << "Output queue size: " << stats.output_queue_size << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(m_sleep_time));
     return false;
   }
 

@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <memory> // std::shared_ptr, std::make_shared
 #include <future>
+#include <iostream> // std::cerr
 
 #include "asio/ip/udp.hpp"
 #include "asio/buffer.hpp"
@@ -36,6 +37,7 @@
 #include "marshall/shared_buffer.hpp"
 
 #include "net_ip/basic_io_output.hpp"
+#include "net_ip/queue_stats.hpp"
 
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/mock_classes.hpp"
@@ -233,3 +235,16 @@ SCENARIO ( "Message handling shared test utility, msg hdlr function object async
   } // end given
 }
 
+SCENARIO ( "Message handling shared test utility, output queue stats poll condition",
+           "[msg_handling] [output_stats_cond]" ) {
+  using namespace chops::test;
+
+  poll_output_queue_cond cond(100, std::cerr);
+
+  chops::net::output_queue_stats stats1 { 20u, 100u };
+  chops::net::output_queue_stats stats2 { 0u, 0u };
+
+  REQUIRE_FALSE(cond(stats1));
+  REQUIRE(cond(stats2));
+
+}
