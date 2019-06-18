@@ -16,24 +16,20 @@
 #ifndef BASIC_IO_OUTPUT_HPP_INCLUDED
 #define BASIC_IO_OUTPUT_HPP_INCLUDED
 
+#include <memory> // std::weak_ptr, std::shared_ptr
+#include <system_error>
 #include <cstddef> // std::size_t, std::byte
-#include <cstddef> // std::move
-#include <memory> // std::shared_ptr
+#include <utility> // std::move
 
 #include "nonstd/expected.hpp"
 
 #include "marshall/shared_buffer.hpp"
 #include "net_ip/queue_stats.hpp"
 
-#include "net_ip/net_ip_error.hpp"
 #include "net_ip/detail/wp_access.hpp"
 
 namespace chops {
 namespace net {
-
-namespace detail {
-
-}
 
 
 /**
@@ -61,30 +57,26 @@ class basic_io_output {
 
 private:
   std::weak_ptr<IOT>   m_ioh_wptr;
-  IOT*                 m_ioh_raw_ptr;
 
 public:
   using endpoint_type = typename IOT::endpoint_type;
 
 public:
 
-  basic_io_output() noexcept : m_ioh_wptr(), m_ioh_raw_ptr(nullptr) { }
-
 /**
- *  @brief Construct with a pointer to an internal IO handler, where the @c std::weak_ptr
- *  association is not needed, primarily used within the lifetime of a message handler
- *  callback. This constructor is for internal use only and not to be used
- *  by application code.
+ *  @brief Default construct a @c basic_io_output.
+ *
+ *  A @c basic_io_output is not useful until an active @c basic_io_output is assigned
+ *  into it.
+ *  
  */
-  explicit basic_io_output(IOT* ioh) noexcept : m_ioh_wptr(), m_ioh_raw_ptr(ioh) { }
+  basic_io_output() = default;
 
 /**
  *  @brief Construct a @c std::weak_ptr to an internal IO handler. This constructor is for 
  *  internal use only and not to be used by application code.
  */
-  explicit basic_io_output(std::weak_ptr<IOT> p) noexcept : m_ioh_wptr(p), 
-                                                            m_ioh_raw_ptr(nullptr) { }
-
+  explicit basic_io_output(std::weak_ptr<IOT> p) noexcept : m_ioh_wptr(p) { }
 
 /**
  *  @brief Query whether an IO handler is associated with this object.
@@ -95,19 +87,20 @@ public:
  *
  *  @return @c true if associated with an IO handler.
  */
-  bool is_valid() const noexcept { return m_ioh_raw_ptr == nullptr ? !m_ioh_wptr.expired() : true; }
+  bool is_valid() const noexcept { return !m_ioh_wptr.expired(); }
 
 /**
  *  @brief Return output queue statistics, allowing application monitoring of output queue
  *  sizes.
  *
- *  @return @c queue_status @c struct.
+ *  @return @c nonstd::expected - @c output_queue_stats on success; on error (if no
+ *  associated IO handler), a @c std::error_code is returned.
  *
- *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
- *  equals @c true).
  */
-  output_queue_stats get_output_queue_stats() const {
-    return m_ioh_ptr->get_output_queue_stats();
+  auto get_output_queue_stats() const ->
+         nonstd::expected<output_queue_stats, std::error_code> {
+    return detail::wp_access<output_queue_stats>( m_ioh_wptr,
+          [] (std::shared_ptr<IOT> sp) { return sp->get_output_queue_stats(); } );
   }
 
 /**
@@ -120,10 +113,9 @@ public:
  *
  *  @param sz Size of buffer.
  *
- *  @return @c true if buffer queued for output, @c false otherwise.
+ *  @return @c true if buffer queued for output, @c false otherwise (no IO handler
+ *  association, or .
  *
- *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
- *  equals @c true).
  */
   bool send(const void* buf, std::size_t sz) const { return send(chops::const_shared_buffer(buf, sz)); }
 
@@ -136,8 +128,6 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
- *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
- *  equals @c true).
  */
   bool send(chops::const_shared_buffer buf) const {
     return m_ioh_ptr->send(buf);
@@ -163,8 +153,6 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
- *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
- *  equals @c true).
  */
   bool send(chops::mutable_shared_buffer&& buf) const { 
     return send(chops::const_shared_buffer(std::move(buf)));
@@ -187,8 +175,6 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
- *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
- *  equals @c true).
  */
   bool send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
     return send(chops::const_shared_buffer(buf, sz), endp);
@@ -206,8 +192,6 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
- *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
- *  equals @c true).
  */
   bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
     return m_ioh_ptr->send(buf, endp);
@@ -226,8 +210,6 @@ public:
  *
  *  @return @c true if buffer queued for output, @c false otherwise.
  *
- *  @pre The @c basic_io_output object must be associated with an IO handler (@c is_valid
- *  equals @c true).
  */
   bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {
     return send(chops::const_shared_buffer(std::move(buf)), endp);
@@ -236,21 +218,29 @@ public:
 /**
  *  @brief Compare two @c basic_io_output objects for equality.
  *
- *  @return @c true if both @c basic_io_output object point to the same internal
- *  IO handler.
+ *  The comparison is made through the @c std::shared_ptr @c operator== method. The 
+ *  comparison is made on addresses if both @c basic_io_output objects are valid. If 
+ *  both @c basic_io_output objects are invalid, @c true is returned (this 
+ *  implies that all invalid @c basic_io_output objects are equivalent). If one is valid 
+ *  and the other invalid, @c false is returned.
+ *
+ *  @return As described in the comments.
  */
   bool operator==(const basic_io_output<IOT>& rhs) const noexcept {
-    return (m_ioh_ptr == rhs.m_ioh_ptr);
+    return (m_ioh_wptr.lock() == rhs.m_ioh_wptr.lock());
   }
 
 /**
  *  @brief Compare two @c basic_io_output objects for ordering purposes.
  *
- *  @return Comparison made through IO handler pointers, no association
- *  will compare less than one with an association.
+ *  The comparison is made through the @c std::shared_ptr @c operator< method. 
+ *  All invalid @c basic_io_output objects are less than valid ones. When both are valid,
+ *  the address ordering is returned.
+ *
+ *  @return As described in the comments.
  */
   bool operator<(const basic_io_output<IOT>& rhs) const noexcept {
-    return (m_ioh_ptr < rhs.m_ioh_ptr);
+    return (m_ioh_wptr.lock() < rhs.m_ioh_wptr.lock());
   }
 
 };

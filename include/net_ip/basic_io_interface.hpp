@@ -96,7 +96,7 @@ public:
 public:
 
 /**
- *  @brief Default construct an @c basic_io_interface.
+ *  @brief Default construct a @c basic_io_interface.
  *
  *  A @c basic_io_interface is not useful until an active @c basic_io_interface is assigned
  *  into it.
@@ -559,13 +559,12 @@ public:
   }
 
 /**
- *  @brief Return a @c std::shared_ptr to the actual io handler object, meant to be used
- *  for internal purposes only.
+ *  @brief Return a pointer to the IO handler that can be used for logging or lookup purposes.
  *
- *  @return A @c std::shared_ptr, which may be empty if there is not an associated IO handler.
+ *  @return A pointer, which may be a @c nullptr if there is not an associated IO handler.
  */
-  auto get_shared_ptr() const noexcept {
-    return m_ioh_wptr.lock();
+  const void* get_ptr() const noexcept {
+    return static_cast<const void*>(m_ioh_wptr.lock().get());
   }
 
 };

@@ -65,7 +65,7 @@ using err_wait_q = chops::wait_queue<error_data>;
 template <typename IOT>
 auto make_error_func_with_wait_queue(err_wait_q& wq) {
   return [&wq] (basic_io_interface<IOT> io, std::error_code e) {
-    wq.emplace_push(static_cast<const void *>(io.get_shared_ptr().get()), e);
+    wq.emplace_push(io.get_ptr(), e);
   };
 }
 
