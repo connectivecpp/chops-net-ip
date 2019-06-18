@@ -49,7 +49,7 @@ private:
 
 public:
 
-  explicit io_common() noexcept :
+  io_common() noexcept :
     m_io_started(false), m_write_in_progress(false), m_outq() { }
 
   // the following four methods can be called concurrently

@@ -17,9 +17,6 @@
 
 #include <utility> // std::move
 
-#include <asio/ip/udp.hpp> // endpoint declarations
-#include <asio/ip/tcp.hpp> // endpoint declarations
-
 #include "net_ip/detail/output_queue.hpp"
 
 #include "utility/repeat.hpp"
@@ -84,8 +81,8 @@ void get_next_element_test(chops::const_shared_buffer buf, int num_bufs,
   } // end given
 }
 
-SCENARIO ( "Output_queue test, udp endpoint", 
-           "[output_queue] [udp]" ) {
+SCENARIO ( "Output_queue test, single element", 
+           "[output_queue]" ) {
 
   auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
@@ -94,8 +91,8 @@ SCENARIO ( "Output_queue test, udp endpoint",
                         asio::ip::udp::endpoint(asio::ip::udp::v4(), 1234));
 }
 
-SCENARIO ( "Output_queue test, tcp endpoint",
-           "[output_queue] [tcp]" ) {
+SCENARIO ( "Output_queue test, double element",
+           "[output_queue]" ) {
 
   auto ba = chops::make_byte_array(0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
