@@ -559,9 +559,14 @@ public:
   }
 
 /**
- *  @brief Return a pointer to the IO handler that can be used for logging or lookup purposes.
+ *  @brief Return a raw pointer to an associated IO handler.
  *
- *  @return A pointer, which may be a @c nullptr if there is not an associated IO handler.
+ *  This method provides a raw pointer to an associated IO handler (or @c nullptr). This
+ *  value can be used for logging or associative container lookup purposes. In particular,
+ *  this value can be used to correlate multiple error messages from the same IO handler
+ *  instantiation.
+ *
+ *  @return A pointer value, which may be a @c nullptr.
  */
   const void* get_ptr() const noexcept {
     return static_cast<const void*>(m_ioh_wptr.lock().get());
