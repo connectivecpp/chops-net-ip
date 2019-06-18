@@ -20,30 +20,33 @@
 #include <cstddef> // std::move
 #include <memory> // std::shared_ptr
 
+#include "nonstd/expected.hpp"
+
 #include "marshall/shared_buffer.hpp"
 #include "net_ip/queue_stats.hpp"
+
+#include "net_ip/net_ip_error.hpp"
+#include "net_ip/detail/wp_access.hpp"
 
 namespace chops {
 namespace net {
 
+namespace detail {
+
+}
+
+
 /**
  *  @brief The @c basic_io_output class template provides methods for sending data to 
- *  an associated network IO handler (TCP or UDP IO handler).
+ *  an associated network IO handler (TCP or UDP IO handler) or getting output queue
+ *  statistics.
  *
  *  The @c basic_io_output class provides the primary application interface for
  *  network IO data sending, whether TCP or UDP. This class provides methods to 
  *  send data and query output queue stats.
  *
- *  Unless default constructed or released, a @c basic_io_output object has an association 
- *  to an IO handler object. This association may keep the IO handler object in memory,
- *  even after the TCP connection or UDP socket has been closed. When output processing 
- *  is finished, the @c release method should be called.
- *
- *  The context for a @ basic_io_output object is as follows:
- *  1) In a message handler invocation - the reference will always be valid.
- *  2) A @c basic_io_output object can be obtained from a valid @c basic_io_interface object.
- *  As long as the originating @c basic_io_interface object is valid, the @c basic_io_output
- *  object is valid.
+ *  Unless default constructed, a @c basic_io_output object has an association 
+ *  to an IO handler object. 
  *
  *  This class is a lightweight value class, allowing @c basic_io_output 
  *  objects to be copied and used in multiple places in an application, all of them 
@@ -51,42 +54,36 @@ namespace net {
  *
  *  All @c basic_io_output @c send methods can be called concurrently from multiple threads.
  *
- *  @note The design and usage of this class may change; in particular, it may change to use
- *  a @c std::weak_ptr like the @c net_entity and @c basic_io_interface classes. The
- *  performance gains from using a raw pointer may not offset the safety and consistency of
- *  using the @c std::weak_ptr.
  */
 
 template <typename IOT>
 class basic_io_output {
 
 private:
-  using iohsp = std::shared_ptr<IOT>;
-private:
-  // order of declaration is important, iohptr is obtained from iohsp
-  iohsp    m_ioh_sp;
-  IOT*     m_ioh_ptr;
+  std::weak_ptr<IOT>   m_ioh_wptr;
+  IOT*                 m_ioh_raw_ptr;
 
 public:
   using endpoint_type = typename IOT::endpoint_type;
 
 public:
 
-  basic_io_output() noexcept : m_ioh_sp(), m_ioh_ptr(nullptr) { }
+  basic_io_output() noexcept : m_ioh_wptr(), m_ioh_raw_ptr(nullptr) { }
 
 /**
- *  @brief Construct with a pointer to an internal IO handler, where the @c shared_ptr
- *  lifetime is not needed. This constructor is for internal use only and not to be used
+ *  @brief Construct with a pointer to an internal IO handler, where the @c std::weak_ptr
+ *  association is not needed, primarily used within the lifetime of a message handler
+ *  callback. This constructor is for internal use only and not to be used
  *  by application code.
  */
-  explicit basic_io_output(IOT* ioh) noexcept : m_ioh_sp(), m_ioh_ptr(ioh) { }
+  explicit basic_io_output(IOT* ioh) noexcept : m_ioh_wptr(), m_ioh_raw_ptr(ioh) { }
 
 /**
- *  @brief Construct with a @c std::shared_ptr to an internal IO handler, allowing IO 
- *  handler lifetime to be controlled. This constructor is for internal use only and not to 
- *  be used by application code.
+ *  @brief Construct a @c std::weak_ptr to an internal IO handler. This constructor is for 
+ *  internal use only and not to be used by application code.
  */
-  explicit basic_io_output(iohsp sp) noexcept : m_ioh_sp(sp), m_ioh_ptr(m_ioh_sp.get()) { }
+  explicit basic_io_output(std::weak_ptr<IOT> p) noexcept : m_ioh_wptr(p), 
+                                                            m_ioh_raw_ptr(nullptr) { }
 
 
 /**
@@ -98,30 +95,7 @@ public:
  *
  *  @return @c true if associated with an IO handler.
  */
-  bool is_valid() const noexcept { return m_ioh_ptr != nullptr; }
-
-/**
- *  @brief Query whether an IO handler is in a started state or not.
- *
- *  @return @c true if @c start_io has been called, @c false if the IO handler
- *  has not been started or is in a stopped state.
- *
- */
-  bool is_io_started() const {
-    m_ioh_ptr->is_io_started();
-  }
-
-/**
- *  @brief Release the internal IO handler association, if present, so that 
- *  the IO handler object memory can be released (as needed).
- *
- *  Calling @c send after @c release without assigning a new (valid) @c basic_io_output
- *  object will result in dereferencing a null pointer.
- */
-  void release() noexcept {
-    m_ioh_sp.reset();
-    m_ioh_ptr = nullptr;
-  }
+  bool is_valid() const noexcept { return m_ioh_raw_ptr == nullptr ? !m_ioh_wptr.expired() : true; }
 
 /**
  *  @brief Return output queue statistics, allowing application monitoring of output queue

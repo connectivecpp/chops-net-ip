@@ -38,14 +38,14 @@ namespace net {
 /**
  *  @brief The @c basic_io_interface class template provides access to an underlying 
  *  network IO handler (TCP or UDP IO handler), primarily for calling the @c start_io
- *  method.
+ *  and @c stop_io methods.
  *
  *  The @c basic_io_interface class provides the primary application interface to start
  *  network IO processing, whether TCP or UDP. This class provides methods to start IO
  *  processing (i.e. start read processing and enable write processing),
- *  stop IO processing (which typically does not need to be directly called), and access 
- *  the IO handler socket (e.g. to retrieve or modify socket options). It also provides
- *  a method to create a @c basic_io_output object for sending data.
+ *  stop IO processing (if needed, typically doesn't need to be directly called), and 
+ *  access the IO handler socket (e.g. to retrieve or modify socket options). It also 
+ *  provides a method to create a @c basic_io_output object for sending data.
  *
  *  This class is a lightweight value class, allowing @c basic_io_interface 
  *  objects to be copied and used in multiple places in an application, all of them 
@@ -68,7 +68,7 @@ namespace net {
  *  performed through the state change function object callback).
  *
  *  A @c basic_io_output object can be created from a @c basic_io_interface, allowing 
- *  data sending to the underlying network IO handler.
+ *  the sending of data to the underlying network IO handler.
  *
  *  The underlying network IO handler socket can be accessed through the @c visit_socket
  *  method. This allows socket options to be queried and set (or other useful socket methods 
@@ -130,7 +130,9 @@ public:
 /**
  *  @brief Make a @c basic_io_output object from the associated IO handler.
  *
- *  A @c basic_io_output object is used for sending data. 
+ *  A @c basic_io_output object is used for sending data. A @c basic_io_output object
+ *  will be created even if @c start_io has not been called, and attempting to send
+ *  data before @c start_io is called will result in discarded data.
  *
  *  @return @c nonstd::expected - @c basic_io_output on success, either a @c tcp_io_output 
  *  or @c udp_io_output; on error (if no associated IO handler), a @c std::error_code is 
@@ -514,7 +516,7 @@ public:
  *
  *  For TCP entities (connectors and acceptors), the TCP connection will be taken
  *  down, but the entity will remain active. For UDP entities @c stop_io is equivalent
- *  to calling @c stop.
+ *  to calling @c stop on the @c net_entity.
  *
  *  @return @c nonstd::expected - IO is started on success; on error, a 
  *  @c std::error_code is returned.
