@@ -50,7 +50,7 @@ private:
   // std::size_t         m_total_bytes_sent;
 
 private:
-  using lg = std::lock_guard<std::mutex>;
+  using lk_guard = std::lock_guard<std::mutex>;
 
 public:
 
@@ -58,7 +58,7 @@ public:
 
   // io handlers call this method to get next buffer of data, can be empty
   std::optional<E> get_next_element() {
-    lg(m_mutex);
+    lk_guard lk(m_mutex);
     if (m_output_queue.empty()) {
       return std::optional<E> { };
     }
@@ -69,18 +69,18 @@ public:
   }
 
   void add_element(const E& element) {
-    lg(m_mutex);
+    lk_guard lk(m_mutex);
     m_output_queue.push(element);
     m_current_num_bytes += element.size(); // note - possible integer overflow
   }
 
   chops::net::output_queue_stats get_queue_stats() const noexcept {
-    lg(m_mutex);
+    lk_guard lk(m_mutex);
     return chops::net::output_queue_stats { m_queue.size(), m_current_num_bytes };
   }
 
   void clear() noexcept {
-    lg(m_mutex);
+    lk_guard lk(m_mutex);
     std::queue<queue_element>().swap(m_output_queue);
   }
 
