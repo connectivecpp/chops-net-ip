@@ -4,11 +4,11 @@
  *
  *  @brief Utility class to manage output data queueing.
  *
- *  Currently @c std::mutex is used to allow multiple threads to concurrently add 
+ *  Currently a @c std::mutex is used to allow multiple threads to concurrently add 
  *  to the output queue. However, there are multiple implementations possible, and
  *  earlier code used @c asio @c post calls to serialize adding to the output 
  *  queue. If performance measurements call for improvements, a lock-free
- *  MPSC queue could be added, or something similar.
+ *  MPSC queue could be added, or the @c post added back, or something similar.
  *
  *  @note For internal use only.
  *
@@ -82,6 +82,7 @@ public:
   void clear() noexcept {
     lk_guard lk(m_mutex);
     std::queue<E>().swap(m_output_queue);
+    m_current_num_bytes = 0u;
   }
 
 };

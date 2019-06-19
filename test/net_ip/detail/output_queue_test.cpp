@@ -20,6 +20,7 @@
 #include <future>
 #include <functional> // std::ref, std::cref
 #include <numeric> // std::accumulate
+#include <cassert>
 
 #include "net_ip/detail/output_queue.hpp"
 
@@ -97,16 +98,26 @@ void output_queue_test(const std::vector<E>& data_vec, int num_thrs, int multipl
   REQUIRE (qs.output_queue_size == tot);
   REQUIRE (qs.bytes_in_output_queue == accum_buf_size(data_vec) * num_thrs * multiplier);
 
-/*
-  auto e = outq.get_next_element();
-  REQUIRE (e);
-  REQUIRE_FALSE (e->second);
-  REQUIRE (e->first == buf);
-  chops::repeat(num_bufs, [&outq, &buf] () { outq.add_element(buf); } );
-  chops::repeat(num_bufs, [&outq] () { outq.get_next_element(); } );
-  auto e = outq.get_next_element();
-  REQUIRE_FALSE (e);
-*/
+  chops::repeat(tot, [&outq] {
+      auto e = outq.get_next_element();
+//      REQUIRE (e);
+      assert (e);
+    }
+  );
+  auto e = outq.get_next_element(); // should be empty optional
+  REQUIRE_FALSE (e); // no element val available
+  qs = outq.get_queue_stats();
+  REQUIRE (qs.output_queue_size == 0u);
+  REQUIRE (qs.bytes_in_output_queue == 0u);
+
+  auto t = add_to_q<E>(data_vec, outq, 1, 1);
+  qs = outq.get_queue_stats();
+  REQUIRE_FALSE (qs.output_queue_size == 0u);
+
+  outq.clear();
+  qs = outq.get_queue_stats();
+  REQUIRE (qs.output_queue_size == 0u);
+  REQUIRE (qs.bytes_in_output_queue == 0u);
 }
 
 TEST_CASE ( "Output_queue test, single element, 1 thread, multiplier 1", 
@@ -130,6 +141,13 @@ TEST_CASE ( "Output_queue test, single element, 8 threads, multiplier 20",
 
 }
 
+TEST_CASE ( "Output_queue test, single element, 15 threads, multiplier 50", 
+           "[output_queue] [single_element] [thread_15] [multiplier_50]" ) {
+
+  output_queue_test(make_buf_vec(), 15, 50);
+
+}
+
 TEST_CASE ( "Output_queue test, double element, 1 thread, multiplier 1",
            "[output_queue] [double_element] [thread_1] [multiplier_1]" ) {
 
@@ -148,6 +166,13 @@ TEST_CASE ( "Output_queue test, double element, 8 threads, multiplier 20",
            "[output_queue] [double_element] [thread_8] [multiplier_20]" ) {
 
   output_queue_test(make_buf_and_int_vec(), 8, 20);
+
+}
+
+TEST_CASE ( "Output_queue test, double element, 15 threads, multiplier 50",
+           "[output_queue] [double_element] [thread_15] [multiplier_50]" ) {
+
+  output_queue_test(make_buf_and_int_vec(), 15, 50);
 
 }
 
