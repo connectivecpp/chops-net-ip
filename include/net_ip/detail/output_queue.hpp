@@ -76,12 +76,12 @@ public:
 
   chops::net::output_queue_stats get_queue_stats() const noexcept {
     lk_guard lk(m_mutex);
-    return chops::net::output_queue_stats { m_queue.size(), m_current_num_bytes };
+    return chops::net::output_queue_stats { m_output_queue.size(), m_current_num_bytes };
   }
 
   void clear() noexcept {
     lk_guard lk(m_mutex);
-    std::queue<queue_element>().swap(m_output_queue);
+    std::queue<E>().swap(m_output_queue);
   }
 
 };
