@@ -4,11 +4,11 @@
  *
  *  @brief Utility class to manage output data queueing.
  *
- *  Currently a @c std::mutex is used to allow multiple threads to concurrently add 
- *  to the output queue. However, there are multiple implementations possible, and
- *  earlier code used @c asio @c post calls to serialize adding to the output 
- *  queue. If performance measurements call for improvements, a lock-free
- *  MPSC queue could be added, or the @c post added back, or something similar.
+ *  Concurrency protection is needed at a higher level to enforce data structure and flag
+ *  consistency for data sending, as well as to ensure that only one write is in process at 
+ *  a time. There are multiple ways to accomplish this goal, whether with locks (mutex or 
+ *  spin-lock or semaphore, etc), or by posting all write operations through the Asio 
+ *  executor.
  *
  *  @note For internal use only.
  *
@@ -26,7 +26,6 @@
 
 #include <queue>
 #include <cstddef> // std::size_t
-#include <mutex>
 #include <optional>
 
 #include "net_ip/queue_stats.hpp"
@@ -43,22 +42,17 @@ private:
 
   std::queue<E>       m_output_queue;
   std::size_t         m_current_num_bytes;
-  mutable std::mutex  m_mutex;
 
   // std::size_t         m_queue_size;
   // std::size_t         m_total_bufs_sent;
   // std::size_t         m_total_bytes_sent;
 
-private:
-  using lk_guard = std::lock_guard<std::mutex>;
-
 public:
 
-  output_queue() noexcept : m_output_queue(), m_current_num_bytes(0u), m_mutex() { }
+  output_queue() noexcept : m_output_queue(), m_current_num_bytes(0u) { }
 
   // io handlers call this method to get next buffer of data, can be empty
   std::optional<E> get_next_element() {
-    lk_guard lk(m_mutex);
     if (m_output_queue.empty()) {
       return std::optional<E> { };
     }
@@ -69,18 +63,15 @@ public:
   }
 
   void add_element(const E& element) {
-    lk_guard lk(m_mutex);
     m_output_queue.push(element);
     m_current_num_bytes += element.size(); // note - possible integer overflow
   }
 
   chops::net::output_queue_stats get_queue_stats() const noexcept {
-    lk_guard lk(m_mutex);
     return chops::net::output_queue_stats { m_output_queue.size(), m_current_num_bytes };
   }
 
   void clear() noexcept {
-    lk_guard lk(m_mutex);
     std::queue<E>().swap(m_output_queue);
     m_current_num_bytes = 0u;
   }

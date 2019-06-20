@@ -19,7 +19,7 @@
 - Is Chops Net IP a complete wrapper over the Asio API?
   - No. There are access points that expose various Asio facilities, and Asio `endpoints` are used in the Chops Net IP API. In particular, Chops Net IP provides an interface to access the underlying Asio socket and the application can directly set (or query) socket options (versus wrapping and exactly duplicating the functionality).
 - What are some of the subtle design challenges in the implementation?
-  - Passing application supplied function objects through the library layers is central to the design. Since these are passed across thread boundaries at certain points, knowing when to call `std::move` versus `std::forward<F>` is crucial (and has been the source of more than one bug).
-  - The shutdown notification logic is tricky and hard to get correct, specially between the TCP connection object and the TCP acceptor and TCP connector objects.
-  - `std::atomic` variables can be used for critical section locks, but care must be taken, and the Chops Net IP implementation uses the `compare_exchange_strong` method on a bool atomic to guard against multiple threads calling `start` or `stop` at the same time.
+  - Passing application supplied function objects through the library layers is central to the design. Since these are passed across thread boundaries at certain points, knowing when to call `std::move` versus `std::forward<F>` is crucial (and has been the source of more than one bug and can still be improved).
+  - The shutdown notification logic is tricky and hard to get correct, specially in the TCP connector class and also between the TCP IO class and the TCP acceptor and TCP connector classes.
+  - `std::atomic` variables can be used to protect critical sections, but care must be taken, and the Chops Net IP implementation may use the `compare_exchange_strong` method on a bool atomic (for example to guard against multiple threads calling `start` or `stop` at the same time).
 
