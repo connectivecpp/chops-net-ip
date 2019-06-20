@@ -113,8 +113,8 @@ public:
  *
  *  @param sz Size of buffer.
  *
- *  @return @c true if buffer queued for output, @c false otherwise (no IO handler
- *  association, or .
+ *  @return @c true if buffer written or queued for output, @c false otherwise (no IO handler
+ *  association, or IO handler stopped).
  *
  */
   bool send(const void* buf, std::size_t sz) const { return send(chops::const_shared_buffer(buf, sz)); }
@@ -126,11 +126,13 @@ public:
  *
  *  @param buf @c chops::const_shared_buffer containing data.
  *
- *  @return @c true if buffer queued for output, @c false otherwise.
+ *  @return @c true if buffer written or queued for output, @c false otherwise (no IO handler
+ *  association, or IO handler stopped).
  *
  */
-  bool send(chops::const_shared_buffer buf) const {
-    return m_ioh_ptr->send(buf);
+  bool send(const chops::const_shared_buffer& buf) const {
+    auto sp = m_ioh_wptr.lock();
+    return sp ?  m_ioh_ptr->send(buf) : false;
   }
 
 /**
@@ -151,7 +153,8 @@ public:
  *
  *  @param buf @c chops::mutable_shared_buffer containing data.
  *
- *  @return @c true if buffer queued for output, @c false otherwise.
+ *  @return @c true if buffer written or queued for output, @c false otherwise (no IO handler
+ *  association, or IO handler stopped).
  *
  */
   bool send(chops::mutable_shared_buffer&& buf) const { 
@@ -173,7 +176,8 @@ public:
  *
  *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
- *  @return @c true if buffer queued for output, @c false otherwise.
+ *  @return @c true if buffer written or queued for output, @c false otherwise (no IO handler
+ *  association, or IO handler stopped).
  *
  */
   bool send(const void* buf, std::size_t sz, const endpoint_type& endp) const {
@@ -190,11 +194,13 @@ public:
  *
  *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
- *  @return @c true if buffer queued for output, @c false otherwise.
+ *  @return @c true if buffer written or queued for output, @c false otherwise (no IO handler
+ *  association, or IO handler stopped).
  *
  */
-  bool send(chops::const_shared_buffer buf, const endpoint_type& endp) const {
-    return m_ioh_ptr->send(buf, endp);
+  bool send(const chops::const_shared_buffer& buf, const endpoint_type& endp) const {
+    auto sp = m_ioh_wptr.lock();
+    return sp ?  m_ioh_ptr->send(buf, endp) : false;
   }
 
 /**
@@ -208,7 +214,8 @@ public:
  *
  *  @param endp Destination @c asio::ip::udp::endpoint for the buffer.
  *
- *  @return @c true if buffer queued for output, @c false otherwise.
+ *  @return @c true if buffer written or queued for output, @c false otherwise (no IO handler
+ *  association, or IO handler stopped).
  *
  */
   bool send(chops::mutable_shared_buffer&& buf, const endpoint_type& endp) const {

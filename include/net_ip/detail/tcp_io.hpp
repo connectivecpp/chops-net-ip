@@ -157,17 +157,14 @@ public:
     return ret;
   }
 
-  // use post for thread safety, multiple threads can call this method
-  bool send(chops::const_shared_buffer buf) {
-    auto self { shared_from_this() };
-    asio::post(m_socket.get_executor(), [this, self, buf] {
-        if (!m_io_common.start_write_setup(buf)) {
-          return false; // buf queued or shutdown happening
+  // io_common has concurrency protection
+  bool send(const chops::const_shared_buffer& buf) {
+    auto ret = m_io_common.start_write(buf, 
+        [this] (const chops::const_shared_buffer& b) {
+          start_write(b);
         }
-        start_write(buf);
-        return true;
-      }
-    );
+      );
+    return ret != io_common::io_stopped;
   }
 
   bool send(const chops::const_shared_buffer& buf, const endpoint_type&) {
@@ -176,7 +173,7 @@ public:
 
 private:
   void close(const std::error_code& err) {
-    if (!m_io_common.stop()) {
+    if (!m_io_common.set_io_stopped()) {
       return; // already stopped, short circuit any late handler callbacks
     }
     m_io_common.clear();
@@ -232,7 +229,7 @@ private:
   template <typename MH>
   void handle_read_until(const std::error_code&, std::size_t, MH&&);
 
-  void start_write(chops::const_shared_buffer);
+  void start_write(const chops::const_shared_buffer&);
 
   void handle_write(const std::error_code&, std::size_t);
 
@@ -293,7 +290,7 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
 }
 
 
-inline void tcp_io::start_write(chops::const_shared_buffer buf) {
+inline void tcp_io::start_write(const chops::const_shared_buffer& buf) {
   auto self { shared_from_this() };
   asio::async_write(m_socket, asio::const_buffer(buf.data(), buf.size()),
             [this, self] (const std::error_code& err, std::size_t nb) {
@@ -308,11 +305,10 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
     // m_notifier_cb(err, shared_from_this());
     return;
   }
-  auto elem = m_io_common.get_next_element();
-  if (!elem) {
-    return;
-  }
-  start_write(elem->first);
+  m_io_common.write_next_element([this] (const chops::const_shared_buffer& buf) {
+      start_write(buf);
+    }
+  );
 }
 
 using tcp_io_shared_ptr = std::shared_ptr<tcp_io>;
