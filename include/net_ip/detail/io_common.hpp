@@ -4,6 +4,11 @@
  *
  *  @brief Common code, factored out, for TCP and UDP io handlers.
  *
+ *  The common code includes an IO started flag and output queue management. The
+ *  implementation currently uses a @c std::mutex to protect concurrent access,
+ *  but other designs are possible, including @c asio @c post, or various
+ *  combinations of a lock-free MPSC queue and @c std::atomic variables.
+ *
  *  @note For internal use only.
  *
  *  @author Cliff Green
@@ -88,6 +93,8 @@ public:
 
 };
 
+// func is the code that performs actual write, typically async_write or
+// async_sendto
 template <typename E, typename F>
 auto io_common<E>::start_write(const E& elem, F&& func) {
   lk_guard lg(m_mutex);
@@ -99,8 +106,8 @@ auto io_common<E>::start_write(const E& elem, F&& func) {
     m_outq.add_element(elem);
     return queued;
   }
-  func(elem);
   m_write_in_progress = true;
+  func(elem);
   return write_started;
 }
 
@@ -116,8 +123,8 @@ void io_common<IOT>::write_next_elem(F&& func) {
     m_write_in_progress = false;
     return;
   }
-  func(elem);
   m_write_in_progress = true;
+  func(elem);
   return;
 }
 

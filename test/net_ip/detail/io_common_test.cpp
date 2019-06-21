@@ -146,11 +146,6 @@ void io_common_test(chops::const_shared_buffer buf, int num_bufs,
   } // end given
 }
 
-struct io_mock {
-  using endpoint_type = float;
-
-};
-
 SCENARIO ( "Io common test", "[io_common]" ) {
   auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
   chops::mutable_shared_buffer mb(ba.data(), ba.size());
