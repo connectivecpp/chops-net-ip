@@ -91,7 +91,7 @@ public:
     std::size_t sum = 0u;
     for (auto& ioh : m_io_handlers) {
       if (ioh->is_io_started()) {
-        f(basic_io_output(ioh));
+        f(basic_io_output<tcp_io>(ioh));
         sum += 1u;
       }
     }

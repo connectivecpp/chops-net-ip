@@ -127,7 +127,7 @@ public:
   template <typename F>
   std::size_t visit_io_output(F&& f) {
     if (m_io_handler && m_io_handler->is_io_started()) {
-      f(basic_io_output(m_io_handler));
+      f(basic_io_output<tcp_io>(m_io_handler));
       return 1u;
     }
     return 0u;

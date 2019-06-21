@@ -33,9 +33,8 @@
 #include <utility> // std::forward, std::move
 #include <string>
 #include <string_view>
-#include <functional>
+#include <functional> // std::function
 
-#include "net_ip/detail/output_queue.hpp"
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
@@ -44,7 +43,6 @@
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 
 #include "marshall/shared_buffer.hpp"
-#include "utility/cast_ptr_to.hpp"
 
 namespace chops {
 namespace net {
@@ -62,17 +60,17 @@ private:
 
 private:
 
-  asio::ip::tcp::socket  m_socket;
-  io_common<tcp_io>      m_io_common;
-  entity_notifier_cb     m_notifier_cb;
-  endpoint_type          m_remote_endp;
+  asio::ip::tcp::socket               m_socket;
+  io_common<const_shared_buffer>      m_io_common;
+  entity_notifier_cb                  m_notifier_cb;
+  endpoint_type                       m_remote_endp;
 
   // the following members are only used for read processing; they could be 
   // passed through handlers, but are members for simplicity and to reduce 
   // copying or moving
-  byte_vec               m_byte_vec;
-  std::size_t            m_read_size;
-  std::string            m_delimiter;
+  byte_vec                            m_byte_vec;
+  std::size_t                         m_read_size;
+  std::string                         m_delimiter;
 
 public:
 
@@ -164,7 +162,7 @@ public:
           start_write(b);
         }
       );
-    return ret != io_common::io_stopped;
+    return ret != io_common<const_shared_buffer>::write_status::io_stopped;
   }
 
   bool send(const chops::const_shared_buffer& buf, const endpoint_type&) {
@@ -251,7 +249,7 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
   if (next_read_size == 0u) { // msg fully received, now invoke message handler
     auto self { shared_from_this() };
     if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  basic_io_output(self), m_remote_endp)) {
+                  basic_io_output<tcp_io>(self), m_remote_endp)) {
       // message handler not happy, tear everything down, post function object
       // instead of directly calling close to give a return message a possibility
       // of getting through
@@ -277,10 +275,10 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
     close(err);
     return;
   }
-  // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   auto self { shared_from_this() };
+  // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes),
-                basic_io_output(self), m_remote_endp)) {
+                basic_io_output<tcp_io>(self), m_remote_endp)) {
       asio::post(m_socket.get_executor(), [this, self] () mutable { 
         close(std::make_error_code(net_ip_errc::message_handler_terminated)); } );
     return;
@@ -305,7 +303,7 @@ inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_
     // m_notifier_cb(err, shared_from_this());
     return;
   }
-  m_io_common.write_next_element([this] (const chops::const_shared_buffer& buf) {
+  m_io_common.write_next_elem([this] (const chops::const_shared_buffer& buf) {
       start_write(buf);
     }
   );

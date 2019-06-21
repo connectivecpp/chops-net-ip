@@ -17,21 +17,20 @@
 
 #include <system_error> // std::error_code
 #include <cstddef> // std::size_t
-#include <memory> // std::make_shared
-#include <utility> // std::move, std::ref
+#include <utility> // std::move
 #include <thread>
 #include <future>
 #include <chrono>
 #include <functional> // std::ref, std::cref
 #include <string_view>
 #include <vector>
-#include <numeric> // std::accumulate
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
 
 #include "net_ip_component/worker.hpp"
 #include "net_ip_component/io_output_delivery.hpp"
+#include "net_ip_component/output_queue_stats.hpp"
 
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/start_funcs.hpp"
@@ -96,12 +95,10 @@ std::size_t acc_conn_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq
   }
   for (auto io : send_vec) {
     io.send(empty_msg);
-    io.release();
   }
 
   for (auto& fut : conn_fut_vec) {
     auto io = fut.get(); // block for all disconnects
-    io.release();
   }
 
   acc.stop();
@@ -155,17 +152,9 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
   // poll output queue size of all senders until 0
-  std::size_t sum = 0;
-  while (sum = std::accumulate(senders.begin(), senders.end(), 0u,
-			  [] (std::size_t s, chops::net::net_entity ne) {
-            ne.visit_io_output([&s] (chops::net::udp_io_output io) {
-                s += io.get_output_queue_stats().output_queue_size; } ); } ) 
-       > 0) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    std::cerr << "****** Senders total output queue size: " << sum << std::endl;
-  }
-  std::cerr << "****** Senders total output queue size is now 0" << std::endl;
-
+  chops::net::accumulate_net_entity_output_queue_stats_until<chops::net::udp_io>
+         (senders.cbegin(), senders.cend(), poll_output_queue_cond(200, std::cerr));
+                                                               
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   nip.stop_all();

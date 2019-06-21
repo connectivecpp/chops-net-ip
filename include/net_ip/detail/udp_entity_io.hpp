@@ -28,10 +28,10 @@
 
 #include <cstddef> // std::size_t
 #include <utility> // std::forward, std::move
+#include <functional> // std::function
 
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
-#include "net_ip/detail/output_queue.hpp"
 
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
@@ -45,6 +45,20 @@ namespace chops {
 namespace net {
 namespace detail {
 
+struct udp_queue_element {
+  const_shared_buffer     m_buf;
+  asio::ip::udp::endpoint m_endp;
+
+  udp_queue_element (const const_shared_buffer& buf,
+                     const asio::ip::udp::endpoint& endp) noexcept : 
+        m_buf(buf), m_endp(endp) { }
+
+  std::size_t size() const noexcept {
+    return m_buf.size();
+  }
+
+};
+
 class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
   using endpoint_type = asio::ip::udp::endpoint;
@@ -54,7 +68,7 @@ private:
 
 private:
 
-  io_common<udp_entity_io>          m_io_common;
+  io_common<udp_queue_element>      m_io_common;
   net_entity_common<udp_entity_io>  m_entity_common;
   asio::io_context&                 m_ioc;
   asio::ip::udp::socket             m_socket;
@@ -111,7 +125,7 @@ public:
   template <typename F>
   std::size_t visit_io_output(F&& f) {
     if (m_io_common.is_io_started()) {
-      f(basic_io_output(shared_from_this()));
+      f(basic_io_output<udp_entity_io>(shared_from_this()));
       return 1u;
     }
     return 0u;
@@ -213,28 +227,18 @@ public:
     return { };
   }
 
-  bool send(chops::const_shared_buffer buf) {
-    auto self { shared_from_this() };
-    asio::post(m_socket.get_executor(), [this, self, buf] {
-        if (!m_io_common.start_write_setup(buf)) {
-          return false; // buf queued or shutdown happening
-        }
-        start_write(buf, m_default_dest_endp);
-        return true;
-      }
-    );
+  // io_common has concurrency protection
+  bool send(const chops::const_shared_buffer& buf) {
+    return send(buf, m_default_dest_endp);
   }
 
-  bool send(chops::const_shared_buffer buf, const endpoint_type& endp) {
-    auto self { shared_from_this() };
-    asio::post(m_socket.get_executor(), [this, self, buf, endp] {
-        if (!m_io_common.start_write_setup(buf, endp)) {
-          return false; // buf queued or shutdown happening
+  bool send(const chops::const_shared_buffer& buf, const endpoint_type& endp) {
+    auto ret = m_io_common.start_write(udp_queue_element(buf, endp), 
+        [this] (const udp_queue_element& e) {
+          start_write(e);
         }
-        start_write(buf, endp);
-        return true;
-      }
-    );
+      );
+    return ret != io_common<udp_queue_element>::write_status::io_stopped;
   }
 
 private:
@@ -256,14 +260,14 @@ private:
   template <typename MH>
   void handle_read(const std::error_code&, std::size_t, MH&&);
 
-  void start_write(chops::const_shared_buffer, const endpoint_type&);
+  void start_write(const udp_queue_element&);
 
   void handle_write(const std::error_code&, std::size_t);
 
 private:
 
   void close(const std::error_code& err) {
-    m_io_common.stop();
+    m_io_common.set_io_stopped();
     if (!m_entity_common.stop()) {
       return; // already closed
     }
@@ -288,7 +292,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     return;
   }
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
-                basic_io_output(shared_from_this()), m_sender_endp)) {
+                basic_io_output<udp_entity_io>(shared_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     close(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;
@@ -296,9 +300,9 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
   start_read(std::forward<MH>(msg_hdlr));
 }
 
-inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const endpoint_type& endp) {
+inline void udp_entity_io::start_write(const udp_queue_element& e) {
   auto self { shared_from_this() };
-  m_socket.async_send_to(asio::const_buffer(buf.data(), buf.size()), endp,
+  m_socket.async_send_to(asio::const_buffer(e.m_buf.data(), e.m_buf.size()), e.m_endp,
             [this, self] (const std::error_code& err, std::size_t nb) {
       handle_write(err, nb);
     }
@@ -310,11 +314,10 @@ inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t 
     close(err);
     return;
   }
-  auto elem = m_io_common.get_next_element();
-  if (!elem) {
-    return;
-  }
-  start_write(elem->first, elem->second ? *(elem->second) : m_default_dest_endp);
+  m_io_common.write_next_elem([this] (const udp_queue_element& e) {
+      start_write(e);
+    }
+  );
 }
 
 using udp_entity_io_shared_ptr = std::shared_ptr<udp_entity_io>;

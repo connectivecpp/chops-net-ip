@@ -49,8 +49,9 @@ output_queue_stats accumulate_output_queue_stats(Iter beg, Iter end) {
   return std::accumulate(beg, end, output_queue_stats(),
 			  [] (const output_queue_stats& sum, const auto& io) {
           auto rhs = io.get_output_queue_stats();
-          return output_queue_stats {sum.output_queue_size + rhs.output_queue_size,
-                                    sum.bytes_in_output_queue + rhs.bytes_in_output_queue};
+          return rhs ? output_queue_stats { sum.output_queue_size + rhs->output_queue_size,
+                                            sum.bytes_in_output_queue + rhs->bytes_in_output_queue } :
+                       sum;
     }
   );
 }
@@ -123,9 +124,11 @@ output_queue_stats accumulate_net_entity_output_queue_stats(Iter beg, Iter end) 
 			  [] (const output_queue_stats& sum, const auto& ne) {
           output_queue_stats st{};
           ne.visit_io_output([&st] (basic_io_output<IOT> io) {
-              auto rhs = io.get_output_queue_stats();
-              st.output_queue_size += rhs.output_queue_size;
-              st.bytes_in_output_queue += rhs.bytes_in_output_queue;
+              auto r = io.get_output_queue_stats();
+              if (r) {
+                st.output_queue_size += r->output_queue_size;
+                st.bytes_in_output_queue += r->bytes_in_output_queue;
+              }
             }
           );
           return output_queue_stats {sum.output_queue_size + st.output_queue_size,

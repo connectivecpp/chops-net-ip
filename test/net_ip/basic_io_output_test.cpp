@@ -29,7 +29,7 @@
 #include "shared_test/mock_classes.hpp"
 
 template <typename IOT>
-void basic_io_output_test_construction_and_release() {
+void basic_io_output_test_construction() {
 
   GIVEN ("A default constructed basic_io_output") {
     chops::net::basic_io_output<IOT> io_out { };
@@ -173,7 +173,7 @@ void basic_io_output_test_compare() {
 
 SCENARIO ( "Basic io output test, io_handler_mock used for IO handler type",
            "[basic_io_output] [io_handler_mock]" ) {
-  basic_io_output_test_construction_and_release<chops::test::io_handler_mock>();
+  basic_io_output_test_construction<chops::test::io_handler_mock>();
   basic_io_output_test_sends<chops::test::io_handler_mock>();
   basic_io_output_test_compare<chops::test::io_handler_mock>();
 }

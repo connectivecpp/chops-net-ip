@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <list>
+#include <memory> // std::shared_ptr
 
 #include "net_ip_component/output_queue_stats.hpp"
 
@@ -32,9 +33,9 @@ SCENARIO ( "Testing accumulate_output_queue_stats for io_output objects",
   using namespace chops::test;
   using io_out_mock = chops::net::basic_io_output<io_handler_mock>;
 
-  io_handler_mock ioh_mock{};
+  auto ioh_mock_sp = std::make_shared<io_handler_mock>();
 
-  io_out_mock io_out1(&ioh_mock);
+  io_out_mock io_out1(ioh_mock_sp);
   auto io_out2 = io_out1;
   auto io_out3 = io_out1;
 

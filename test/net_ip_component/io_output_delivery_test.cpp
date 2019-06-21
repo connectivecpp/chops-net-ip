@@ -58,7 +58,6 @@ void test_io_wait_q(chops::net::net_entity net_ent, chops::net::err_wait_q& err_
     while (exp_entries > 0) {
       auto r = wq.wait_and_pop();
       REQUIRE (r);
-      r->io_out.release();
       --exp_entries;
     }
 }
@@ -106,7 +105,6 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
       REQUIRE (r1);
       REQUIRE (*r1);
       auto io1 = fut.get();
-      io1.release();
       ne_udp.stop();
       auto r2 = ne_udp.is_started();
       REQUIRE (r2);
@@ -121,13 +119,11 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
       REQUIRE (r3);
       REQUIRE (*r3);
       auto io2 = pair_fut.start_fut.get();
-      io2.release();
       ne_udp.stop();
       auto r4 = ne_udp.is_started();
       REQUIRE (r4);
       REQUIRE_FALSE (*r4);
       auto io3 = pair_fut.stop_fut.get();
-      io3.release();
 
       auto t2 = ne_acc.start(io_state_chg<chops::net::tcp_io>(),
                                      chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
@@ -146,11 +142,9 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
       REQUIRE (r5);
       REQUIRE (*r5);
       auto io5 = conn_pair_fut.start_fut.get();
-      io5.release();
       ne_conn2.stop();
       ne_acc.stop();
       auto io6 = conn_pair_fut.stop_fut.get();
-      io6.release();
 
       auto r6 = ne_conn2.is_started();
       REQUIRE (r6);

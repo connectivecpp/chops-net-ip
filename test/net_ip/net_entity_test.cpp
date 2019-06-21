@@ -44,7 +44,7 @@
 #include "shared_test/start_funcs.hpp"
 
 using namespace chops::test;
-using tcp_out_wq = chops::wait_queue<chops::net::basic_io_output<chops::net::tcp_io> >;
+using tcp_out_wq = chops::wait_queue<chops::net::tcp_io_output>;
 
 const char* test_port_udp = "30555";
 const char* test_host_udp = "127.0.0.1";
@@ -179,11 +179,8 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   }
 
   io_out.send(make_empty_variable_len_msg());
-  io_out.release();
   // wait for another io_output to signal end of processing
   io_out = *(out_wq.wait_and_pop());
-
-  io_out.release();
 
   net_conn.stop();
   net_acc.stop();
