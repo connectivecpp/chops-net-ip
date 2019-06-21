@@ -23,7 +23,6 @@
 #include "marshall/shared_buffer.hpp"
 
 #include "utility/repeat.hpp"
-#include "utility/make_byte_array.hpp"
 
 #include "shared_test/io_buf.hpp"
 

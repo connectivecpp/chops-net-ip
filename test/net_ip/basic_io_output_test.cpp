@@ -45,28 +45,21 @@ void basic_io_output_test_construction_and_release() {
     chops::net::basic_io_interface<IOT> io_intf(ioh);
     WHEN ("make_io_output is called on the basic_io_interface") {
       auto io_out = io_intf.make_io_output();
-      THEN ("a valid basic_io_output object is created and in a non-started state") {
+      THEN ("a valid basic_io_output object is created") {
         REQUIRE (io_out);
         REQUIRE(io_out->is_valid());
-        REQUIRE_FALSE(io_out->is_io_started());
       }
     }
   } // end given
 
   GIVEN ("An io handler shared pointer") {
     auto ioh = std::make_shared<IOT>();
-    WHEN ("Two basic_io_outputs are constructed, from the io handler shared pointer and raw pointer") {
+    WHEN ("One basic_io_output is constructed and the other copy constructed") {
       chops::net::basic_io_output<IOT> io_out1(ioh);
-      chops::net::basic_io_output<IOT> io_out2(ioh.get());
+      chops::net::basic_io_output<IOT> io_out2(io_out1);
       THEN ("both are valid") {
         REQUIRE(io_out1.is_valid());
         REQUIRE(io_out2.is_valid());
-      }
-      AND_THEN ("both can be released and are no longer valid") {
-        io_out1.release();
-        io_out2.release();
-        REQUIRE_FALSE(io_out1.is_valid());
-        REQUIRE_FALSE(io_out2.is_valid());
       }
     }
   } // end given
@@ -78,16 +71,15 @@ void basic_io_output_test_sends() {
   auto ioh = std::make_shared<IOT>();
   chops::net::basic_io_output<IOT> io_out(ioh);
   REQUIRE (io_out.is_valid());
-  REQUIRE_FALSE (io_out.is_io_started());
   ioh->start_io();
 
   GIVEN ("A basic_io_output associated with an io handler that has been started") {
-    WHEN ("is_io_started or get_output_queue_stats is called") {
+    WHEN ("get_output_queue_stats is called") {
       THEN ("correct values are returned") {
-        REQUIRE(io_out.is_io_started());
-        chops::net::output_queue_stats s = io_out.get_output_queue_stats();
-        REQUIRE (s.output_queue_size == chops::test::io_handler_mock::qs_base);
-        REQUIRE (s.bytes_in_output_queue == (chops::test::io_handler_mock::qs_base + 1));
+        auto s = io_out.get_output_queue_stats();
+        REQUIRE (s);
+        REQUIRE (s->output_queue_size == chops::test::io_handler_mock::qs_base);
+        REQUIRE (s->bytes_in_output_queue == (chops::test::io_handler_mock::qs_base + 1));
       }
     }
     AND_WHEN ("send is called") {

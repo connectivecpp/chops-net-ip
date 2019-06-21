@@ -132,7 +132,7 @@ public:
  */
   bool send(const chops::const_shared_buffer& buf) const {
     auto sp = m_ioh_wptr.lock();
-    return sp ?  m_ioh_ptr->send(buf) : false;
+    return sp ?  sp->send(buf) : false;
   }
 
 /**
@@ -200,7 +200,7 @@ public:
  */
   bool send(const chops::const_shared_buffer& buf, const endpoint_type& endp) const {
     auto sp = m_ioh_wptr.lock();
-    return sp ?  m_ioh_ptr->send(buf, endp) : false;
+    return sp ?  sp->send(buf, endp) : false;
   }
 
 /**

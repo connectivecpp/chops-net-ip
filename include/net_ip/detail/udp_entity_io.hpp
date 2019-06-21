@@ -288,7 +288,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     return;
   }
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
-                basic_io_output(this), m_sender_endp)) {
+                basic_io_output(shared_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     close(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;
