@@ -192,32 +192,39 @@ private:
         }
         tcp_io_shared_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
-        m_io_handlers.push_back(iop);
-        if (m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true)) {
+        if (m_entity_common.call_io_state_chg_cb(iop, (m_io_handlers.size()+1u), true)) {
+          m_io_handlers.push_back(iop);
           start_accept();
+          return;
         }
-        else {
-          asio::post(m_acceptor.get_executor(), [this, self] () mutable {
-              close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-            } );
-        }
+        // state change returned false
+        m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
+        asio::post(m_acceptor.get_executor(), [this, self] () mutable {
+            close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+          }
+        );
       }
     );
   }
 
-  // this method invoked via a posted function object, allowing the TCP IO handler
+  // this code invoked via a posted function object, allowing the TCP IO handler
   // to completely shut down 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    chops::erase_where(m_io_handlers, iop);
-    m_entity_common.call_error_cb(iop, err);
-    // the following logic branches can be tricky; there are different paths to calling
-    // close - stop method (from app), error, or false return from state change
-    // callback; in all cases, the first time through the close method the 
-    // atomic started flag is set false, and this flag is checked in subsequent calls 
-    // to close, protecting recursive shutdown of various resources
-    if (!m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
-      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-    }
+    
+    auto self = shared_from_this();
+    asio::post(m_acceptor.get_executor(), [this, self, iop, err] () mutable {
+        chops::erase_where(m_io_handlers, iop);
+        m_entity_common.call_error_cb(iop, err);
+        // the following logic branches can be tricky; there are different paths to calling
+        // close - stop method (from app), error, or false return from state change
+        // callback; in all cases, the first time through the close method the 
+        // atomic started flag is set false, and this flag is checked in subsequent calls 
+        // to close, protecting recursive shutdown of various resources
+        if (!m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
+          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+        }
+      }
+    );
   }
 
 };
