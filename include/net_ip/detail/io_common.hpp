@@ -6,8 +6,8 @@
  *
  *  The common code includes an IO started flag and output queue management. The
  *  implementation currently uses a @c std::mutex to protect concurrent access,
- *  but other designs are possible, including @c asio @c post, or various
- *  combinations of a lock-free MPSC queue and @c std::atomic variables.
+ *  but other designs are possible, including @c asio @c post for writes, or 
+ *  various combinations of a lock-free MPSC queue and @c std::atomic variables.
  *
  *  @note For internal use only.
  *
