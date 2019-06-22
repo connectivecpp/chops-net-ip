@@ -218,11 +218,6 @@ private:
       }
     }
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
-    std::error_code ec;
-    m_socket.close(ec);
-    if (ec) {
-      m_entity_common.call_error_cb(tcp_io_shared_ptr(), ec);
-    }
     m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                   std::make_error_code(net_ip_errc::tcp_connector_closed));
     return true;
@@ -281,6 +276,8 @@ private:
     m_io_handler = std::make_shared<tcp_io>(std::move(m_socket), 
       tcp_io::entity_notifier_cb(std::bind(&tcp_connector::notify_me, shared_from_this(), _1, _2)));
     m_state = connected;
+    std::error_code ec;
+    m_socket.close(ec);
     m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                   std::make_error_code(net_ip_errc::tcp_connector_connected));
     if (!m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true)) {
