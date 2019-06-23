@@ -72,7 +72,7 @@ struct no_start_io_state_chg {
 };
 
 
-void stress_start_stop_connector(asio::io_context& ioc, int interval, int num_start_stops,
+void stress_start_stop_connector(asio::io_context& ioc, int num_start_stops,
                                  chops::net::err_wait_q& err_wq) {
 
   {
@@ -83,10 +83,11 @@ void stress_start_stop_connector(asio::io_context& ioc, int interval, int num_st
     while (num_start_stops > 0) {
       auto r1 = conn_ptr->start( no_start_io_state_chg(), 
                                  chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
-      REQUIRE(r1.value() == 0);
-      std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+      REQUIRE_FALSE(r1);
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
       auto r2 = conn_ptr->stop();
-      REQUIRE(r2.value() == 0);
+      REQUIRE_FALSE(r2);
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
       --num_start_stops;
     }
   }
@@ -217,7 +218,7 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         REQUIRE(sz == 0u);
 
         INFO ("Stress testing start and stop of a single connector, not in separate thread");
-        stress_start_stop_connector(ioc, interval, num_conns, err_wq);
+        stress_start_stop_connector(ioc, num_conns, err_wq);
 
 
         acc_ptr->stop();

@@ -189,6 +189,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
           REQUIRE (total_msgs == conn_cnt);
         }
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         INFO ("Start and stop tests starting");
 
         acc_ptr->start(

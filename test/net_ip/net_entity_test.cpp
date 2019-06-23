@@ -129,6 +129,7 @@ void test_methods (chops::net::net_entity net_ent, chops::net::err_wait_q& err_w
   auto r4 = net_ent.visit_io_output(iov);
   REQUIRE (r4);
   REQUIRE (*r4 == 0u);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 void test_tcp_msg_send (const vec_buf& in_msg_vec,
@@ -184,6 +185,7 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
 
   net_conn.stop();
   net_acc.stop();
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   REQUIRE (in_msg_vec.size() == acc_cnt);
   REQUIRE (in_msg_vec.size() == conn_cnt);
@@ -227,7 +229,7 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
   );
   REQUIRE (r2);
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   for (const auto& buf : in_msg_vec) {
     auto r3 = net_udp_send.visit_io_output([buf] (chops::net::udp_io_output io) { io.send(buf); } );
@@ -243,6 +245,8 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
 
   net_udp_send.stop();
   net_udp_recv.stop();
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   REQUIRE_FALSE (*(net_udp_send.is_started()));
   REQUIRE_FALSE (*(net_udp_recv.is_started()));

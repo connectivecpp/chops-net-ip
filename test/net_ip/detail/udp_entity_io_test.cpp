@@ -159,7 +159,7 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
 
 
         INFO ("Pausing, then stopping receiver");
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         recv_ptr->stop();
 
 
