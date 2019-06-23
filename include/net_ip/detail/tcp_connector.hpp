@@ -287,18 +287,21 @@ private:
   }
 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    // clean up data member, note that iop keeps the tcp_io object alive for a bit longer
-    m_io_handler.reset();
-    // if here through stop_io from close, start_connect
-    // will exit by checking state, close will not run
-    // again because of atomic check
-    m_entity_common.call_error_cb(iop, err);
-    std::error_code ec;
-    if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
-      if (m_reconn_time != std::chrono::milliseconds(0)) {
-        start_connect();
-        return;
-      }
+
+    auto self = shared_from_this();
+    asio::post(m_socket.get_executor(), [this, self, err] {
+        // clean up data member, note that iop keeps the tcp_io object alive for a bit longer
+        m_io_handler.reset();
+        // if here through stop_io from close, start_connect
+        // will exit by checking state, close will not run
+        // again because of atomic check
+        m_entity_common.call_error_cb(iop, err);
+      std::error_code ec;
+        if (m_entity_common.call_io_state_chg_cb(iop, 0, false)) {
+          if (m_reconn_time != std::chrono::milliseconds(0)) {
+            start_connect();
+            return;
+          }
       ec = std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted);
     }
     else {
