@@ -129,7 +129,6 @@ void test_methods (chops::net::net_entity net_ent, chops::net::err_wait_q& err_w
   auto r4 = net_ent.visit_io_output(iov);
   REQUIRE (r4);
   REQUIRE (*r4 == 0u);
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 void test_tcp_msg_send (const vec_buf& in_msg_vec,
@@ -185,7 +184,6 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
 
   net_conn.stop();
   net_acc.stop();
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   REQUIRE (in_msg_vec.size() == acc_cnt);
   REQUIRE (in_msg_vec.size() == conn_cnt);
@@ -229,8 +227,6 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
   );
   REQUIRE (r2);
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
   for (const auto& buf : in_msg_vec) {
     auto r3 = net_udp_send.visit_io_output([buf] (chops::net::udp_io_output io) { io.send(buf); } );
     REQUIRE (r3);
@@ -241,12 +237,11 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
   );
   REQUIRE (r4);
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   net_udp_send.stop();
   net_udp_recv.stop();
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
   REQUIRE_FALSE (*(net_udp_send.is_started()));
   REQUIRE_FALSE (*(net_udp_recv.is_started()));
@@ -382,8 +377,6 @@ SCENARIO ( "Net entity method and comparison testing, UDP entity, TCP acceptor, 
 
     test_udp_msg_send(msg_vec, ne_udp_recv, ne_udp_send, err_wq, 
                       make_udp_endpoint(test_host_udp, std::stoi(std::string(test_port_udp))));
-
-    std::this_thread::sleep_for(std::chrono::seconds(1)); // give network entities time to shut down
 
     comparison_test(chops::net::net_entity(), ne_udp_recv, ne_acc, ne_conn1);
 

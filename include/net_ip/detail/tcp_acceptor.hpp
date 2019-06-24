@@ -29,6 +29,8 @@
 #include <functional> // std::bind
 #include <string>
 #include <string_view>
+#include <future>
+#include <chrono>
 
 #include "net_ip/endpoints_resolver.hpp"
 #include "net_ip/detail/tcp_io.hpp"
@@ -90,6 +92,9 @@ public:
   template <typename F>
   std::size_t visit_io_output(F&& f) {
     std::size_t sum = 0u;
+    if (m_shutting_down) {
+      return sum;
+    }
     for (auto& ioh : m_io_handlers) {
       if (ioh->is_io_started()) {
         f(basic_io_output<tcp_io>(ioh));
@@ -99,13 +104,44 @@ public:
     return sum;
   }
 
-
   template <typename F1, typename F2>
   std::error_code start(F1&& io_state_chg, F2&& err_func) {
     if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func))) {
       // already started
       return std::make_error_code(net_ip_errc::tcp_acceptor_already_started);
     }
+    std::promise<std::error_code> prom;
+    auto fut = prom.get_future();
+    // start processing in context of executor thread
+    auto self = shared_from_this();
+    asio::post(m_acceptor.get_executor(), [this, self, p = std::move(prom)] () mutable {
+        p.set_value(do_start());
+      }
+    );
+    return fut.get();
+  }
+ 
+  std::error_code stop(int pause_time) {
+    if (!m_entity_common.is_started()) {
+      // already stopped
+      return std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped);
+    }
+    std::promise<std::error_code> prom;
+    auto fut = prom.get_future();
+    // start closing in context of executor thread
+    auto self = shared_from_this();
+    asio::post(m_acceptor.get_executor(), [this, self, p = std::move(prom)] () mutable {
+        close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+        p.set_value(std::error_code());
+      }
+    );
+    std::this_thread::sleep_for(std::chrono::milliseconds(pause_time));
+    return fut.get();
+  }
+
+private:
+
+  std::error_code do_start() {
     if (!m_local_port_or_service.empty()) {
       endpoints_resolver<asio::ip::tcp> resolver(m_ioc);
       auto ret = resolver.make_endpoints(true, m_listen_intf, m_local_port_or_service);
@@ -148,26 +184,10 @@ public:
     return { };
   }
 
-  std::error_code stop() {
-    if (!m_entity_common.is_started()) {
-      // already stopped
-      return std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped);
-    }
-    // start closing in context of executor thread
-    auto self = shared_from_this();
-    asio::post(m_acceptor.get_executor(), [this, self] {
-        close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
-      }
-    );
-    return { };
-  }
-
-private:
-
   void close(const std::error_code& err) {
     m_shutting_down = true;
     if (!m_entity_common.stop()) {
-      return; // already closed
+      return; // already closed, bypass closing again
     }
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
     // the following copy is important, since the notify_me modifies the 

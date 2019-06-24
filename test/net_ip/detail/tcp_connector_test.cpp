@@ -84,10 +84,8 @@ void stress_start_stop_connector(asio::io_context& ioc, int num_start_stops,
       auto r1 = conn_ptr->start( no_start_io_state_chg(), 
                                  chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
       REQUIRE_FALSE(r1);
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
-      auto r2 = conn_ptr->stop();
+      auto r2 = conn_ptr->stop(100);
       REQUIRE_FALSE(r2);
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
       --num_start_stops;
     }
   }
@@ -221,7 +219,7 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         stress_start_stop_connector(ioc, num_conns, err_wq);
 
 
-        acc_ptr->stop();
+        acc_ptr->stop(50);
         INFO ("Acceptor stopped");
 
         while (!err_wq.empty()) {

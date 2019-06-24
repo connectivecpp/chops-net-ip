@@ -28,6 +28,7 @@
 #include <vector>
 #include <memory>
 #include <chrono>
+#include <future>
 
 #include <cstddef> // for std::size_t
 
@@ -139,6 +140,46 @@ public:
       // already started
       return std::make_error_code(net_ip_errc::tcp_connector_already_started);
     }
+    std::promise<std::error_code> prom;
+    auto fut = prom.get_future();
+    // start processing in context of executor thread
+    auto self = shared_from_this();
+    asio::post(m_socket.get_executor(), [this, self, p = std::move(prom)] () mutable {
+        p.set_value(do_start());
+      }
+    );
+    return fut.get();
+  }
+
+  std::error_code stop(int pause_time) {
+    if (!m_entity_common.is_started()) {
+      // already stopped
+      return std::make_error_code(net_ip_errc::tcp_connector_already_stopped);
+    }
+    std::promise<std::error_code> prom;
+    auto fut = prom.get_future();
+    // start closing in context of executor thread
+    auto self = shared_from_this();
+    asio::post(m_socket.get_executor(), [this, self, p = std::move(prom)] () mutable {
+        close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
+        p.set_value(std::error_code());
+      }
+    );
+    std::this_thread::sleep_for(std::chrono::milliseconds(pause_time));
+    return fut.get();
+  }
+
+
+private:
+
+  void clear_strings() noexcept {
+    m_remote_host.clear(); // no longer need the string contents
+    m_remote_host.shrink_to_fit();
+    m_remote_port.clear();
+    m_remote_port.shrink_to_fit();
+  }
+
+  std::error_code do_start() {
     // empty endpoints container is the indication that a resolve is needed
     if (m_endpoints.empty()) {
       m_state = resolving;
@@ -164,30 +205,6 @@ public:
     clear_strings();
     start_connect();
     return { };
-  }
-
-  std::error_code stop() {
-    if (!m_entity_common.is_started()) {
-      // already stopped
-      return std::make_error_code(net_ip_errc::tcp_connector_already_stopped);
-    }
-    // start closing in context of executor thread
-    auto self = shared_from_this();
-    asio::post(m_socket.get_executor(), [this, self] {
-        close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
-      }
-    );
-    return { };
-  }
-
-
-private:
-
-  void clear_strings() noexcept {
-    m_remote_host.clear(); // no longer need the string contents
-    m_remote_host.shrink_to_fit();
-    m_remote_port.clear();
-    m_remote_port.shrink_to_fit();
   }
 
   void close(const std::error_code& err) {

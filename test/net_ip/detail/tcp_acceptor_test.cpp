@@ -179,8 +179,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
                                           delim, empty_msg);
         INFO ("Second iteration of connector futures popped");
 
-        acc_ptr->stop();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        acc_ptr->stop(100);
         INFO ("Acceptor stopped");
         REQUIRE_FALSE(acc_ptr->is_started());
 
@@ -190,7 +189,6 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
           REQUIRE (total_msgs == conn_cnt);
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         INFO ("Start and stop tests starting");
 
         acc_ptr->start(
@@ -202,9 +200,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         REQUIRE(acc_ptr->is_started());
         start_conn_read_only_funcs(ioc, 4);
         // connections have been made and disconnects happened from acceptor
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        acc_ptr->stop();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        acc_ptr->stop(100);
         INFO ("Acceptor stopped");
         REQUIRE_FALSE(acc_ptr->is_started());
 
