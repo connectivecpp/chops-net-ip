@@ -180,6 +180,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         INFO ("Second iteration of connector futures popped");
 
         acc_ptr->stop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         INFO ("Acceptor stopped");
         REQUIRE_FALSE(acc_ptr->is_started());
 
@@ -203,6 +204,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         // connections have been made and disconnects happened from acceptor
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         acc_ptr->stop();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         INFO ("Acceptor stopped");
         REQUIRE_FALSE(acc_ptr->is_started());
 

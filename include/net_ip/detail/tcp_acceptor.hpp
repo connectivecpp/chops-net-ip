@@ -55,20 +55,21 @@ private:
   std::string                       m_local_port_or_service;
   std::string                       m_listen_intf;
   bool                              m_reuse_addr;
+  bool                              m_shutting_down;
 
 public:
   tcp_acceptor(asio::io_context& ioc, const endpoint_type& endp,
                bool reuse_addr) :
     m_entity_common(), m_ioc(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(endp), 
     m_local_port_or_service(), m_listen_intf(),
-    m_reuse_addr(reuse_addr) { }
+    m_reuse_addr(reuse_addr), m_shutting_down(false) { }
 
   tcp_acceptor(asio::io_context& ioc, 
                std::string_view local_port_or_service, std::string_view listen_intf,
                bool reuse_addr) :
     m_entity_common(), m_ioc(ioc), m_acceptor(ioc), m_io_handlers(), m_acceptor_endp(), 
     m_local_port_or_service(local_port_or_service), m_listen_intf(listen_intf),
-    m_reuse_addr(reuse_addr) { }
+    m_reuse_addr(reuse_addr), m_shutting_down(false) { }
 
 private:
   // no copy or assignment semantics for this class
@@ -142,6 +143,7 @@ public:
       return ec;
     }
 
+    m_shutting_down = false;
     start_accept();
     return { };
   }
@@ -151,13 +153,19 @@ public:
       // already stopped
       return std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped);
     }
-    close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+    // start closing in context of executor thread
+    auto self = shared_from_this();
+    asio::post(m_acceptor.get_executor(), [this, self] {
+        close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+      }
+    );
     return { };
   }
 
 private:
 
   void close(const std::error_code& err) {
+    m_shutting_down = true;
     if (!m_entity_common.stop()) {
       return; // already closed
     }
@@ -183,11 +191,13 @@ private:
   void start_accept() {
     using namespace std::placeholders;
 
+    if (m_shutting_down) {
+      return;
+    }
     auto self = shared_from_this();
     m_acceptor.async_accept( [this, self] 
             (const std::error_code& err, asio::ip::tcp::socket sock) mutable {
-        if (err) {
-          close(err);
+        if (err || m_shutting_down ) {
           return;
         }
         tcp_io_shared_ptr iop = std::make_shared<tcp_io>(std::move(sock), 

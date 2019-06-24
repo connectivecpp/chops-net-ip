@@ -61,7 +61,7 @@ namespace chops {
 namespace test {
 
 inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
-  assert (sz == 2);
+  assert (sz == 2u);
   return extract_val<std::uint16_t>(buf_ptr);
 }
 

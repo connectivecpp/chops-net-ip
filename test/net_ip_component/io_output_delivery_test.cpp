@@ -28,6 +28,7 @@
 #include "net_ip_component/worker.hpp"
 
 #include "net_ip/net_entity.hpp"
+#include "net_ip/net_ip.hpp"
 #include "net_ip/io_type_decls.hpp"
 
 
@@ -37,7 +38,7 @@ const char* test_port_udp = "30224";
 const char* test_host = "";
 
 template <typename IOT>
-struct io_state_chg {
+struct null_io_state_chg {
   bool operator()(chops::net::basic_io_interface<IOT>, std::size_t, bool) const { return true; }
 };
 
@@ -49,7 +50,7 @@ void test_io_wait_q(chops::net::net_entity net_ent, chops::net::err_wait_q& err_
     REQUIRE (r);
     REQUIRE_FALSE (*r);
     chops::net::io_wait_q<IOT> wq;
-    auto t = chops::net::start_with_io_wait_queue<IOT>(net_ent, io_state_chg<IOT>(), wq, 
+    auto t = chops::net::start_with_io_wait_queue<IOT>(net_ent, null_io_state_chg<IOT>(), wq, 
                                    chops::net::make_error_func_with_wait_queue<IOT>(err_wq));
     REQUIRE (t);
 
@@ -71,84 +72,84 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
 
   chops::net::err_wait_q err_wq;
   auto err_fut = std::async(std::launch::async, 
-  chops::net::ostream_error_sink_with_wait_queue, std::ref(err_wq), std::ref(std::cerr));
+    chops::net::ostream_error_sink_with_wait_queue, std::ref(err_wq), std::ref(std::cerr));
+
+  chops::net::net_ip nip(ioc);
 
   {
     {
-      auto sp_acc = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
-                               std::string_view(test_port_acc), std::string_view(test_host), true);
-      chops::net::net_entity ne_acc(sp_acc);
-      REQUIRE (ne_acc.is_valid());
-      test_io_wait_q<chops::net::tcp_io>(ne_acc, err_wq, 0);
+      auto acc_ent = nip.make_tcp_acceptor(test_port_acc);
+      REQUIRE (acc_ent.is_valid());
+      test_io_wait_q<chops::net::tcp_io>(acc_ent, err_wq, 0);
 
-      auto sp_conn1 = std::make_shared<chops::net::detail::tcp_connector>(ioc, 
-                               std::string_view(test_port_conn), std::string_view(test_host), 
-                               std::chrono::milliseconds(500));
-      chops::net::net_entity ne_conn1(sp_conn1);
-      REQUIRE (ne_conn1.is_valid());
-      test_io_wait_q<chops::net::tcp_io>(ne_conn1, err_wq, 0);
+      auto conn1_ent = nip.make_tcp_connector(test_port_conn, test_host);
+      REQUIRE (conn1_ent.is_valid());
+      test_io_wait_q<chops::net::tcp_io>(conn1_ent, err_wq, 0);
 
-      auto sp_udp = std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
-                               std::string_view(test_port_udp), std::string_view(test_host));
-      chops::net::net_entity ne_udp(sp_udp);
+      auto udp_ent = nip.make_udp_sender();
+      REQUIRE (udp_ent.is_valid());
+      test_io_wait_q<chops::net::udp_io>(udp_ent, err_wq, 2);
 
-      REQUIRE (ne_udp.is_valid());
-      test_io_wait_q<chops::net::udp_io>(ne_udp, err_wq, 2);
-      ne_conn1.stop();
+      acc_ent.stop();
+      conn1_ent.stop();
+      udp_ent.stop();
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
 //
-
-      auto fut = chops::net::make_io_output_future<chops::net::udp_io>(ne_udp, 
-                        io_state_chg<chops::net::udp_io>(),
+      auto fut = chops::net::make_io_output_future<chops::net::udp_io>(udp_ent, 
+                        null_io_state_chg<chops::net::udp_io>(),
                         chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq));
 
-      auto r1 = ne_udp.is_started();
+      auto r1 = udp_ent.is_started();
       REQUIRE (r1);
       REQUIRE (*r1);
       auto io1 = fut.get();
-      ne_udp.stop();
-      auto r2 = ne_udp.is_started();
+      udp_ent.stop();
+      auto r2 = udp_ent.is_started();
       REQUIRE (r2);
       REQUIRE_FALSE (*r2);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-      auto pair_fut = chops::net::make_io_output_future_pair<chops::net::udp_io>(ne_udp, 
-                        io_state_chg<chops::net::udp_io>(),
+//
+      auto pair_fut = chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent, 
+                        null_io_state_chg<chops::net::udp_io>(),
                         chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq));
 
-
-      auto r3 = ne_udp.is_started();
+      auto r3 = udp_ent.is_started();
       REQUIRE (r3);
       REQUIRE (*r3);
       auto io2 = pair_fut.start_fut.get();
-      ne_udp.stop();
-      auto r4 = ne_udp.is_started();
+      udp_ent.stop();
+      auto r4 = udp_ent.is_started();
       REQUIRE (r4);
       REQUIRE_FALSE (*r4);
       auto io3 = pair_fut.stop_fut.get();
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-      auto t2 = ne_acc.start(io_state_chg<chops::net::tcp_io>(),
-                                     chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
+//
+      auto t2 = acc_ent.start(null_io_state_chg<chops::net::tcp_io>(),
+                             chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
       REQUIRE (t2);
 
-      auto sp_conn2 = std::make_shared<chops::net::detail::tcp_connector>(ioc, 
-                               std::string_view(test_port_acc), std::string_view(test_host), 
-                               std::chrono::milliseconds(500));
-      chops::net::net_entity ne_conn2(sp_conn2);
-      REQUIRE (ne_conn2.is_valid());
+      auto conn2_ent = nip.make_tcp_connector(test_port_acc, test_host);
+      REQUIRE (conn2_ent.is_valid());
 
-      auto conn_pair_fut = chops::net::make_io_output_future_pair<chops::net::tcp_io>(ne_conn2, 
-                        io_state_chg<chops::net::tcp_io>(),
+      auto conn_pair_fut = chops::net::make_io_output_future_pair<chops::net::tcp_io>(conn2_ent, 
+                        null_io_state_chg<chops::net::tcp_io>(),
                         chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
-      auto r5 = ne_conn2.is_started();
+      auto r5 = conn2_ent.is_started();
       REQUIRE (r5);
       REQUIRE (*r5);
       auto io5 = conn_pair_fut.start_fut.get();
-      ne_conn2.stop();
-      ne_acc.stop();
+      conn2_ent.stop();
+      acc_ent.stop();
       auto io6 = conn_pair_fut.stop_fut.get();
 
-      auto r6 = ne_conn2.is_started();
+      auto r6 = conn2_ent.is_started();
       REQUIRE (r6);
       REQUIRE_FALSE (*r6);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     }
 
     while (!err_wq.empty()) {
@@ -159,6 +160,8 @@ SCENARIO ( "Testing make_io_output_future and start_with_io_wait_queue",
     INFO ("Num err messages in sink: " << err_cnt);
 
   }
+
+  nip.remove_all();
 
   wk.reset();
 }
