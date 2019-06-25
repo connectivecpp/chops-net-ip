@@ -106,37 +106,22 @@ public:
 
   template <typename F1, typename F2>
   std::error_code start(F1&& io_state_chg, F2&& err_func) {
-    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func))) {
-      // already started
-      return std::make_error_code(net_ip_errc::tcp_acceptor_already_started);
-    }
-    std::promise<std::error_code> prom;
-    auto fut = prom.get_future();
-    // start processing in context of executor thread
     auto self = shared_from_this();
-    asio::post(m_acceptor.get_executor(), [this, self, p = std::move(prom)] () mutable {
-        p.set_value(do_start());
-      }
-    );
-    return fut.get();
+    return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func),
+                                 m_acceptor.get_executor(),
+                                 std::make_error_code(net_ip_errc::tcp_acceptor_already_started),
+             [this, self] () mutable { return do_start(); } );
   }
- 
+                                
   std::error_code stop(int pause_time) {
-    if (!m_entity_common.is_started()) {
-      // already stopped
-      return std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped);
-    }
-    std::promise<std::error_code> prom;
-    auto fut = prom.get_future();
-    // start closing in context of executor thread
     auto self = shared_from_this();
-    asio::post(m_acceptor.get_executor(), [this, self, p = std::move(prom)] () mutable {
-        close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
-        p.set_value(std::error_code());
-      }
+    return m_entity_common.stop(pause_time, m_acceptor.get_executor(),
+                                std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped),
+             [this, self] () mutable {
+               close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
+               return std::error_code();
+             }
     );
-    std::this_thread::sleep_for(std::chrono::milliseconds(pause_time));
-    return fut.get();
   }
 
 private:
@@ -186,7 +171,7 @@ private:
 
   void close(const std::error_code& err) {
     m_shutting_down = true;
-    if (!m_entity_common.stop()) {
+    if (!m_entity_common.set_stop_flag()) {
       return; // already closed, bypass closing again
     }
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
