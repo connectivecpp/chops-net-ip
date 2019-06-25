@@ -211,7 +211,7 @@ private:
         }
         // state change returned false
         m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
-        asio::post(m_acceptor.get_executor(), [this, self] () mutable {
+        asio::post(m_ioc, [this, self] () mutable {
             close(std::make_error_code(net_ip_errc::io_state_change_terminated));
           }
         );
@@ -224,7 +224,7 @@ private:
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
     
     auto self = shared_from_this();
-    asio::post(m_acceptor.get_executor(), [this, self, iop, err] () mutable {
+    asio::post(m_ioc, [this, self, iop, err] () mutable {
         chops::erase_where(m_io_handlers, iop);
         m_entity_common.call_error_cb(iop, err);
         // the following logic branches can be tricky; there are different paths to calling
