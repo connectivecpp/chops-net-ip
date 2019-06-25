@@ -116,7 +116,6 @@ SCENARIO ( "Mock classes testing, net_entity_mock test",
   net_entity_mock ne_mock { };
 
   REQUIRE_FALSE (ne_mock.started);
-  REQUIRE (ne_mock.pause == 0);
   REQUIRE (ne_mock.mock_ioh_sp);
   REQUIRE_FALSE (ne_mock.mock_ioh_sp->send_called);
 
@@ -153,18 +152,16 @@ SCENARIO ( "Mock classes testing, net_entity_mock test",
       THEN ("is_started is false") {
         auto r1 = ne_mock.start(io_state_chg_mock, err_func_mock);
         REQUIRE_FALSE (r1);
-        auto r2 = ne_mock.stop(10);
+        auto r2 = ne_mock.stop();
         REQUIRE_FALSE (r2);
         REQUIRE_FALSE (ne_mock.is_started());
-        REQUIRE (ne_mock.pause == 10);
       }
     }
     AND_WHEN ("stop is called before start") {
       THEN ("an error is returned") {
-        auto r = ne_mock.stop(15);
+        auto r = ne_mock.stop();
         REQUIRE (r);
         INFO ("Error code is: " << r.message());
-        REQUIRE (ne_mock.pause == 15);
       }
     }
     AND_WHEN ("start is called twice") {

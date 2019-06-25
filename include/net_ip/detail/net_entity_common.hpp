@@ -28,10 +28,9 @@
 #include <memory>
 #include <cstddef> // std::size_t
 #include <future>
-#include <chrono>
-#include <thread>
 
 #include "net_ip/basic_io_interface.hpp"
+#include "net_ip/net_ip_error.hpp"
 
 namespace chops {
 namespace net {
@@ -46,25 +45,25 @@ public:
     std::function<void (basic_io_interface<IOT>, std::error_code)>;
 
 private:
-  std::atomic_bool     m_started; // may be called from multiple threads concurrently
+  // use of atomic for m_started allows multiple threads to call concurrently
+  std::atomic_int      m_started; // 0 - unstarted, 1 - started, 2 - stopped
   io_state_chg_cb      m_io_state_chg_cb;
   error_cb             m_error_cb;
 
 public:
 
-  net_entity_common() noexcept : m_started(false), m_io_state_chg_cb(), m_error_cb() { }
+  net_entity_common() noexcept : m_started(0), m_io_state_chg_cb(), m_error_cb() { }
 
   // following three methods can be called concurrently
-  bool is_started() const noexcept { return m_started; }
+  bool is_started() const noexcept { return m_started > 0; }
 
   template <typename F1, typename F2, typename SF>
   std::error_code start(F1&& io_state_chg_func, F2&& err_func, 
                         const asio::executor& exec,
-                        const std::error_code& already_started,
                         SF&& start_func) {
-    bool expected = false;
-    if (!m_started.compare_exchange_strong(expected, true)) {
-      return already_started;
+    int expected = 0;
+    if (!m_started.compare_exchange_strong(expected, 1)) {
+      return std::make_error_code(net_ip_errc::net_entity_already_started);
     }
     m_io_state_chg_cb = io_state_chg_func;
     m_error_cb = err_func;
@@ -80,12 +79,11 @@ public:
  
 
   template <typename SF>
-  std::error_code stop(int pause_time, const asio::executor& exec,
-                       const std::error_code& already_stopped,
+  std::error_code stop(const asio::executor& exec,
                        SF&& stop_func) {
-    if (!is_started()) {
-      // already stopped
-      return already_stopped;
+    int expected = 1;
+    if (!m_started.compare_exchange_strong(expected, 2)) {
+      return std::make_error_code(net_ip_errc::net_entity_already_stopped);
     }
     std::promise<std::error_code> prom;
     auto fut = prom.get_future();
@@ -94,13 +92,7 @@ public:
         p.set_value(stop_func());
       }
     );
-    std::this_thread::sleep_for(std::chrono::milliseconds(pause_time));
     return fut.get();
-  }
-
-  bool set_stop_flag() {
-    bool expected = true;
-    return m_started.compare_exchange_strong(expected, false); 
   }
 
   bool call_io_state_chg_cb(std::shared_ptr<IOT> p, std::size_t sz, bool starting) {

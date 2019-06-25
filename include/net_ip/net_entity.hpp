@@ -48,7 +48,7 @@ namespace net {
 // code (it may be possible to simplify with C++17 techniques that I don't know yet).
   
 /**
- *  @brief The @c net_entity class provides the application interface 
+ *  @brief The @c net_entity class provides the primary application interface 
  *  into the TCP acceptor, TCP connector, and UDP entity functionality.
  *
  *  The @c net_entity class provides methods to start and stop processing 
@@ -76,8 +76,7 @@ namespace net {
  *  to be used in associative or sequence containers.
  *
  *  All @c net_entity methods are safe to call concurrently from multiple
- *  threads, although calling @c start or @c stop from multiple threads at the 
- *  same time will result in undefined behavior.
+ *  threads.
  *
  */
 
@@ -274,10 +273,8 @@ public:
  *  2) An error function object which is invoked whenever an error occurs or when
  *  important processing is performed within an IO handler or network entity.
  *
- *  The @c start method call can be followed by a @c stop call, followed by @c start, etc,
- *  as needed. However, the @c stop method has a pause parameter to allow outstanding operations
- *  to complete. Specifically, calling @c start immediately afer @c stop (without pause time)
- *  can result in undefined behavior.
+ *  The @c start method call can only be called once. In other words, once started and stopped, 
+ *  a net entity cannot be restarted (future enhancements may allow restarting a net entity).
  *
  *  @param io_state_chg_func A function object with the following signature:
  *
@@ -395,30 +392,23 @@ public:
  *  resources, unbinding from ports, and invoking application provided state change function 
  *  object callbacks. 
  *
- *  @param pause_time Time to pause, in milliseconds, after @c stop is requested for the
- *  network entity. This allows outstanding operations to complete, resources and objects
- *  to be reclaimed, and the network entity to return to a non-started state. (Outstanding
- *  operations may include connect attempts, timeouts, name resolving, or connection object
- *  cleanup.) If the application will not be calling @c start again, or @c start will not be 
- *  immediately called, this parameter can be set to 0. Otherwise it defaults to 100 milliseconds.
- *
  *  @return @c nonstd::expected - on success network entity is stopped; on error, a 
  *  @c std::error_code is returned.
  */
-  auto stop(int pause_time = 100) ->
+  auto stop() ->
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
-        [pause_time] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
+        [] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
-              [pause_time] (detail::udp_entity_io_shared_ptr sp) { return sp->stop(pause_time); } );
+              [] (detail::udp_entity_io_shared_ptr sp) { return sp->stop(); } );
         },
-        [pause_time] (const acc_wp& wp)->nonstd::expected<void, std::error_code> {
+        [] (const acc_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
-              [pause_time] (detail::tcp_acceptor_shared_ptr sp) { return sp->stop(pause_time); } );
+              [] (detail::tcp_acceptor_shared_ptr sp) { return sp->stop(); } );
         },
-        [pause_time] (const conn_wp& wp)->nonstd::expected<void, std::error_code> {
+        [] (const conn_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
-              [pause_time] (detail::tcp_connector_shared_ptr sp) { return sp->stop(pause_time); } );
+              [] (detail::tcp_connector_shared_ptr sp) { return sp->stop(); } );
         },
       },  m_wptr);
   }

@@ -151,7 +151,7 @@ public:
     return fut.get();
   }
 
-  std::error_code stop(int pause_time) {
+  std::error_code stop() {
     if (!m_entity_common.is_started()) {
       // already stopped
       return std::make_error_code(net_ip_errc::tcp_connector_already_stopped);
@@ -165,7 +165,6 @@ public:
         p.set_value(std::error_code());
       }
     );
-    std::this_thread::sleep_for(std::chrono::milliseconds(pause_time));
     return fut.get();
   }
 

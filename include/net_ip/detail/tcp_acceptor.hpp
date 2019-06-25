@@ -109,14 +109,12 @@ public:
     auto self = shared_from_this();
     return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func),
                                  m_acceptor.get_executor(),
-                                 std::make_error_code(net_ip_errc::tcp_acceptor_already_started),
              [this, self] () mutable { return do_start(); } );
   }
                                 
-  std::error_code stop(int pause_time) {
+  std::error_code stop() {
     auto self = shared_from_this();
-    return m_entity_common.stop(pause_time, m_acceptor.get_executor(),
-                                std::make_error_code(net_ip_errc::tcp_acceptor_already_stopped),
+    return m_entity_common.stop(m_acceptor.get_executor(),
              [this, self] () mutable {
                close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
                return std::error_code();
@@ -164,17 +162,16 @@ private:
       return ec;
     }
 
-    m_shutting_down = false;
     start_accept();
     return { };
   }
 
   void close(const std::error_code& err) {
-    m_shutting_down = true;
-    if (!m_entity_common.set_stop_flag()) {
-      return; // already closed, bypass closing again
-    }
     m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
+    if (m_shutting_down) {
+      return; // already shutting down, bypass closing again
+    }
+    m_shutting_down = true;
     // the following copy is important, since the notify_me modifies the 
     // m_io_handlers container
     auto iohs = m_io_handlers;
@@ -233,7 +230,7 @@ private:
         // the following logic branches can be tricky; there are different paths to calling
         // close - stop method (from app), error, or false return from state change
         // callback; in all cases, the first time through the close method the 
-        // atomic started flag is set false, and this flag is checked in subsequent calls 
+        // shutting down flag is set true, and this flag is checked in subsequent calls 
         // to close, protecting recursive shutdown of various resources
         if (!m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
           close(std::make_error_code(net_ip_errc::io_state_change_terminated));

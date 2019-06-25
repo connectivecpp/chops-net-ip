@@ -117,7 +117,6 @@ struct net_entity_mock {
   std::shared_ptr<io_handler_mock>   mock_ioh_sp = std::make_shared<io_handler_mock>();
   float                              mock_sock = 11.0f;
   bool                               started = false;
-  int                                pause = 0;
 
 // methods below
 
@@ -146,8 +145,7 @@ struct net_entity_mock {
     return std::error_code {};
   }
 
-  std::error_code stop(int pause_time) {
-    pause = pause_time;
+  std::error_code stop() {
     if (!started) {
       return std::make_error_code(std::errc::too_many_files_open);
     }

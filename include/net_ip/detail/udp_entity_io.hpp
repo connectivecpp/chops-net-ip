@@ -218,7 +218,7 @@ public:
     return ret;
   }
 
-  std::error_code stop(int pause_time) {
+  std::error_code stop() {
     if (!m_entity_common.is_started()) {
       // already stopped
       return std::make_error_code(net_ip_errc::udp_entity_already_stopped);

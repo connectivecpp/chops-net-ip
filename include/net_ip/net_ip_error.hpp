@@ -37,25 +37,21 @@ enum class net_ip_errc {
   tcp_io_handler_stopped = 6,
   udp_io_handler_stopped = 7,
 
+  net_entity_already_started = 8,
+  net_entity_already_stopped = 9,
+
   tcp_acceptor_stopped = 10,
   tcp_acceptor_closed = 11,
-  tcp_acceptor_already_started = 12,
-  tcp_acceptor_already_stopped = 13,
+  udp_entity_stopped = 12,
+  udp_entity_closed = 13,
 
-  udp_entity_stopped = 14,
-  udp_entity_closed = 15,
-  udp_entity_already_started = 16,
-  udp_entity_already_stopped = 17,
-
-  tcp_connector_stopped = 20,
-  tcp_connector_closed = 21,
-  tcp_connector_resolving_addresses = 22,
-  tcp_connector_connecting = 23,
-  tcp_connector_connected = 24,
-  tcp_connector_timeout = 25,
-  tcp_connector_no_reconnect_attempted = 26,
-  tcp_connector_already_started = 27,
-  tcp_connector_already_stopped = 28,
+  tcp_connector_stopped = 14,
+  tcp_connector_closed = 15,
+  tcp_connector_resolving_addresses = 16,
+  tcp_connector_connecting = 17,
+  tcp_connector_connected = 18,
+  tcp_connector_timeout = 19,
+  tcp_connector_no_reconnect_attempted = 20,
 
   functor_variant_mismatch = 30,
 };
@@ -84,23 +80,19 @@ struct net_ip_err_category : public std::error_category {
     case net_ip_errc::udp_io_handler_stopped:
       return "udp io handler stopped";
 
+    case net_ip_errc::net_entity_already_started:
+      return "net entity already started";
+    case net_ip_errc::net_entity_already_stopped:
+      return "net entity already stopped or never started";
+
     case net_ip_errc::tcp_acceptor_stopped:
       return "tcp acceptor stopped";
     case net_ip_errc::tcp_acceptor_closed:
       return "tcp acceptor closed";
-    case net_ip_errc::tcp_acceptor_already_started:
-      return "tcp acceptor already started";
-    case net_ip_errc::tcp_acceptor_already_stopped:
-      return "tcp acceptor already stopped";
-
     case net_ip_errc::udp_entity_stopped:
       return "udp entity stopped";
     case net_ip_errc::udp_entity_closed:
       return "udp entity closed";
-    case net_ip_errc::udp_entity_already_started:
-      return "udp entity already started";
-    case net_ip_errc::udp_entity_already_stopped:
-      return "udp entity already stopped";
 
     case net_ip_errc::tcp_connector_stopped:
       return "tcp connector stopped";
@@ -116,10 +108,6 @@ struct net_ip_err_category : public std::error_category {
       return "tcp connector timeout";
     case net_ip_errc::tcp_connector_no_reconnect_attempted:
       return "tcp connector no reconnect attempted since reconnect timeout is 0";
-    case net_ip_errc::tcp_connector_already_started:
-      return "tcp connector already started";
-    case net_ip_errc::tcp_connector_already_stopped:
-      return "tcp connector already stopped";
 
     case net_ip_errc::functor_variant_mismatch:
       return "function object does not match internal variant";
