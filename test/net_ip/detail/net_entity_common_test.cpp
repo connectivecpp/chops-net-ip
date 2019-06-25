@@ -27,6 +27,8 @@
 
 #include "shared_test/mock_classes.hpp"
 
+#include "net_ip_component/worker.hpp"
+
 template<typename IOT>
 struct io_state_change {
 
@@ -56,6 +58,8 @@ struct err_callback {
   }
 };
 
+std::error_code start_stop () { return std::error_code { }; }
+
 template <typename IOT>
 void net_entity_common_test() {
 
@@ -72,45 +76,42 @@ void net_entity_common_test() {
   detail::net_entity_common<IOT> ne { };
   REQUIRE_FALSE (ne.is_started());
 
+  chops::net::worker wk;
+  wk.start();
+  auto& ioc = wk.get_io_context();
+
+  auto e = ne.stop(ioc, start_stop);
+  REQUIRE (e);
+  INFO (e.message());
+
   auto iohp = std::make_shared<IOT>();
+  auto r = ne.start(std::ref(io_state_chg), std::ref(err_cb), ioc, start_stop);
+  REQUIRE_FALSE (r);
+  REQUIRE (ne.is_started());
 
-  GIVEN ("A default constructed net_entity_common and a state change object") {
+  REQUIRE (ne.call_io_state_chg_cb(iohp, 43, true));
+  ne.call_error_cb(iohp, std::make_error_code(net_ip_errc::io_state_change_terminated));
 
-    WHEN ("Start is called") {
-      ne.start(std::ref(io_state_chg), std::ref(err_cb));
-      THEN ("net entity base is started") {
-        REQUIRE (ne.is_started());
-      }
-    }
+  REQUIRE (io_state_chg.called);
+  REQUIRE (io_state_chg.ioh_valid);
+  REQUIRE (io_state_chg.num == 43);
 
-    AND_WHEN ("Stop is called") {
-      ne.start(std::ref(io_state_chg), std::ref(err_cb));
-      ne.stop();
-      THEN ("net entity base is not started") {
-        REQUIRE_FALSE (ne.is_started());
-      }
-    }
+  REQUIRE (err_cb.called);
+  REQUIRE (err_cb.ioh_valid);
+  REQUIRE (err_cb.err);
 
-    AND_WHEN ("State change and error callbacks are invoked") {
-      ne.start(std::ref(io_state_chg), std::ref(err_cb));
-      auto a = ne.call_io_state_chg_cb(iohp, 43, true);
-      ne.call_error_cb(iohp, std::make_error_code(net_ip_errc::tcp_io_handler_stopped));
-      THEN ("function object vals are set correctly") {
-        REQUIRE (a);
-        REQUIRE (io_state_chg.called);
-        REQUIRE (io_state_chg.ioh_valid);
-        REQUIRE (io_state_chg.num == 43);
+  e = ne.stop(ioc, start_stop);
+  REQUIRE_FALSE (e);
+  REQUIRE_FALSE (ne.is_started());
 
-        REQUIRE (err_cb.called);
-        REQUIRE (err_cb.ioh_valid);
-        REQUIRE (err_cb.err);
-      }
-    }
+  r = ne.start(std::ref(io_state_chg), std::ref(err_cb), ioc, start_stop);
+  REQUIRE (r);
+  INFO (r.message());
+  REQUIRE_FALSE (ne.is_started());
 
-  } // end given
 }
 
-SCENARIO ( "Net entity base test", "[net_entity_common]" ) {
+TEST_CASE ( "Net entity base test", "[net_entity_common]" ) {
   net_entity_common_test<chops::test::io_handler_mock>();
 }
 

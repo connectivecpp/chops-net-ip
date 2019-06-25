@@ -19,7 +19,8 @@
 #ifndef NET_ENTITY_COMMON_HPP_INCLUDED
 #define NET_ENTITY_COMMON_HPP_INCLUDED
 
-#include "asio/executor.hpp"
+#include "asio/io_context.hpp"
+#include "asio/post.hpp"
 
 #include <atomic>
 #include <system_error>
@@ -59,7 +60,7 @@ public:
 
   template <typename F1, typename F2, typename SF>
   std::error_code start(F1&& io_state_chg_func, F2&& err_func, 
-                        const asio::executor& exec,
+                        asio::io_context& ioc,
                         SF&& start_func) {
     int expected = 0;
     if (!m_started.compare_exchange_strong(expected, 1)) {
@@ -70,7 +71,7 @@ public:
     std::promise<std::error_code> prom;
     auto fut = prom.get_future();
     // start network entity processing in context of executor thread
-    asio::post(exec, [&start_func, p = std::move(prom)] () mutable {
+    asio::post(ioc, [&start_func, p = std::move(prom)] () mutable {
         p.set_value(start_func());
       }
     );
@@ -79,7 +80,7 @@ public:
  
 
   template <typename SF>
-  std::error_code stop(const asio::executor& exec,
+  std::error_code stop(asio::io_context& ioc,
                        SF&& stop_func) {
     int expected = 1;
     if (!m_started.compare_exchange_strong(expected, 2)) {
@@ -88,7 +89,7 @@ public:
     std::promise<std::error_code> prom;
     auto fut = prom.get_future();
     // start closing in context of executor thread
-    asio::post(exec, [&stop_func, p = std::move(prom)] () mutable {
+    asio::post(ioc, [&stop_func, p = std::move(prom)] () mutable {
         p.set_value(stop_func());
       }
     );
