@@ -96,10 +96,11 @@ public:
     std::promise<std::size_t> prom;
     auto fut = prom.get_future();
     // send to executor for concurrency protection
-    asio::post(m_ioc, [this, self, &func, p = std::move(prom)] {
+    asio::post(m_ioc, [this, self, &func, p = std::move(prom)] () mutable {
         std::size_t sum = 0u;
         if (m_shutting_down) {
-          return sum;
+          p.set_value(sum);
+          return;
         }
         for (auto& ioh : m_io_handlers) {
           if (ioh->is_io_started()) {
@@ -107,7 +108,7 @@ public:
             sum += 1u;
           }
         }
-        return sum;
+        p.set_value(sum);
       }
     );
     return fut.get();

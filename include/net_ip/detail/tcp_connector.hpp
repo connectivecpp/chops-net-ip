@@ -132,12 +132,14 @@ public:
     std::promise<std::size_t> prom;
     auto fut = prom.get_future();
     // send to executor for concurrency protection
-    asio::post(m_socket.get_executor(), [this, self, &func, p = std::move(prom)] {
+    asio::post(m_socket.get_executor(), [this, self, &func, p = std::move(prom)] () mutable {
         if (m_io_handler && m_io_handler->is_io_started()) {
           func(basic_io_output<tcp_io>(m_io_handler));
-          return 1u;
+          p.set_value(1u);
         }
-        return 0u;
+        else {
+          p.set_value(0u);
+        }
       }
     );
     return fut.get();
