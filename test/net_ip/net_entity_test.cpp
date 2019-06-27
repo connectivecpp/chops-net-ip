@@ -111,24 +111,27 @@ void test_methods (chops::net::net_entity net_ent, chops::net::err_wait_q& err_w
 // having problems with GIVEN, WHEN, etc, so just REQUIREs here for now
   REQUIRE (net_ent.is_valid());
   auto r1 = net_ent.is_started();
-  REQUIRE (r1.has_value());
+  REQUIRE (r1);
   REQUIRE_FALSE (*r1);
   auto r2 = net_ent.stop();
-  REQUIRE_FALSE (r2.has_value());
+  REQUIRE_FALSE (r2);
+  INFO ("Error, should be net entity not started: " << r2.error().message());
+
   REQUIRE (net_ent.start(no_start_io_state_chg<IOT>(), 
            chops::net::make_error_func_with_wait_queue<IOT>(err_wq)));
-  auto r3 = net_ent.is_started();
-  REQUIRE (*r3);
+  r1 = net_ent.is_started();
+  REQUIRE (*r1);
   socket_visitor<S> sv;
   REQUIRE_FALSE (sv.called);
   REQUIRE (net_ent.visit_socket(sv));
   REQUIRE (sv.called);
   REQUIRE (net_ent.stop());
+
   io_output_visitor<IOT> iov;
   REQUIRE_FALSE (iov.called);
-  auto r4 = net_ent.visit_io_output(iov);
-  REQUIRE (r4);
-  REQUIRE (*r4 == 0u);
+  auto r3 = net_ent.visit_io_output(iov);
+  REQUIRE (r3);
+  REQUIRE (*r3 == 0u);
 }
 
 void test_tcp_msg_send (const vec_buf& in_msg_vec,
@@ -144,7 +147,7 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   test_counter acc_cnt = 0;
   test_counter conn_cnt = 0;
 
-  auto r1 = net_conn.start ( [&out_wq, &conn_cnt, &err_wq]
+  REQUIRE ( net_conn.start ( [&out_wq, &conn_cnt, &err_wq]
                      (chops::net::tcp_io_interface io, std::size_t num, bool starting )-> bool {
         if (starting) {
           auto r = tcp_start_io(io, false, "", conn_cnt);
@@ -154,10 +157,9 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
         return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-  );
-  REQUIRE (r1);
+  ) );
 
-  auto r2 = net_acc.start ( [&acc_cnt, &err_wq] 
+  REQUIRE ( net_acc.start ( [&acc_cnt, &err_wq] 
                     (chops::net::tcp_io_interface io, std::size_t num, bool starting) ->bool {
         if (starting) {
           auto r = tcp_start_io(io, true, "", acc_cnt);
@@ -166,8 +168,7 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
         return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-  );
-  REQUIRE (r2);
+  ) );
 
   REQUIRE (*(net_acc.is_started()));
   REQUIRE (*(net_conn.is_started()));
@@ -203,7 +204,7 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
   test_counter recv_cnt = 0;
   test_counter send_cnt = 0;
 
-  auto r1 = net_udp_recv.start ( [&recv_cnt, &err_wq]
+  REQUIRE ( net_udp_recv.start ( [&recv_cnt, &err_wq]
                      (chops::net::udp_io_interface io, std::size_t num, bool starting )-> bool {
         if (starting) {
           auto r = udp_start_io(io, false, recv_cnt);
@@ -212,10 +213,9 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
         return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
-  );
-  REQUIRE (r1);
+  ) );
 
-  auto r2 = net_udp_send.start ( [&send_cnt, &err_wq, &dest_endp] 
+  REQUIRE ( net_udp_send.start ( [&send_cnt, &err_wq, &dest_endp] 
                     (chops::net::udp_io_interface io, std::size_t num, bool starting) -> bool {
         if (starting) {
           auto r = udp_start_io(io, false, send_cnt, dest_endp);
@@ -224,18 +224,15 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
         return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
-  );
-  REQUIRE (r2);
+  ) );
 
   for (const auto& buf : in_msg_vec) {
-    auto r3 = net_udp_send.visit_io_output([buf] (chops::net::udp_io_output io) { io.send(buf); } );
-    REQUIRE (r3);
+    REQUIRE ( net_udp_send.visit_io_output([buf] (chops::net::udp_io_output io) { io.send(buf); } ) );
   }
-  auto r4 = net_udp_send.visit_io_output([] (chops::net::udp_io_output io) {
+  REQUIRE ( net_udp_send.visit_io_output([] (chops::net::udp_io_output io) {
       io.send(make_empty_variable_len_msg());
     }
-  );
-  REQUIRE (r4);
+  ) );
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
@@ -273,68 +270,47 @@ void comparison_test(const chops::net::net_entity& ne_def,
                      const chops::net::net_entity& ne_conn) {
 
 
-  GIVEN ("One default constructed and three different net entities") {
-    WHEN ("they are compared for equality") {
-      THEN ("none compare equal") {
-        REQUIRE_FALSE (ne_def == ne_udp);
-        REQUIRE_FALSE (ne_def == ne_acc);
-        REQUIRE_FALSE (ne_def == ne_conn);
-        REQUIRE_FALSE (ne_udp == ne_def);
-        REQUIRE_FALSE (ne_udp == ne_acc);
-        REQUIRE_FALSE (ne_udp == ne_conn);
-        REQUIRE_FALSE (ne_acc == ne_def);
-        REQUIRE_FALSE (ne_acc == ne_udp);
-        REQUIRE_FALSE (ne_acc == ne_conn);
-        REQUIRE_FALSE (ne_conn == ne_def);
-        REQUIRE_FALSE (ne_conn == ne_udp);
-        REQUIRE_FALSE (ne_conn == ne_acc);
-      }
-    }
-    AND_WHEN ("same net entities or two default net entities are compared for equality") {
-      THEN ("they compare equal") {
-        chops::net::net_entity def(ne_def);
-        REQUIRE (ne_def == def);
-        chops::net::net_entity acc(ne_acc);
-        REQUIRE (ne_acc == acc);
-        chops::net::net_entity conn(ne_conn);
-        REQUIRE (ne_conn == conn);
-      }
-    }
-    AND_WHEN ("the net entities are compared less than") {
-      THEN ("they compare appropriately") {
-        REQUIRE (ne_def < ne_udp);
-        REQUIRE (ne_def < ne_acc);
-        REQUIRE (ne_def < ne_conn);
-        REQUIRE (ne_udp < ne_acc);
-        REQUIRE (ne_udp < ne_conn);
-        REQUIRE (ne_acc < ne_conn);
-        REQUIRE_FALSE (ne_conn < ne_acc);
-        REQUIRE_FALSE (ne_conn < ne_udp);
-        REQUIRE_FALSE (ne_conn < ne_def);
-        REQUIRE_FALSE (ne_acc < ne_udp);
-        REQUIRE_FALSE (ne_acc < ne_def);
-        REQUIRE_FALSE (ne_udp < ne_def);
-      }
-    }
-    AND_WHEN ("a set is created") {
-      std::set<chops::net::net_entity> a_set { ne_conn, ne_acc, ne_def, ne_udp };
-      THEN ("the net entities are put in the correct order") {
-        check_set(a_set, ne_def, ne_udp, ne_acc, ne_conn);
-      }
-    }
-    AND_WHEN ("a set is created with multiple same entities") {
-      std::set<chops::net::net_entity> a_set 
-            { ne_conn, ne_conn, ne_acc, ne_def, ne_udp, ne_acc, ne_acc, ne_def, ne_def };
-      THEN ("same entities are not duplicated") {
-        check_set(a_set, ne_def, ne_udp, ne_acc, ne_conn);
-      }
-    }
-  } // end given
+  REQUIRE_FALSE (ne_def == ne_udp);
+  REQUIRE_FALSE (ne_def == ne_acc);
+  REQUIRE_FALSE (ne_def == ne_conn);
+  REQUIRE_FALSE (ne_udp == ne_def);
+  REQUIRE_FALSE (ne_udp == ne_acc);
+  REQUIRE_FALSE (ne_udp == ne_conn);
+  REQUIRE_FALSE (ne_acc == ne_def);
+  REQUIRE_FALSE (ne_acc == ne_udp);
+  REQUIRE_FALSE (ne_acc == ne_conn);
+  REQUIRE_FALSE (ne_conn == ne_def);
+  REQUIRE_FALSE (ne_conn == ne_udp);
+  REQUIRE_FALSE (ne_conn == ne_acc);
 
+  chops::net::net_entity def(ne_def);
+  REQUIRE (ne_def == def);
+  chops::net::net_entity acc(ne_acc);
+  REQUIRE (ne_acc == acc);
+  chops::net::net_entity conn(ne_conn);
+  REQUIRE (ne_conn == conn);
+
+  REQUIRE (ne_def < ne_udp);
+  REQUIRE (ne_def < ne_acc);
+  REQUIRE (ne_def < ne_conn);
+  REQUIRE (ne_udp < ne_acc);
+  REQUIRE (ne_udp < ne_conn);
+  REQUIRE (ne_acc < ne_conn);
+  REQUIRE_FALSE (ne_conn < ne_acc);
+  REQUIRE_FALSE (ne_conn < ne_udp);
+  REQUIRE_FALSE (ne_conn < ne_def);
+  REQUIRE_FALSE (ne_acc < ne_udp);
+  REQUIRE_FALSE (ne_acc < ne_def);
+  REQUIRE_FALSE (ne_udp < ne_def);
+  std::set<chops::net::net_entity> a_set1 { ne_conn, ne_acc, ne_def, ne_udp };
+  check_set(a_set1, ne_def, ne_udp, ne_acc, ne_conn);
+  std::set<chops::net::net_entity> a_set2
+            { ne_conn, ne_conn, ne_acc, ne_def, ne_udp, ne_acc, ne_acc, ne_def, ne_def };
+        check_set(a_set2, ne_def, ne_udp, ne_acc, ne_conn);
 }
 
-SCENARIO ( "Net entity method and comparison testing, UDP entity, TCP acceptor, TCP connector", 
-           "[net_entity] [udp_entity] [tcp_acceptor] [tcp_connector]" ) {
+TEST_CASE ( "Net entity method and comparison testing, UDP entity, TCP acceptor, TCP connector", 
+            "[net_entity] [udp_entity] [tcp_acceptor] [tcp_connector]" ) {
 
   chops::net::worker wk;
   wk.start();
@@ -346,39 +322,44 @@ SCENARIO ( "Net entity method and comparison testing, UDP entity, TCP acceptor, 
 
 
   {
-    auto sp_conn1 = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                                                              std::string_view(test_port_tcp1),
-                                                              std::string_view(test_host_tcp),
-                                                              std::chrono::milliseconds(ReconnTime));
+    chops::net::net_entity ne_conn( std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                                                             std::string_view(test_port_tcp1),
+                                                             std::string_view(test_host_tcp),
+                                                             std::chrono::milliseconds(ReconnTime )));
+    test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne_conn, err_wq);
+  }
 
-    chops::net::net_entity ne_conn1(sp_conn1);
-    test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne_conn1, err_wq);
-
-    auto sp_acc = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port_tcp2, test_host_tcp, true);
-    chops::net::net_entity ne_acc(sp_acc);
+  {
+    chops::net::net_entity ne_acc( std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                                               test_port_tcp1, test_host_tcp, true ));
     test_methods<chops::net::tcp_io, asio::ip::tcp::acceptor>(ne_acc, err_wq);
+  }
 
-    auto sp_udp_recv = std::make_shared<chops::net::detail::udp_entity_io>(ioc, test_port_udp, test_host_udp);
-    chops::net::net_entity ne_udp_recv(sp_udp_recv);
+  {
+    chops::net::net_entity ne_udp_recv( std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
+                                               test_port_udp, test_host_udp ));
     test_methods<chops::net::udp_io, asio::ip::udp::socket>(ne_udp_recv, err_wq);
+  }
 
+  {
     auto msg_vec = make_msg_vec (make_variable_len_msg, "Having fun?", 'F', NumMsgs);
+    chops::net::net_entity ne_conn( std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                                                            std::string_view(test_port_tcp2),
+                                                            std::string_view(test_host_tcp),
+                                                            std::chrono::milliseconds(ReconnTime )));
+    chops::net::net_entity ne_acc( std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                                               test_port_tcp2, test_host_tcp, true ));
+    test_tcp_msg_send(msg_vec, ne_acc, ne_conn, err_wq);
 
-    auto sp_conn2 = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                                                               std::string_view(test_port_tcp2),
-                                                               std::string_view(test_host_tcp),
-                                                               std::chrono::milliseconds(ReconnTime));
-    chops::net::net_entity ne_conn2(sp_conn2);
-
-    test_tcp_msg_send(msg_vec, ne_acc, ne_conn2, err_wq);
-
-    auto sp_udp_send = std::make_shared<chops::net::detail::udp_entity_io>(ioc, asio::ip::udp::endpoint());
-    chops::net::net_entity ne_udp_send(sp_udp_send);
+    chops::net::net_entity ne_udp_recv( std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
+                                               test_port_udp, test_host_udp ));
+    chops::net::net_entity ne_udp_send( std::make_shared<chops::net::detail::udp_entity_io>(ioc, 
+                                        asio::ip::udp::endpoint() ));
 
     test_udp_msg_send(msg_vec, ne_udp_recv, ne_udp_send, err_wq, 
                       make_udp_endpoint(test_host_udp, std::stoi(std::string(test_port_udp))));
 
-    comparison_test(chops::net::net_entity(), ne_udp_recv, ne_acc, ne_conn1);
+    comparison_test(chops::net::net_entity(), ne_udp_recv, ne_acc, ne_conn);
 
   }
   
@@ -392,5 +373,4 @@ SCENARIO ( "Net entity method and comparison testing, UDP entity, TCP acceptor, 
   wk.reset();
 
 }
-
 
