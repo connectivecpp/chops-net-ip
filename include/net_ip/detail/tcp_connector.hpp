@@ -203,8 +203,8 @@ private:
   }
 
   void close(const std::error_code& err) {
-    if (m_state == closing) {
-      return; // already shutting down, bypass closing again
+    if (m_state == closing || m_state == stopped) {
+      return; // already shutting down or stopped, bypass closing again
     }
     auto sav_state = m_state;
     m_state = closing;

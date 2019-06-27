@@ -24,6 +24,7 @@
 #include <functional> // std::ref, std::cref
 #include <string_view>
 #include <vector>
+#include <cassert>
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
@@ -80,7 +81,7 @@ std::size_t acc_conn_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq
       auto conn_futs = get_tcp_io_futures(conn, err_wq,
                                           false, delim, conn_cnt);
 
-      send_vec.push_back(conn_futs.start_fut.get()); // block until connector connects
+      send_vec.emplace_back(conn_futs.start_fut.get()); // block until connector connects
       conn_fut_vec.emplace_back(std::move(conn_futs.stop_fut)); // add disconnect future
 
     }
@@ -144,8 +145,8 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
   for (const auto& buf : in_msg_vec) {
     for (auto s : senders) {
       auto r = s.visit_io_output([&buf] (chops::net::udp_io_output io) { io.send(buf); } );
-      REQUIRE (r);
-      REQUIRE (*r == 1u);
+      assert (r);
+      assert (*r == 1u);
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
