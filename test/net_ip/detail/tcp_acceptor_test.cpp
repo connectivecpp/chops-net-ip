@@ -143,82 +143,79 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
   wk.start();
   auto& ioc = wk.get_io_context();
 
-  GIVEN ("An executor work guard and a message set") {
- 
-    WHEN ("an acceptor and one or more connectors are created") {
-      THEN ("the futures provide synchronization and data returns") {
+  chops::net::err_wait_q err_wq;
+  auto err_fut = std::async(std::launch::async,
+        chops::net::ostream_error_sink_with_wait_queue,
+        std::ref(err_wq), std::ref(std::cerr));
 
-        auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+  {
+    auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
                                   std::string_view(test_port), std::string_view(), true);
+    REQUIRE_FALSE(acc_ptr->is_started());
 
-        REQUIRE_FALSE(acc_ptr->is_started());
+    test_counter recv_cnt = 0;
+    acc_ptr->start( [reply, delim, &recv_cnt] 
+                      (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
+        if (starting) {
+          auto r = tcp_start_io(io, reply, delim, recv_cnt);
+          assert (r);
+        }
+        return true;
+      },
+      chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+    );
+    REQUIRE(acc_ptr->is_started());
 
-        chops::net::err_wait_q err_wq;
-        auto err_fut = std::async(std::launch::async,
-          chops::net::ostream_error_sink_with_wait_queue,
-          std::ref(err_wq), std::ref(std::cerr));
-
-        test_counter recv_cnt = 0;
-        acc_ptr->start(
-          [reply, delim, &recv_cnt] (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
-            if (starting) {
-              auto r = tcp_start_io(io, reply, delim, recv_cnt);
-              assert (r);
-            }
-            return true;
-          },
-          chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-        );
-        REQUIRE(acc_ptr->is_started());
-
-        auto conn_cnt = start_conn_data_funcs(in_msg_vec, ioc, reply, interval, num_conns,
-                                                     delim, empty_msg);
-        INFO ("First iteration of connector futures popped, starting second iteration");
-
-        conn_cnt += start_conn_data_funcs(in_msg_vec, ioc, reply, interval, num_conns,
+    auto conn_cnt = start_conn_data_funcs(in_msg_vec, ioc, reply, interval, num_conns,
                                           delim, empty_msg);
-        INFO ("Second iteration of connector futures popped");
+    INFO ("First iteration of connector futures popped, starting second iteration");
 
-        acc_ptr->stop(100);
-        INFO ("Acceptor stopped");
-        REQUIRE_FALSE(acc_ptr->is_started());
+    conn_cnt += start_conn_data_funcs(in_msg_vec, ioc, reply, interval, num_conns,
+                                      delim, empty_msg);
+    INFO ("Second iteration of connector futures popped");
 
-        std::size_t total_msgs = 2 * num_conns * in_msg_vec.size();
-        REQUIRE (total_msgs == recv_cnt);
-        if (reply) {
-          REQUIRE (total_msgs == conn_cnt);
-        }
+    acc_ptr->stop();
+    INFO ("Acceptor stopped");
+    REQUIRE_FALSE(acc_ptr->is_started());
 
-        INFO ("Start and stop tests starting");
-
-        acc_ptr->start(
-          [&err_wq] (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
-            return num < 4u; // when fourth connect happens, return false
-          },
-          chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-        );
-        REQUIRE(acc_ptr->is_started());
-        start_conn_read_only_funcs(ioc, 4);
-        // connections have been made and disconnects happened from acceptor
-        acc_ptr->stop(100);
-        INFO ("Acceptor stopped");
-        REQUIRE_FALSE(acc_ptr->is_started());
-
-        INFO ("Waiting on error wait queue");
-        while (!err_wq.empty()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        err_wq.close();
-        auto cnt = err_fut.get();
-        INFO ("Number of messages passed thru error queue: " << cnt);
-      }
+    std::size_t total_msgs = 2 * num_conns * in_msg_vec.size();
+    REQUIRE (total_msgs == recv_cnt);
+    if (reply) {
+      REQUIRE (total_msgs == conn_cnt);
     }
-  } // end given
+  }
+
+  {
+    INFO ("Start and stop tests starting");
+
+    auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                                  std::string_view(test_port), std::string_view(), true);
+    acc_ptr->start( [&err_wq] 
+          (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
+        return num < 4u; // when fourth connect happens, return false
+      },
+      chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+    );
+    REQUIRE(acc_ptr->is_started());
+    start_conn_read_only_funcs(ioc, 4);
+    // connections have been made and disconnects happened from acceptor
+    acc_ptr->stop();
+    REQUIRE_FALSE(acc_ptr->is_started());
+  }
+
+  INFO ("Waiting on error wait queue");
+  while (!err_wq.empty()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  err_wq.close();
+  auto cnt = err_fut.get();
+  INFO ("Number of messages passed thru error queue: " << cnt);
+
   wk.reset();
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector", 
+TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector", 
            "[tcp_acc] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
@@ -227,7 +224,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector", 
+TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector", 
            "[tcp_acc] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
@@ -236,7 +233,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector", 
+TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
@@ -245,7 +242,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector",
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
+TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
@@ -254,7 +251,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors,
 
 }
 
-SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
+TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 50*NumMsgs),
@@ -263,7 +260,7 @@ SCENARIO ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors,
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors", 
+TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Whaaaat", 'T', NumMsgs),
@@ -272,7 +269,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors"
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connectors", 
+TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
@@ -281,7 +278,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connectors
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors", 
+TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
@@ -290,7 +287,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors"
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connectors", 
+TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connectors", 
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_30] [connectors_20]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
@@ -299,7 +296,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connectors
 
 }
 
-SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors, many msgs", 
+TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors, many msgs", 
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_0] [connectors_20] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*NumMsgs),
@@ -308,7 +305,7 @@ SCENARIO ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors,
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, one-way, interval 50, 1 connectors", 
+TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_acc] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
@@ -317,7 +314,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, one-way, interval 50, 1 connectors",
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, one-way, interval 0, 25 connectors", 
+TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 0, 25 connectors", 
            "[tcp_acc] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
@@ -326,7 +323,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, one-way, interval 0, 25 connectors",
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, two-way, interval 20, 25 connectors", 
+TEST_CASE ( "Tcp acceptor test,  LF msgs, two-way, interval 20, 25 connectors", 
            "[tcp_acc] [lf_msg] [two_way] [interval_20] [connectors_25]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs),
@@ -335,7 +332,7 @@ SCENARIO ( "Tcp acceptor test,  LF msgs, two-way, interval 20, 25 connectors",
 
 }
 
-SCENARIO ( "Tcp acceptor test,  LF msgs, two-way, interval 0, 25 connectors, many msgs", 
+TEST_CASE ( "Tcp acceptor test,  LF msgs, two-way, interval 0, 25 connectors, many msgs", 
            "[tcp_acc] [lf_msg] [two_way] [interval_0] [connectors_25] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 80*NumMsgs),

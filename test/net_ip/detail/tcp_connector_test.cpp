@@ -72,24 +72,22 @@ struct no_start_io_state_chg {
 };
 
 
-void stress_start_stop_connector(asio::io_context& ioc, int num_start_stops,
-                                 chops::net::err_wait_q& err_wq) {
+void start_stop_connector(asio::io_context& ioc, int interval, chops::net::err_wait_q& err_wq) {
 
-  {
-    auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                       std::string_view(test_port), std::string_view(test_host),
-                       std::chrono::milliseconds(0)); // no reconnect logic
+  auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                     std::string_view(test_port), std::string_view(test_host),
+                     std::chrono::milliseconds(0)); // no reconnect logic
 
-    while (num_start_stops > 0) {
-      auto r1 = conn_ptr->start( no_start_io_state_chg(), 
-                                 chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
-      REQUIRE_FALSE(r1);
-      auto r2 = conn_ptr->stop(100);
-      REQUIRE_FALSE(r2);
-      --num_start_stops;
-    }
-  }
-  // std::this_thread::sleep_for(std::chrono::seconds(1));
+  auto r1 = conn_ptr->start( no_start_io_state_chg(), 
+                             chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
+  REQUIRE_FALSE(r1);
+  std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  auto r2 = conn_ptr->stop();
+  REQUIRE_FALSE(r2);
+  auto r3 = conn_ptr->start( no_start_io_state_chg(), 
+                             chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
+  REQUIRE (r3);
+  INFO ("Start after stop error code: " << r3.message());
 }
                                   
 std::size_t start_connectors(const vec_buf& in_msg_vec,
@@ -215,11 +213,10 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
                                    delim, empty_msg, conn_cnt, err_wq);
         REQUIRE(sz == 0u);
 
-        INFO ("Stress testing start and stop of a single connector, not in separate thread");
-        stress_start_stop_connector(ioc, num_conns, err_wq);
+        INFO ("Test simple start and stop of a single connector, not in separate thread");
+        start_stop_connector(ioc, interval, err_wq);
 
-
-        acc_ptr->stop(50);
+        acc_ptr->stop();
         INFO ("Acceptor stopped");
 
         while (!err_wq.empty()) {

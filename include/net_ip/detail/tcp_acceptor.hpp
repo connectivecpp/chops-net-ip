@@ -20,6 +20,7 @@
 
 #include "asio/ip/tcp.hpp"
 #include "asio/io_context.hpp"
+#include "asio/post.hpp"
 
 #include <system_error>
 #include <memory>// std::shared_ptr, std::weak_ptr
@@ -90,18 +91,26 @@ public:
   }
 
   template <typename F>
-  std::size_t visit_io_output(F&& f) {
-    std::size_t sum = 0u;
-    if (m_shutting_down) {
-      return sum;
-    }
-    for (auto& ioh : m_io_handlers) {
-      if (ioh->is_io_started()) {
-        f(basic_io_output<tcp_io>(ioh));
-        sum += 1u;
+  std::size_t visit_io_output(F&& func) {
+    auto self = shared_from_this();
+    std::promise<std::size_t> prom;
+    auto fut = prom.get_future();
+    // send to executor for concurrency protection
+    asio::post(m_ioc, [this, self, &func, p = std::move(prom)] {
+        std::size_t sum = 0u;
+        if (m_shutting_down) {
+          return sum;
+        }
+        for (auto& ioh : m_io_handlers) {
+          if (ioh->is_io_started()) {
+            func(basic_io_output<tcp_io>(ioh));
+            sum += 1u;
+          }
+        }
+        return sum;
       }
-    }
-    return sum;
+    );
+    return fut.get();
   }
 
   template <typename F1, typename F2>
@@ -172,6 +181,7 @@ private:
       return; // already shutting down, bypass closing again
     }
     m_shutting_down = true;
+    m_entity_common.set_stopped(); // in case of internal call to close
     // the following copy is important, since the notify_me modifies the 
     // m_io_handlers container
     auto iohs = m_io_handlers;

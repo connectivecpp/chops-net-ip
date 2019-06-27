@@ -19,7 +19,7 @@
 #define UDP_ENTITY_IO_HPP_INCLUDED
 
 #include "asio/io_context.hpp"
-#include "asio/executor.hpp"
+#include "asio/post.hpp"
 #include "asio/ip/udp.hpp"
 #include "asio/buffer.hpp"
 
@@ -29,6 +29,7 @@
 #include <cstddef> // std::size_t
 #include <utility> // std::forward, std::move
 #include <functional> // std::function
+#include <future>
 
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
@@ -84,6 +85,7 @@ private:
   byte_vec                          m_byte_vec;
   std::size_t                       m_max_size;
   endpoint_type                     m_sender_endp;
+  bool                              m_shutting_down;
 
 public:
 
@@ -92,14 +94,16 @@ public:
     m_io_common(), m_entity_common(), m_ioc(ioc),
     m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
     m_local_port_or_service(), m_local_intf(),
-    m_byte_vec(), m_max_size(0), m_sender_endp() { }
+    m_byte_vec(), m_max_size(0), m_sender_endp(), 
+    m_shutting_down(false) { }
 
   udp_entity_io(asio::io_context& ioc, 
                 std::string_view local_port_or_service, std::string_view local_intf) noexcept :
     m_io_common(), m_entity_common(), m_ioc(ioc),
     m_socket(ioc), m_local_endp(), m_default_dest_endp(), 
     m_local_port_or_service(local_port_or_service), m_local_intf(local_intf),
-    m_byte_vec(), m_max_size(0), m_sender_endp() { }
+    m_byte_vec(), m_max_size(0), m_sender_endp(), 
+    m_shutting_down(false) { }
 
 private:
   // no copy or assignment semantics for this class
@@ -123,12 +127,20 @@ public:
   }
 
   template <typename F>
-  std::size_t visit_io_output(F&& f) {
-    if (m_io_common.is_io_started()) {
-      f(basic_io_output<udp_entity_io>(shared_from_this()));
-      return 1u;
-    }
-    return 0u;
+  std::size_t visit_io_output(F&& func) {
+    auto self = shared_from_this();
+    std::promise<std::size_t> prom;
+    auto fut = prom.get_future();
+    // send to executor for concurrency protection
+    asio::post(m_socket.get_executor(), [this, self, &func, p = std::move(prom)] {
+        if (m_io_common.is_io_started()) {
+          func(basic_io_output<udp_entity_io>(shared_from_this()));
+          return 1u;
+        }
+        return 0u;
+      }
+    );
+    return fut.get();
   }
 
   output_queue_stats get_output_queue_stats() const noexcept {
@@ -137,42 +149,10 @@ public:
 
   template <typename F1, typename F2>
   std::error_code start(F1&& io_state_chg, F2&& err_cb) {
-    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
-      // already started
-      return std::make_error_code(net_ip_errc::udp_entity_already_started);
-    }
-    if (!m_local_port_or_service.empty()) {
-      endpoints_resolver<asio::ip::udp> resolver(m_ioc);
-      auto ret = resolver.make_endpoints(true, m_local_intf, m_local_port_or_service);
-      if (!ret) {
-        close(ret.error());
-        return ret.error();
-      }
-      m_local_endp = ret->cbegin()->endpoint();
-      m_local_port_or_service.clear();
-      m_local_port_or_service.shrink_to_fit();
-      m_local_intf.clear();
-      m_local_intf.shrink_to_fit();
-    }
-    std::error_code ec;
-    m_socket.open(m_local_endp.protocol(), ec);
-    if (ec) {
-      close(ec);
-      return ec;
-    }
-    if (m_local_endp != endpoint_type()) { // local bind needed
-      m_socket.bind(m_local_endp, ec);
-      if (ec) {
-        close(ec);
-        return ec;
-      }
-    }
-    if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
-      auto err = std::make_error_code(net_ip_errc::io_state_change_terminated);
-      close(err);
-      return err;
-    }
-    return { };
+    auto self = shared_from_this();
+    return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb),
+                                 m_socket.get_executor(),
+             [this, self] () mutable { return do_start(); } );
   }
 
   template <typename MH>
@@ -219,12 +199,13 @@ public:
   }
 
   std::error_code stop() {
-    if (!m_entity_common.is_started()) {
-      // already stopped
-      return std::make_error_code(net_ip_errc::udp_entity_already_stopped);
-    }
-    close(std::make_error_code(net_ip_errc::udp_entity_stopped));
-    return { };
+    auto self = shared_from_this();
+    return m_entity_common.stop(m_socket.get_executor(),
+             [this, self] () mutable {
+               close(std::make_error_code(net_ip_errc::udp_entity_stopped));
+               return std::error_code();
+             }
+    );
   }
 
   // io_common has concurrency protection
@@ -266,13 +247,50 @@ private:
 
 private:
 
-  void close(const std::error_code& err) {
-    m_io_common.set_io_stopped();
-    if (!m_entity_common.stop()) {
-      return; // already closed
+  std::error_code do_start() {
+    if (!m_local_port_or_service.empty()) {
+      endpoints_resolver<asio::ip::udp> resolver(m_ioc);
+      auto ret = resolver.make_endpoints(true, m_local_intf, m_local_port_or_service);
+      if (!ret) {
+        close(ret.error());
+        return ret.error();
+      }
+      m_local_endp = ret->cbegin()->endpoint();
+      m_local_port_or_service.clear();
+      m_local_port_or_service.shrink_to_fit();
+      m_local_intf.clear();
+      m_local_intf.shrink_to_fit();
     }
-    m_io_common.clear();
+    std::error_code ec;
+    m_socket.open(m_local_endp.protocol(), ec);
+    if (ec) {
+      close(ec);
+      return ec;
+    }
+    if (m_local_endp != endpoint_type()) { // local bind needed
+      m_socket.bind(m_local_endp, ec);
+      if (ec) {
+        close(ec);
+        return ec;
+      }
+    }
+    if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
+      auto err = std::make_error_code(net_ip_errc::io_state_change_terminated);
+      close(err);
+      return err;
+    }
+    return { };
+  }
+
+  void close(const std::error_code& err) {
     m_entity_common.call_error_cb(shared_from_this(), err);
+    if (m_shutting_down) { // already been through close once
+      return;
+    }
+    m_shutting_down = true;
+    m_io_common.set_io_stopped();
+    m_entity_common.set_stopped();
+    m_io_common.clear();
     auto b = m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
     std::error_code ec;
     m_socket.close(ec);

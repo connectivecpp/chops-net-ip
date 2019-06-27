@@ -73,19 +73,31 @@ void net_entity_common_test() {
   REQUIRE_FALSE (err_cb.called);
   REQUIRE_FALSE (err_cb.ioh_valid);
 
+  {
+    // test set_stopped
+    detail::net_entity_common<IOT> ne { };
+    REQUIRE_FALSE (ne.is_started());
+    REQUIRE_FALSE (ne.is_stopped());
+    ne.set_stopped();
+    REQUIRE_FALSE (ne.is_started());
+    REQUIRE (ne.is_stopped());
+  }
+
   detail::net_entity_common<IOT> ne { };
   REQUIRE_FALSE (ne.is_started());
+  REQUIRE_FALSE (ne.is_stopped());
 
   chops::net::worker wk;
   wk.start();
   auto& ioc = wk.get_io_context();
 
-  auto e = ne.stop(ioc, start_stop);
+  // test stop before being started
+  auto e = ne.stop(ioc.get_executor(), start_stop);
   REQUIRE (e);
   INFO (e.message());
 
   auto iohp = std::make_shared<IOT>();
-  auto r = ne.start(std::ref(io_state_chg), std::ref(err_cb), ioc, start_stop);
+  auto r = ne.start(std::ref(io_state_chg), std::ref(err_cb), ioc.get_executor(), start_stop);
   REQUIRE_FALSE (r);
   REQUIRE (ne.is_started());
 
@@ -100,14 +112,17 @@ void net_entity_common_test() {
   REQUIRE (err_cb.ioh_valid);
   REQUIRE (err_cb.err);
 
-  e = ne.stop(ioc, start_stop);
+  e = ne.stop(ioc.get_executor(), start_stop);
   REQUIRE_FALSE (e);
   REQUIRE_FALSE (ne.is_started());
+  REQUIRE (ne.is_stopped());
 
-  r = ne.start(std::ref(io_state_chg), std::ref(err_cb), ioc, start_stop);
+  r = ne.start(std::ref(io_state_chg), std::ref(err_cb), ioc.get_executor(), start_stop);
   REQUIRE (r);
   INFO (r.message());
   REQUIRE_FALSE (ne.is_started());
+
+  wk.reset();
 
 }
 

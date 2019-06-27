@@ -19,6 +19,7 @@
 #define TCP_CONNECTOR_HPP_INCLUDED
 
 #include "asio/ip/tcp.hpp"
+#include "asio/post.hpp"
 #include "asio/connect.hpp"
 #include "asio/io_context.hpp"
 #include "asio/ip/basic_resolver.hpp"
@@ -126,46 +127,38 @@ public:
   }
 
   template <typename F>
-  std::size_t visit_io_output(F&& f) {
-    if (m_io_handler && m_io_handler->is_io_started()) {
-      f(basic_io_output<tcp_io>(m_io_handler));
-      return 1u;
-    }
-    return 0u;
+  std::size_t visit_io_output(F&& func) {
+    auto self = shared_from_this();
+    std::promise<std::size_t> prom;
+    auto fut = prom.get_future();
+    // send to executor for concurrency protection
+    asio::post(m_socket.get_executor(), [this, self, &func, p = std::move(prom)] {
+        if (m_io_handler && m_io_handler->is_io_started()) {
+          func(basic_io_output<tcp_io>(m_io_handler));
+          return 1u;
+        }
+        return 0u;
+      }
+    );
+    return fut.get();
   }
 
   template <typename F1, typename F2>
   std::error_code start(F1&& io_state_chg, F2&& err_cb) {
-    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
-      // already started
-      return std::make_error_code(net_ip_errc::tcp_connector_already_started);
-    }
-    std::promise<std::error_code> prom;
-    auto fut = prom.get_future();
-    // start processing in context of executor thread
     auto self = shared_from_this();
-    asio::post(m_socket.get_executor(), [this, self, p = std::move(prom)] () mutable {
-        p.set_value(do_start());
-      }
-    );
-    return fut.get();
+    return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb),
+                                 m_socket.get_executor(),
+             [this, self] () mutable { return do_start(); } );
   }
 
   std::error_code stop() {
-    if (!m_entity_common.is_started()) {
-      // already stopped
-      return std::make_error_code(net_ip_errc::tcp_connector_already_stopped);
-    }
-    std::promise<std::error_code> prom;
-    auto fut = prom.get_future();
-    // start closing in context of executor thread
     auto self = shared_from_this();
-    asio::post(m_socket.get_executor(), [this, self, p = std::move(prom)] () mutable {
-        close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
-        p.set_value(std::error_code());
-      }
+    return m_entity_common.stop(m_socket.get_executor(),
+             [this, self] () mutable {
+               close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
+               return std::error_code();
+             }
     );
-    return fut.get();
   }
 
 
@@ -189,6 +182,7 @@ private:
         [this, self] 
              (std::error_code err, resolver_results res) mutable {
           if (err || m_state != resolving) {
+            m_state = stopped;
             close(err);
             return;
           }
@@ -207,10 +201,14 @@ private:
   }
 
   void close(const std::error_code& err) {
-    std::error_code ec;
-    m_socket.close(ec);
+    if (m_state == closing) {
+      return; // already shutting down, bypass closing again
+    }
     auto sav_state = m_state;
     m_state = closing;
+    m_entity_common.set_stopped(); // for internal closes
+    std::error_code ec;
+    m_socket.close(ec);
     switch (sav_state) {
       case stopped: {
         break;
@@ -224,9 +222,9 @@ private:
         break;
       }
       case connected: {
+        m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
         // notify_me will be called which will clean up m_io_handler
         // this logic branch will also call finish_close
-        m_entity_common.call_error_cb(m_io_handler, err);
         m_io_handler->stop_io();
         return;
       }
@@ -238,19 +236,10 @@ private:
         break;
       }
     }
-    // let cancelled operations get a chance to complete
-    auto self = shared_from_this();
-    asio::post(m_socket.get_executor(), [this, self, err] {
-        finish_close(err);
-      }
-    );
+    finish_close(err);
   }
 
   void finish_close(const std::error_code& err) {
-    // first one in wins
-    if (!m_entity_common.stop()) {
-      return; // already closed
-    }
     m_state = stopped;
     if (err) {
       m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
@@ -275,10 +264,10 @@ private:
   void handle_connect (const std::error_code& err, endpoints_iter /* iter */) {
     using namespace std::placeholders;
 
+    if (m_state != connecting) {
+      return;
+    }
     if (err) {
-      if (m_state != connecting) {
-        return;
-      }
       m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
       if (m_reconn_time == std::chrono::milliseconds(0)) {
         close(std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted));
