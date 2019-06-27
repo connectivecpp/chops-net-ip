@@ -2,7 +2,8 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief @c basic_io_interface class template, which provides @c start_io and related
+ *  @brief @c basic_io_interface class template, providing @c start_io, @c stop_io,
+ *  @c visit_socket, @c make_io_output and related methods.
  *  methods.
  *
  *  @author Cliff Green
@@ -37,8 +38,8 @@ namespace net {
 
 /**
  *  @brief The @c basic_io_interface class template provides access to an underlying 
- *  network IO handler (TCP or UDP IO handler), primarily for calling the @c start_io
- *  and @c stop_io methods.
+ *  network IO handler (TCP or UDP IO handler), primarily for calling the @c start_io,
+ *  @c stop_io, and @c make_io_output methods.
  *
  *  The @c basic_io_interface class provides the primary application interface to start
  *  network IO processing, whether TCP or UDP. This class provides methods to start IO

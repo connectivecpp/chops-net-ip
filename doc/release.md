@@ -2,7 +2,7 @@
 
 ## Release 1.0
 
-Release 1.0 is under development, expected in early summer of 2019. Additional platform and compiler testing is under way, in-depth tutorials are under development, and the marshalling library needs to be completed.
+Release 1.0 is under development, expected in the summer of 2019. Additional platform and compiler testing is under way, in-depth tutorials are under development, and the marshalling library needs to be completed.
 
 ## Release 0.3
 

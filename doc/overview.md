@@ -136,19 +136,19 @@ Most of the Chops Net IP public classes use `std::weak_ptr` references to the in
 
 ![Image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.png)
 
-Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. In general, performance critical paths, primarily reading and writing data, always use function objects passed through as template parameters, while less performance critical paths may use a `std::function`.
+Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. In general, performance critical paths, primarily reading and writing data, always use function objects passed through as template parameters, while less performance critical paths use a `std::function`.
 
-Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
+Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring. (A send interface returning a `std::future` may be implemented in future releases.)
 
 Mutex locking is kept to a minimum in the library. Alternatively, some of the internal handler classes may serialize certain operations by posting functions through the `io context` executor. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Asio executor and posting queue code.
 
-Some data is protected by using `std::atomic`. For example, outgoing queue statistics and `is_started` flags may be`std::atomic`. While this guarantees runtime integrity (i.e. no crashes), it does mean that statistics might have temporary inconsistency with each other. For example, an outgoing buffer might be popped from the queue exactly between an application querying and accessing two outgoing counters. This potential inconsistency is not considered to be an issue, since the queue counters are only meant for general congestion queries, not exact statistical gathering.
-
 ## Future Directions
 
-- Strand design and support will be considered.
-- Older compiler (along with older C++ standard) support is likely to be implemented sooner than later depending on availability and collaboration support.
-- The internal queue container may become a template parameter if the flexibility is needed. This would allow circular buffers (ring spans) or other data structures to be used instead of the default `std::queue` (which is instantiated to use a `std::deque`).
+- Strand design and support will be considered and likely implemented, allowing thread pools to be used for a given `net_ip` instance, instead of limiting it to a single thread.
+- Older compiler (along with older C++ standard) support is likely to be implemented, depending on availability and collaboration support.
+- The outgoing queue container is likely to become a template parameter. This would allow circular buffers (ring spans) or other data structures to be used instead of the default `std::queue` (which is instantiated to use a `std::deque`).
+- The reference counted outgoing buffer type is likely to become a template parameter, allowing applications to use a different reference counting scheme, or a wrapper over some form of static memory (the requirement will be that the memory is valid while the write is in progress). Alternatively, a generic copy and move, versus reference counting, may be supported in future versions.
+- Containers used internally in Chops Net IP (other than the outgoing queue) may also be templatized. These include the container used in the TCP acceptor for TCP connection objects, and the container used in the `net_ip` object that holds all of the network entities.
 - SSL support may be added, depending on collaborators with expertise being available.
 - Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP unicast, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
 

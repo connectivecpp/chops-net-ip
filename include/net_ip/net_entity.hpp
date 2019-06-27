@@ -131,7 +131,7 @@ public:
 /**
  *  @brief Query whether the associated net entity is in a started or stopped state.
  *
- *  @return @c nonstd::expected - @c bool on success, specifying whether @c start been 
+ *  @return @c nonstd::expected - @c bool on success, specifying whether @c start has been 
  *  called (if @c false, the network entity has not been started or is in a stopped state); 
  *  on error (if no associated IO handler), a @c std::error_code is returned.
  */
@@ -166,8 +166,8 @@ public:
  *    void (asio::ip::udp::socket&); // UDP entity
  *  @endcode
  *
- *  Within the function object socket options can be queried or modified or any valid method
- *  called.
+ *  Within the function object socket options can be queried or modified or any valid
+ *  socket method called.
  *
  *  @return @c nonstd::expected - socket has been visited on success; on error (if no 
  *  associated IO handler), a @c std::error_code is returned.
@@ -205,9 +205,9 @@ public:
  *  that are active on associated IO handlers for this net entity.
  *
  *  A TCP connector will have 0 or 1 active IO handlers, depending on connection state, while
- *  a TCP acceptor will have 0 to N active IO handlers, depending on the number of incoming
- *  connections. A UDP entity will either have 0 or 1 active IO handlers depending on whether
- *  it has been started or not.
+ *  a TCP acceptor will have 0 to N active IO handlers, depending on the number of 
+ *  accepted incoming connections. A UDP entity will either have 0 or 1 active IO handlers 
+ *  depending on whether it has been started or not.
  *
  *  The function object must have one of the following signatures, depending on TCP or UDP:
  *
@@ -308,8 +308,8 @@ public:
  *
  *  In both IO state change function object callback invocations the @c basic_io_interface object 
  *  is valid (@c is_valid returns @c true). For the second invocation no @c basic_io_interface 
- *  methods should be called, but the @c basic_io_interface object can be used for associative 
- *  lookups (if needed).
+ *  methods should be called (since the IO handler is in the process of shutting down), but 
+ *  the @c basic_io_interface object can be used for associative lookups (if needed).
  *
  *  The IO state change function object must be copyable (it will be stored in a 
  *  @c std::function).
@@ -328,8 +328,8 @@ public:
  *  1) A @c basic_io_interface object, which may or may not be valid (i.e @c is_valid may
  *  return either @c true or @c false), depending on the context of the error. No methods 
  *  on the @c basic_io_interface object should be called, as the underlying handler, if
- *  present, is likely being destructed. The @c basic_io_interface object is provided
- *  as a key to associate multiple error codes to the same handler.
+ *  present, may be in the process of shutting down. The @c basic_io_interface object is 
+ *  provided as a key to associate multiple error codes to the same handler.
  *
  *  2) The error code associated with the invocation. There are error codes associated 
  *  with application initiated closes, shutdowns, and other state changes as well as error 
@@ -417,7 +417,7 @@ public:
  *  @brief Provide a display string of the internal type, whether for logging or
  *  debugging purposes.
  *
- *  @return A @c std::string_view formatted with the network entity type, either
+ *  @return A @c std::string_view containing the network entity type, either
  *  UDP, TCP acceptor, or TCP connector.
  *
  */

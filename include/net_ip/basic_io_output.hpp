@@ -2,7 +2,8 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief @c basic_io_output class template.
+ *  @brief @c basic_io_output class template, providing @c send and
+ *  @c get_output_queue_stats methods.
  *
  *  @author Cliff Green
  *
