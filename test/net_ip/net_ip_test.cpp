@@ -128,15 +128,15 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
       auto recv_endp = make_udp_endpoint(udp_test_addr, udp_port_base + i);
 
       auto udp_receiver = nip.make_udp_unicast(recv_endp);
-      auto recv_futs = get_udp_io_futures(udp_receiver, err_wq,
-                                            false, recv_cnt );
+      auto recv_fut = get_udp_io_future(udp_receiver, err_wq,
+                                        false, recv_cnt );
       auto udp_sender = nip.make_udp_sender();
       senders.push_back(udp_sender);
 
-      auto sender_futs = get_udp_io_futures(udp_sender, err_wq,
-                                            false, send_cnt, recv_endp );
-      recv_futs.start_fut.get(); // block until receiver ready
-      sender_futs.start_fut.get(); // block until sender ready
+      auto sender_fut = get_udp_io_future(udp_sender, err_wq,
+                                          false, send_cnt, recv_endp );
+      recv_fut.get(); // block until receiver ready
+      sender_fut.get(); // block until sender ready
     }
   );
 

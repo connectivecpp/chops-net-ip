@@ -41,16 +41,16 @@ SCENARIO ( "Shared Net IP test utility, get_tcp_io_futures",
                                  true, std::string_view(), cnt);
 }
 
-SCENARIO ( "Shared Net IP test utility, get_udp_io_futures",
-           "[shared_utility] [udp_io_futures]" ) {
+SCENARIO ( "Shared Net IP test utility, get_udp_io_future",
+           "[shared_utility] [udp_io_future]" ) {
   using namespace chops::test;
 
   chops::net::err_wait_q wq;
   test_counter cnt;
-  auto futs1 = get_udp_io_futures(chops::net::net_entity { }, wq,
-                                  true, cnt);
-  auto futs2 = get_udp_io_futures(chops::net::net_entity { }, wq,
-                                  true, cnt, asio::ip::udp::endpoint());
+  auto fut1 = get_udp_io_future(chops::net::net_entity { }, wq,
+                                true, cnt);
+  auto fut2 = get_udp_io_future(chops::net::net_entity { }, wq,
+                                true, cnt, asio::ip::udp::endpoint());
 }
 
 SCENARIO ( "Shared Net IP test utility, start TCP acceptor",

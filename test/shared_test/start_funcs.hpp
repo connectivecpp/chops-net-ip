@@ -89,24 +89,24 @@ inline auto start_tcp_acceptor(chops::net::net_entity acc, chops::net::err_wait_
            chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
 }
 
-inline auto get_udp_io_futures(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
-                               bool reply, test_counter& cnt) {
-  return chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent,
+inline auto get_udp_io_future(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
+                              bool reply, test_counter& cnt) {
+  return chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
            chops::net::make_read_io_state_change(udp_max_buf_size, udp_msg_hdlr(reply, cnt)),
            chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
 
-inline auto get_udp_io_futures(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
-                               bool receiving, test_counter& cnt,
-                               const asio::ip::udp::endpoint& remote_endp) {
+inline auto get_udp_io_future(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
+                              bool receiving, test_counter& cnt,
+                              const asio::ip::udp::endpoint& remote_endp) {
 
   return receiving ?
-    chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent,
+    chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
              chops::net::make_default_endp_io_state_change(remote_endp, 
                                                            udp_max_buf_size, 
                                                            udp_msg_hdlr(false, cnt)),
              chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq)) :
-    chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent,
+    chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
            chops::net::make_send_only_default_endp_io_state_change(remote_endp),
            chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }

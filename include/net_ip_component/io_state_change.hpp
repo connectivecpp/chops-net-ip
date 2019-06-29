@@ -190,7 +190,7 @@ auto make_send_only_io_state_change () {
  */
 
 template <typename MH>
-auto make_default_endp_io_state_change (asio::ip::udp::endpoint endp,
+auto make_default_endp_io_state_change (const asio::ip::udp::endpoint& endp,
                                         std::size_t max_size,
                                         MH&& msg_hdlr) {
   return [max_size, endp, mh = std::move(msg_hdlr)] 
@@ -212,7 +212,8 @@ auto make_default_endp_io_state_change (asio::ip::udp::endpoint endp,
  *
  *  @note This is implemented only for UDP processing.
  */
-auto make_send_only_default_endp_io_state_change (asio::ip::udp::endpoint endp) {
+inline
+auto make_send_only_default_endp_io_state_change (const asio::ip::udp::endpoint& endp) {
   return [endp] (udp_io_interface io, std::size_t num, bool starting)->bool {
     if (starting) {
       io.start_io(endp);
