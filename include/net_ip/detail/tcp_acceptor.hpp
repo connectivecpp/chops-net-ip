@@ -215,6 +215,8 @@ private:
         }
         tcp_io_shared_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
+        // this is invoked only on async accept, so no danger of calling into app code during the
+        // start method call
         if (m_entity_common.call_io_state_chg_cb(iop, (m_io_handlers.size()+1u), true)) {
           m_io_handlers.push_back(iop);
           start_accept();

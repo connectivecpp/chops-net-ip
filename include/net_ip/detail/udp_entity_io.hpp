@@ -134,7 +134,7 @@ public:
     // send to executor for concurrency protection
     asio::post(m_socket.get_executor(), [this, self, &func, p = std::move(prom)] () mutable {
         if (m_io_common.is_io_started()) {
-          func(basic_io_output<udp_entity_io>(shared_from_this()));
+          func(basic_io_output<udp_entity_io>(self));
           p.set_value(1u);
         }
         else {
@@ -276,16 +276,22 @@ private:
         return ec;
       }
     }
-    if (!m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true)) {
-      auto err = std::make_error_code(net_ip_errc::io_state_change_terminated);
-      close(err);
-      return err;
-    }
+    // don't invoke io_state_chg callback from within context of start method, instead
+    // post and perform it later
+    auto self { shared_from_this() };
+    asio::post(m_socket.get_executor(),
+      [this, self] () mutable {
+        if (!m_entity_common.call_io_state_chg_cb(self, 1, true)) {
+          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+        }
+      }
+    );
     return { };
   }
 
   void close(const std::error_code& err) {
-    m_entity_common.call_error_cb(shared_from_this(), err);
+    auto self { shared_from_this() };
+    m_entity_common.call_error_cb(self, err);
     if (m_shutting_down) { // already been through close once
       return;
     }
@@ -293,11 +299,10 @@ private:
     m_io_common.set_io_stopped();
     m_entity_common.set_stopped();
     m_io_common.clear();
-    auto b = m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
+    auto b = m_entity_common.call_io_state_chg_cb(self, 0, false);
     std::error_code ec;
     m_socket.close(ec);
-    m_entity_common.call_error_cb(shared_from_this(), 
-          std::make_error_code(net_ip_errc::udp_entity_closed));
+    m_entity_common.call_error_cb(self, std::make_error_code(net_ip_errc::udp_entity_closed));
   }
 
 };
