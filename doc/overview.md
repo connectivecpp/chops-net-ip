@@ -130,17 +130,19 @@ Reference counting (through `std::shared_ptr` and `std::weak_ptr` facilities) is
 
 Future versions of the library may have more move semantics and less reference counting, but will always implement safety over performance.
 
-Most of the Chops Net IP public classes use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have errors returned by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
+Most of the Chops Net IP public classes (`net_entity`, `basic_io_interface`, `basic_io_output`) use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have errors returned by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
 
 ![Image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.png)
 
 ![Image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.png)
 
-Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. In general, performance critical paths, primarily reading and writing data, always use function objects passed through as template parameters, while less performance critical paths use a `std::function`.
+Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. In general, performance critical paths, primarily reading and writing data, always use function objects passed through as template parameters, while less performance critical paths may use a `std::function`.
 
-Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring. (A send interface returning a `std::future` may be implemented in future releases.)
+Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring. (An interface for sending data which returns a `std::future` and bypasses the output queue may be implemented in future releases.)
 
 Mutex locking is kept to a minimum in the library. Alternatively, some of the internal handler classes may serialize certain operations by posting functions through the `io context` executor. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Asio executor and posting queue code.
+
+Many of the public methods that call into internal handlers use a `std::future` and Asio `post` to coordinate and serialize certain state changing operations.
 
 ## Future Directions
 
