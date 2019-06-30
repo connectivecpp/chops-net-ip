@@ -248,3 +248,35 @@ SCENARIO ( "Message handling shared test utility, output queue stats poll condit
   REQUIRE(cond(stats2));
 
 }
+
+SCENARIO ( "Message handling shared test utility, fixed size message handling",
+           "[msg_handling] [fixed_size]" ) {
+  using namespace chops::test;
+
+  auto buf = make_fixed_size_buf();
+  REQUIRE (buf.size() == fixed_size_buf_size);
+  REQUIRE (*(buf.data()+0) == static_cast<std::byte>(0xDE));
+  REQUIRE (*(buf.data()+1) == static_cast<std::byte>(0xAD));
+  REQUIRE (*(buf.data()+2) == static_cast<std::byte>(0xBE));
+  REQUIRE (*(buf.data()+3) == static_cast<std::byte>(0xEF));
+  REQUIRE (*(buf.data()+32) == static_cast<std::byte>(0xCC));
+
+  auto ioh_sp = std::make_shared<io_handler_mock>();
+  REQUIRE_FALSE(ioh_sp->send_called);
+  asio::ip::udp::endpoint endp { };
+
+  GIVEN ("A mock io handler and a fixed size msg with a body") {
+
+    WHEN ("a fixed size msg hdlr is created and msg hdlr invoked") {
+      test_counter cnt(0);
+      fixed_size_msg_hdlr<io_handler_mock> mh(cnt);
+      THEN ("the count is correct") {
+        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(cnt == 1);
+        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(cnt == 2);
+      }
+    }
+  } // end given
+}
+

@@ -5,19 +5,28 @@
  *  @brief Declarations and implementations for shared test code dealing with test
  *  message building and message handler function object classes.
  *
- *  The general Chops Net IP test strategy is to have message senders and message 
- *  receivers, with a flag specifying whether the receiver is to loop back the
- *  messages. For TCP it is independent of whether the sender or receiver is an 
- *  acceptor or connector, although most tests have the connector being a sender. In 
- *  the test routines, coordination is typically needed to know when a connection has 
- *  been made or sender / receiver is ready so that message flow can start. At the 
- *  higher layers, the Chops Net IP library facilities provide connection state
- *  change function object callbacks.
+ *  There are a couple of message handling designs shared between the unit tests.
+ *  One is a variable length message, encoded three ways - with a binary length
+ *  header, a LF delimited text, and a CR / LF delimited text. The other other is
+ *  a fixed-size message.
+ *
+ *  The general Chops Net IP test strategy for the variable length messages is to 
+ *  have message senders and message receivers, with a flag specifying whether the 
+ *  receiver is to loop back the messages. For TCP it is independent of whether the 
+ *  sender or receiver is an acceptor or connector, although most tests have the 
+ *  connector being a sender. In the test routines, coordination is typically needed 
+ *  to know when a connection has been made or sender / receiver is ready so that 
+ *  message flow can start. At the higher layers, the Chops Net IP library facilities 
+ *  provide connection state change function object callbacks.
  *
  *  When the message flow is finished, an empty body message is sent to the receiver
  *  (and looped back if the reply flag is set), which signals an "end of message 
  *  flow" condition. The looped back empty message may not arrive back to the 
  *  sender since connections or handlers are in the process of being taken down.
+ *
+ *  The fixed-size messages use a simpler messsage flow design, with no "end of
+ *  message" indication. This requires a higher layer to bring down the connections
+ *  and finish processing.
  *
  *  @author Cliff Green
  *
@@ -114,6 +123,19 @@ vec_buf make_msg_vec(F&& func, std::string_view pre, char body_char, int num_msg
   return vec;
 }
 
+constexpr std::size_t fixed_size_buf_size = 33u;
+
+inline chops::const_shared_buffer make_fixed_size_buf() {
+  // 33 bytes, mostly consisting of dead beef
+  auto ba = chops::make_byte_array(0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
+                                   0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
+                                   0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
+                                   0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
+                                   0XCC);
+  assert (ba.size() == fixed_size_buf_size);
+  return chops::const_shared_buffer(ba.data(), ba.size());
+}
+
 using test_counter = std::atomic_size_t;
 
 template <typename IOT>
@@ -143,6 +165,23 @@ struct msg_hdlr {
     }
     return false;
   }
+};
+
+template <typename IOT>
+struct fixed_size_msg_hdlr {
+  using endp_type = typename IOT::endpoint_type;
+  using const_buf = asio::const_buffer;
+
+  test_counter&      cnt;
+
+  fixed_size_msg_hdlr(test_counter& c) : cnt(c) { }
+
+  bool operator()(const_buf buf, chops::net::basic_io_output<IOT> io_out, endp_type endp) {
+    assert(buf.size() == fixed_size_buf_size);
+    ++cnt;
+    return true;
+  }
+
 };
 
 class poll_output_queue_cond {
