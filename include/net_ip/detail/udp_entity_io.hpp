@@ -166,6 +166,9 @@ std::cerr << "Inside start_io uno, max_size: " << max_size << std::endl;
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
+    if (m_local_endp == endpoint_type()) { // mismatch between start_io and initalized UDP entity
+      return false;
+    }
     m_max_size = max_size;
 std::cerr << "Ready to start read" << std::endl;
     start_read(std::forward<MH>(msg_handler));
@@ -176,6 +179,9 @@ std::cerr << "Ready to start read" << std::endl;
   bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
 std::cerr << "Inside start_io dos, max_size: " << max_size << std::endl;
     if (!m_io_common.set_io_started()) { // concurrency protected
+      return false;
+    }
+    if (m_local_endp == endpoint_type()) {
       return false;
     }
     m_max_size = max_size;
