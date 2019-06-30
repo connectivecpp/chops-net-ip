@@ -37,6 +37,8 @@ namespace test {
 
 using tcp_msg_hdlr = msg_hdlr<chops::net::tcp_io>;
 using udp_msg_hdlr = msg_hdlr<chops::net::udp_io>;
+using tcp_fixed_size_msg_hdlr = fixed_size_msg_hdlr<chops::net::tcp_io>;
+using udp_fixed_size_msg_hdlr = fixed_size_msg_hdlr<chops::net::udp_io>;
 
 inline auto tcp_start_io (chops::net::tcp_io_interface io, bool reply, 
                    std::string_view delim, test_counter& cnt) {

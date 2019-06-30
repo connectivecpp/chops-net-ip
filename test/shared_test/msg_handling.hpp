@@ -136,6 +136,15 @@ inline chops::const_shared_buffer make_fixed_size_buf() {
   return chops::const_shared_buffer(ba.data(), ba.size());
 }
 
+inline vec_buf make_fixed_size_msg_vec(int num_msgs) {
+  vec_buf vec;
+  chops::repeat(num_msgs, [&vec] {
+      vec.push_back (make_fixed_size_buf());
+    }
+  );
+  return vec;
+}
+
 using test_counter = std::atomic_size_t;
 
 template <typename IOT>

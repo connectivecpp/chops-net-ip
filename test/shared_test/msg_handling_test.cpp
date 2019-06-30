@@ -261,6 +261,9 @@ SCENARIO ( "Message handling shared test utility, fixed size message handling",
   REQUIRE (*(buf.data()+3) == static_cast<std::byte>(0xEF));
   REQUIRE (*(buf.data()+32) == static_cast<std::byte>(0xCC));
 
+  auto vec = make_fixed_size_msg_vec(3);
+  REQUIRE (vec.size() == 3u);
+
   auto ioh_sp = std::make_shared<io_handler_mock>();
   REQUIRE_FALSE(ioh_sp->send_called);
   asio::ip::udp::endpoint endp { };
