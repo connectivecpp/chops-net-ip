@@ -118,75 +118,66 @@ void udp_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_send
   wk.start();
   auto& ioc = wk.get_io_context();
 
-  GIVEN ("An executor work guard and a message set") {
- 
-    WHEN ("UDP senders and a receiver are created") {
-      THEN ("the futures provide synchronization") {
+  auto recv_endp = make_udp_endpoint(test_addr, test_port_base);
+  auto recv_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
 
-        auto recv_endp = make_udp_endpoint(test_addr, test_port_base);
-        auto recv_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, recv_endp);
+  INFO ("Receiving UDP entity created");
 
-        INFO ("Receiving UDP entity created");
-
-        chops::net::err_wait_q err_wq;
-        auto err_fut = std::async(std::launch::async,
-          chops::net::ostream_error_sink_with_wait_queue,
+  chops::net::err_wait_q err_wq;
+  auto err_fut = std::async(std::launch::async, chops::net::ostream_error_sink_with_wait_queue,
           std::ref(err_wq), std::ref(std::cerr));
 
-        test_counter recv_cnt = 0;
-        recv_ptr->start(
-              [&recv_cnt, reply] (chops::net::udp_io_interface io, std::size_t, bool starting) {
-                if (starting) {
-                  auto r = udp_start_io(io, reply, recv_cnt);
-                  assert (r);
-                }
-                return true;
-              },
-           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
-        );
+  test_counter recv_cnt = 0;
+  recv_ptr->start(
+      [&recv_cnt, reply] (chops::net::udp_io_interface io, std::size_t, bool starting) {
+          if (starting) {
+            auto r = udp_start_io(io, reply, recv_cnt);
+            assert (r);
+          }
+          return true;
+        },
+     chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
+  );
 
   // sleep to make sure recv UDP is up and running; yes, it could be done with futures, but keeping
   // it simple for this unit test
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        test_counter send_cnt = 0;
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  test_counter send_cnt = 0;
 
-        INFO ("Starting first iteration of UDP senders, num: " << num_senders);
-        start_udp_senders(in_msg_vec, reply, interval, num_senders,
-                          send_cnt, ioc, err_wq, recv_endp);
-        INFO ("Starting second iteration of UDP senders");
-        start_udp_senders(in_msg_vec, reply, interval, num_senders,
-                          send_cnt, ioc, err_wq, recv_endp);
-
-
-        INFO ("Pausing, then stopping receiver");
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        recv_ptr->stop();
+  INFO ("Starting first iteration of UDP senders, num: " << num_senders);
+  start_udp_senders(in_msg_vec, reply, interval, num_senders,
+                    send_cnt, ioc, err_wq, recv_endp);
+  INFO ("Starting second iteration of UDP senders");
+  start_udp_senders(in_msg_vec, reply, interval, num_senders,
+                    send_cnt, ioc, err_wq, recv_endp);
 
 
-        INFO ("Waiting on error wait queue");
-        while (!err_wq.empty()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        err_wq.close();
-        auto cnt = err_fut.get();
-        INFO ("Number of messages passed thru error queue: " << cnt);
+  INFO ("Pausing, then stopping receiver");
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  recv_ptr->stop();
 
-        std::size_t total_msgs = 2 * num_senders * in_msg_vec.size();
-        // CHECK instead of REQUIRE since UDP is an unreliable protocol
-        CHECK (total_msgs == recv_cnt);
-        if (reply) {
-          CHECK (total_msgs == send_cnt);
-        }
-      }
-    }
-  } // end given
+
+  INFO ("Waiting on error wait queue");
+  while (!err_wq.empty()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  err_wq.close();
+  auto cnt = err_fut.get();
+  INFO ("Number of messages passed thru error queue: " << cnt);
+
+  std::size_t total_msgs = 2 * num_senders * in_msg_vec.size();
+  // CHECK instead of REQUIRE since UDP is an unreliable protocol
+  CHECK (total_msgs == recv_cnt);
+  if (reply) {
+    CHECK (total_msgs == send_cnt);
+  }
 
   wk.reset();
 
 }
 
 
-SCENARIO ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
+TEST_CASE ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
            "[udp_io] ") {
 
   auto ipv4_endp = make_udp_endpoint(test_addr, test_port_base);
@@ -195,27 +186,21 @@ SCENARIO ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
 
   auto ba = chops::make_byte_array(0x0D, 0x0E, 0x0A);
 
-  GIVEN ("A UDP socket opened with ipv4") {
 
-    io_context ioc;
-    ip::udp::socket sock(ioc);
-    sock.open(ip::udp::v4());
+  io_context ioc;
+  ip::udp::socket sock(ioc);
+  sock.open(ip::udp::v4());
   
-    INFO ("UDP socket opened");
+  INFO ("UDP socket opened");
 
-    WHEN ("send_to is called with both ipv4 and ipv6 endpoints") {
-      auto sz1 = sock.send_to(const_buffer(ba.data(), ba.size()), ipv4_endp);
-//      auto sz2 = sock.send_to(const_buffer(ba.data(), ba.size()), ipv6_endp);
-      THEN ("the call succeeds") {
-        REQUIRE(sz1 == ba.size());
-//        REQUIRE(sz2 == ba.size());
-      }
-    }
-  } // end given
+  auto sz1 = sock.send_to(const_buffer(ba.data(), ba.size()), ipv4_endp);
+//  auto sz2 = sock.send_to(const_buffer(ba.data(), ba.size()), ipv6_endp);
+  REQUIRE(sz1 == ba.size());
+//  REQUIRE(sz2 == ba.size());
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 30, senders 1",
+TEST_CASE ( "Udp IO handler test, var len msgs, one-way, interval 30, senders 1",
            "[udp_io] [var_len_msg] [one_way] [interval_30] [senders_1]" ) {
 
   udp_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
@@ -223,7 +208,7 @@ SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 30, senders 1",
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
+TEST_CASE ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
            "[udp_io] [var_len_msg] [one-way] [interval_0] [senders_1]" ) {
 
   udp_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
@@ -231,7 +216,7 @@ SCENARIO ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 10",
+TEST_CASE ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 10",
            "[udp_io] [var_len_msg] [two-way] [interval_20] [senders_10]" ) {
 
   udp_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
@@ -239,7 +224,7 @@ SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 10"
 
 }
 
-SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 30, senders 2, many msgs",
+TEST_CASE ( "Udp IO handler test, var len msgs, two-way, interval 30, senders 2, many msgs",
            "[udp_io] [var_len_msg] [two_way] [interval_30] [senders_2] [many]" ) {
 
   udp_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 10*NumMsgs),
@@ -247,7 +232,7 @@ SCENARIO ( "Udp IO handler test, var len msgs, two-way, interval 30, senders 2, 
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 10, senders 5",
+TEST_CASE ( "Udp IO handler test, CR / LF msgs, one-way, interval 10, senders 5",
            "[udp_io] [cr_lf_msg] [one-way] [interval_10] [senders_5]" ) {
 
   udp_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
@@ -255,7 +240,7 @@ SCENARIO ( "Udp IO handler test, CR / LF msgs, one-way, interval 10, senders 5",
 
 }
 
-SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 20, senders 5",
+TEST_CASE ( "Udp IO handler test, CR / LF msgs, two-way, interval 20, senders 5",
            "[udp_io] [cr_lf_msg] [two-way] [interval_20] [senders_5]" ) {
 
   udp_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
@@ -264,7 +249,7 @@ SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 20, senders 5",
 }
 
 /*
-SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, many msgs",
+TEST_CASE ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, many msgs",
            "[udp_io] [cr_lf_msg] [two_way] [interval_0] [senders_1] [many]" ) {
 
   udp_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
@@ -273,7 +258,7 @@ SCENARIO ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, m
 }
 */
 
-SCENARIO ( "Udp IO handler test, LF msgs, one-way, interval 30, senders 1",
+TEST_CASE ( "Udp IO handler test, LF msgs, one-way, interval 30, senders 1",
            "[udp_io] [lf_msg] [two-way] [interval_30] [senders_1]" ) {
 
   udp_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
@@ -281,7 +266,7 @@ SCENARIO ( "Udp IO handler test, LF msgs, one-way, interval 30, senders 1",
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 10",
+TEST_CASE ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 10",
            "[udp_io] [lf_msg] [two-way] [interval_10] [senders_10]" ) {
 
   udp_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
@@ -289,7 +274,7 @@ SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 10",
 
 }
 
-SCENARIO ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 2, many msgs",
+TEST_CASE ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 2, many msgs",
            "[udp_io] [lf_msg] [two-way] [interval_10] [senders_2] [many]" ) {
 
   udp_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 20*NumMsgs),

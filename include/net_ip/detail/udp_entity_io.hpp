@@ -42,6 +42,9 @@
 
 #include "marshall/shared_buffer.hpp"
 
+//////
+#include <iostream>
+
 namespace chops {
 namespace net {
 namespace detail {
@@ -159,26 +162,31 @@ public:
 
   template <typename MH>
   bool start_io(std::size_t max_size, MH&& msg_handler) {
+std::cerr << "Inside start_io uno, max_size: " << max_size << std::endl;
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
     m_max_size = max_size;
+std::cerr << "Ready to start read" << std::endl;
     start_read(std::forward<MH>(msg_handler));
     return true;
   }
 
   template <typename MH>
   bool start_io(const endpoint_type& endp, std::size_t max_size, MH&& msg_handler) {
+std::cerr << "Inside start_io dos, max_size: " << max_size << std::endl;
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
     m_max_size = max_size;
     m_default_dest_endp = endp;
+std::cerr << "Ready to start read" << std::endl;
     start_read(std::forward<MH>(msg_handler));
     return true;
   }
 
   bool start_io() {
+std::cerr << "Inside start_io no read uno" << std::endl;
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
@@ -186,6 +194,7 @@ public:
   }
 
   bool start_io(const endpoint_type& endp) {
+std::cerr << "Inside start_io no read dos, endp: " << endp << std::endl;
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }

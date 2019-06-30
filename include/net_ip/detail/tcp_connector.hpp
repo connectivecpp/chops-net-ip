@@ -226,9 +226,14 @@ private:
       case connected: {
         m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
         // notify_me will be called which will clean up m_io_handler
-        // this logic branch will also call finish_close
-        m_io_handler->stop_io();
-        return;
+        // this logic branch will also call finish_close; check to
+        // make sure m_io_handler is still alive, not cleaned up by
+        // tcp_io object jumping in and calling notify_me first
+        if (m_io_handler) {
+          m_io_handler->stop_io();
+          return;
+        }
+        break;
       }
       case timeout: {
         m_timer.cancel();
@@ -318,22 +323,21 @@ private:
     m_entity_common.call_error_cb(iop, err);
 
     auto self = shared_from_this();
-    asio::post(m_socket.get_executor(), [this, self, iop] {
-        // notify app of tcp_io object shutting down
-        auto res = m_entity_common.call_io_state_chg_cb(iop, 0, false);
-        if (m_state == connected && res && m_reconn_time != std::chrono::milliseconds(0)) {
+    // notify app of tcp_io object shutting down
+    auto res = m_entity_common.call_io_state_chg_cb(iop, 0, false);
+    if (m_state == connected && res && m_reconn_time != std::chrono::milliseconds(0)) {
+      asio::post(m_socket.get_executor(), [this, self] {
           start_connect();
-          return;
         }
-        if (m_state == closing) {
-          finish_close(std::error_code());
-          return;
-        }
-        if (!res) {
-          finish_close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-          return;
-        }
-        finish_close(std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted));
+      );
+      return;
+    }
+    std::error_code ec = std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted);
+    if (!res) {
+      ec = std::make_error_code(net_ip_errc::io_state_change_terminated);
+    }
+    asio::post(m_socket.get_executor(), [this, self, ec] {
+        finish_close(ec);
       }
     );
   }
