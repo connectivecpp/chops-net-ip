@@ -49,6 +49,7 @@
 #include <ostream>
 #include <chrono>
 #include <thread>
+#include <future>
 
 #include <cassert>
 #include <limits>
@@ -176,18 +177,28 @@ struct msg_hdlr {
   }
 };
 
+using test_prom = std::promise<std::size_t>;
+
+// fixed size msg hdlr does not have end-of-sequence message; instead it
+// pops a future when the expected count is reached
 template <typename IOT>
 struct fixed_size_msg_hdlr {
   using endp_type = typename IOT::endpoint_type;
   using const_buf = asio::const_buffer;
 
-  test_counter&      cnt;
+  test_prom      prom;
+  int            max_cnt;
+  test_counter&  cnt;
 
-  fixed_size_msg_hdlr(test_counter& c) : cnt(c) { }
+  fixed_size_msg_hdlr(test_prom p, int m, test_counter& c) :
+      prom(std::move(p)), max_cnt(m), cnt(c) { }
 
   bool operator()(const_buf buf, chops::net::basic_io_output<IOT> io_out, endp_type endp) {
     assert(buf.size() == fixed_size_buf_size);
     ++cnt;
+    if (cnt == max_cnt) {
+      prom.set_value(static_cast<std::size_t>(cnt));
+    }
     return true;
   }
 

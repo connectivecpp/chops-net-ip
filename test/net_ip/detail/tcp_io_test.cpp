@@ -109,13 +109,12 @@ std::size_t var_conn_func (const vec_buf& var_msg_vec, asio::io_context& ioc,
 }
 
 std::size_t fixed_conn_func (const vec_buf& fixed_msg_vec, asio::io_context& ioc, 
-                             int interval, test_counter& acc_cnt) {
+                             int interval) {
 
   auto info = perform_connect(ioc);
   const auto& iohp = info.first;
   auto& fut = info.second;
 
-  test_counter cnt = 0;
   // do a send-only start_io for the connector side
   auto e = iohp->start_io();
   assert (e);
@@ -124,17 +123,12 @@ std::size_t fixed_conn_func (const vec_buf& fixed_msg_vec, asio::io_context& ioc
     iohp->send(buf);
     std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   }
-  // monitor count until it's the expected size, then kill the handler
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  while (acc_cnt < fixed_msg_vec.size()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-  }
-  iohp->stop_io();
 
+  // wait for acceptor side to kill connection
   auto err = fut.get();
   std::cerr << "TCP IO handler, fixed size conn, err: " << err << ", " << err.message() << std::endl;
 
-  return cnt.load();
+  return fixed_msg_vec.size();
 }
 
 conn_info perform_accept (asio::ip::tcp::acceptor& acc) {
@@ -190,17 +184,23 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
   {
     INFO ("Creating fixed size connector asynchronously, msg interval: " << interval);
 
-    test_counter cnt = 0;
     auto conn_fut = std::async(std::launch::async, fixed_conn_func, std::cref(fixed_msg_vec), 
-                                     std::ref(ioc), interval, std::ref(cnt));
+                                     std::ref(ioc), interval);
 
     auto info = perform_accept(acc);
     const auto& iohp = info.first;
     auto& fut = info.second;
 
-    REQUIRE (iohp->start_io(fixed_size_buf_size, tcp_fixed_size_msg_hdlr(cnt)));
+    test_counter cnt = 0;
+    test_prom prom;
+    auto mh_fut = prom.get_future();
+    REQUIRE (iohp->start_io(fixed_size_buf_size, 
+                       tcp_fixed_size_msg_hdlr(std::move(prom), fixed_msg_vec.size(), cnt)));
 
-    auto acc_err = fut.get(); // connector should kill connection
+    auto mh_cnt = mh_fut.get(); // pops when cnt max reached
+    REQUIRE (mh_cnt == fixed_msg_vec.size());
+    iohp->stop_io(); // should cause notify future to pop
+    auto acc_err = fut.get();
 
     std::cerr << "TCP IO handler, fixed size acc, err: " << acc_err << ", " << 
                  acc_err.message() << std::endl;

@@ -272,12 +272,19 @@ SCENARIO ( "Message handling shared test utility, fixed size message handling",
 
     WHEN ("a fixed size msg hdlr is created and msg hdlr invoked") {
       test_counter cnt(0);
-      fixed_size_msg_hdlr<io_handler_mock> mh(cnt);
-      THEN ("the count is correct") {
+      test_prom prom;
+      auto fut = prom.get_future();
+      fixed_size_msg_hdlr<io_handler_mock> mh(std::move(prom), 5, cnt);
+      THEN ("the count is incremented correctly and a promise is satisfied") {
         REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
         REQUIRE(cnt == 1);
         REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
         REQUIRE(cnt == 2);
+        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        auto s = fut.get();
+        REQUIRE (s == 5u);
       }
     }
   } // end given
