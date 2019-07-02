@@ -161,24 +161,21 @@ std::size_t start_connectors(const vec_buf& in_msg_vec,
   return io_wq.size();  // should be 0 after stopping
 }
 
-void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_conns,
-                    std::string_view delim, chops::const_shared_buffer empty_msg) {
+void perform_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
+                   bool reply, int interval, int num_conns,
+                   std::string_view delim, const chops::const_shared_buffer& empty_msg) {
 
   chops::net::worker wk;
   wk.start();
   auto& ioc = wk.get_io_context();
 
-  GIVEN ("An executor work guard and a message set") {
- 
-    WHEN ("an acceptor and one or more connectors are created") {
-      THEN ("the wait queue of io_output objects provide synchronization and data paths") {
-
-        chops::net::err_wait_q err_wq;
-        auto err_fut = std::async(std::launch::async, 
+  chops::net::err_wait_q err_wq;
+  auto err_fut = std::async(std::launch::async, 
           chops::net::ostream_error_sink_with_wait_queue, 
           std::ref(err_wq), std::ref(std::cerr));
 
-        test_counter conn_cnt = 0;
+  {
+    test_counter conn_cnt = 0;
         INFO ("First iteration of connectors, separate thread, before acceptor, num: " << num_conns);
 
         auto conn_fut = std::async(std::launch::async, start_connectors,
@@ -232,143 +229,157 @@ void acc_conn_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
           REQUIRE (total_msgs == conn_cnt);
         }
       }
-    }
-  } // end given
+
   wk.reset();
 
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 50, 1 connector", 
+TEST_CASE ( "Tcp connector test, var len msgs, one-way, interval 50, 1 connector", 
            "[tcp_conn] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
-                  false, 50, 1,
-                  std::string_view(), make_empty_variable_len_msg() );
+  perform_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
+                 make_fixed_size_msg_vec(NumMsgs),
+                 false, 50, 1,
+                 std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 0, 1 connector", 
+TEST_CASE ( "Tcp connector test, var len msgs, one-way, interval 0, 1 connector", 
            "[tcp_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
-                  false, 0, 1,
-                  std::string_view(), make_empty_variable_len_msg() );
+  perform_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
+                 make_fixed_size_msg_vec(2*NumMsgs),
+                 false, 0, 1,
+                 std::string_view(), make_empty_variable_len_msg() );
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 30, 1 connector", 
+TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 30, 1 connector", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_30] [connectors_1]" ) {
 
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
-                  true, 30, 1,
-                  std::string_view(), make_empty_variable_len_msg() );
+  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
+                 make_fixed_size_msg_vec(NumMsgs),
+                 true, 30, 1,
+                 std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 1 connector, many msgs", 
+TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 0, 1 connector, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_1]" ) {
 
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', 100*NumMsgs),
-                  true, 0, 1,
-                  std::string_view(), make_empty_variable_len_msg() );
+  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', 100*NumMsgs),
+                 make_fixed_size_msg_vec(100*NumMsgs),
+                 true, 0, 1,
+                 std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, one-way, interval 0, 2 connectors", 
+TEST_CASE ( "Tcp connector test, var len msgs, one-way, interval 0, 2 connectors", 
            "[tcp_conn] [var_len_msg] [one_way] [interval_0] [connectors_2]" ) {
 
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', NumMsgs),
-                  false, 0, 2,
-                  std::string_view(), make_empty_variable_len_msg() );
+  perform_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', NumMsgs),
+                 make_fixed_size_msg_vec(NumMsgs),
+                 false, 0, 2,
+                 std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 2 connectors", 
+TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 0, 2 connectors", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_2]" ) {
 
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', NumMsgs),
-                  true, 0, 2,
-                  std::string_view(), make_empty_variable_len_msg() );
+  perform_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', NumMsgs),
+                 make_fixed_size_msg_vec(NumMsgs),
+                 true, 0, 2,
+                 std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
+TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  acc_conn_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
-                  true, 0, 10,
-                  std::string_view(), make_empty_variable_len_msg() );
+  perform_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
+                 make_fixed_size_msg_vec(100*NumMsgs),
+                 true, 0, 10,
+                 std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 20, 1 connectors", 
+TEST_CASE ( "Tcp connector test, CR / LF msgs, one-way, interval 20, 1 connectors", 
            "[tcp_conn] [cr_lf_msg] [one_way] [interval_20] [connectors_1]" ) {
 
-  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs),
-                  false, 20, 1,
-                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs),
+                 make_fixed_size_msg_vec(NumMsgs),
+                 false, 20, 1,
+                 std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 30, 10 connectors", 
+TEST_CASE ( "Tcp connector test, CR / LF msgs, one-way, interval 30, 10 connectors", 
            "[tcp_conn] [cr_lf_msg] [one_way] [interval_30] [connectors_10]" ) {
 
-  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
-                  false, 30, 10,
-                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
+                 make_fixed_size_msg_vec(NumMsgs),
+                 false, 30, 10,
+                 std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, CR / LF msgs, one-way, interval 0, 20 connectors", 
+TEST_CASE ( "Tcp connector test, CR / LF msgs, one-way, interval 0, 20 connectors", 
            "[tcp_conn] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
-  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
-                  false, 0, 20,
-                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
+                 make_fixed_size_msg_vec(4*NumMsgs),
+                 false, 0, 20,
+                 std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, CR / LF msgs, two-way, interval 10, 5 connectors", 
+TEST_CASE ( "Tcp connector test, CR / LF msgs, two-way, interval 10, 5 connectors", 
            "[tcp_conn] [cr_lf_msg] [two_way] [interval_10] [connectors_5]" ) {
 
-  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
-                  true, 10, 5,
-                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
+                 make_fixed_size_msg_vec(5*NumMsgs),
+                 true, 10, 5,
+                 std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, CR / LF msgs, two-way, interval 0, 10 connectors, many msgs", 
+TEST_CASE ( "Tcp connector test, CR / LF msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_conn] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  acc_conn_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
-                  true, 0, 10, 
-                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
+                 make_fixed_size_msg_vec(5*NumMsgs),
+                 true, 0, 10, 
+                 std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, LF msgs, one-way, interval 40, 1 connectors", 
+TEST_CASE ( "Tcp connector test, LF msgs, one-way, interval 40, 1 connectors", 
            "[tcp_conn] [lf_msg] [one_way] [interval_40] [connectors_1]" ) {
 
-  acc_conn_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
-                  false, 40, 1,
-                  std::string_view("\n"), make_empty_lf_text_msg() );
+  perform_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
+                 make_fixed_size_msg_vec(NumMsgs),
+                 false, 40, 1,
+                 std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, LF msgs, one-way, interval 0, 15 connectors", 
+TEST_CASE ( "Tcp connector test, LF msgs, one-way, interval 0, 15 connectors", 
            "[tcp_conn] [lf_msg] [one_way] [interval_0] [connectors_15]" ) {
 
-  acc_conn_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
-                  false, 0, 15,
-                  std::string_view("\n"), make_empty_lf_text_msg() );
+  perform_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
+                 make_fixed_size_msg_vec(5*NumMsgs),
+                 false, 0, 15,
+                 std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
-SCENARIO ( "Tcp connector test, LF msgs, two-way, interval 0, 15 connectors, many msgs", 
+TEST_CASE ( "Tcp connector test, LF msgs, two-way, interval 0, 15 connectors, many msgs", 
            "[tcp_conn] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
 
-  acc_conn_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs),
-                  true, 0, 15, 
-                  std::string_view("\n"), make_empty_lf_text_msg() );
+  perform_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs),
+                 make_fixed_size_msg_vec(5*NumMsgs),
+                 true, 0, 15, 
+                 std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
