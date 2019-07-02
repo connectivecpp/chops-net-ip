@@ -66,6 +66,11 @@ constexpr int NumMsgs = 50;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
+void perform_connect(asio::ip::tcp::socket& sock, asio::io_context& ioc) {
+  auto endp_seq = *(chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port));
+  asio::ip::tcp::endpoint endp = asio::connect(sock, endp_seq);
+}
+
 std::error_code read_until_err(asio::ip::tcp::socket& sock) {
   char c;
   std::error_code ec;
@@ -73,18 +78,16 @@ std::error_code read_until_err(asio::ip::tcp::socket& sock) {
   return ec;
 }
 
-std::error_code conn_read_only_func(asio::io_context& ioc) {
+std::error_code read_only_func(asio::io_context& ioc) {
   asio::ip::tcp::socket sock(ioc);
-  auto endp_seq = *(chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port));
-  asio::ip::tcp::endpoint endp = asio::connect(sock, endp_seq);
+  perform_connect(sock, ioc);
   return read_until_err(sock);
 }
 
-void start_conn_read_only_funcs (asio::io_context& ioc, int num_conns) {
-
+void start_read_only_funcs (asio::io_context& ioc, int num_conns) {
   std::vector<std::future<std::error_code>> conn_futs;
   chops::repeat(num_conns, [&ioc, &conn_futs] () {
-      conn_futs.emplace_back(std::async(std::launch::async, conn_read_only_func, std::ref(ioc)));
+      conn_futs.emplace_back(std::async(std::launch::async, read_only_func, std::ref(ioc)));
     }
   );
   for (auto& fut : conn_futs) {
@@ -93,16 +96,52 @@ void start_conn_read_only_funcs (asio::io_context& ioc, int num_conns) {
   }
 }
 
-std::size_t conn_data_func (const vec_buf& in_msg_vec, asio::io_context& ioc, 
-                            bool read_reply, int interval, chops::const_shared_buffer empty_msg) {
+// fixed size data connectors perform receives only, no sends
+std::size_t fixed_data_func (asio::io_context& ioc) {
 
   asio::ip::tcp::socket sock(ioc);
-  auto endp_seq = *(chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_host, test_port));
-  asio::ip::tcp::endpoint endp = asio::connect(sock, endp_seq);
+  perform_connect(sock, ioc);
+
+  chops::mutable_shared_buffer incoming_msg { };
+  incoming_msg.resize(fixed_size_buf_size);
+
+  std::error_code ec;
+  std::size_t cnt = 0;
+  while (true) {
+    asio::read(sock, asio::mutable_buffer(incoming_msg.data(), fixed_size_buf_size), ec);
+    if (ec) {
+      break;
+    }
+    ++cnt;
+  }
+  return cnt;
+}
+
+std::size_t start_fixed_data_funcs (asio::io_context& ioc, int num_conns) {
+
+  std::size_t conn_cnt = 0;
+  std::vector<std::future<std::size_t>> conn_futs;
+
+  chops::repeat(num_conns, [&ioc, &conn_futs] () {
+      conn_futs.emplace_back(std::async(std::launch::async, fixed_data_func, std::ref(ioc)));
+
+    }
+  );
+  for (auto& fut : conn_futs) {
+    conn_cnt += fut.get(); // wait for connectors to finish
+  }
+  return conn_cnt;
+}
+
+std::size_t var_data_func (const vec_buf& var_msg_vec, asio::io_context& ioc, 
+                           bool read_reply, int interval, const chops::const_shared_buffer& empty_msg) {
+
+  asio::ip::tcp::socket sock(ioc);
+  perform_connect(sock, ioc);
 
   std::size_t cnt = 0;
   chops::mutable_shared_buffer return_msg { };
-  for (auto buf : in_msg_vec) {
+  for (const auto& buf : var_msg_vec) {
     asio::write(sock, asio::const_buffer(buf.data(), buf.size()));
     if (read_reply) {
       return_msg.resize(buf.size());
@@ -116,15 +155,15 @@ std::size_t conn_data_func (const vec_buf& in_msg_vec, asio::io_context& ioc,
   return cnt;
 }
 
-std::size_t start_conn_data_funcs (const vec_buf& in_msg_vec, asio::io_context& ioc,
-                                   bool reply, int interval, int num_conns,
-                                   std::string_view delim, chops::const_shared_buffer empty_msg) {
+std::size_t start_var_data_funcs (const vec_buf& var_msg_vec, asio::io_context& ioc,
+                                  bool reply, int interval, int num_conns,
+                                  std::string_view delim, const chops::const_shared_buffer& empty_msg) {
 
   std::size_t conn_cnt = 0;
   std::vector<std::future<std::size_t>> conn_futs;
 
   chops::repeat(num_conns, [&] () {
-      conn_futs.emplace_back(std::async(std::launch::async, conn_data_func, std::cref(in_msg_vec), 
+      conn_futs.emplace_back(std::async(std::launch::async, var_data_func, std::cref(var_msg_vec), 
                              std::ref(ioc), reply, interval, empty_msg));
 
     }
@@ -136,8 +175,9 @@ std::size_t start_conn_data_funcs (const vec_buf& in_msg_vec, asio::io_context& 
 }
 
 
-void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num_conns,
-                         std::string_view delim, chops::const_shared_buffer empty_msg) {
+void acceptor_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
+                    bool reply, int interval, int num_conns,
+                    std::string_view delim, const chops::const_shared_buffer& empty_msg) {
 
   chops::net::worker wk;
   wk.start();
@@ -149,6 +189,8 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
         std::ref(err_wq), std::ref(std::cerr));
 
   {
+    INFO ("Variable length message tests starting");
+
     auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
                                   std::string_view(test_port), std::string_view(), true);
     REQUIRE_FALSE(acc_ptr->is_started());
@@ -166,11 +208,11 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
     );
     REQUIRE(acc_ptr->is_started());
 
-    auto conn_cnt = start_conn_data_funcs(in_msg_vec, ioc, reply, interval, num_conns,
+    auto conn_cnt = start_var_data_funcs(var_msg_vec, ioc, reply, interval, num_conns,
                                           delim, empty_msg);
     INFO ("First iteration of connector futures popped, starting second iteration");
 
-    conn_cnt += start_conn_data_funcs(in_msg_vec, ioc, reply, interval, num_conns,
+    conn_cnt += start_var_data_funcs(var_msg_vec, ioc, reply, interval, num_conns,
                                       delim, empty_msg);
     INFO ("Second iteration of connector futures popped");
 
@@ -178,11 +220,68 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
     INFO ("Acceptor stopped");
     REQUIRE_FALSE(acc_ptr->is_started());
 
-    std::size_t total_msgs = 2 * num_conns * in_msg_vec.size();
+    std::size_t total_msgs = 2 * num_conns * var_msg_vec.size();
     REQUIRE (total_msgs == recv_cnt);
     if (reply) {
       REQUIRE (total_msgs == conn_cnt);
     }
+  }
+
+  {
+    INFO ("Fixed size message tests starting, message sending from acceptor to connector");
+
+    auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                                  std::string_view(test_port), std::string_view(), true);
+    REQUIRE_FALSE(acc_ptr->is_started());
+
+    std::promise<std::size_t> prom;
+    auto start_fut = prom.get_future();
+    acc_ptr->start( [num_conns, &prom] 
+                    (chops::net::tcp_io_interface io, std::size_t num, bool starting ) mutable {
+        if (starting) {
+          auto r = io.start_io(); // send only
+          assert (r);
+          if (num == num_conns) {
+            prom.set_value(num);
+          }
+        }
+        return true;
+      },
+      chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+    );
+    REQUIRE(acc_ptr->is_started());
+
+    auto conn_fut = std::async(std::launch::async, start_fixed_data_funcs, 
+                               std::ref(ioc), num_conns);
+
+    auto n = start_fut.get(); // all connectors have now connected
+    REQUIRE (n == num_conns);
+
+    for (const auto& buf : fixed_msg_vec) {
+      n = acc_ptr->visit_io_output([&buf] (chops::net::tcp_io_output io) {
+          io.send(buf);
+        }
+      );
+      assert (n == num_conns);
+    }
+    std::size_t sum = 0;
+    do {
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      n = acc_ptr->visit_io_output([&sum] (chops::net::tcp_io_output io) {
+          auto s = io.get_output_queue_stats();
+          assert (s);
+          sum += (*s).output_queue_size;
+        }
+      );
+      assert (n == num_conns);
+    } while (sum != 0);
+    
+    acc_ptr->stop();
+    INFO ("Acceptor stopped");
+    REQUIRE_FALSE(acc_ptr->is_started());
+
+    auto conn_cnt = conn_fut.get();
+    REQUIRE (conn_cnt == num_conns * fixed_msg_vec.size());
   }
 
   {
@@ -197,7 +296,7 @@ void acceptor_test (const vec_buf& in_msg_vec, bool reply, int interval, int num
       chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
     );
     REQUIRE(acc_ptr->is_started());
-    start_conn_read_only_funcs(ioc, 4);
+    start_read_only_funcs(ioc, 4);
     // connections have been made and disconnects happened from acceptor
     acc_ptr->stop();
     REQUIRE_FALSE(acc_ptr->is_started());
@@ -219,6 +318,7 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector"
            "[tcp_acc] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
+                  make_fixed_size_msg_vec(NumMsgs),
                   false, 50, 1,
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -228,6 +328,7 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector",
            "[tcp_acc] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
+                  make_fixed_size_msg_vec(2*NumMsgs),
                   false, 0, 1,
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -237,6 +338,7 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector"
            "[tcp_acc] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
+                  make_fixed_size_msg_vec(NumMsgs),
                   true, 50, 1,
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -246,6 +348,7 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors
            "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
+                  make_fixed_size_msg_vec(100*NumMsgs),
                   true, 0, 10,
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -255,6 +358,7 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors
            "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 50*NumMsgs),
+                  make_fixed_size_msg_vec(50*NumMsgs),
                   true, 0, 60, 
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -264,6 +368,7 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Whaaaat", 'T', NumMsgs),
+                  make_fixed_size_msg_vec(NumMsgs),
                   false, 50, 1,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -273,6 +378,7 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connector
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
+                  make_fixed_size_msg_vec(NumMsgs),
                   false, 50, 10,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -282,6 +388,7 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
+                  make_fixed_size_msg_vec(4*NumMsgs),
                   false, 0, 20,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -291,6 +398,7 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connector
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_30] [connectors_20]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
+                  make_fixed_size_msg_vec(5*NumMsgs),
                   true, 30, 20,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -300,6 +408,7 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_0] [connectors_20] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*NumMsgs),
+                  make_fixed_size_msg_vec(50*NumMsgs),
                   true, 0, 20, 
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -309,6 +418,7 @@ TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 50, 1 connectors",
            "[tcp_acc] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
+                  make_fixed_size_msg_vec(NumMsgs),
                   false, 50, 1,
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -318,6 +428,7 @@ TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 0, 25 connectors",
            "[tcp_acc] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
+                  make_fixed_size_msg_vec(6*NumMsgs),
                   false, 0, 25,
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -327,6 +438,7 @@ TEST_CASE ( "Tcp acceptor test,  LF msgs, two-way, interval 20, 25 connectors",
            "[tcp_acc] [lf_msg] [two_way] [interval_20] [connectors_25]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs),
+                  make_fixed_size_msg_vec(2*NumMsgs),
                   true, 20, 25,
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -336,6 +448,7 @@ TEST_CASE ( "Tcp acceptor test,  LF msgs, two-way, interval 0, 25 connectors, ma
            "[tcp_acc] [lf_msg] [two_way] [interval_0] [connectors_25] [many]" ) {
 
   acceptor_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 80*NumMsgs),
+                  make_fixed_size_msg_vec(80*NumMsgs),
                   true, 0, 25, 
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
