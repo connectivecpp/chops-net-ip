@@ -90,10 +90,10 @@ void start_stop_connector(asio::io_context& ioc, int interval, chops::net::err_w
   INFO ("Start after stop error code: " << r3.message());
 }
                                   
-std::size_t start_connectors(const vec_buf& in_msg_vec,
-                             int interval, int num_conns,
-                             std::string_view delim, chops::const_shared_buffer empty_msg,
-                             test_counter& conn_cnt, chops::net::err_wait_q& err_wq) {
+std::size_t start_var_connectors(const vec_buf& in_msg_vec,
+                                 int interval, int num_conns,
+                                 std::string_view delim, chops::const_shared_buffer empty_msg,
+                                 test_counter& conn_cnt, chops::net::err_wait_q& err_wq) {
 
   // create another executor for a little more concurrency
   chops::net::worker wk;
@@ -176,37 +176,35 @@ void perform_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
 
   {
     test_counter conn_cnt = 0;
-        INFO ("First iteration of connectors, separate thread, before acceptor, num: " << num_conns);
+    INFO ("First iteration of connectors, separate thread, before acceptor, num: " << num_conns);
 
-        auto conn_fut = std::async(std::launch::async, start_connectors,
+    auto conn_fut = std::async(std::launch::async, start_var_connectors,
             std::cref(in_msg_vec), interval, num_conns,
             delim, empty_msg, std::ref(conn_cnt), std::ref(err_wq));
 
-        INFO ("Pausing 2 seconds to test connector re-connect timeout");
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+    INFO ("Pausing 2 seconds to test connector re-connect timeout");
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        auto acc_ptr = 
-            std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port, "", true);
+    auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port, "", true);
 
+    test_counter acc_cnt = 0;
+    acc_ptr->start( [delim, reply, &acc_cnt, &err_wq]
+                    (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
+          if (starting) {
+            auto r = tcp_start_io(io, reply, delim, acc_cnt);
+            assert(r);
+          }
+          return true;
+        },
+      chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+    );
+    REQUIRE(acc_ptr->is_started());
+    INFO ("Acceptor created, connectors should now connect");
 
-        test_counter acc_cnt = 0;
-        acc_ptr->start( [delim, reply, &acc_cnt, &err_wq]
-                        (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
-              if (starting) {
-                auto r = tcp_start_io(io, reply, delim, acc_cnt);
-                assert(r);
-              }
-              return true;
-            },
-          chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-        );
-        REQUIRE(acc_ptr->is_started());
-        INFO ("Acceptor created, connectors should now connect");
-
-        REQUIRE(conn_fut.get() == 0u);
+    REQUIRE(conn_fut.get() == 0u);
 
         INFO ("Second iteration of connectors, after acceptor start, not in separate thread");
-        auto sz = start_connectors(in_msg_vec, interval, num_conns,
+        auto sz = start_var_connectors(in_msg_vec, interval, num_conns,
                                    delim, empty_msg, conn_cnt, err_wq);
         REQUIRE(sz == 0u);
 
