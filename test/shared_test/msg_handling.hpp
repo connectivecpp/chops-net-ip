@@ -187,17 +187,18 @@ struct fixed_size_msg_hdlr {
   using const_buf = asio::const_buffer;
 
   test_prom      prom;
-  int            max_cnt;
+  std::size_t    max_cnt;
   test_counter&  cnt;
 
-  fixed_size_msg_hdlr(test_prom p, int m, test_counter& c) :
+  fixed_size_msg_hdlr(test_prom p, std::size_t m, test_counter& c) :
       prom(std::move(p)), max_cnt(m), cnt(c) { }
 
   bool operator()(const_buf buf, chops::net::basic_io_output<IOT> io_out, endp_type endp) {
     assert(buf.size() == fixed_size_buf_size);
     ++cnt;
-    if (cnt == max_cnt) {
-      prom.set_value(static_cast<std::size_t>(cnt));
+    --max_cnt;
+    if (max_cnt == 0u) {
+      prom.set_value(0u);
     }
     return true;
   }

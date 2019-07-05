@@ -56,7 +56,8 @@
 
 using namespace chops::test;
 
-const char* test_port = "30777";
+const char* test_port_var = "30777";
+const char* test_port_fixed = "30778";
 const char* test_host = "";
 constexpr int NumMsgs = 50;
 constexpr int ReconnTime = 800;
@@ -71,11 +72,62 @@ struct no_start_io_state_chg {
   }
 };
 
+std::size_t start_fixed_connectors(int num_conns, std::size_t expected_cnt,
+                                   test_counter& conn_cnt, chops::net::err_wait_q& err_wq) {
+
+  // create another executor for a little more concurrency
+  chops::net::worker wk;
+  wk.start();
+  auto& ioc = wk.get_io_context();
+
+  std::size_t sum = 0u;
+  {
+    std::vector<chops::net::detail::tcp_connector_shared_ptr> connectors;
+    std::vector<std::future<std::size_t>> conn_futs;
+
+    chops::repeat(num_conns, [&connectors, &conn_futs, &conn_cnt, &err_wq, &ioc, expected_cnt] () {
+        auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                           std::string_view(test_port_fixed), std::string_view(test_host),
+                           std::chrono::milliseconds(ReconnTime));
+
+        connectors.push_back(conn_ptr);
+        test_prom prom;
+        conn_futs.push_back(std::move(prom.get_future()));
+
+        auto r = conn_ptr->start( [&conn_cnt, expected_cnt, &err_wq, &prom]
+                         (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
+              if (starting) {
+                auto r = io.start_io(fixed_size_buf_size,
+                                     tcp_fixed_size_msg_hdlr(std::move(prom), expected_cnt, conn_cnt));
+                assert(r);
+              }
+              return true;
+            },
+          chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+        );
+        assert (!r);
+std::cerr << "After fixed conn start, error, message: " << r << ", " << r.message() << std::endl;
+      }
+    );
+
+    // wait for futures to pop
+    for (auto& fut : conn_futs) {
+      sum += fut.get();
+    }
+    for (auto& p : connectors) {
+      p->stop();
+    }
+  }
+
+  wk.reset();
+  return sum;
+}
+
 
 void start_stop_connector(asio::io_context& ioc, int interval, chops::net::err_wait_q& err_wq) {
 
   auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                     std::string_view(test_port), std::string_view(test_host),
+                     std::string_view(test_port_var), std::string_view(test_host),
                      std::chrono::milliseconds(0)); // no reconnect logic
 
   auto r1 = conn_ptr->start( no_start_io_state_chg(), 
@@ -107,12 +159,12 @@ std::size_t start_var_connectors(const vec_buf& in_msg_vec,
 
     chops::repeat(num_conns, [&connectors, &io_wq, delim, &conn_cnt, &err_wq, &ioc] () {
         auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                           std::string_view(test_port), std::string_view(test_host),
+                           std::string_view(test_port_var), std::string_view(test_host),
                            std::chrono::milliseconds(ReconnTime));
 
         connectors.push_back(conn_ptr);
 
-        conn_ptr->start( [&io_wq, delim, &conn_cnt, &err_wq]
+        auto r = conn_ptr->start( [&io_wq, delim, &conn_cnt, &err_wq]
                          (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
               if (starting) {
                 auto r = tcp_start_io(io, false, delim, conn_cnt);
@@ -125,6 +177,7 @@ std::size_t start_var_connectors(const vec_buf& in_msg_vec,
             },
           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
         );
+        assert (!r);
       }
     );
     // get all of the io_output objects
@@ -176,7 +229,7 @@ void perform_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
 
   {
     test_counter conn_cnt = 0;
-    INFO ("First iteration of connectors, separate thread, before acceptor, num: " << num_conns);
+    INFO ("First iteration of var connectors, separate thread, before acceptor, num: " << num_conns);
 
     auto conn_fut = std::async(std::launch::async, start_var_connectors,
             std::cref(in_msg_vec), interval, num_conns,
@@ -185,10 +238,11 @@ void perform_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
     INFO ("Pausing 2 seconds to test connector re-connect timeout");
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
-    auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, test_port, "", true);
+    auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                                                               test_port_var, "", true);
 
     test_counter acc_cnt = 0;
-    acc_ptr->start( [delim, reply, &acc_cnt, &err_wq]
+    auto r = acc_ptr->start( [delim, reply, &acc_cnt, &err_wq]
                     (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
           if (starting) {
             auto r = tcp_start_io(io, reply, delim, acc_cnt);
@@ -198,35 +252,83 @@ void perform_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
         },
       chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
     );
+    REQUIRE_FALSE (r);
     REQUIRE(acc_ptr->is_started());
     INFO ("Acceptor created, connectors should now connect");
 
     REQUIRE(conn_fut.get() == 0u);
 
-        INFO ("Second iteration of connectors, after acceptor start, not in separate thread");
-        auto sz = start_var_connectors(in_msg_vec, interval, num_conns,
-                                   delim, empty_msg, conn_cnt, err_wq);
-        REQUIRE(sz == 0u);
+    INFO ("Second iteration of var connectors, after acceptor start, not in separate thread");
+    auto sz = start_var_connectors(in_msg_vec, interval, num_conns,
+                               delim, empty_msg, conn_cnt, err_wq);
+    REQUIRE(sz == 0u);
 
-        INFO ("Test simple start and stop of a single connector, not in separate thread");
-        start_stop_connector(ioc, interval, err_wq);
+    INFO ("Test simple start and stop of a single connector, not in separate thread");
+    start_stop_connector(ioc, interval, err_wq);
 
-        acc_ptr->stop();
-        INFO ("Acceptor stopped");
+    acc_ptr->stop();
+    INFO ("Acceptor stopped");
 
-        while (!err_wq.empty()) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::size_t total_msgs = 2 * num_conns * in_msg_vec.size();
+    REQUIRE (total_msgs == acc_cnt);
+    if (reply) {
+      REQUIRE (total_msgs == conn_cnt);
+    }
+  }
+
+  {
+    INFO ("Fixed size msg connectors, starting acceptor, num: " << num_conns);
+
+    std::promise<std::size_t> prom;
+    auto start_fut = prom.get_future();
+    auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
+                                                           test_port_fixed, "", true);
+    auto r = acc_ptr->start( [num_conns, &prom]
+                    (chops::net::tcp_io_interface io, std::size_t num, bool starting ) mutable {
+          if (starting) {
+            auto r = io.start_io();
+            assert(r);
+            if (num == num_conns) {
+              prom.set_value(num);
+            }
+          }
+          return true;
+        },
+      chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+    );
+    REQUIRE_FALSE (r);
+    REQUIRE (acc_ptr->is_started());
+
+    test_counter conn_cnt = 0;
+    auto conn_fut = std::async(std::launch::async, start_fixed_connectors,
+                               num_conns, fixed_msg_vec.size(),
+                               std::ref(conn_cnt), std::ref(err_wq));
+    auto n = start_fut.get();
+    REQUIRE (n == num_conns);
+    for (const auto& buf : fixed_msg_vec) {
+      n = acc_ptr->visit_io_output([&buf] (chops::net::tcp_io_output io) {
+          io.send(buf);
         }
-        err_wq.close();
-        auto err_cnt = err_fut.get();
-        INFO ("Num err messages in sink: " << err_cnt);
+      );
+std::cerr << "Visit_io_output returned: " << n << std::endl;
+      assert (n == num_conns);
+    }
 
-        std::size_t total_msgs = 2 * num_conns * in_msg_vec.size();
-        REQUIRE (total_msgs == acc_cnt);
-        if (reply) {
-          REQUIRE (total_msgs == conn_cnt);
-        }
-      }
+    auto t = conn_fut.get();
+    REQUIRE (t == 0u);
+
+    acc_ptr->stop();
+    INFO ("Acceptor stopped");
+
+    REQUIRE (conn_cnt == (num_conns * fixed_msg_vec.size()));
+  }
+
+  while (!err_wq.empty()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  err_wq.close();
+  auto err_cnt = err_fut.get();
+  INFO ("Num err messages passed thru error queue: " << err_cnt);
 
   wk.reset();
 

@@ -198,7 +198,6 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
                        tcp_fixed_size_msg_hdlr(std::move(prom), fixed_msg_vec.size(), cnt)));
 
     auto mh_cnt = mh_fut.get(); // pops when cnt max reached
-    REQUIRE (mh_cnt == fixed_msg_vec.size());
     iohp->stop_io(); // should cause notify future to pop
     auto acc_err = fut.get();
 

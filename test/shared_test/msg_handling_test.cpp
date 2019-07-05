@@ -272,19 +272,27 @@ SCENARIO ( "Message handling shared test utility, fixed size message handling",
 
     WHEN ("a fixed size msg hdlr is created and msg hdlr invoked") {
       test_counter cnt(0);
-      test_prom prom;
-      auto fut = prom.get_future();
-      fixed_size_msg_hdlr<io_handler_mock> mh(std::move(prom), 5, cnt);
-      THEN ("the count is incremented correctly and a promise is satisfied") {
-        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
-        REQUIRE(cnt == 1);
-        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
-        REQUIRE(cnt == 2);
-        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
-        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
-        REQUIRE(mh(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
-        auto s = fut.get();
-        REQUIRE (s == 5u);
+      test_prom prom1;
+      test_prom prom2;
+      auto fut1 = prom1.get_future();
+      auto fut2 = prom2.get_future();
+      fixed_size_msg_hdlr<io_handler_mock> mh1(std::move(prom1), 5u, cnt);
+      fixed_size_msg_hdlr<io_handler_mock> mh2(std::move(prom2), 4u, cnt);
+      THEN ("the count is incremented correctly and promises are satisfied") {
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(cnt == 3);
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(cnt == 5);
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(fut1.get() == 0u);
+        REQUIRE(fut2.get() == 0u);
+        REQUIRE(cnt == 9);
       }
     }
   } // end given
