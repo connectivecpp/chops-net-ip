@@ -209,25 +209,26 @@ private:
     }
     auto self = shared_from_this();
     m_acceptor.async_accept( [this, self] 
-            (const std::error_code& err, asio::ip::tcp::socket sock) mutable {
+            (const std::error_code& err, asio::ip::tcp::socket sock) {
         if (err || m_shutting_down ) {
           return;
         }
         tcp_io_shared_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
-        // this is invoked only on async accept, so no danger of calling into app code during the
-        // start method call
-        if (m_entity_common.call_io_state_chg_cb(iop, (m_io_handlers.size()+1u), true)) {
-          m_io_handlers.push_back(iop);
-          start_accept();
-          return;
-        }
-        // state change returned false
-        m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
-        asio::post(m_ioc, [this, self] () mutable {
+        m_io_handlers.push_back(iop);
+        asio::post(m_ioc, [this, self, iop] () {
+            // this is invoked only on async accept, so no danger of calling into app code during the
+            // start method call
+            if (m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true)) {
+              return;
+            }
+            // state change returned false, so start shutdown
+            chops::erase_where(m_io_handlers, iop);
+            m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
             close(std::make_error_code(net_ip_errc::io_state_change_terminated));
           }
         );
+        start_accept();
       }
     );
   }
