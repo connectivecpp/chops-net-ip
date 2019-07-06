@@ -150,13 +150,13 @@ public:
     auto self = shared_from_this();
     return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb),
                                  m_socket.get_executor(),
-             [this, self] () mutable { return do_start(); } );
+             [this, self] () { return do_start(); } );
   }
 
   std::error_code stop() {
     auto self = shared_from_this();
     return m_entity_common.stop(m_socket.get_executor(),
-             [this, self] () mutable {
+             [this, self] () {
                close(std::make_error_code(net_ip_errc::tcp_connector_stopped));
                return std::error_code();
              }
@@ -182,7 +182,7 @@ private:
       auto self = shared_from_this();
       m_resolver.make_endpoints(false, m_remote_host, m_remote_port,
         [this, self] 
-             (std::error_code err, resolver_results res) mutable {
+             (std::error_code err, resolver_results res) {
           if (err || m_state != resolving) {
             m_state = stopped;
             close(err);
@@ -262,7 +262,7 @@ private:
     auto self = shared_from_this();
     asio::async_connect(m_socket, m_endpoints.cbegin(), m_endpoints.cend(),
           [this, self] 
-                (const std::error_code& err, endpoints_iter iter) mutable {
+                (const std::error_code& err, endpoints_iter iter) {
         handle_connect(err, iter);
       }
     );
@@ -292,7 +292,7 @@ private:
                                     std::make_error_code(net_ip_errc::tcp_connector_timeout));
       auto self = shared_from_this();
       m_timer.async_wait( [this, self] 
-                          (const std::error_code& err) mutable {
+                          (const std::error_code& err) {
           if (err || m_state != timeout) {
             close(err);
             return;
@@ -309,37 +309,21 @@ private:
     // start method call
     m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                   std::make_error_code(net_ip_errc::tcp_connector_connected));
-    if (!m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true)) {
-      // in close method, the connected state logic will kick in
-      close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-    }
+    m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true);
   }
 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    // two ways to get here: tcp_io object closed within itself - error, msg handler
-    // callback false return, stop_io directly called - or TCP connector had stop called, 
-    // which resulted in TCP connector calling tcp_io stop_io.
+    // two ways to get here: tcp_io object closed from error, or tcp_io object closed
+    // from stop_io, either by tcp_connector stop, or directly by app
     m_io_handler.reset();
     m_entity_common.call_error_cb(iop, err);
-
-    auto self = shared_from_this();
     // notify app of tcp_io object shutting down
-    auto res = m_entity_common.call_io_state_chg_cb(iop, 0, false);
-    if (m_state == connected && res && m_reconn_time != std::chrono::milliseconds(0)) {
-      asio::post(m_socket.get_executor(), [this, self] {
-          start_connect();
-        }
-      );
+    m_entity_common.call_io_state_chg_cb(iop, 0, false);
+    if (m_state == connected && m_reconn_time != std::chrono::milliseconds(0)) {
+      start_connect();
       return;
     }
-    std::error_code ec = std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted);
-    if (!res) {
-      ec = std::make_error_code(net_ip_errc::io_state_change_terminated);
-    }
-    asio::post(m_socket.get_executor(), [this, self, ec] {
-        finish_close(ec);
-      }
-    );
+    finish_close(std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted));
   }
 
 };

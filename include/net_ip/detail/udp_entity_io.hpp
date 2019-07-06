@@ -137,7 +137,7 @@ public:
     // send to executor for concurrency protection
     asio::post(m_socket.get_executor(), [this, self, &func, p = std::move(prom)] () mutable {
         if (m_io_common.is_io_started()) {
-          func(basic_io_output<udp_entity_io>(self));
+          func(basic_io_output<udp_entity_io>(weak_from_this()));
           p.set_value(1u);
         }
         else {
@@ -157,7 +157,7 @@ public:
     auto self = shared_from_this();
     return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb),
                                  m_socket.get_executor(),
-             [this, self] () mutable { return do_start(); } );
+             [this, self] () { return do_start(); } );
   }
 
   template <typename MH>
@@ -218,7 +218,7 @@ std::cerr << "Inside start_io no read dos, endp: " << endp << std::endl;
   std::error_code stop() {
     auto self = shared_from_this();
     return m_entity_common.stop(m_socket.get_executor(),
-             [this, self] () mutable {
+             [this, self] () {
                close(std::make_error_code(net_ip_errc::udp_entity_stopped));
                return std::error_code();
              }
@@ -249,7 +249,7 @@ private:
               asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
               m_sender_endp,
                 [this, self, mh = std::move(msg_hdlr)] 
-                  (const std::error_code& err, std::size_t nb) mutable {
+                  (const std::error_code& err, std::size_t nb) {
         handle_read(err, nb, mh);
       }
     );
@@ -295,10 +295,8 @@ private:
     // post and perform it later
     auto self { shared_from_this() };
     asio::post(m_socket.get_executor(),
-      [this, self] () mutable {
-        if (!m_entity_common.call_io_state_chg_cb(self, 1, true)) {
-          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-        }
+      [this, self] () {
+        m_entity_common.call_io_state_chg_cb(self, 1, true);
       }
     );
     return { };
@@ -314,7 +312,7 @@ private:
     m_io_common.set_io_stopped();
     m_entity_common.set_stopped();
     m_io_common.clear();
-    auto b = m_entity_common.call_io_state_chg_cb(self, 0, false);
+    m_entity_common.call_io_state_chg_cb(self, 0, false);
     std::error_code ec;
     m_socket.close(ec);
     m_entity_common.call_error_cb(self, std::make_error_code(net_ip_errc::udp_entity_closed));
@@ -332,7 +330,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     return;
   }
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
-                basic_io_output<udp_entity_io>(shared_from_this()), m_sender_endp)) {
+                basic_io_output<udp_entity_io>(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
     close(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;

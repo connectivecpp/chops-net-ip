@@ -30,7 +30,6 @@ namespace net {
 enum class net_ip_errc {
   weak_ptr_expired = 1,
   message_handler_terminated = 2,
-  io_state_change_terminated = 3,
 
   io_already_started = 4,
   io_already_stopped = 5,
@@ -68,8 +67,6 @@ struct net_ip_err_category : public std::error_category {
       return "weak pointer expired";
     case net_ip_errc::message_handler_terminated:
       return "message handler terminated via false return value";
-    case net_ip_errc::io_state_change_terminated:
-      return "io state change terminated via false return value";
 
     case net_ip_errc::io_already_started:
       return "io already started";

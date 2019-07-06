@@ -137,7 +137,7 @@ public:
   bool start_io() {
     return start_io(1, 
                     [] (asio::const_buffer, basic_io_output<tcp_io>, 
-                        asio::ip::tcp::endpoint) mutable {
+                        asio::ip::tcp::endpoint) {
                           return true;
                     }, null_msg_frame );
   }
@@ -204,7 +204,7 @@ private:
     auto self { shared_from_this() };
     asio::async_read(m_socket, mbuf,
       [this, self, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
-            (const std::error_code& err, std::size_t nb) mutable {
+            (const std::error_code& err, std::size_t nb) {
         handle_read(mbuf, err, nb, std::move(mh), std::move(mf));
       }
     );
@@ -218,7 +218,7 @@ private:
   void start_read_until(MH&& msg_hdlr) {
     auto self { shared_from_this() };
     asio::async_read_until(m_socket, asio::dynamic_buffer(m_byte_vec), m_delimiter,
-      [this, self, mh = std::move(msg_hdlr)] (const std::error_code& err, std::size_t nb) mutable {
+      [this, self, mh = std::move(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
         handle_read_until(err, nb, std::move(mh));
       }
     );
@@ -247,13 +247,13 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
   // assert num_bytes == mbuf.size()
   std::size_t next_read_size = msg_frame(mbuf);
   if (next_read_size == 0u) { // msg fully received, now invoke message handler
-    auto self { shared_from_this() };
     if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), m_byte_vec.size()), 
-                  basic_io_output<tcp_io>(self), m_remote_endp)) {
+                  basic_io_output<tcp_io>(weak_from_this()), m_remote_endp)) {
+      auto self { shared_from_this() };
       // message handler not happy, tear everything down, post function object
       // instead of directly calling close to give a return message a possibility
       // of getting through
-      asio::post(m_socket.get_executor(), [this, self, err] () mutable { 
+      asio::post(m_socket.get_executor(), [this, self, err] () { 
         close(std::make_error_code(net_ip_errc::message_handler_terminated)); } );
       return;
     }
@@ -275,11 +275,11 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
     close(err);
     return;
   }
-  auto self { shared_from_this() };
   // beginning of m_byte_vec to num_bytes is buf, includes delimiter bytes
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes),
-                basic_io_output<tcp_io>(self), m_remote_endp)) {
-      asio::post(m_socket.get_executor(), [this, self] () mutable { 
+                basic_io_output<tcp_io>(weak_from_this()), m_remote_endp)) {
+      auto self { shared_from_this() };
+      asio::post(m_socket.get_executor(), [this, self] () { 
         close(std::make_error_code(net_ip_errc::message_handler_terminated)); } );
     return;
   }

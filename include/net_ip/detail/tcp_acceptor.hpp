@@ -119,13 +119,13 @@ public:
     auto self = shared_from_this();
     return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_func),
                                  m_acceptor.get_executor(),
-             [this, self] () mutable { return do_start(); } );
+             [this, self] () { return do_start(); } );
   }
                                 
   std::error_code stop() {
     auto self = shared_from_this();
     return m_entity_common.stop(m_acceptor.get_executor(),
-             [this, self] () mutable {
+             [this, self] () {
                close(std::make_error_code(net_ip_errc::tcp_acceptor_stopped));
                return std::error_code();
              }
@@ -216,16 +216,11 @@ private:
         tcp_io_shared_ptr iop = std::make_shared<tcp_io>(std::move(sock), 
           tcp_io::entity_notifier_cb(std::bind(&tcp_acceptor::notify_me, shared_from_this(), _1, _2)));
         m_io_handlers.push_back(iop);
+        // make sure app doesn't do any strangeness during callback
+        // even if another accept completes, post order should invoke callback before next
+        // accept handler is invoked
         asio::post(m_ioc, [this, self, iop] () {
-            // this is invoked only on async accept, so no danger of calling into app code during the
-            // start method call
-            if (m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true)) {
-              return;
-            }
-            // state change returned false, so start shutdown
-            chops::erase_where(m_io_handlers, iop);
-            m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
-            close(std::make_error_code(net_ip_errc::io_state_change_terminated));
+            m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), true);
           }
         );
         start_accept();
@@ -236,21 +231,9 @@ private:
   // this code invoked via a posted function object, allowing the TCP IO handler
   // to completely shut down 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    
-    auto self = shared_from_this();
-    asio::post(m_ioc, [this, self, iop, err] () mutable {
-        chops::erase_where(m_io_handlers, iop);
-        m_entity_common.call_error_cb(iop, err);
-        // the following logic branches can be tricky; there are different paths to calling
-        // close - stop method (from app), error, or false return from state change
-        // callback; in all cases, the first time through the close method the 
-        // shutting down flag is set true, and this flag is checked in subsequent calls 
-        // to close, protecting recursive shutdown of various resources
-        if (!m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false)) {
-          close(std::make_error_code(net_ip_errc::io_state_change_terminated));
-        }
-      }
-    );
+    chops::erase_where(m_io_handlers, iop);
+    m_entity_common.call_error_cb(iop, err);
+    m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
   }
 
 };
