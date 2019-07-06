@@ -112,7 +112,7 @@ using io_output_mock = chops::net::basic_io_output<io_handler_mock>;
 
 struct net_entity_mock {
 
-  using ios_chg_func = std::function<bool (io_interface_mock, std::size_t, bool)>;
+  using ios_chg_func = std::function<void (io_interface_mock, std::size_t, bool)>;
   ios_chg_func                       io_cb;
   std::shared_ptr<io_handler_mock>   mock_ioh_sp = std::make_shared<io_handler_mock>();
   float                              mock_sock = 11.0f;

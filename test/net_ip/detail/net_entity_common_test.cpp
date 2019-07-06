@@ -36,11 +36,10 @@ struct io_state_change {
   std::size_t num = 0;
   bool ioh_valid = false;
 
-  bool operator() (chops::net::basic_io_interface<IOT> ioh, std::size_t n, bool starting) {
+  void operator() (chops::net::basic_io_interface<IOT> ioh, std::size_t n, bool starting) {
     called = true;
     num = n;
     ioh_valid = ioh.is_valid();
-    return true;
   }
 };
 
@@ -101,7 +100,7 @@ void net_entity_common_test() {
   REQUIRE_FALSE (r);
   REQUIRE (ne.is_started());
 
-  REQUIRE (ne.call_io_state_chg_cb(iohp, 43, true));
+  ne.call_io_state_chg_cb(iohp, 43, true);
   ne.call_error_cb(iohp, std::make_error_code(net_ip_errc::io_state_change_terminated));
 
   REQUIRE (io_state_chg.called);
