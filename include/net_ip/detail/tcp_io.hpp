@@ -48,7 +48,36 @@ namespace chops {
 namespace net {
 namespace detail {
 
+// helper classes for important parameters, since it's hard to do perfect forwarding
+// of captured variables in a lambda; utilities such as by Vittorio Romeo could be used,
+// but coding the old-fashioned way for now
+template <typename IOT, typename MH, typename MF>
+struct read_functor {
+  std::shared_ptr<IOT>  m_this;
+  MH&&                  m_msg_hdlr;
+  MF&&                  m_msg_frame;
+  std::size_t           m_hdr_size;
+  asio::mutable_buffer  m_buf;
+
+  read_functor(const std::shared_ptr<IOT>& sp, MH&& mh, MF&& mf, 
+               std::size_t hdr_size, asio::mutable_buffer buf) :
+                   m_this(sp), m_msg_hdlr(mh), m_msg_frame(mf),
+                   m_hdr_size(hdr_size), m_buf(buf) { }
+
+  void operator() (
+      [this, self, hdr_size, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
+            (const std::error_code& err, std::size_t nb) {
+        handle_read(mbuf, hdr_size, err, nb, std::move(mh), std::move(mf));
+      }
+};
+
+
 inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept { return 0u; }
+
+template <typename IOT>
+bool null_msg_hdlr (asio::const_buffer, basic_io_output<IOT>, asio::ip::tcp::endpoint) {
+  return true;
+}
 
 class tcp_io : public std::enable_shared_from_this<tcp_io> {
 public:
@@ -65,19 +94,17 @@ private:
   entity_notifier_cb                  m_notifier_cb;
   endpoint_type                       m_remote_endp;
 
-  // the following members are only used for read processing; they could be 
-  // passed through handlers, but are members for simplicity and to reduce 
-  // copying or moving
+  // the following member is only used for read processing; it could be 
+  // moved through handlers, but is a member for simplicity and to reduce 
+  // moving
   byte_vec                            m_byte_vec;
-  std::size_t                         m_read_size;
-  std::string                         m_delimiter;
 
 public:
 
   tcp_io(asio::ip::tcp::socket sock, entity_notifier_cb cb) noexcept : 
     m_socket(std::move(sock)), m_io_common(), 
     m_notifier_cb(cb), m_remote_endp(),
-    m_byte_vec(), m_read_size(0u), m_delimiter() { }
+    m_byte_vec() { }
 
 private:
   // no copy or assignment semantics for this class
@@ -106,9 +133,8 @@ public:
     if (!start_io_setup()) {
       return false;
     }
-    m_read_size = header_size;
-    m_byte_vec.resize(m_read_size);
-    start_read(asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
+    m_byte_vec.resize(header_size);
+    start_read(asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()), header_size,
                std::forward<MH>(msg_handler), std::forward<MF>(msg_frame));
     return true;
   }
@@ -124,8 +150,8 @@ public:
     if (!start_io_setup()) {
       return false;
     }
-    m_delimiter = delimiter;
-    start_read_until(std::forward<MH>(msg_handler));
+    // not sure of delimiter std::string_view lifetime, so create string
+    start_read_until(std::string(delimiter), std::forward<MH>(msg_handler));
     return true;
   }
 
@@ -135,11 +161,7 @@ public:
   }
 
   bool start_io() {
-    return start_io(1, 
-                    [] (asio::const_buffer, basic_io_output<tcp_io>, 
-                        asio::ip::tcp::endpoint) {
-                          return true;
-                    }, null_msg_frame );
+    return start_io(1, null_msg_hdlr<tcp_io>, null_msg_frame);
   }
 
 
@@ -198,34 +220,32 @@ private:
   }
 
   template <typename MH, typename MF>
-  void start_read(asio::mutable_buffer mbuf, MH&& msg_hdlr, MF&& msg_frame) {
-    // std::move in lambda instead of std::forward since an explicit copy or move of the function
-    // object is desired so there are no dangling references
+  void start_read(asio::mutable_buffer mbuf, std::size_t hdr_size, MH&& msg_hdlr, MF&& msg_frame) {
     auto self { shared_from_this() };
     asio::async_read(m_socket, mbuf,
-      [this, self, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
+      [this, self, hdr_size, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
             (const std::error_code& err, std::size_t nb) {
-        handle_read(mbuf, err, nb, std::move(mh), std::move(mf));
+        handle_read(mbuf, hdr_size, err, nb, std::move(mh), std::move(mf));
       }
     );
   }
 
   template <typename MH, typename MF>
-  void handle_read(asio::mutable_buffer, 
+  void handle_read(asio::mutable_buffer, std::size_t,
                    const std::error_code&, std::size_t, MH&&, MF&&);
 
   template <typename MH>
-  void start_read_until(MH&& msg_hdlr) {
+  void start_read_until(const std::string& delim, MH&& msg_hdlr) {
     auto self { shared_from_this() };
-    asio::async_read_until(m_socket, asio::dynamic_buffer(m_byte_vec), m_delimiter,
-      [this, self, mh = std::move(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
-        handle_read_until(err, nb, std::move(mh));
+    asio::async_read_until(m_socket, asio::dynamic_buffer(m_byte_vec), delim,
+      [this, self, delim, mh = std::move(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
+        handle_read_until(delim, err, nb, std::move(mh));
       }
     );
   }
 
   template <typename MH>
-  void handle_read_until(const std::error_code&, std::size_t, MH&&);
+  void handle_read_until(const std::string&, const std::error_code&, std::size_t, MH&&);
 
   void start_write(const chops::const_shared_buffer&);
 
@@ -236,7 +256,7 @@ private:
 // method implementations, just to make the class declaration a little more readable
 
 template <typename MH, typename MF>
-void tcp_io::handle_read(asio::mutable_buffer mbuf, 
+void tcp_io::handle_read(asio::mutable_buffer mbuf, std::size_t hdr_size,
                          const std::error_code& err, std::size_t /* num_bytes */,
                          MH&& msg_hdlr, MF&& msg_frame) {
 
@@ -253,11 +273,11 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
       // message handler not happy, tear everything down, post function object
       // instead of directly calling close to give a return message a possibility
       // of getting through
-      asio::post(m_socket.get_executor(), [this, self, err] () { 
+      asio::post(m_socket.get_executor(), [this, self] () { 
         close(std::make_error_code(net_ip_errc::message_handler_terminated)); } );
       return;
     }
-    m_byte_vec.resize(m_read_size);
+    m_byte_vec.resize(hdr_size);
     mbuf = asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size());
   }
   else {
@@ -265,11 +285,12 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf,
     m_byte_vec.resize(old_size + next_read_size);
     mbuf = asio::mutable_buffer(m_byte_vec.data() + old_size, next_read_size);
   }
-  start_read(mbuf, std::forward<MH>(msg_hdlr), std::forward<MF>(msg_frame));
+  start_read(mbuf, hdr_size, std::forward<MH>(msg_hdlr), std::forward<MF>(msg_frame));
 }
 
 template <typename MH>
-void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
+void tcp_io::handle_read_until(const std::string& delim, const std::error_code& err, 
+                               std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
     close(err);
@@ -284,7 +305,7 @@ void tcp_io::handle_read_until(const std::error_code& err, std::size_t num_bytes
     return;
   }
   m_byte_vec.erase(m_byte_vec.begin(), m_byte_vec.begin() + num_bytes);
-  start_read_until(std::forward<MH>(msg_hdlr));
+  start_read_until(delim, std::forward<MH>(msg_hdlr));
 }
 
 
