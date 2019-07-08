@@ -12,8 +12,6 @@ Significant API and internal changes have been made.
 
 - There is no longer a `basic_net_entity` class. It is now `net_entity` and is not a class template. (Motivation: simplify usage of `net_entity` class.)
 
-- State change callback now returns a `bool` (instead of `void`). (Motivation: provide another path for shutting down a network entity, e.g. TCP connector can be shut down by returning `false`.)
-
 - The message handler callback interface now provides a `basic_io_output` (either a `tcp_io_output` or a `udp_io_output`) instead of a `basic_io_interface`. (Motivation: constrain possibilities within a message callback reply.)
 
 - `get_socket` is now `visit_socket` with a different signature (now takes a function object instead of returning a socket reference). (Motivation: simplifies template method design.)
@@ -21,6 +19,8 @@ Significant API and internal changes have been made.
 - `net_entity` now has a `visit_io_output` method to allow passing data into all available `basic_io_output` objects associated with that `net_entity`. (Motivation: consistency with `visit_socket` and simplifies template method design.)
 
 - `io_interface.hpp` is now named `io_type_decls.hpp`, which contains `using` declarations to instantiate `basic_io_interface` and `basic_io_output` with `tcp_io` and `udp_io`. (Motivation: `using` declarations are for two different class templates, both related to IO.)
+
+- The TCP connector timeout parameter has been enhanced into a timeout function object, allowing customization of the timeout value (e.g. providing an exponential backoff).
 
 - All exception throwing within Chops Net IP has been removed, and error returns in many places have been replaced with a `std::expected` return (currently using the `nonstd` namespace instead of `std` through Martin Moene's `expected-lite` library). (Motivation: remove need for `try`, `catch` blocks, provide useful error return information.)
 
