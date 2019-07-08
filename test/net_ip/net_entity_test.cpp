@@ -41,7 +41,7 @@
 #include "net_ip_component/error_delivery.hpp"
 
 #include "shared_test/msg_handling.hpp"
-#include "shared_test/start_funcs.hpp"
+#include "shared_test/msg_handling_start_funcs.hpp"
 
 using namespace chops::test;
 using tcp_out_wq = chops::wait_queue<chops::net::tcp_io_output>;

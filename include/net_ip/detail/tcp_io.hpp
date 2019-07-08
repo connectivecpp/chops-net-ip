@@ -119,7 +119,7 @@ public:
   template <typename MH>
   bool start_io(std::size_t header_size, MH&& msg_handler, hdr_decoder_func func) {
     return start_io(header_size, std::forward<MH>(msg_handler), 
-                               simple_variable_len_msg_frame(func));
+                                 simple_variable_len_msg_frame(func));
   }
 
   template <typename MH>
@@ -212,7 +212,7 @@ private:
                    const std::error_code&, std::size_t, MH&&, MF&&);
 
   template <typename MH>
-  void start_read_until(const std::string& delim, MH&& msg_hdlr) {
+  void start_read_until(std::string delim, MH&& msg_hdlr) {
     auto self { shared_from_this() };
     asio::async_read_until(m_socket, asio::dynamic_buffer(m_byte_vec), delim,
       [this, self, delim, msg_hdlr = CHOPS_FWD_CAPTURE(msg_hdlr)] 
@@ -223,7 +223,7 @@ private:
   }
 
   template <typename MH>
-  void handle_read_until(const std::string&, const std::error_code&, std::size_t, MH&&);
+  void handle_read_until(std::string, const std::error_code&, std::size_t, MH&&);
 
   void start_write(const chops::const_shared_buffer&);
 
@@ -267,7 +267,7 @@ void tcp_io::handle_read(asio::mutable_buffer mbuf, std::size_t hdr_size,
 }
 
 template <typename MH>
-void tcp_io::handle_read_until(const std::string& delim, const std::error_code& err, 
+void tcp_io::handle_read_until(std::string delim, const std::error_code& err, 
                                std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {

@@ -34,7 +34,7 @@
 #include "net_ip_component/output_queue_stats.hpp"
 
 #include "shared_test/msg_handling.hpp"
-#include "shared_test/start_funcs.hpp"
+#include "shared_test/msg_handling_start_funcs.hpp"
 
 #include "marshall/shared_buffer.hpp"
 #include "utility/repeat.hpp"
