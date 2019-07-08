@@ -23,14 +23,8 @@
 #include "asio/ip/udp.hpp" // udp endpoint
 
 #include "net_ip/io_type_decls.hpp"
-#include "net_ip/simple_variable_len_msg_frame.hpp"
-#include "net_ip/net_entity.hpp"
 
 #include "shared_test/msg_handling.hpp"
-
-#include "net_ip_component/io_state_change.hpp"
-#include "net_ip_component/io_output_delivery.hpp"
-#include "net_ip_component/error_delivery.hpp"
 
 namespace chops {
 namespace test {
@@ -63,54 +57,6 @@ inline auto udp_start_io (chops::net::udp_io_interface io, bool receiving, test_
 inline asio::ip::udp::endpoint make_udp_endpoint(const char* addr, int port_num) {
   return asio::ip::udp::endpoint(asio::ip::make_address(addr),
                            static_cast<unsigned short>(port_num));
-}
-
-
-inline auto get_tcp_io_futures(chops::net::net_entity ent, chops::net::err_wait_q& wq,
-                               bool reply, std::string_view delim, test_counter& cnt) {
-  return delim.empty() ? 
-    chops::net::make_io_output_future_pair<chops::net::tcp_io>(ent,
-           chops::net::make_simple_variable_len_msg_frame_io_state_change(2, 
-                                                                          tcp_msg_hdlr(reply, cnt),
-                                                                          decode_variable_len_msg_hdr),
-           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq)) :
-    chops::net::make_io_output_future_pair<chops::net::tcp_io>(ent,
-           chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
-}
-
-inline auto start_tcp_acceptor(chops::net::net_entity acc, chops::net::err_wait_q& wq,
-                               bool reply, std::string_view delim, test_counter& cnt) {
-
-  return delim.empty() ?
-    acc.start(chops::net::make_simple_variable_len_msg_frame_io_state_change(2,
-                                                                             tcp_msg_hdlr(reply, cnt),
-                                                                             decode_variable_len_msg_hdr),
-           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq)) :
-    acc.start(chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
-}
-
-inline auto get_udp_io_future(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
-                              bool reply, test_counter& cnt) {
-  return chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
-           chops::net::make_read_io_state_change(udp_max_buf_size, udp_msg_hdlr(reply, cnt)),
-           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
-}
-
-inline auto get_udp_io_future(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
-                              bool receiving, test_counter& cnt,
-                              const asio::ip::udp::endpoint& remote_endp) {
-
-  return receiving ?
-    chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
-             chops::net::make_default_endp_io_state_change(remote_endp, 
-                                                           udp_max_buf_size, 
-                                                           udp_msg_hdlr(false, cnt)),
-             chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq)) :
-    chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
-           chops::net::make_send_only_default_endp_io_state_change(remote_endp),
-           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
 }
 
 } // end namespace test

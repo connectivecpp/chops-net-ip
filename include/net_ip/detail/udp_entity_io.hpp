@@ -41,6 +41,7 @@
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "marshall/shared_buffer.hpp"
+#include "utility/forward_capture.hpp"
 
 //////
 #include <iostream>
@@ -80,15 +81,14 @@ private:
   endpoint_type                     m_default_dest_endp;
   std::string                       m_local_port_or_service;
   std::string                       m_local_intf;
+  bool                              m_shutting_down;
 
   // TODO: multicast stuff
 
   // following members could be passed through handler, but are members for 
   // simplicity and less copying
   byte_vec                          m_byte_vec;
-  std::size_t                       m_max_size;
   endpoint_type                     m_sender_endp;
-  bool                              m_shutting_down;
 
 public:
 
@@ -97,16 +97,18 @@ public:
     m_io_common(), m_entity_common(), m_ioc(ioc),
     m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
     m_local_port_or_service(), m_local_intf(),
-    m_byte_vec(), m_max_size(0), m_sender_endp(), 
-    m_shutting_down(false) { }
+    m_shutting_down(false),
+    m_byte_vec(), m_sender_endp() 
+    { }
 
   udp_entity_io(asio::io_context& ioc, 
                 std::string_view local_port_or_service, std::string_view local_intf) noexcept :
     m_io_common(), m_entity_common(), m_ioc(ioc),
     m_socket(ioc), m_local_endp(), m_default_dest_endp(), 
     m_local_port_or_service(local_port_or_service), m_local_intf(local_intf),
-    m_byte_vec(), m_max_size(0), m_sender_endp(), 
-    m_shutting_down(false) { }
+    m_shutting_down(false),
+    m_byte_vec(), m_sender_endp() 
+    { }
 
 private:
   // no copy or assignment semantics for this class
@@ -166,12 +168,11 @@ std::cerr << "Inside start_io uno, max_size: " << max_size << std::endl;
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
-    if (m_local_endp == endpoint_type()) { // mismatch between start_io and initalized UDP entity
+    if (m_local_endp == endpoint_type()) { // mismatch between start_io and initialized UDP entity
       return false;
     }
-    m_max_size = max_size;
 std::cerr << "Ready to start read" << std::endl;
-    start_read(std::forward<MH>(msg_handler));
+    start_read(max_size, std::forward<MH>(msg_handler));
     return true;
   }
 
@@ -184,10 +185,9 @@ std::cerr << "Inside start_io dos, max_size: " << max_size << std::endl;
     if (m_local_endp == endpoint_type()) {
       return false;
     }
-    m_max_size = max_size;
     m_default_dest_endp = endp;
 std::cerr << "Ready to start read" << std::endl;
-    start_read(std::forward<MH>(msg_handler));
+    start_read(max_size, std::forward<MH>(msg_handler));
     return true;
   }
 
@@ -242,21 +242,21 @@ std::cerr << "Inside start_io no read dos, endp: " << endp << std::endl;
 private:
 
   template <typename MH>
-  void start_read(MH&& msg_hdlr) {
+  void start_read(std::size_t max_size, MH&& msg_hdlr) {
+    m_byte_vec.resize(max_size);
     auto self { shared_from_this() };
-    m_byte_vec.resize(m_max_size);
     m_socket.async_receive_from(
               asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
               m_sender_endp,
-                [this, self, mh = std::move(msg_hdlr)] 
+                [this, self, max_size, msg_hdlr = CHOPS_FWD_CAPTURE(msg_hdlr)] 
                   (const std::error_code& err, std::size_t nb) {
-        handle_read(err, nb, mh);
+        handle_read(max_size, err, nb, access(msg_hdlr));
       }
     );
   }
 
   template <typename MH>
-  void handle_read(const std::error_code&, std::size_t, MH&&);
+  void handle_read(std::size_t, const std::error_code&, std::size_t, MH&&);
 
   void start_write(const udp_queue_element&);
 
@@ -323,7 +323,8 @@ private:
 // method implementations, split out just to make the class declaration a little more readable
 
 template <typename MH>
-void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
+void udp_entity_io::handle_read(std::size_t max_size, const std::error_code& err, 
+                                std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
     close(err);
@@ -335,7 +336,7 @@ void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_byte
     close(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;
   }
-  start_read(std::forward<MH>(msg_hdlr));
+  start_read(max_size, std::forward<MH>(msg_hdlr));
 }
 
 inline void udp_entity_io::start_write(const udp_queue_element& e) {

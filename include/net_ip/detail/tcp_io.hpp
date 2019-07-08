@@ -43,34 +43,11 @@
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 
 #include "marshall/shared_buffer.hpp"
+#include "utility/forward_capture.hpp"
 
 namespace chops {
 namespace net {
 namespace detail {
-
-// helper classes for important parameters, since it's hard to do perfect forwarding
-// of captured variables in a lambda; utilities such as by Vittorio Romeo could be used,
-// but coding the old-fashioned way for now
-template <typename IOT, typename MH, typename MF>
-struct read_functor {
-  std::shared_ptr<IOT>  m_this;
-  MH&&                  m_msg_hdlr;
-  MF&&                  m_msg_frame;
-  std::size_t           m_hdr_size;
-  asio::mutable_buffer  m_buf;
-
-  read_functor(const std::shared_ptr<IOT>& sp, MH&& mh, MF&& mf, 
-               std::size_t hdr_size, asio::mutable_buffer buf) :
-                   m_this(sp), m_msg_hdlr(mh), m_msg_frame(mf),
-                   m_hdr_size(hdr_size), m_buf(buf) { }
-
-  void operator() (
-      [this, self, hdr_size, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
-            (const std::error_code& err, std::size_t nb) {
-        handle_read(mbuf, hdr_size, err, nb, std::move(mh), std::move(mf));
-      }
-};
-
 
 inline std::size_t null_msg_frame (asio::mutable_buffer) noexcept { return 0u; }
 
@@ -223,9 +200,9 @@ private:
   void start_read(asio::mutable_buffer mbuf, std::size_t hdr_size, MH&& msg_hdlr, MF&& msg_frame) {
     auto self { shared_from_this() };
     asio::async_read(m_socket, mbuf,
-      [this, self, hdr_size, mbuf, mh = std::move(msg_hdlr), mf = std::move(msg_frame)]
-            (const std::error_code& err, std::size_t nb) {
-        handle_read(mbuf, hdr_size, err, nb, std::move(mh), std::move(mf));
+      [this, self, hdr_size, mbuf, msg_hdlr = CHOPS_FWD_CAPTURE(msg_hdlr), msg_frame = CHOPS_FWD_CAPTURE(msg_frame)]
+            (const std::error_code& err, std::size_t nb) mutable {
+        handle_read(mbuf, hdr_size, err, nb, access(msg_hdlr), access(msg_frame));
       }
     );
   }
@@ -238,8 +215,9 @@ private:
   void start_read_until(const std::string& delim, MH&& msg_hdlr) {
     auto self { shared_from_this() };
     asio::async_read_until(m_socket, asio::dynamic_buffer(m_byte_vec), delim,
-      [this, self, delim, mh = std::move(msg_hdlr)] (const std::error_code& err, std::size_t nb) {
-        handle_read_until(delim, err, nb, std::move(mh));
+      [this, self, delim, msg_hdlr = CHOPS_FWD_CAPTURE(msg_hdlr)] 
+            (const std::error_code& err, std::size_t nb) mutable {
+        handle_read_until(delim, err, nb, access(msg_hdlr));
       }
     );
   }

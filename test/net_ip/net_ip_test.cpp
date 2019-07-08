@@ -53,6 +53,54 @@ constexpr int udp_port_base = 31445;
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
+
+auto get_tcp_io_futures(chops::net::net_entity ent, chops::net::err_wait_q& wq,
+                        bool reply, std::string_view delim, test_counter& cnt) {
+  return delim.empty() ? 
+    chops::net::make_io_output_future_pair<chops::net::tcp_io>(ent,
+           chops::net::make_simple_variable_len_msg_frame_io_state_change(2, 
+                                                                          tcp_msg_hdlr(reply, cnt),
+                                                                          decode_variable_len_msg_hdr),
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq)) :
+    chops::net::make_io_output_future_pair<chops::net::tcp_io>(ent,
+           chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
+}
+
+auto start_tcp_acceptor(chops::net::net_entity acc, chops::net::err_wait_q& wq,
+                        bool reply, std::string_view delim, test_counter& cnt) {
+
+  return delim.empty() ?
+    acc.start(chops::net::make_simple_variable_len_msg_frame_io_state_change(2,
+                                                                             tcp_msg_hdlr(reply, cnt),
+                                                                             decode_variable_len_msg_hdr),
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq)) :
+    acc.start(chops::net::make_delimiter_read_io_state_change(delim, tcp_msg_hdlr(reply, cnt)),
+           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(wq));
+}
+
+auto get_udp_io_future(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
+                       bool reply, test_counter& cnt) {
+  return chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
+           chops::net::make_read_io_state_change(udp_max_buf_size, udp_msg_hdlr(reply, cnt)),
+           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
+}
+
+auto get_udp_io_future(chops::net::net_entity udp_ent, chops::net::err_wait_q& wq,
+                       bool receiving, test_counter& cnt,
+                       const asio::ip::udp::endpoint& remote_endp) {
+
+  return receiving ?
+    chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
+             chops::net::make_default_endp_io_state_change(remote_endp, 
+                                                           udp_max_buf_size, 
+                                                           udp_msg_hdlr(false, cnt)),
+             chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq)) :
+    chops::net::make_io_output_future<chops::net::udp_io>(udp_ent,
+           chops::net::make_send_only_default_endp_io_state_change(remote_endp),
+           chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(wq));
+}
+
 std::size_t acc_conn_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
                            const vec_buf& in_msg_vec, bool reply, int num_conns,
                            std::string_view delim, chops::const_shared_buffer empty_msg) {
