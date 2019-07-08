@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Test the start function utility code shared 
+ *  @brief Test the msg handling start function utility code shared 
  *  between @c net_ip tests.
  *
  *  @author Cliff Green
@@ -26,40 +26,13 @@
 #include "net_ip_component/io_state_change.hpp"
 #include "net_ip_component/io_output_delivery.hpp"
 
-#include "shared_test/msg_handling.hpp"
-#include "shared_test/start_funcs.hpp"
+#include "shared_test/msg_handling_start_funcs.hpp"
 
-// currently these tests won't run, they are in place for compile testing
+// currently nothing in place
 
-SCENARIO ( "Shared Net IP test utility, get_tcp_io_futures",
-           "[shared_utility] [tcp_io_futures]" ) {
+TEST_CASE ( "Shared Net IP test utility, msg handling start functions",
+           "[shared_utility] [msg_handling]" ) {
   using namespace chops::test;
 
-  chops::net::err_wait_q wq;
-  test_counter cnt;
-  auto futs = get_tcp_io_futures(chops::net::net_entity { }, wq,
-                                 true, std::string_view(), cnt);
-}
-
-SCENARIO ( "Shared Net IP test utility, get_udp_io_future",
-           "[shared_utility] [udp_io_future]" ) {
-  using namespace chops::test;
-
-  chops::net::err_wait_q wq;
-  test_counter cnt;
-  auto fut1 = get_udp_io_future(chops::net::net_entity { }, wq,
-                                true, cnt);
-  auto fut2 = get_udp_io_future(chops::net::net_entity { }, wq,
-                                true, cnt, asio::ip::udp::endpoint());
-}
-
-SCENARIO ( "Shared Net IP test utility, start TCP acceptor",
-           "[shared_utility] [start_tcp_acceptor]" ) {
-  using namespace chops::test;
-
-  chops::net::err_wait_q wq;
-  test_counter cnt;
-  start_tcp_acceptor(chops::net::net_entity { }, wq, 
-                     false, std::string_view(), cnt);
 }
 

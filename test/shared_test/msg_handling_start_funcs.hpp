@@ -2,8 +2,13 @@
  *
  *  @ingroup test_module
  *
- *  @brief Declarations and implementations for higher level function object utility code 
- *  shared between @c net_ip tests.
+ *  @brief Function declarations and implementations that create and start shared test 
+ *  msg handling objects.
+ *
+ *  These functions are split out from @c msg_handling.hpp because they bring in more
+ *  dependencies. In particular, @c chops::net::tcp_io and @c chops::net::udp_io declarations
+ *  are needed, which bring in @c tcp_io and @c udp_entity_io headers in the @c detail
+ *  directory.
  *
  *  @author Cliff Green
  *
@@ -14,8 +19,8 @@
  *
  */
 
-#ifndef START_FUNCS_HPP_INCLUDED
-#define START_FUNCS_HPP_INCLUDED
+#ifndef MSG_HANDLING_START_FUNCS_HPP_INCLUDED
+#define MSG_HANDLING_START_FUNCS_HPP_INCLUDED
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte
