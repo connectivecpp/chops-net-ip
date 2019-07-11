@@ -197,12 +197,11 @@ void acceptor_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
 
     test_counter recv_cnt = 0;
     acc_ptr->start( [reply, delim, &recv_cnt] 
-                      (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
+                      (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
         if (starting) {
           auto r = tcp_start_io(io, reply, delim, recv_cnt);
           assert (r);
         }
-        return true;
       },
       chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
     );
@@ -245,7 +244,6 @@ void acceptor_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
             prom.set_value(num);
           }
         }
-        return true;
       },
       chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
     );
@@ -289,16 +287,24 @@ void acceptor_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
 
     auto acc_ptr = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
                                   std::string_view(test_port), std::string_view(), true);
-    acc_ptr->start( [&err_wq] 
-          (chops::net::tcp_io_interface io, std::size_t num, bool starting )->bool {
-        return num < 4u; // when fourth connect happens, return false
+
+    std::promise<std::size_t> prom;
+    auto start_fut = prom.get_future();
+    acc_ptr->start( [&prom] (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
+        if (starting && num == 4u) { // when fourth connect happens, pop the future
+          prom.set_value(num);
+        }
       },
       chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
     );
     REQUIRE(acc_ptr->is_started());
-    start_read_only_funcs(ioc, 4);
-    // connections have been made and disconnects happened from acceptor
+    auto conn_fut = std::async(std::launch::async, start_read_only_funcs, std::ref(ioc), 4);
+    auto n = start_fut.get();
+    REQUIRE (n == 4u);
+    // connections have been made, now force disconnects through stop
     acc_ptr->stop();
+    // wait for connectors to be disconnected
+    conn_fut.get();
     REQUIRE_FALSE(acc_ptr->is_started());
   }
 

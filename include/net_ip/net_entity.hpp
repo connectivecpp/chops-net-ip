@@ -280,9 +280,9 @@ public:
  *
  *  @code
  *    // TCP:
- *    bool (chops::net::tcp_io_interface, std::size_t, bool);
+ *    void (chops::net::tcp_io_interface, std::size_t, bool);
  *    // UDP:
- *    bool (chops::net::udp_io_interface, std::size_t, bool);
+ *    void (chops::net::udp_io_interface, std::size_t, bool);
  *  @endcode
  *
  *  The parameters are as follows:
@@ -297,14 +297,6 @@ public:
  *  3) If @c true, the @c basic_io_interface has just been created (i.e. a TCP connection 
  *  has been created or a UDP socket is ready), and if @c false, the connection or socket
  *  has been destroyed or closed.
- *
- *  The return value specifies whether the net entity should continue processing or not.
- *  Returning @c false is the same as calling @c stop on the entity. Returning @c true means
- *  continue as expected.
- *
- *  Use cases for returning @c false include a TCP connector that should quit attempting to
- *  connect, or a TCP acceptor that might need to be shut down when all current TCP connections
- *  have closed.
  *
  *  In both IO state change function object callback invocations the @c basic_io_interface object 
  *  is valid (@c is_valid returns @c true). For the second invocation no @c basic_io_interface 
@@ -353,7 +345,7 @@ public:
           nonstd::expected<void, std::error_code> {
     return std::visit(chops::overloaded {
         [&io_state_chg_func, &err_func] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
-          if constexpr (std::is_invocable_r_v<bool, F1, udp_io_interface, std::size_t, bool> &&
+          if constexpr (std::is_invocable_v<F1, udp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, udp_io_interface, std::error_code>) {
             return detail::wp_access_void(wp,
                 [&io_state_chg_func, &err_func] (detail::udp_entity_io_shared_ptr sp) 
@@ -362,7 +354,7 @@ public:
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&io_state_chg_func, &err_func] (const acc_wp& wp)->nonstd::expected<void, std::error_code> {
-          if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
+          if constexpr (std::is_invocable_v<F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
             return detail::wp_access_void(wp,
                 [&io_state_chg_func, &err_func] (detail::tcp_acceptor_shared_ptr sp) 
@@ -371,7 +363,7 @@ public:
           return nonstd::make_unexpected(std::make_error_code(net_ip_errc::functor_variant_mismatch));
         },
         [&io_state_chg_func, &err_func] (const conn_wp& wp)->nonstd::expected<void, std::error_code> {
-          if constexpr (std::is_invocable_r_v<bool, F1, tcp_io_interface, std::size_t, bool> &&
+          if constexpr (std::is_invocable_v<F1, tcp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, tcp_io_interface, std::error_code>) {
             return detail::wp_access_void(wp,
                 [&io_state_chg_func, &err_func] (detail::tcp_connector_shared_ptr sp) 
