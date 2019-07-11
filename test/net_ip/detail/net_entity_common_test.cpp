@@ -101,7 +101,7 @@ void net_entity_common_test() {
   REQUIRE (ne.is_started());
 
   ne.call_io_state_chg_cb(iohp, 43, true);
-  ne.call_error_cb(iohp, std::make_error_code(net_ip_errc::io_state_change_terminated));
+  ne.call_error_cb(iohp, std::make_error_code(net_ip_errc::io_already_started));
 
   REQUIRE (io_state_chg.called);
   REQUIRE (io_state_chg.ioh_valid);

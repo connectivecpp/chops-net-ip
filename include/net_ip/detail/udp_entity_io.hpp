@@ -41,7 +41,6 @@
 #include "net_ip/endpoints_resolver.hpp"
 
 #include "marshall/shared_buffer.hpp"
-#include "utility/forward_capture.hpp"
 
 //////
 #include <iostream>
@@ -248,9 +247,9 @@ private:
     m_socket.async_receive_from(
               asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
               m_sender_endp,
-                [this, self, max_size, msg_hdlr = CHOPS_FWD_CAPTURE(msg_hdlr)] 
-                  (const std::error_code& err, std::size_t nb) {
-        handle_read(max_size, err, nb, access(msg_hdlr));
+                [this, self, max_size, msg_hdlr = std::move(msg_hdlr)] 
+                  (const std::error_code& err, std::size_t nb) mutable {
+        handle_read(max_size, err, nb, std::move(msg_hdlr));
       }
     );
   }
