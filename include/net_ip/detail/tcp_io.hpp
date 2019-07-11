@@ -43,7 +43,6 @@
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 
 #include "marshall/shared_buffer.hpp"
-#include "utility/forward_capture.hpp"
 
 namespace chops {
 namespace net {
@@ -200,9 +199,9 @@ private:
   void start_read(asio::mutable_buffer mbuf, std::size_t hdr_size, MH&& msg_hdlr, MF&& msg_frame) {
     auto self { shared_from_this() };
     asio::async_read(m_socket, mbuf,
-      [this, self, hdr_size, mbuf, msg_hdlr = CHOPS_FWD_CAPTURE(msg_hdlr), msg_frame = CHOPS_FWD_CAPTURE(msg_frame)]
+      [this, self, hdr_size, mbuf, msg_hdlr = std::move(msg_hdlr), msg_frame = std::move(msg_frame)]
             (const std::error_code& err, std::size_t nb) mutable {
-        handle_read(mbuf, hdr_size, err, nb, access(msg_hdlr), access(msg_frame));
+        handle_read(mbuf, hdr_size, err, nb, std::move(msg_hdlr), std::move(msg_frame));
       }
     );
   }
@@ -215,9 +214,9 @@ private:
   void start_read_until(std::string delim, MH&& msg_hdlr) {
     auto self { shared_from_this() };
     asio::async_read_until(m_socket, asio::dynamic_buffer(m_byte_vec), delim,
-      [this, self, delim, msg_hdlr = CHOPS_FWD_CAPTURE(msg_hdlr)] 
+      [this, self, delim, msg_hdlr = std::move(msg_hdlr)] 
             (const std::error_code& err, std::size_t nb) mutable {
-        handle_read_until(delim, err, nb, access(msg_hdlr));
+        handle_read_until(delim, err, nb, std::move(msg_hdlr));
       }
     );
   }
