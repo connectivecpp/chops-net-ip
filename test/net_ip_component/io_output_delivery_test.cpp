@@ -38,9 +38,7 @@ const char* test_port_udp = "30224";
 const char* test_host = "";
 
 template <typename IOT>
-struct null_io_state_chg {
-  bool operator()(chops::net::basic_io_interface<IOT>, std::size_t, bool) const { return true; }
-};
+void null_io_state_chg (chops::net::basic_io_interface<IOT>, std::size_t, bool) { }
 
 template <typename IOT>
 void test_io_wait_q(chops::net::net_entity net_ent, chops::net::err_wait_q& err_wq,
@@ -50,7 +48,7 @@ void test_io_wait_q(chops::net::net_entity net_ent, chops::net::err_wait_q& err_
     REQUIRE (r);
     REQUIRE_FALSE (*r);
     chops::net::io_wait_q<IOT> wq;
-    auto t = chops::net::start_with_io_wait_queue<IOT>(net_ent, null_io_state_chg<IOT>(), wq, 
+    auto t = chops::net::start_with_io_wait_queue<IOT>(net_ent, null_io_state_chg<IOT>, wq, 
                                    chops::net::make_error_func_with_wait_queue<IOT>(err_wq));
     REQUIRE (t);
 
@@ -98,7 +96,7 @@ TEST_CASE ( "Testing make_io_output_future and start_with_io_wait_queue",
       REQUIRE (udp_ent.is_valid());
 
       auto fut = chops::net::make_io_output_future<chops::net::udp_io>(udp_ent, 
-                        null_io_state_chg<chops::net::udp_io>(),
+                        null_io_state_chg<chops::net::udp_io>,
                         chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq));
 
       auto r = udp_ent.is_started();
@@ -118,7 +116,7 @@ TEST_CASE ( "Testing make_io_output_future and start_with_io_wait_queue",
       REQUIRE (udp_ent.is_valid());
 
       auto pair_fut = chops::net::make_io_output_future_pair<chops::net::udp_io>(udp_ent, 
-                        null_io_state_chg<chops::net::udp_io>(),
+                        null_io_state_chg<chops::net::udp_io>,
                         chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq));
 
       auto r = udp_ent.is_started();
@@ -138,7 +136,7 @@ TEST_CASE ( "Testing make_io_output_future and start_with_io_wait_queue",
       auto acc_ent = nip.make_tcp_acceptor(test_port_acc);
       REQUIRE (acc_ent.is_valid());
 
-      auto st = acc_ent.start(null_io_state_chg<chops::net::tcp_io>(),
+      auto st = acc_ent.start(null_io_state_chg<chops::net::tcp_io>,
                               chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
       REQUIRE (st);
 
@@ -146,7 +144,7 @@ TEST_CASE ( "Testing make_io_output_future and start_with_io_wait_queue",
       REQUIRE (conn_ent.is_valid());
 
       auto conn_pair_fut = chops::net::make_io_output_future_pair<chops::net::tcp_io>(conn_ent, 
-                        null_io_state_chg<chops::net::tcp_io>(),
+                        null_io_state_chg<chops::net::tcp_io>,
                         chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
       auto r = conn_ent.is_started();
       REQUIRE (r);

@@ -108,12 +108,11 @@ auto start_with_io_wait_queue (net_entity ne,
                                io_wait_q<IOT>& wq, 
                                EF&& err_func) {
   return ne.start( [&io_start, &wq]
-                   (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
+                   (basic_io_interface<IOT> io, std::size_t num, bool starting) {
       if (starting) {
         io_start(io, num, starting);
       }
       wq.emplace_push(*(io.make_io_output()), num, starting);
-      return true;
     },
     err_func
   );
@@ -190,12 +189,11 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
   auto start_fut = start_prom_ptr->get_future();
 
   auto lam = [&io_start, start_prom_ptr] 
-                    (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
+                    (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io_start(io, num, starting);
       start_prom_ptr->set_value(*(io.make_io_output()));
     }
-    return true;
   };
   auto e = ent.start(lam, err_func);
   if (!e) { // error return from net_entity start method
@@ -242,7 +240,7 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
   auto stop_fut = stop_prom_ptr->get_future();
 
   auto lam = [&io_start, start_prom_ptr, stop_prom_ptr] 
-                (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
+                (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io_start(io, num, starting);
       start_prom_ptr->set_value(*(io.make_io_output()));
@@ -250,7 +248,6 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
     else {
       stop_prom_ptr->set_value(*(io.make_io_output()));
     }
-    return true;
   };
 
   auto e = ent.start(lam, err_func);
