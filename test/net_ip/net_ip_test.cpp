@@ -214,7 +214,8 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
   return recv_cnt;
 }
 
-void perform_test (const vec_buf& in_msg_vec, bool reply, int interval, 
+void perform_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
+                   bool reply, int interval, 
                    int num_entities, std::string_view delim, chops::const_shared_buffer empty_msg) {
 
   chops::net::worker wk;
@@ -225,11 +226,13 @@ void perform_test (const vec_buf& in_msg_vec, bool reply, int interval,
   auto err_fut = std::async(std::launch::async, chops::net::ostream_error_sink_with_wait_queue,
                             std::ref(err_wq), std::ref(std::cerr));
 
-  std::size_t total_msgs = num_entities * in_msg_vec.size();
-  auto cnt1 = acc_conn_test(ioc, err_wq, in_msg_vec, reply, num_entities, delim, empty_msg);
-  REQUIRE (cnt1 == total_msgs);
-  auto cnt2 = udp_test(ioc, err_wq, in_msg_vec, interval, num_entities, empty_msg);
-  CHECK (cnt2 == total_msgs);
+  {
+    std::size_t total_msgs = num_entities * in_msg_vec.size();
+    auto cnt1 = acc_conn_test(ioc, err_wq, in_msg_vec, reply, num_entities, delim, empty_msg);
+    REQUIRE (cnt1 == total_msgs);
+    auto cnt2 = udp_test(ioc, err_wq, in_msg_vec, interval, num_entities, empty_msg);
+    CHECK (cnt2 == total_msgs);
+  }
 
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -244,111 +247,139 @@ void perform_test (const vec_buf& in_msg_vec, bool reply, int interval,
 TEST_CASE ( "Net IP test, var len msgs, one-way, interval 50, 1 connector or pair", 
             "[netip_acc_conn] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
-  auto ms = make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs);
-  perform_test ( ms, false, 50, 1, std::string_view(), make_empty_variable_len_msg() );
+  perform_test(make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
+               make_fixed_msg_size_vec(NumMsgs),
+               false, 50, 1,
+               std::string_view(), make_empty_variable_len_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, var len msgs, one-way, interval 0, 1 connector or pair", 
             "[netip_acc_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
-  auto ms = make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs);
-  perform_test ( ms, false, 0, 1, std::string_view(), make_empty_variable_len_msg() );
+  perform_test(make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
+               make_fixed_msg_size_vec(2*NumMsgs),
+               false, 0, 1,
+               std::string_view(), make_empty_variable_len_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, var len msgs, two-way, interval 50, 1 connector or pair", 
             "[net_ip] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
-  auto ms = make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs);
-  perform_test ( ms, true, 50, 1, std::string_view(), make_empty_variable_len_msg() );
+  perform_test(make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
+               make_fixed_msg_size_vec(NumMsgs),
+               true, 50, 1,
+               std::string_view(), make_empty_variable_len_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, var len msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
             "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  auto ms = make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs);
-  perform_test ( ms, true, 0, 10, std::string_view(), make_empty_variable_len_msg() );
+  perform_test(make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
+               make_fixed_msg_size_vec(100*NumMsgs),
+               true, 0, 10,
+               std::string_view(), make_empty_variable_len_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, var len msgs, two-way, interval 0, 40 connectors or pairs", 
             "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_40] [many]" ) {
 
-  auto ms = make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 100*NumMsgs);
-  perform_test ( ms, true, 0, 40, std::string_view(), make_empty_variable_len_msg() );
+  perform_test(make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 100*NumMsgs),
+               make_fixed_msg_size_vec(100*NumMsgs),
+               true, 0, 40,
+               std::string_view(), make_empty_variable_len_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, CR / LF msgs, one-way, interval 50, 1 connector or pair", 
             "[net_ip] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
-  auto ms = make_msg_vec (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs);
-  perform_test ( ms, false, 50, 1, std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test(make_msg_vec (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', NumMsgs),
+               make_fixed_msg_size_vec(NumMsgs),
+               false, 50, 1,
+               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, CR / LF msgs, one-way, interval 50, 10 connectors or pairs", 
             "[net_ip] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
-  auto ms = make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs);
-  perform_test ( ms, false, 50, 10, std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test(make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
+               make_fixed_msg_size_vec(NumMsgs),
+               false, 50, 10,
+               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, CR / LF msgs, one-way, interval 0, 20 connectors or pairs", 
             "[net_ip] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
-  auto ms = make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs);
-  perform_test ( ms, false, 0, 20, std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test(make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
+               make_fixed_msg_size_vec(4*NumMsgs),
+               false, 0, 20,
+               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, CR / LF msgs, two-way, interval 30, 10 connectors or pairs", 
             "[net_ip] [cr_lf_msg] [two_way] [interval_30] [connectors_10]" ) {
 
-  auto ms = make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs);
-  perform_test ( ms, true, 30, 10, std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test(make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
+               make_fixed_msg_size_vec(4*NumMsgs),
+               true, 30, 10,
+               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test, CR / LF msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
             "[net_ip] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  auto ms = make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs);
-  perform_test ( ms, true, 0, 10, std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
+  perform_test(make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
+               make_fixed_msg_size_vec(200*NumMsgs),
+               true, 0, 10,
+               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test,  LF msgs, one-way, interval 50, 1 connector or pair", 
             "[net_ip] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
-  auto ms = make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs);
-  perform_test ( ms, false, 50, 1, std::string_view("\n"), make_empty_lf_text_msg() );
+  perform_test(make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
+               make_fixed_msg_size_vec(NumMsgs),
+               false, 50, 1,
+               std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test,  LF msgs, one-way, interval 0, 25 connectors or pairs", 
             "[net_ip] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
-  auto ms = make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs);
-  perform_test ( ms, false, 0, 25, std::string_view("\n"), make_empty_lf_text_msg() );
+  perform_test(make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
+               make_fixed_msg_size_vec(6*NumMsgs),
+               false, 0, 25,
+               std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test,  LF msgs, two-way, interval 20, 15 connectors or pairs", 
             "[net_ip] [lf_msg] [two_way] [interval_20] [connectors_15]" ) {
 
-  auto ms = make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs);
-  perform_test ( ms, true, 20, 15, std::string_view("\n"), make_empty_lf_text_msg() );
+  perform_test(make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs),
+               make_fixed_msg_size_vec(2*NumMsgs),
+               true, 20, 15,
+               std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
 
 TEST_CASE ( "Net IP test,  LF msgs, two-way, interval 0, 15 connectors or pairs, many msgs", 
             "[net_ip] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
 
-  auto ms = make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs);
-  perform_test ( ms, true, 0, 15, std::string_view("\n"), make_empty_lf_text_msg() );
+  perform_test(make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs),
+               make_fixed_msg_size_vec(300*NumMsgs),
+               true, 0, 15,
+               std::string_view("\n"), make_empty_lf_text_msg() );
 
 }
