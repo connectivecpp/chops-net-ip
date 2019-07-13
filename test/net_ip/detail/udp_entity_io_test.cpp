@@ -74,7 +74,7 @@ void send_data (const vec_buf& msg_vec, int interval, const asio::ip::udp::endpo
                 std::vector<iosp>& senders, bool send_buf_only) {
 
   // send messages through all of the senders
-  std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
   for (const auto& buf : msg_vec) {
     for (auto ioh : senders) {
       if (send_buf_only) {
@@ -174,7 +174,7 @@ void udp_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
 
     // sleep to make sure recv UDP is up and running; yes, it could be done with futures, but keeping
     // it simple for this unit test
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     test_counter send_cnt = 0;
 
     INFO ("Starting first iteration of UDP senders, num: " << num_senders);
@@ -185,7 +185,7 @@ void udp_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
                       send_cnt, ioc, err_wq, recv_endp);
 
     INFO ("Pausing, then stopping receiver");
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     recv_ptr->stop();
 
     std::size_t total_msgs = 2 * num_senders * in_msg_vec.size();
@@ -223,7 +223,7 @@ void udp_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
     REQUIRE (sz == 0u);
     INFO ("Pausing, then stopping receiver");
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
     recv_ptr->stop();
 
     CHECK (recv_cnt == fixed_msg_vec.size());

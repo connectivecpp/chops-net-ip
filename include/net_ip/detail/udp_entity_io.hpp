@@ -234,6 +234,9 @@ public:
   }
 
   bool send(const chops::const_shared_buffer& buf, const endpoint_type& endp) {
+    if (endp == endpoint_type()) { // mismatch between start_io and send
+      return false;
+    }
     auto ret = m_io_common.start_write(udp_queue_element(buf, endp), 
         [this] (const udp_queue_element& e) {
           start_write(e);
