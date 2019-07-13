@@ -243,8 +243,7 @@ public:
   }
 
 /**
- *  @brief Create a TCP connector @c net_entity with the 
- *  endpoints.
+ *  @brief Create a TCP connector @c net_entity with the endpoints already created.
  *
  *  This allows flexibility in creating the remote endpoints for the connector to use.
  *
