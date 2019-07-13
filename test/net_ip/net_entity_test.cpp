@@ -57,9 +57,8 @@ constexpr int ReconnTime = 400;
 template <typename IOT>
 struct no_start_io_state_chg {
   bool called = false;
-  bool operator() (chops::net::basic_io_interface<IOT>, std::size_t, bool) {
+  void operator() (chops::net::basic_io_interface<IOT>, std::size_t, bool) {
     called = true;
-    return true;
   }
 };
 
@@ -139,24 +138,22 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   test_counter conn_cnt = 0;
 
   REQUIRE ( net_conn.start ( [&out_wq, &conn_cnt, &err_wq]
-                     (chops::net::tcp_io_interface io, std::size_t num, bool starting )-> bool {
+                     (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
         if (starting) {
           auto r = tcp_start_io(io, false, "", conn_cnt);
           assert (r);
         }
         out_wq.push(*(io.make_io_output()));
-        return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
   ) );
 
   REQUIRE ( net_acc.start ( [&acc_cnt, &err_wq] 
-                    (chops::net::tcp_io_interface io, std::size_t num, bool starting) ->bool {
+                    (chops::net::tcp_io_interface io, std::size_t num, bool starting) {
         if (starting) {
           auto r = tcp_start_io(io, true, "", acc_cnt);
           assert (r);
         }
-        return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
   ) );
@@ -197,23 +194,21 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
   test_counter send_cnt = 0;
 
   REQUIRE ( net_udp_recv.start ( [&recv_cnt, &err_wq]
-                     (chops::net::udp_io_interface io, std::size_t num, bool starting )-> bool {
+                     (chops::net::udp_io_interface io, std::size_t num, bool starting ) {
         if (starting) {
           auto r = udp_start_io(io, false, recv_cnt);
           assert (r);
         }
-        return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
   ) );
 
   REQUIRE ( net_udp_send.start ( [&send_cnt, &err_wq, &dest_endp] 
-                    (chops::net::udp_io_interface io, std::size_t num, bool starting) -> bool {
+                    (chops::net::udp_io_interface io, std::size_t num, bool starting) {
         if (starting) {
           auto r = udp_start_io(io, false, send_cnt, dest_endp);
           assert (r);
         }
-        return true;
       },
     chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
   ) );
