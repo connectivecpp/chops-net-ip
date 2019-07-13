@@ -71,13 +71,13 @@ constexpr int NumMsgs = 50;
 using iosp = chops::net::detail::udp_entity_io_shared_ptr;
 
 void send_data (const vec_buf& msg_vec, int interval, const asio::ip::udp::endpoint& recv_endp,
-                std::vector<iosp>& senders) {
+                std::vector<iosp>& senders, bool send_buf_only) {
 
   // send messages through all of the senders
   std::this_thread::sleep_for(std::chrono::milliseconds(interval));
   for (const auto& buf : msg_vec) {
     for (auto ioh : senders) {
-      if (recv_endp == asio::ip::udp::endpoint()) {
+      if (send_buf_only) {
         ioh->send(buf);
       }
       else {
@@ -122,7 +122,7 @@ void start_var_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, 
       );
     }
   );
-  send_data (in_msg_vec, interval, recv_endp, senders);
+  send_data (in_msg_vec, interval, recv_endp, senders, false);
 }
 
 void start_fixed_udp_sender(const vec_buf& fixed_msg_vec, int interval, asio::io_context& ioc, 
@@ -141,7 +141,7 @@ void start_fixed_udp_sender(const vec_buf& fixed_msg_vec, int interval, asio::io
       }, 
     chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
   );
-  send_data (fixed_msg_vec, interval, asio::ip::udp::endpoint(), senders);
+  send_data (fixed_msg_vec, interval, recv_endp, senders, true);
 }
 
 void udp_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
@@ -155,7 +155,7 @@ void udp_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
   auto err_fut = std::async(std::launch::async, chops::net::ostream_error_sink_with_wait_queue,
                             std::ref(err_wq), std::ref(std::cerr));
 
-  auto recv_endp = make_udp_endpoint(test_addr, test_port_base);
+  const auto recv_endp = make_udp_endpoint(test_addr, test_port_base);
 
   // variable sized messages, multiple senders
   {
