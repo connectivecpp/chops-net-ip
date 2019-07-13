@@ -156,7 +156,7 @@ struct net_entity_mock {
 
 };
 
-inline bool io_state_chg_mock(io_interface_mock, std::size_t, bool) { return true; }
+inline void io_state_chg_mock(io_interface_mock, std::size_t, bool) { }
 inline void err_func_mock(io_interface_mock, std::error_code) { }
 
 
