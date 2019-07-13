@@ -65,11 +65,10 @@ auto make_simple_variable_len_msg_frame_io_state_change (std::size_t hdr_size,
                                                          MH&& msg_hdlr,
                                                          hdr_decoder_func hdr_func) {
   return [hdr_size, hdr_func, mh = std::move(msg_hdlr)] 
-                  (tcp_io_interface io, std::size_t num, bool starting)->bool {
+                  (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(hdr_size, std::move(mh), hdr_func);
     }
-    return true;
   };
 }
 
@@ -95,11 +94,10 @@ auto make_msg_frame_io_state_change (std::size_t hdr_size,
                                      MH&& msg_hdlr,
                                      MF&& msg_frame) {
   return [hdr_size, mh = std::move(msg_hdlr), mf = std::move(msg_frame)] 
-                  (tcp_io_interface io, std::size_t num, bool starting)->bool {
+                  (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(hdr_size, std::move(mh), std::move(mf));
     }
-    return true;
   };
 }
 
@@ -121,11 +119,10 @@ auto make_msg_frame_io_state_change (std::size_t hdr_size,
 template <typename MH>
 auto make_delimiter_read_io_state_change (std::string_view delim, MH&& msg_hdlr) {
   return [delim, mh = std::move(msg_hdlr)] 
-                  (tcp_io_interface io, std::size_t num, bool starting)->bool {
+                  (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(delim, std::move(mh));
     }
-    return true;
   };
 }
 
@@ -148,11 +145,10 @@ auto make_delimiter_read_io_state_change (std::string_view delim, MH&& msg_hdlr)
 template <typename MH, typename IOT = udp_io>
 auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
   return [rd_size, mh = std::move(msg_hdlr)] 
-                  (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
+                  (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(rd_size, std::move(mh));
     }
-    return true;
   };
 }
 
@@ -165,11 +161,10 @@ auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
  */
 template <typename IOT>
 auto make_send_only_io_state_change () {
-  return [] (basic_io_interface<IOT> io, std::size_t num, bool starting)->bool {
+  return [] (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io();
     }
-    return true;
   };
 }
 
@@ -194,11 +189,10 @@ auto make_default_endp_io_state_change (const asio::ip::udp::endpoint& endp,
                                         std::size_t max_size,
                                         MH&& msg_hdlr) {
   return [max_size, endp, mh = std::move(msg_hdlr)] 
-                  (udp_io_interface io, std::size_t num, bool starting)->bool {
+                  (udp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(endp, max_size, std::move(mh));
     }
-    return true;
   };
 }
 
@@ -214,11 +208,10 @@ auto make_default_endp_io_state_change (const asio::ip::udp::endpoint& endp,
  */
 inline
 auto make_send_only_default_endp_io_state_change (const asio::ip::udp::endpoint& endp) {
-  return [endp] (udp_io_interface io, std::size_t num, bool starting)->bool {
+  return [endp] (udp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(endp);
     }
-    return true;
   };
 }
 
