@@ -89,7 +89,7 @@ Chops Net IP strives to provide an application customization point (via function
 - Message framing customization - decoding a header and determining how to read the rest of the message (TCP only).
 - Message handling customization - processing a message once it arrives (both TCP and UDP).
 - IO state change customization - steps to perform when a connection or socket becomes available and when the connection or socket is torn down.
-- Error notification - errors can be easily reported or collected with a function object supplied by the application (within Chops Net IP there are no direct logging mechanisms).
+- Error and log notification - errors and Chops Net IP internal log information can be easily reported or collected with a function object supplied by the application (within Chops Net IP there are no direct logging mechanisms).
 
 ### State Change Customization Point
 
@@ -151,6 +151,6 @@ Many of the public methods that call into internal handlers use a `std::future` 
 - The outgoing queue container is likely to become a template parameter. This would allow circular buffers (ring spans) or other data structures to be used instead of the default `std::queue` (which is instantiated to use a `std::deque`).
 - The reference counted outgoing buffer type is likely to become a template parameter, allowing applications to use a different reference counting scheme, or a wrapper over some form of static memory (the requirement will be that the memory is valid while the write is in progress). Alternatively, a generic copy and move, versus reference counting, may be supported in future versions.
 - Containers used internally in Chops Net IP (other than the outgoing queue) may also be templatized. These include the container used in the TCP acceptor for TCP connection objects, and the container used in the `net_ip` object that holds all of the network entities.
-- SSL support may be added, depending on collaborators with expertise being available.
+- SSL or TLS support may be added, depending on collaborators with expertise being available.
 - Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP unicast, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
 

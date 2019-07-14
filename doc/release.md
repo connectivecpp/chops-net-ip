@@ -2,7 +2,7 @@
 
 ## Release 1.0
 
-Release 1.0 is under development, expected in the summer of 2019. Additional platform and compiler testing is under way, in-depth tutorials are under development, and the marshalling library needs to be completed.
+Release 1.0 is under development, expected in late summer of 2019. Additional platform and compiler testing is under way, in-depth tutorials are under development, a few minor features are under development, and the marshalling library needs to be completed.
 
 ## Release 0.3
 
@@ -20,7 +20,7 @@ Significant API and internal changes have been made.
 
 - `io_interface.hpp` is now named `io_type_decls.hpp`, which contains `using` declarations to instantiate `basic_io_interface` and `basic_io_output` with `tcp_io` and `udp_io`. (Motivation: `using` declarations are for two different class templates, both related to IO.)
 
-- The TCP connector timeout parameter has been enhanced into a timeout function object, allowing customization of the timeout value (e.g. providing an exponential backoff).
+- The TCP connector timeout parameter has been enhanced into a timeout function object, allowing customization of the timeout value (e.g. providing an exponential backoff). (This feature is still under development.)
 
 - All exception throwing within Chops Net IP has been removed, and error returns in many places have been replaced with a `std::expected` return (currently using the `nonstd` namespace instead of `std` through Martin Moene's `expected-lite` library). (Motivation: remove need for `try`, `catch` blocks, provide useful error return information.)
 
@@ -28,9 +28,7 @@ Specifics on each change (including non-API changes):
 
 - `basic_net_entity` has gone away, replaced by a non-template class supporting all three entity types (TCP connector, TCP acceptor, UDP). Internally it is now using a `std::variant`.
 
-- The state change callback now returns `bool`, allowing a `net_entity` to be stopped (when `false` is returned). This allows slightly simpler code for stopping a TCP connector (or certain use cases of stopping a TCP acceptor). It is also similar to the return type of the message handler callback, where returning `false` shuts down the TCP connection (or UDP socket).
-
-- The TCP connector now will attempt re-connects after a TCP connection error (or shutdown), unless `false` is returned from the state change callback. This simplifies the uses cases where re-connects are the desired behavior (and if not, it's now relatively simple to stop the connector by returning `false` from the state change callback).
+- The TCP connector now will attempt re-connects after a TCP connection error (or shutdown), depending on the timeout parameter. This simplifies the uses cases where re-connects are the desired behavior.
 
 - A new `start_io` method is available for the `basic_io_interface` class, supporting simple variable length message framing (a common use case).
 

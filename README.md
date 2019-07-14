@@ -1,6 +1,6 @@
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
-Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer, without significantly sacrificing performance. It is layered on top of the Asio asynchronous networking library, which is not an easy library to use correctly. It handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer, without significantly sacrificing performance. It is layered on top of the Asio asynchronous networking library, which can be difficult to use correctly. It handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 Chops Net IP is not like any other high-level, general purpose C++ socket library.
 
@@ -10,7 +10,7 @@ This project is distributed under the [Boost Software License](LICENSE.txt).
 
 ## Chops Net IP Release Status
 
-Release 1.0 is under development as of late June 2019, awaiting CMake config file completion, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
+Release 1.0 is under development as of July 2019, awaiting CMake config file completion, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
@@ -67,11 +67,11 @@ A detailed overview, a C++ socket library comparison, and a FAQ is [available he
 
 # C++ Language Requirements and Alternatives
 
-C++ 17 is the primary standards baseline for this repository. There is also one future C++ facility in use (`std::expected`, for better and simpler error handling).
+C++ 17 is the primary standards baseline for this repository. There is also one future C++ facility in use (`std::expected`, allowing error handling without using exceptions).
 
-A significant number of C++ 11 features are in the implementation and API. There are also limited C++ 14 and 17 features in use such as `std::byte`, `std::variant` and `auto` parameters in lambda functions. For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ library features, both C++ 17 as well as future C++ standards (see [References](doc/references.md)).
+A significant number of C++ 11 features are in the implementation and API. There are also C++ 14 and 17 features in use such as `std::byte`, `std::optional`, `std::variant` and `auto` parameters in lambda functions. For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ 17 library features (for older compilers or standards), as well as future C++ features (see [References](doc/references.md)).
 
-While the main production branch will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are expected. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance is expected for the future, and collaboration (through forking, change requests, etc) is very welcome. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
+While the main production branch will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are welcome. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance would be useful. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
 
 # External Dependencies
 
@@ -80,7 +80,7 @@ The libraries and API's have minimal (as possible) library dependencies (there a
 Production external dependencies:
 
 - Version 1.12 (or later) of Chris Kohlhoff's `asio` repository is required. Note that it is the stand-alone library, not the Boost Asio implementation.
-- Version 0.9 (or later) of `utility-rack`, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
+- Version 0.9 (or later) of `utility-rack`, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp`, `erase_where.hpp`, `overloaded.hpp` and `cast_ptr_to`  are required).
 - Version 0.1 (or later) of Martin Moene's `expected-lite` library.
 
 Test external dependencies:
