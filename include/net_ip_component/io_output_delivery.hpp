@@ -42,7 +42,7 @@
 #define IO_OUTPUT_DELIVERY_HPP_INCLUDED
 
 #include <cstddef> // std::size_t
-#include <utility> // std::move, std::pair
+#include <utility> // std::move, std::pair, std::forward
 #include <system_error>
 #include <memory>
 #include <exception>
@@ -107,14 +107,14 @@ auto start_with_io_wait_queue (net_entity ne,
                                IOS&& io_start,
                                io_wait_q<IOT>& wq, 
                                EF&& err_func) {
-  return ne.start( [&io_start, &wq]
+  return ne.start( [io_start = std::move(io_start), &wq]
                    (basic_io_interface<IOT> io, std::size_t num, bool starting) {
       if (starting) {
         io_start(io, num, starting);
       }
       wq.emplace_push(*(io.make_io_output()), num, starting);
     },
-    err_func
+    std::forward<EF>(err_func)
   );
 }
 
@@ -188,14 +188,14 @@ io_output_future<IOT> make_io_output_future(net_entity& ent,
   auto start_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto start_fut = start_prom_ptr->get_future();
 
-  auto lam = [&io_start, start_prom_ptr] 
+  auto lam = [io_start = std::move(io_start), start_prom_ptr] 
                     (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io_start(io, num, starting);
       start_prom_ptr->set_value(*(io.make_io_output()));
     }
   };
-  auto e = ent.start(lam, err_func);
+  auto e = ent.start(lam, std::forward<EF>(err_func));
   if (!e) { // error return from net_entity start method
     start_prom_ptr->set_exception(std::make_exception_ptr(std::system_error(e.error())));
   }
@@ -239,7 +239,7 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
   auto stop_prom_ptr = std::make_shared<std::promise<basic_io_output<IOT> > >();
   auto stop_fut = stop_prom_ptr->get_future();
 
-  auto lam = [&io_start, start_prom_ptr, stop_prom_ptr] 
+  auto lam = [io_start = std::move(io_start), start_prom_ptr, stop_prom_ptr] 
                 (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io_start(io, num, starting);
@@ -250,7 +250,7 @@ io_output_future_pair<IOT> make_io_output_future_pair(net_entity& ent,
     }
   };
 
-  auto e = ent.start(lam, err_func);
+  auto e = ent.start(lam, std::forward<EF>(err_func));
   if (!e) { // error return from net_entity start method
     auto ep = std::make_exception_ptr(std::system_error(e.error()));
     start_prom_ptr->set_exception(ep);

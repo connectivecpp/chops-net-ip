@@ -102,7 +102,6 @@ std::size_t start_fixed_connectors(int num_conns, std::size_t expected_cnt,
           chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
         );
         assert (!r);
-std::cerr << "After fixed conn start, error, message: " << r << ", " << r.message() << std::endl;
       }
     );
 
@@ -314,12 +313,10 @@ void perform_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
     auto n = start_fut.get();
     REQUIRE (n == num_conns);
     for (const auto& buf : fixed_msg_vec) {
-std::cerr << "Ready for visit_io_output" << std::endl;
       n = acc_ptr->visit_io_output([&buf] (chops::net::tcp_io_output io) {
           io.send(buf);
         }
       );
-std::cerr << "Visit_io_output returned: " << n << std::endl;
       assert (n == num_conns);
     }
 
