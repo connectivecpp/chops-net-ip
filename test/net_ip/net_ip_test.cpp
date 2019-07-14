@@ -48,7 +48,7 @@ using namespace chops::test;
 const char* tcp_test_port = "30465";
 const char* tcp_test_host = "";
 constexpr int NumMsgs = 50;
-constexpr int ReconnTime = 0;
+constexpr int ReconnTime = 400;
 
 const char*   udp_test_addr = "127.0.0.1";
 constexpr int udp_port_base = 31445;
@@ -125,9 +125,9 @@ std::size_t acc_conn_var_test (asio::io_context& ioc, chops::net::err_wait_q& er
   test_counter conn_cnt = 0;
   INFO("Acceptor created, now creating connectors and futures, num: " << num_conns);
 
-  chops::repeat(num_conns, [&err_wq, delim, &conn_cnt, &send_vec, &conn_fut_vec] () {
+  chops::repeat(num_conns, [&nip, &err_wq, delim, &conn_cnt, &send_vec, &conn_fut_vec] () {
 
-      auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host, ReconnTime);
+      auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host, 0);
       auto conn_futs = get_tcp_io_futures(conn, err_wq,
                                           false, delim, conn_cnt);
 
@@ -162,7 +162,7 @@ std::size_t acc_conn_var_test (asio::io_context& ioc, chops::net::err_wait_q& er
 }
 
 std::size_t acc_conn_fixed_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
-                                 std::size_t expected_cnt, int num_conns) {
+                                 const vec_buf& fixed_msg_vec, int num_conns) {
 
   chops::net::net_ip nip(ioc);
 
@@ -189,16 +189,16 @@ std::size_t acc_conn_fixed_test (asio::io_context& ioc, chops::net::err_wait_q& 
   test_counter conn_cnt = 0;
   std::vector<std::future<std::size_t>> conn_futs;
 
-  chops::repeat(num_conns, [&nip, &conn_futs, &conn_cnt, expected_cnt, &err_wq] () {
+  chops::repeat(num_conns, [&nip, &conn_futs, &conn_cnt, exp = fixed_msg_vec.size(), &err_wq] () {
 
       auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host, ReconnTime);
       auto prom_ptr = std::make_shared<test_prom>();
       conn_futs.push_back(std::move(prom_ptr->get_future()));
-      auto r = conn.start( [&conn_cnt, expected_cnt, &err_wq, prom_ptr]
+      auto r = conn.start( [&conn_cnt, exp, &err_wq, prom_ptr]
                        (chops::net::tcp_io_interface io, std::size_t num, bool starting) {
             if (starting) {
               auto r = io.start_io(fixed_size_buf_size,
-                                   tcp_fixed_size_msg_hdlr(std::move(*prom_ptr), expected_cnt, conn_cnt));
+                                   tcp_fixed_size_msg_hdlr(std::move(*prom_ptr), exp, conn_cnt));
               assert(r);
             }
           },
@@ -219,7 +219,7 @@ std::size_t acc_conn_fixed_test (asio::io_context& ioc, chops::net::err_wait_q& 
     assert (n == num_conns);
   }
 
-  for (auto& fut : conn_futs) {
+  for (auto& fut : conn_futs) { // wait for all connectors to finish receiving data
     auto t = fut.get();
   }
 
@@ -307,7 +307,7 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
 
   {
     std::size_t total_msgs = num_entities * fixed_msg_vec.size();
-    auto cnt1 = acc_conn_fixed_test(ioc, err_wq, var_msg_vec, reply, num_entities, delim, empty_msg);
+    auto cnt1 = acc_conn_fixed_test(ioc, err_wq, fixed_msg_vec, num_entities);
     REQUIRE (cnt1 == total_msgs);
     auto cnt2 = udp_test(ioc, err_wq, fixed_msg_vec, interval, num_entities);
     CHECK (cnt2 == total_msgs);
