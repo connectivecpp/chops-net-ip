@@ -119,7 +119,7 @@ void basic_io_interface_test_methods() {
         REQUIRE (io_intf.is_valid());
         auto io_out = io_intf.make_io_output();
         REQUIRE (io_out);
-        REQUIRE (io_out->is_valid());
+        REQUIRE ((*io_out).is_valid());
       }
     }
     AND_WHEN ("visit_socket is called") {
