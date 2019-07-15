@@ -79,14 +79,17 @@ void check_set (const std::set<chops::net::basic_io_output<IOT>>& io_set,
                 const chops::net::basic_io_output<IOT>& io2,
                 const chops::net::basic_io_output<IOT>& io3) {
 
+  // three entries - first empty, next two are valid entries, could be in either order
   REQUIRE (io_set.size() == 3u);
   auto i = io_set.cbegin();
   REQUIRE_FALSE (i->is_valid());
-  REQUIRE (*i == io1); ++i;
+  REQUIRE (*i == io1);
+  ++i;
   REQUIRE (i->is_valid());
-  REQUIRE (*i == io2); ++i;
+  REQUIRE ((*i == io2 || *i == io3));
+  ++i;
   REQUIRE (i->is_valid());
-  REQUIRE (*i == io3); ++i;
+  REQUIRE ((*i == io2 || *i == io3));
 }
 
 template <typename IOT>
@@ -116,10 +119,14 @@ void basic_io_output_test_compare() {
   REQUIRE (io_emp1 < io_out2);
   REQUIRE (io_emp2 < io_out2);
   REQUIRE (io_emp1 < io_out3);
-  REQUIRE (io_emp1 < io_out4);
+  REQUIRE (io_emp2 < io_out4);
+
+  REQUIRE ((io_out1 < io_out2 || io_out2 < io_out1));
+
   std::set<chops::net::basic_io_output<IOT> > a_set {
           io_out4, io_out3, io_out2, io_out1, io_emp2, io_emp1 };
   check_set(a_set, io_emp1, io_out1, io_out2);
+  check_set(a_set, io_emp2, io_out3, io_out4);
 }
 
 TEST_CASE ( "Basic io output test, io_handler_mock used for IO handler type",

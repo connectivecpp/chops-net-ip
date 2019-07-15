@@ -48,6 +48,16 @@ namespace net {
  *  access the IO handler socket (e.g. to retrieve or modify socket options). It also 
  *  provides a method to create a @c basic_io_output object for sending data.
  *
+ *  The @c start_io and @c stop_io methods are not a data flow toggle. In other words,
+ *  once @c start_io is called, no other @c start_io methods can be called. If @c stop_io
+ *  is called, connection teardown (or socket close) is initiated, and @c start_io will
+ *  not be possible.
+ *
+ *  Calling @c stop_io is not necessary and is only needed if an application needs to
+ *  close a connection or socket directly and not through other means (e.g. a 
+ *  @c net_entity @c close or a connection termination or a message handler @c false
+ *  return).
+ *
  *  This class is a lightweight value class, allowing @c basic_io_interface 
  *  objects to be copied and used in multiple places in an application, all of them 
  *  accessing the same network IO handler. Internally, a @c std::weak pointer is used 
@@ -173,8 +183,7 @@ public:
  *    void (asio::ip::udp::socket&); // UDP IO
  *  @endcode
  *
- *  Within the function object socket options can be queried or modified or any valid method
- *  called.
+ *  Within the function object socket options can be queried or modified.
  *
  *  @return @c nonstd::expected - socket has been visited on success; on error (if no 
  *  associated IO handler), a @c std::error_code is returned.
