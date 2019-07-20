@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_component_module
  *
- *  @brief Functions and classes for error callback handling.
+ *  @brief Functions and classes for error callback handling and basic logging.
  *
  *  @author Cliff Green
  *
@@ -25,7 +25,7 @@
 #include <chrono>
 
 #include "net_ip/basic_io_interface.hpp"
-#include "net_ip/io_interface.hpp"
+#include "net_ip/net_ip_error.hpp"
 
 #include "queue/wait_queue.hpp"
 
@@ -34,36 +34,13 @@ namespace chops {
 namespace net {
 
 /**
- *  @brief A "do nothing" error function template that can be used in the 
- *  @c basic_net_entity @c start method.
- *
- *  @relates basic_net_entity
- */
-template <typename IOT>
-void empty_error_func(basic_io_interface<IOT>, std::error_code) { } 
-
-/**
- *  @brief A "do nothing" error function for TCP @c basic_io_interface objects.
- *
- *  @relates basic_net_entity
- */
-inline void tcp_empty_error_func(tcp_io_interface, std::error_code) { }
-
-/**
- *  @brief A "do nothing" error function for UDP @c basic_io_interface objects.
- *
- *  @relates basic_net_entity
- */
-inline void udp_empty_error_func(udp_io_interface, std::error_code) { }
-
-/**
- *  @brief Data provided through an error function callbacks.
+ *  @brief Data provided through an error function callback.
  *
  *  This @c struct of data can be passed through a queue or other mechanism for logging
  *  or other error analysis purposes.
  *
- *  A @c basic_io_interface is not part of the data since the referenced handler
- *  is likely to soon go away. Instead, a @c void pointer of the underlying
+ *  A @c basic_io_interface or @c basic_io_output is not part of the data since the referenced 
+ *  handler is likely to soon go away. Instead, a @c void pointer of the underlying
  *  handler is used. Another reason for not storing a @c basic_io_interface is that
  *  the IO handler type parameterization is no longer needed, so this can be used for
  *  both TCP and UDP error data. The pointer address is used for logging purposes only.
@@ -88,7 +65,7 @@ using err_wait_q = chops::wait_queue<error_data>;
 template <typename IOT>
 auto make_error_func_with_wait_queue(err_wait_q& wq) {
   return [&wq] (basic_io_interface<IOT> io, std::error_code e) {
-    wq.emplace_push(static_cast<const void *>(io.get_shared_ptr().get()), e);
+    wq.emplace_push(io.get_ptr(), e);
   };
 }
 

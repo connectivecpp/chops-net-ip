@@ -6,7 +6,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -24,10 +24,8 @@
 #include <future>
 #include <string_view>
 
-#include <iostream> // temporary debugging
-
 #include "net_ip/endpoints_resolver.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip_component/worker.hpp"
 
 template <typename Protocol>
 void make_endpoints_test (bool local, std::string_view host, std::string_view port, bool expected_good) {
@@ -44,24 +42,24 @@ void make_endpoints_test (bool local, std::string_view host, std::string_view po
 
   GIVEN ("An executor work guard, host, and port strings") {
     WHEN ("sync overload of make_endpoints is called") {
-      THEN ("a sequence of endpoints is returned or an exception thrown") {
+      THEN ("a sequence of endpoints is returned or an error returned") {
+        INFO ("-- Host: " << host);
+        auto results = resolver.make_endpoints(local, host, port);
         if (expected_good) {
-          auto results = resolver.make_endpoints(local, host, port);
-std::cerr << "Results size: " << results.size() << std::endl;
-          for (const auto& i : results) {
-            INFO ("-- Endpoint: " << i.endpoint());
-std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
-          }
-          REQUIRE_FALSE (results.empty());
+          REQUIRE(results);
+          INFO ("-- Num endpoints: " << results->size());
+          REQUIRE_FALSE (results->empty());
         }
         else {
-          REQUIRE_THROWS (resolver.make_endpoints(local, host, port));
+          REQUIRE_FALSE(results);
+          INFO ("Error code: " << results.error());
         }
       }
     }
     AND_WHEN ("async overload of make_endpoints is called") {
       THEN ("a sequence of endpoints is returned through a function object callback") {
 
+        INFO ("-- Host: " << host);
         std::promise<prom_ret> res_prom;
         auto fut = res_prom.get_future();
         resolver.make_endpoints(local, host, port,
@@ -70,19 +68,14 @@ std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
           }
         );
         auto a = fut.get();
-        if (a.first) {
-          INFO ("Error val: " << a.first);
-std::cerr << "Error val: " << a.first << std::endl;
-        }
         if (expected_good) {
-std::cerr << "Results size: " << a.second.size() << std::endl;
-          for (const auto& i : a.second) {
-            INFO ("-- Endpoint: " << i.endpoint());
-std::cerr << "-- Endpoint: " << i.endpoint() << std::endl;
-          }
+          REQUIRE_FALSE(a.first);
+          INFO ("-- Num endpoints: " << a.second.size());
           REQUIRE_FALSE (a.second.empty());
         }
         else {
+          REQUIRE(a.first);
+          INFO ("Error val: " << a.first);
           REQUIRE (a.second.empty());
         }
       }

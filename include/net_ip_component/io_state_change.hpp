@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_component_module
  *
- *  @brief Functions that create IO state change function objects used in the @c basic_net_entity
+ *  @brief Functions that create IO state change function objects used in the @c net_entity
  *  @c start method, each will invoke @c start_io.
  *
  *  The common logic in each of these function objects is calling @c start_io on 
@@ -37,9 +37,9 @@
 
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 
-#include "net_ip/io_interface.hpp"
+#include "net_ip/io_type_decls.hpp"
 
-#include "net_ip/component/simple_variable_len_msg_frame.hpp"
+#include "net_ip/simple_variable_len_msg_frame.hpp"
 
 namespace chops {
 namespace net {
@@ -50,7 +50,7 @@ namespace net {
  *
  *  @param hdr_size Size in bytes of message header.
  *
- *  @param hd_func Header decoder function pointer, as described in @c hdr_decoder_func.
+ *  @param hdr_func Header decoder function pointer, as described in @c hdr_decoder_func.
  *
  *  @param msg_hdlr A function object that can be used as a message handler in the 
  *  @c start_io method.
@@ -62,12 +62,12 @@ namespace net {
 
 template <typename MH>
 auto make_simple_variable_len_msg_frame_io_state_change (std::size_t hdr_size, 
-                                                        hdr_decoder_func hd_func,
-                                                        MH&& msg_hdlr) {
-  return [hdr_size, hd_func, mh = std::move(msg_hdlr)] 
-                  (tcp_io_interface io, std::size_t num, bool starting) mutable {
+                                                         MH&& msg_hdlr,
+                                                         hdr_decoder_func hdr_func) {
+  return [hdr_size, hdr_func, mh = std::move(msg_hdlr)] 
+                  (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io(hdr_size, std::move(mh), make_simple_variable_len_msg_frame(hd_func));
+      io.start_io(hdr_size, std::move(mh), hdr_func);
     }
   };
 }
@@ -94,7 +94,7 @@ auto make_msg_frame_io_state_change (std::size_t hdr_size,
                                      MH&& msg_hdlr,
                                      MF&& msg_frame) {
   return [hdr_size, mh = std::move(msg_hdlr), mf = std::move(msg_frame)] 
-                  (tcp_io_interface io, std::size_t num, bool starting) mutable {
+                  (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(hdr_size, std::move(mh), std::move(mf));
     }
@@ -119,7 +119,7 @@ auto make_msg_frame_io_state_change (std::size_t hdr_size,
 template <typename MH>
 auto make_delimiter_read_io_state_change (std::string_view delim, MH&& msg_hdlr) {
   return [delim, mh = std::move(msg_hdlr)] 
-                  (tcp_io_interface io, std::size_t num, bool starting) mutable {
+                  (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(delim, std::move(mh));
     }
@@ -145,7 +145,7 @@ auto make_delimiter_read_io_state_change (std::string_view delim, MH&& msg_hdlr)
 template <typename MH, typename IOT = udp_io>
 auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
   return [rd_size, mh = std::move(msg_hdlr)] 
-                  (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
+                  (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(rd_size, std::move(mh));
     }
@@ -161,7 +161,7 @@ auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
  */
 template <typename IOT>
 auto make_send_only_io_state_change () {
-  return [] (basic_io_interface<IOT> io, std::size_t num, bool starting) mutable {
+  return [] (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io();
     }
@@ -185,11 +185,11 @@ auto make_send_only_io_state_change () {
  */
 
 template <typename MH>
-auto make_default_endp_io_state_change (asio::ip::udp::endpoint endp,
+auto make_default_endp_io_state_change (const asio::ip::udp::endpoint& endp,
                                         std::size_t max_size,
                                         MH&& msg_hdlr) {
   return [max_size, endp, mh = std::move(msg_hdlr)] 
-                  (udp_io_interface io, std::size_t num, bool starting) mutable {
+                  (udp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(endp, max_size, std::move(mh));
     }
@@ -206,8 +206,9 @@ auto make_default_endp_io_state_change (asio::ip::udp::endpoint endp,
  *
  *  @note This is implemented only for UDP processing.
  */
-auto make_send_only_default_endp_io_state_change (asio::ip::udp::endpoint endp) {
-  return [endp] (udp_io_interface io, std::size_t num, bool starting) mutable {
+inline
+auto make_send_only_default_endp_io_state_change (const asio::ip::udp::endpoint& endp) {
+  return [endp] (udp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
       io.start_io(endp);
     }

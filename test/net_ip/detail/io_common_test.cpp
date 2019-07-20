@@ -15,145 +15,239 @@
 
 #include "catch2/catch.hpp"
 
-#include "asio/io_context.hpp"
+#include <vector>
+#include <cassert>
 
-#include <memory> // std::shared_ptr
-#include <system_error> // std::error_code
-#include <utility> // std::move
+#include <future>
+#include <thread>
+#include <chrono>
+#include <functional> // std::cref, std::ref
+#include <cstddef> // std::size_t
 
-#include "net_ip/detail/output_queue.hpp"
 #include "net_ip/detail/io_common.hpp"
-#include "net_ip/net_ip_error.hpp"
+
+#include "marshall/shared_buffer.hpp"
 
 #include "utility/repeat.hpp"
-#include "utility/make_byte_array.hpp"
 
-template <typename IOT>
-void io_common_test(chops::const_shared_buffer buf, int num_bufs,
-                    typename IOT::endpoint_type endp) {
+#include "shared_test/io_buf.hpp"
 
-  using namespace std::placeholders;
+template <typename E>
+void empty_write_func (const E&) { }
 
-  REQUIRE (num_bufs > 1);
+template <typename E>
+void check_queue_stats(const chops::net::detail::io_common<E>& ioc,
+                       std::size_t exp_qs, std::size_t exp_bs) {
 
-  IOT ioh;
+  auto qs = ioc.get_output_queue_stats();
+  REQUIRE (qs.output_queue_size == exp_qs);
+  REQUIRE (qs.bytes_in_output_queue == exp_bs);
 
-  GIVEN ("An io_common and a buf and endpoint") {
-
-    chops::net::detail::io_common<IOT> iocommon { };
-
-    auto qs = iocommon.get_output_queue_stats();
-    REQUIRE (qs.output_queue_size == 0);
-    REQUIRE (qs.bytes_in_output_queue == 0);
-    REQUIRE_FALSE (iocommon.is_io_started());
-    REQUIRE_FALSE (iocommon.is_write_in_progress());
-
-    WHEN ("Set_io_started is called") {
-      bool ret = iocommon.set_io_started();
-      REQUIRE (ret);
-      THEN ("the io_started flag is true and write_in_progress flag false") {
-        REQUIRE (iocommon.is_io_started());
-        REQUIRE_FALSE (iocommon.is_write_in_progress());
-      }
-    }
-
-    AND_WHEN ("Set_io_started is called twice") {
-      bool ret = iocommon.set_io_started();
-      REQUIRE (ret);
-      ret = iocommon.set_io_started();
-      THEN ("the second call returns false") {
-        REQUIRE_FALSE (ret);
-      }
-    }
-
-    AND_WHEN ("Start_write_setup is called before set_io_started") {
-      bool ret = iocommon.start_write_setup(buf);
-      THEN ("the call returns false") {
-        REQUIRE_FALSE (ret);
-      }
-    }
-
-    AND_WHEN ("Start_write_setup is called after set_io_started") {
-      bool ret = iocommon.set_io_started();
-      ret = iocommon.start_write_setup(buf);
-      THEN ("the call returns true and write_in_progress flag is true and queue size is zero") {
-        REQUIRE (ret);
-        REQUIRE (iocommon.is_write_in_progress());
-        REQUIRE (iocommon.get_output_queue_stats().output_queue_size == 0);
-      }
-    }
-
-    AND_WHEN ("Start_write_setup is called twice") {
-      bool ret = iocommon.set_io_started();
-      ret = iocommon.start_write_setup(buf);
-      ret = iocommon.start_write_setup(buf);
-      THEN ("the call returns false and write_in_progress flag is true and queue size is one") {
-        REQUIRE_FALSE (ret);
-        REQUIRE (iocommon.is_write_in_progress());
-        REQUIRE (iocommon.get_output_queue_stats().output_queue_size == 1);
-      }
-    }
-
-    AND_WHEN ("Start_write_setup is called many times") {
-      bool ret = iocommon.set_io_started();
-      REQUIRE (ret);
-      chops::repeat(num_bufs, [&iocommon, &buf, &ret, &endp] () { 
-          ret = iocommon.start_write_setup(buf, endp);
-        }
-      );
-      THEN ("all bufs but the first one are queued") {
-        REQUIRE (iocommon.is_write_in_progress());
-        REQUIRE (iocommon.get_output_queue_stats().output_queue_size == (num_bufs-1));
-      }
-    }
-
-    AND_WHEN ("Start_write_setup is called many times and get_next_element is called 2 less times") {
-      bool ret = iocommon.set_io_started();
-      REQUIRE (ret);
-      chops::repeat(num_bufs, [&iocommon, &buf, &ret, &endp] () { 
-          iocommon.start_write_setup(buf, endp);
-        }
-      );
-      chops::repeat((num_bufs - 2), [&iocommon] () { 
-          iocommon.get_next_element();
-        }
-      );
-      THEN ("next get_next_element call returns a val, call after doesn't and write_in_progress is false") {
-
-        auto qs = iocommon.get_output_queue_stats();
-        REQUIRE (qs.output_queue_size == 1);
-        REQUIRE (qs.bytes_in_output_queue == buf.size());
-
-        auto e = iocommon.get_next_element();
-
-        qs = iocommon.get_output_queue_stats();
-        REQUIRE (qs.output_queue_size == 0);
-        REQUIRE (qs.bytes_in_output_queue == 0);
-
-        REQUIRE (iocommon.is_write_in_progress());
-
-        REQUIRE (e);
-        REQUIRE (e->first == buf);
-        REQUIRE (e->second == endp);
-
-        auto e2 = iocommon.get_next_element();
-        REQUIRE_FALSE (iocommon.is_write_in_progress());
-        REQUIRE_FALSE (e2);
-
-      }
-    }
-
-  } // end given
 }
 
-struct io_mock {
-  using endpoint_type = float;
+template <typename E>
+void io_common_api_test(const E& elem) {
 
-};
+  chops::net::detail::io_common<E> iocommon { };
 
-SCENARIO ( "Io common test", "[io_common]" ) {
-  auto ba = chops::make_byte_array(0x20, 0x21, 0x22, 0x23, 0x24);
-  chops::mutable_shared_buffer mb(ba.data(), ba.size());
-  io_common_test<io_mock>(chops::const_shared_buffer(std::move(mb)), 20, 42.0);
+  check_queue_stats(iocommon, 0u, 0u);
+
+  REQUIRE_FALSE (iocommon.is_io_started());
+  REQUIRE_FALSE (iocommon.is_write_in_progress());
+
+  auto s = iocommon.start_write(elem, empty_write_func<E>);
+  REQUIRE (s == chops::net::detail::io_common<E>::write_status::io_stopped);
+  REQUIRE_FALSE (iocommon.set_io_stopped());
+
+  // start io
+  REQUIRE (iocommon.set_io_started());
+  REQUIRE (iocommon.is_io_started());
+  // write elems, queueing starts with second write
+  s = iocommon.start_write(elem, empty_write_func<E>);
+  REQUIRE (s == chops::net::detail::io_common<E>::write_status::write_started);
+  check_queue_stats(iocommon, 0u, 0u);
+  REQUIRE (iocommon.is_write_in_progress());
+  s = iocommon.start_write(elem, empty_write_func<E>);
+  REQUIRE (s == chops::net::detail::io_common<E>::write_status::queued);
+  check_queue_stats(iocommon, 1u, 1u*elem.size());
+  REQUIRE (iocommon.is_write_in_progress());
+  s = iocommon.start_write(elem, empty_write_func<E>);
+  REQUIRE (s == chops::net::detail::io_common<E>::write_status::queued);
+  check_queue_stats(iocommon, 2u, 2u*elem.size());
+  REQUIRE (iocommon.is_write_in_progress());
+
+  // start dequeing
+  iocommon.write_next_elem(empty_write_func<E>);
+  check_queue_stats(iocommon, 1u, 1u*elem.size());
+  REQUIRE (iocommon.is_write_in_progress());
+  iocommon.write_next_elem(empty_write_func<E>);
+  check_queue_stats(iocommon, 0u, 0u);
+  REQUIRE (iocommon.is_write_in_progress());
+  iocommon.write_next_elem(empty_write_func<E>);
+  check_queue_stats(iocommon, 0u, 0u);
+  REQUIRE_FALSE (iocommon.is_write_in_progress());
+
+  REQUIRE_FALSE (iocommon.set_io_started());
+  REQUIRE (iocommon.set_io_stopped());
+
+  // test clear method
+  iocommon.set_io_started();
+  iocommon.start_write(elem, empty_write_func<E>);
+  iocommon.start_write(elem, empty_write_func<E>);
+  check_queue_stats(iocommon, 1u, 1u*elem.size());
+  iocommon.clear();
+  check_queue_stats(iocommon, 0u, 0u);
+  REQUIRE_FALSE (iocommon.is_write_in_progress());
+
+}
+
+constexpr int Wait = 5;
+
+template <typename E>
+std::size_t start_writes(const std::vector<E>& data_vec, 
+                         chops::net::detail::io_common<E>& io_comm,
+                         int multiplier, int wait_offset) {
+  chops::repeat(multiplier, [&data_vec, &io_comm, wait_offset] {
+      for (const auto& e : data_vec) {
+        auto r = io_comm.start_write(e, empty_write_func<E>);
+        assert (r != chops::net::detail::io_common<E>::write_status::io_stopped);
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(Wait+wait_offset));
+      assert (io_comm.is_io_started());
+  } );
+  return data_vec.size() * multiplier;
+}
+
+template <typename E>
+std::size_t write_next_elems(const std::vector<E>& data_vec, 
+                             chops::net::detail::io_common<E>& io_comm) {
+  while (io_comm.is_write_in_progress()) {
+    io_comm.write_next_elem(empty_write_func<E>);
+    assert (io_comm.is_io_started());
+  }
+  return 0u;
+}
+
+template <typename E>
+void io_common_stress_test(const std::vector<E>& data_vec, int multiplier, int num_thrs) {
+
+  chops::net::detail::io_common<E> iocommon { };
+  REQUIRE(iocommon.set_io_started());
+
+  std::vector<std::future<std::size_t>> futs;
+
+  chops::repeat(num_thrs, [&iocommon, multiplier, &data_vec, &futs] (int i) {
+    futs.push_back(std::async(std::launch::async, start_writes<E>,
+                              std::cref(data_vec), std::ref(iocommon),
+                              multiplier, 2*i));
+  } );
+
+  std::size_t tot = 0u;
+  for (auto& fut : futs) {
+    tot += fut.get(); // join threads, get all values
+  }
+
+  REQUIRE (tot == data_vec.size() * multiplier * num_thrs);
+  check_queue_stats(iocommon, tot - 1u, (chops::test::accum_io_buf_size(data_vec) * 
+                                        multiplier * num_thrs) - data_vec.front().size());
+
+  futs.clear();
+  
+  chops::repeat(num_thrs, [&iocommon, &data_vec, &futs] {
+    futs.push_back(std::async(std::launch::async, write_next_elems<E>,
+                              std::cref(data_vec), std::ref(iocommon)));
+  } );
+
+  for (auto& fut : futs) {
+    tot += fut.get(); // join threads
+  }
+  check_queue_stats(iocommon, 0u, 0u);
+
+  REQUIRE(iocommon.set_io_stopped());
+}
+
+
+TEST_CASE ( "Io common API test, single element", 
+           "[io_common] [single_element] [api]" ) {
+
+  io_common_api_test(chops::test::make_io_buf1());
+
+}
+
+TEST_CASE ( "Io common API test, double element", 
+           "[io_common] [double_element] [api]" ) {
+
+  io_common_api_test(chops::test::io_buf_and_int(chops::test::make_io_buf2()));
+
+}
+
+TEST_CASE ( "Io common stress test, single element, multiplier 1, 1 thread", 
+           "[io_common] [single_element] [multiplier_1] [threads_1]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_vec(), 1, 1);
+
+}
+
+TEST_CASE ( "Io common stress test, single element, multiplier 10, 1 thread", 
+           "[io_common] [single_element] [multiplier_10] [threads_1]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_vec(), 10, 1);
+
+}
+
+TEST_CASE ( "Io common stress test, single element, multiplier 20, 5 threads", 
+           "[io_common] [single_element] [multiplier_20] [threads_5]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_vec(), 20, 5);
+
+}
+
+TEST_CASE ( "Io common stress test, single element, multiplier 50, 10 threads", 
+           "[io_common] [single_element] [multiplier_50] [threads_10]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_vec(), 50, 10);
+
+}
+
+TEST_CASE ( "Io common stress test, single element, multiplier 100, 60 threads", 
+           "[io_common] [single_element] [multiplier_100] [threads_60]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_vec(), 100, 60);
+
+}
+
+TEST_CASE ( "Io common stress test, double element, multiplier 1, 1 thread",
+           "[io_common] [double_element] [multiplier_1] [threads_1]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_and_int_vec(), 1, 1);
+
+}
+
+TEST_CASE ( "Io common stress test, double element, multiplier 10, 1 thread",
+           "[io_common] [double_element] [multiplier_10] [threads_1]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_and_int_vec(), 10, 1);
+
+}
+
+TEST_CASE ( "Io common stress test, double element, multiplier 20, 5 threads",
+           "[io_common] [double_element] [multiplier_20] [threads_5]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_and_int_vec(), 20, 5);
+
+}
+
+TEST_CASE ( "Io common stress test, double element, multiplier 50, 10 threads",
+           "[io_common] [double_element] [multiplier_50] [threads_10]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_and_int_vec(), 50, 10);
+
+}
+
+TEST_CASE ( "Io common stress test, double element, multiplier 100, 60 threads",
+           "[io_common] [double_element] [multiplier_100] [threads_60]" ) {
+
+  io_common_stress_test(chops::test::make_io_buf_and_int_vec(), 100, 60);
+
 }
 
