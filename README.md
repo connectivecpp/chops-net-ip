@@ -57,9 +57,11 @@ Example environments where Chops Net IP is a good fit:
 - Peer-to-peer applications where the application doesn't care which side connects or accepts.
 - Frameworks or groups of applications where abstracting wire-protocol logic from message processing logic makes sense.
 
-## A Short Example
+## Examples
 
-(fill in code here)
+Example demo programs are in the [`/example`](https://github.com/connectivecpp/chops-net-ip) directory. 
+
+The `simple_chat_demo.cpp` program has a listing of the multiple steps to set up working example.
 
 ## Want More?
 
@@ -75,18 +77,21 @@ While the main production branch will always be developed and tested with C++ 17
 
 # External Dependencies
 
-The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code.
+The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). ~~There are more dependencies in the test code than in the production code.~~
+
+All the dependencies listed below have links that will take you to the library or repository.
 
 Production external dependencies:
 
-- Version 1.12 (or later) of Chris Kohlhoff's `asio` repository is required. Note that it is the stand-alone library, not the Boost Asio implementation.
-- Version 0.9 (or later) of `utility-rack`, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
-- Version 0.1 (or later) of Martin Moene's `expected-lite` library.
+- Version 1.12 (or later) of Chris Kohlhoff's [`asio`](https://think-async.com/Asio/) repository is required. Note that it is the stand-alone library, not the Boost Asio implementation.
+- Version 0.9 (or later) of [`utility-rack`](https://connectivecpp.github.io/utility-rack), which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp` and `erase_where.hpp` are required).
+- ~~Version 0.1 (or later) of Martin Moene's `expected-lite` library.~~
+- Version 1.65.1 (or later) of the [Boost library](https://www.boost.org/). We are currently using version `1.69.0`.
 
 Test external dependencies:
 
-- Version 2.1.0 (or later) of Phil Nash's Catch 2 is required for all test scenarios.
-- Version 1.65.1 (or later) of the Boost library is required in some test scenarios (`boost.endian` at minimum).
+- Version 2.1.0 (or later) of Phil Nash's [Catch 2](https://github.com/catchorg/Catch2) is required for all test scenarios.
+- ~~Version 1.65.1 (or later) of the Boost library is required in some test scenarios (`boost.endian` at minimum).~~
 
 See [References](doc/references.md) for additional details on the above libraries.
 
@@ -109,7 +114,7 @@ See [References](doc/references.md) for details on dependencies and inspirations
 
 The primary author of Chops is Cliff Green, cliffg at connectivecpp dot com. The primary co-author is Thurman Gillespy, thurmang at connectivecpp dot com, and Roxanne Agerone roxannea at connectivecpp dot com.
 
-Contributors include ...
+Collaborators include Roxanne Agerone and Nathan Deutsch.
 
 Additional information including author comments is [available here](doc/about.md).
 

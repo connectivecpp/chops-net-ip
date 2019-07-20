@@ -9,12 +9,12 @@
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  5/5/19
+ *  7/16/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
- *  Sample make file. Assuems all repositories are in some directory.
+ *  Sample make file. Assumes all repositories are in some directory.
 
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
@@ -118,7 +118,7 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
             print_useage();
             return EXIT_FAILURE;
         }
-        // calculate network mask
+        // create broadcast address
         try {
 
             addr4 asaddr = asio::ip::make_address_v4(ip_address);

@@ -6,7 +6,7 @@
 
 - Phil Nash is the author of the Catch C++ unit testing library. The Catch library is available at https://github.com/catchorg/Catch2.
 
-- The Boost libraries collection is a high quality set of C++ libraries, available at http://www.boost.org/.
+- The Boost libraries collection is a high quality set of C++ libraries, available at https://www.boost.org/.
 
 - Kirk Shoop is a C++ expert, particularly in the area of asynchronous design, and has presented multiple times at CppCon. His GitHub site is https://github.com/kirkshoop.
 
