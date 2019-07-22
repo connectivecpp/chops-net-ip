@@ -19,7 +19,6 @@ g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
 -I ../../asio/asio/include/ \
--I ../../boost* \
 udp_receiver_demo.cpp -lpthread -o udp_receive
 
  *
@@ -33,8 +32,9 @@ udp_receiver_demo.cpp -lpthread -o udp_receive
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip/net_entity.hpp"
+#include "net_ip_component/worker.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 const std::string PORT = "5005";
 const std::string HELP_PRM = "-h";

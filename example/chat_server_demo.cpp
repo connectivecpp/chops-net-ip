@@ -32,9 +32,9 @@ chat_server_demo.cpp -lpthread -o chat_server
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
+#include "net_ip/net_entity.hpp"
 #include "net_ip/component/worker.hpp"
-#include "net_ip/component/send_to_all.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;

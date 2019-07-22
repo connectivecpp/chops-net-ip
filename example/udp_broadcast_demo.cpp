@@ -33,8 +33,9 @@ udp_broadcast_demo.cpp -lpthread -o udp_broad
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
+#include "net_ip/net_entity.hpp"
 #include "net_ip/component/worker.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 const std::string HELP_PRM = "-h";
 const std::string ERR_PRM = "-e";
