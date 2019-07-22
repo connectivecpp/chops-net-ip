@@ -42,7 +42,7 @@ Specifics on each change (including non-API changes):
 
 - Internal shutdown logic has been improved.
 
-- The `net_ip/component` directory has been moved to `net_ip_component` to make it more visible and to show that it is parallel to (and not part of) the core `net_ip` library.
+- The `net_ip_component` directory has been moved to `net_ip_component` to make it more visible and to show that it is parallel to (and not part of) the core `net_ip` library.
 
 ## Release 0.2
 
