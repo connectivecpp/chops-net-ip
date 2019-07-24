@@ -39,6 +39,7 @@ simple_chat_demo.cpp -lpthread -o chat
 #include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
+using io_output = chops::net::tcp_io_output;
 using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using tcp_io_interface = chops::net::tcp_io_interface;
@@ -200,7 +201,7 @@ int main(int argc, char* argv[]) {
     /* lambda callbacks */
     // message handler for @c network_entity
     // note: cannot explicitly capture REMOTE
-    auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep)
+    auto msg_hndlr = [&] (const_buf buf, io_output io_out, endpoint ep)
         {
             if (shutdown) {
                 if (print_errors) {
@@ -227,7 +228,7 @@ int main(int argc, char* argv[]) {
             return true;
         };
 
-    io_interface tcp_iof; // use this to send text messages
+    // io_interface tcp_iof; // use this to send text messages
 
     // handler for @c tcp_connector
     auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
@@ -239,7 +240,7 @@ int main(int argc, char* argv[]) {
                     screen.draw_screen();
                 }
                 iof.start_io(DELIM, msg_hndlr);
-                tcp_iof = iof; // return @c iof to main
+                // tcp_iof = iof; // return @c iof to main
             } else {
                 // since we are peer to peer, reject >1 connections
                 screen.insert_scroll_line("2nd tcp_connector client rejected" + 
