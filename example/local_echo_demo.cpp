@@ -1,5 +1,7 @@
 /** @file
  * 
+ *  @defgroup example_module Example code for Chops Net IP library.
+ *
  *  @ingroup example_module
  * 
  *  @brief Example of TCP send/receive text string over local loop network
