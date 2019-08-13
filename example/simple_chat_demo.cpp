@@ -193,6 +193,7 @@ int main(int argc, char* argv[]) {
     bool print_errors = false;
     bool shutdown = false;
 
+    // command line arguments
     if (process_args(argc, argv, ip_addr, port, param, print_errors) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
@@ -205,20 +206,8 @@ int main(int argc, char* argv[]) {
     /**************************************/
 
     // message handler for @c network_entity
-    // note: cannot explicitly capture REMOTE
     auto msg_hndlr = [&] (const_buf buf, io_output io_out, endpoint ep)
         {
-            // REMOVE THIS BLOCK IF
-            // if (shutdown) {
-            //     if (print_errors) {
-            //         screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
-            //             SYSTEM);
-            //         screen.draw_screen();
-            //     }
-            //     // must return false on shutdown
-            //     return false; 
-            // }
-
             // receive network text message, display to user
             // remove deliminator here?
             std::string s(static_cast<const char *>(buf.data()), buf.size());
@@ -226,16 +215,8 @@ int main(int argc, char* argv[]) {
             screen.insert_scroll_line(s, REMOTE);
             screen.draw_screen();
 
-            // if user sent quit, echo back to allow her io_interface to stop
-            // REMOVE
-            // if (s == "quit" + DELIM) {
-            //     io_out.send(s.data(), s.size());
-            // }
-
             return true;
         };
-
-    // io_interface tcp_iof; // use this to send text messages
 
     // handler for @c tcp_connector
     auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
@@ -267,8 +248,6 @@ int main(int argc, char* argv[]) {
                 screen.insert_scroll_line("io_interface stop" + DELIM, SYSTEM);
                 screen.draw_screen();
             }
-            // IMPORTANT: needed to avert memory leaks and crashes
-            // iof.stop_io(); // REMOVE
         }
     };
 
@@ -277,7 +256,7 @@ int main(int argc, char* argv[]) {
         { 
             static int count = 0;
             // shudtown if too many error messages
-            if (++count > 15) {
+            if (++count > 20) {
                 std::cerr << ABORT << std::endl;
                 exit(1);
             }
@@ -296,6 +275,9 @@ int main(int argc, char* argv[]) {
             }
         };
 
+    /********************************/
+    /********** start here **********/
+    /********************************/
 
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
@@ -303,10 +285,8 @@ int main(int argc, char* argv[]) {
     
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
-    
-
+    // empty(default) @c net_entity
     chops::net::net_entity net_entity;
-    // chops::net::tcp_acceptor_net_entity net_entity_accept;
 
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, return @c network_entity
@@ -321,8 +301,11 @@ int main(int argc, char* argv[]) {
      // start network entity, emplace handlers
     net_entity.start(io_state_chng_hndlr, err_func);
 
-    screen.draw_screen();
-        
+    /**************************************/
+    /********** user interaction **********/
+    /**************************************/
+
+    screen.draw_screen();      
     // get std::string from user, send string data over network, update screen
     while (!shutdown) {
         std::string s;
@@ -349,14 +332,11 @@ int main(int argc, char* argv[]) {
         } // end if
     } // end while
 
-    // allow last message to be sent before shutting down connection
-    // std::this_thread::sleep_for(std::chrono::seconds(1));
+    /******************************/
+    /********** shutdown **********/
+    /******************************/
 
-    // shutdown
     net_entity.stop();
-    
-    // std::this_thread::sleep_for(std::chrono::milliseconds(300));
-
     wk.reset();
 
     return EXIT_SUCCESS;
