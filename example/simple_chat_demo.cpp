@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/30/19
+ *  8/12/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -27,7 +27,7 @@ simple_chat_demo.cpp -lpthread -o chat
 #include <cstdlib> // EXIT_SUCCESS
 #include <cstddef> // std::size_t 
 #include <string>
-#include <chrono>
+// #include <chrono>
 #include <thread>
 #include <cassert>
 
@@ -47,6 +47,8 @@ using endpoint = asio::ip::tcp::endpoint;
 
 /** How to use @c chops-net-ip for a simple peer to peer chat program over
  *  a network connection
+ *  
+ *  NEEDS UPDATING FOR RELEASE 1
  * 
  *  1. Write message handler function.
  * 
@@ -198,20 +200,24 @@ int main(int argc, char* argv[]) {
     // create instance of @c simple_chat_screen class
     simple_chat_screen screen(ip_addr, port, param, print_errors);
 
-    /* lambda callbacks */
+    /**************************************/
+    /********** lambda callbacks **********/
+    /**************************************/
+
     // message handler for @c network_entity
     // note: cannot explicitly capture REMOTE
     auto msg_hndlr = [&] (const_buf buf, io_output io_out, endpoint ep)
         {
-            if (shutdown) {
-                if (print_errors) {
-                    screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
-                        SYSTEM);
-                    screen.draw_screen();
-                }
-                // must return false on shutdown
-                return false; 
-            }
+            // REMOVE THIS BLOCK IF
+            // if (shutdown) {
+            //     if (print_errors) {
+            //         screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
+            //             SYSTEM);
+            //         screen.draw_screen();
+            //     }
+            //     // must return false on shutdown
+            //     return false; 
+            // }
 
             // receive network text message, display to user
             // remove deliminator here?
@@ -221,9 +227,10 @@ int main(int argc, char* argv[]) {
             screen.draw_screen();
 
             // if user sent quit, echo back to allow her io_interface to stop
-            if (s == "quit" + DELIM) {
-                iof.send(s.data(), s.size());
-            }
+            // REMOVE
+            // if (s == "quit" + DELIM) {
+            //     io_out.send(s.data(), s.size());
+            // }
 
             return true;
         };
@@ -248,7 +255,9 @@ int main(int argc, char* argv[]) {
                 screen.draw_screen();
                 iof.start_io(DELIM, msg_hndlr);
                 const std::string err = "only one tcp connection allowed";
-                iof.send(err.data(), err.size());
+                auto ret = iof.make_io_output();
+                auto io_out = *ret;
+                io_out.send(err.data(), err.size());
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 iof.stop_io();
             }
@@ -259,7 +268,7 @@ int main(int argc, char* argv[]) {
                 screen.draw_screen();
             }
             // IMPORTANT: needed to avert memory leaks and crashes
-            iof.stop_io();
+            // iof.stop_io(); // REMOVE
         }
     };
 
@@ -287,6 +296,7 @@ int main(int argc, char* argv[]) {
             }
         };
 
+
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
@@ -295,30 +305,27 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip chat(wk.get_io_context());
     
 
-    chops::net::tcp_connector_net_entity net_entity_connect;
-    chops::net::tcp_acceptor_net_entity net_entity_accept;
+    chops::net::net_entity net_entity;
+    // chops::net::tcp_acceptor_net_entity net_entity_accept;
 
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, return @c network_entity
         // TODO: why does this not work with std::string, but acceptor does?
-        net_entity_connect = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
-                    std::chrono::milliseconds(5000));
-        assert(net_entity_connect.is_valid());
-        // start network entity, emplace handlers
-        net_entity_connect.start(io_state_chng_hndlr, err_func);
+        net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
+                    5000);
     } else {
         // make @ tcp_acceptor, return @c network_entity
-        net_entity_accept = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
-        assert(net_entity_accept.is_valid());
-        // start network entity, emplace handlers
-        net_entity_accept.start(io_state_chng_hndlr, err_func);
+        net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
     }
+    assert(net_entity.is_valid());
+     // start network entity, emplace handlers
+    net_entity.start(io_state_chng_hndlr, err_func);
 
     screen.draw_screen();
         
     // get std::string from user, send string data over network, update screen
-    std::string s;
     while (!shutdown) {
+        std::string s;
         std::getline (std::cin, s); // user input
         if (s == "quit") {
             shutdown = true;
@@ -326,30 +333,31 @@ int main(int argc, char* argv[]) {
         s += DELIM; // needed for deliminator
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
-        // tcp.iof is not valid when there is no network connection
-        if (!tcp_iof.is_valid()) {
-            screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
-            screen.draw_screen();
-            continue; // back to top of loop
-        }
+
         // send user text message over network
         // note correct method of sending string data over network
-        tcp_iof.send(s.data(), s.size());
-    }
+        auto ret = net_entity.visit_io_output([&s] (io_output io_out) {
+                io_out.send(s.data(), s.size());
+            } // end lambda
+        );
+        
+        // check result
+        if (ret && *ret == 0) {
+            // no connection or other used quit
+            screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
+            screen.draw_screen();
+        } // end if
+    } // end while
 
     // allow last message to be sent before shutting down connection
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    // std::this_thread::sleep_for(std::chrono::seconds(1));
 
     // shutdown
-    if (param == PARAM_CONNECT) {
-        net_entity_connect.stop();
-    } else {
-        net_entity_accept.stop();
-    }
+    net_entity.stop();
     
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-    wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }
