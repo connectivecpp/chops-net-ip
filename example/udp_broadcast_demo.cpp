@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  7/16/19
+ *  8/19/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -54,7 +54,7 @@ auto print_useage = [] () {
     "     -e             Print errors and system messages\n"
     "     -b broadcast address\n"
     "        known broadcast address for this machine\n"
-    "        ex: 192.168.1.255, 172.145.255.255\n"
+    "        ex: 192.168.1.255, 172.145.255.255, \n"
     "     port           Default: 5005";
 
     std::cout << USEAGE << std::endl;
@@ -121,10 +121,10 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
         }
         // create broadcast address
         try {
-
-            addr4 asaddr = asio::ip::make_address_v4(ip_address);
-            addr4 asnetm = asio::ip::make_address_v4(net_mask);
-            addr4 asbroad = addr4::broadcast(asaddr, asnetm);
+            // DOES THIS WORK WHEN NETMASK IS NOT 255.255.255.0??
+            addr4 as_addr  = asio::ip::make_address_v4(ip_address);
+            addr4 as_netm  = asio::ip::make_address_v4(net_mask);
+            addr4 as_broad = addr4::broadcast(as_addr, as_netm);
             
             broadcast_addr = asbroad.to_string();
         }
@@ -150,8 +150,10 @@ int main(int argc, char* argv[]) {
     const int PORT = 5005;
     bool print_errors = false;
     int port = PORT;
+    // declare the net_entity here so accessable from the lambda
+    chops::net::net_entity udp_ne;
 
-    chops::net::udp_io_interface udp_iof;
+    // chops::net::udp_io_interface udp_iof; NO LONGER NEEDED
 
     if (process_args(argc, argv, print_errors, ip_address, net_mask,  port, 
             broadcast_addr) == EXIT_FAILURE) {
@@ -159,9 +161,12 @@ int main(int argc, char* argv[]) {
     }
     assert(broadcast_addr != "");
     
-    /**** lambda callbacks ****/
+    /**************************************/
+    /********** lambda callbacks **********/
+    /**************************************/
+
     // io state change handler
-    auto io_state_chng_hndlr = [&udp_iof, &port, &broadcast_addr, print_errors] 
+    auto io_state_chng_hndlr = [&udp_ne, &port, &broadcast_addr, print_errors] 
         (chops::net::udp_io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
@@ -170,12 +175,14 @@ int main(int argc, char* argv[]) {
             }
 
             // set socket flag for UPD broadcast
+            // TODO - use visit_socket for next 3 lines
+            udp_ne.visit_socket(); // ADD PARAMS
             auto& sock = iof.get_socket();
             asio::socket_base::broadcast opt(true);
             sock.set_option(opt);
             // set default endpoint broadcast address for this subnet
             asio::ip::udp::endpoint ep;
-            // set tha ip address and port
+            // set the ip address and port
             ep.address(asio::ip::make_address_v4(broadcast_addr));
             ep.port(port);
             // start the io_interface
@@ -200,7 +207,10 @@ int main(int argc, char* argv[]) {
         }
     };
 
-    // begin
+    /********************************/
+    /********** start here **********/
+    /********************************/
+
     std::cout << "chops-net-ip UDP broadcast demo" << std::endl;
     if (ip_address != "") {
         std::cout << "  IP address:net mask = " << ip_address << ":" << net_mask << std::endl;
@@ -220,11 +230,13 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip udp_broad(wk.get_io_context());
 
     // create a @c network_entitiy
-    chops::net::udp_net_entity udpne;
-    udpne = udp_broad.make_udp_sender(); // send only, no reads
-    assert(udpne.is_valid());
+    // chops::net::udp_net_entity udp_ne;
+    // udp_ne declared above before lambdas
+    // UDP unicast and multicast senders are the same
+    udp_ne = udp_broad.make_udp_sender(); // send only, no reads
+    assert(udp_ne.is_valid());
     // start it, emplace handlers
-    udpne.start(io_state_chng_hndlr, err_func);
+    udp_ne.start(io_state_chng_hndlr, err_func);
     
     // get text from user, send to UDP broadcast address
     bool finished = false;
@@ -235,13 +247,26 @@ int main(int argc, char* argv[]) {
             finished = true;
             continue;
         }
-        assert(udp_iof.is_valid());
-        udp_iof.send(s.data(), s.size());
-    }
+        // assert(udp_iof.is_valid());
+        // udp_iof.send(s.data(), s.size());
+        // send text, check result
+        auto ret = upd_ne.visit_io_output([&s] (io_ouput io_out) {
+                io_out.send(s.data(), s.size());
+            }
+        );
 
-     // cleanup
-    udpne.stop();
-    wk.stop();
+        if (ret && *ret == 0) {
+            std::cout << "send failed\n";
+        }
+    } // end while
+
+     /******************************/
+    /********** shutdown **********/
+    /******************************/
+
+    udp_ne.stop();
+    // wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }
