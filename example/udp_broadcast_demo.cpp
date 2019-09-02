@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  8/26/19
+ *  9/2/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,7 +20,7 @@ g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
 -I ../../asio/asio/include/ \
--I ../../boost* \
+-I ../../expected-lite/include/ \
 udp_broadcast_demo.cpp -lpthread -o udp_broad
 
  */
@@ -164,11 +164,6 @@ int main(int argc, char* argv[]) {
     chops::net::worker wk;
     wk.start();
 
-    /**************************************/
-    /********** lambda callbacks **********/
-    /**************************************/
-
-    // io state change handler
     // create @c net_ip instance
     chops::net::net_ip udp_broad(wk.get_io_context());
     // create a @c network_entitiy
@@ -177,6 +172,12 @@ int main(int argc, char* argv[]) {
     chops::net::net_entity udp_ne;
     udp_ne = udp_broad.make_udp_sender(); // send only, no reads
     assert(udp_ne.is_valid());
+
+    /**************************************/
+    /********** lambda callbacks **********/
+    /**************************************/
+
+    /******** io_state change handler ********/
     auto io_state_chng_hndlr = [&udp_ne, &port, &broadcast_addr, print_errors] 
         (chops::net::udp_io_interface iof, std::size_t n, bool flag) {
         
@@ -257,7 +258,7 @@ int main(int argc, char* argv[]) {
         }
     } // end while
 
-     /******************************/
+    /******************************/
     /********** shutdown **********/
     /******************************/
 
