@@ -8,7 +8,7 @@
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  5/5/19
+ *  9/2/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -19,6 +19,7 @@ g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
 -I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
 udp_receiver_demo.cpp -lpthread -o udp_receive
 
  *
@@ -90,13 +91,17 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    /**** lambda callbacks ****/
-    // message handler
+    /**************************************/
+    /********** lambda callbacks **********/
+    /**************************************/
+
+    /******** message handler ********/
     // receive text, display to console
     auto msg_hndlr = [&first_msg] (asio::const_buffer buf, chops::net::udp_io_interface iof,
         asio::ip::udp::endpoint ep) {
         // create string from buf
         std::string s (static_cast<const char*> (buf.data()), buf.size());
+        // who we are getting the broadcast messages from
         if (first_msg) {
             std::cout << "UPD broadcasts from " << ep.address() << ":\n";
             first_msg = false;
@@ -107,7 +112,7 @@ int main(int argc, char* argv[]) {
         return true;
     };
 
-    // io state change handler
+    /******** io state change handler ********/
     auto io_state_chng_hndlr = [&] 
         (chops::net::udp_io_interface iof, std::size_t n, bool flag) {
         
@@ -120,12 +125,12 @@ int main(int argc, char* argv[]) {
             if (print_errors) {
                 std::cout << "io state change: stop_io" << std::endl;
             }
-            iof.stop_io();
+            // iof.stop_io();
         }
     
     };
 
-    // error handler
+    /******** error handler ********/
     auto err_func = [&print_errors] (chops::net::udp_io_interface iof, std::error_code err) {
         if (print_errors) {
             std::string err_text = err.category().name();
@@ -135,7 +140,10 @@ int main(int argc, char* argv[]) {
         }
     };
 
-    // begin
+    /********************************/
+    /********** start here **********/
+    /********************************/
+
     std::cout << "chops-net-ip UDP receiver demo" << std::endl;
     std::cout << "  print errors and system messages: ";
     std::cout << (print_errors ? "ON" : "OFF") << std::endl;
@@ -150,19 +158,23 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip udp_receive(wk.get_io_context());
 
     // create a @c network_entitiy
-    chops::net::udp_net_entity udpne;
-    udpne = udp_receive.make_udp_unicast(port.c_str());
-    assert(udpne.is_valid());
+    chops::net::udp_net_entity udp_ne;
+    udp_ne = udp_receive.make_udp_unicast(port.c_str());
+    assert(udp_ne.is_valid());
 
-    udpne.start(io_state_chng_hndlr, err_func);
+    udp_ne.start(io_state_chng_hndlr, err_func);
 
     // pause for user input, then quit
     std::string s;
     getline(std::cin, s);
 
-     // cleanup
-    udpne.stop();
-    wk.stop();
+    /******************************/
+    /********** shutdown **********/
+    /******************************/
+    
+    udp_ne.stop();
+    // wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }
