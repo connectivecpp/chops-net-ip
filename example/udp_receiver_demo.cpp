@@ -37,6 +37,11 @@ udp_receiver_demo.cpp -lpthread -o udp_receive
 #include "net_ip_component/worker.hpp"
 #include "net_ip/io_type_decls.hpp"
 
+using const_buf = asio::const_buffer;
+using udp_io_interface = chops::net::udp_io_interface;
+using endpoint = asio::ip::udp::endpoint;
+using io_output = chops::net::udp_io_output;
+
 const std::string PORT = "5005";
 const std::string HELP_PRM = "-h";
 const std::string ERRS_PRM = "-e";
@@ -97,8 +102,8 @@ int main(int argc, char* argv[]) {
 
     /******** message handler ********/
     // receive text, display to console
-    auto msg_hndlr = [&first_msg] (asio::const_buffer buf, chops::net::udp_io_interface iof,
-        asio::ip::udp::endpoint ep) {
+    auto msg_hndlr = [&first_msg] (const_buf buf, io_output io_out,
+        endpoint ep) {
         // create string from buf
         std::string s (static_cast<const char*> (buf.data()), buf.size());
         // who we are getting the broadcast messages from
@@ -114,7 +119,7 @@ int main(int argc, char* argv[]) {
 
     /******** io state change handler ********/
     auto io_state_chng_hndlr = [&] 
-        (chops::net::udp_io_interface iof, std::size_t n, bool flag) {
+        (udp_io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
             iof.start_io(MAX_BUF, msg_hndlr);
@@ -158,7 +163,7 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip udp_receive(wk.get_io_context());
 
     // create a @c network_entitiy
-    chops::net::udp_net_entity udp_ne;
+    chops::net::net_entity udp_ne;
     udp_ne = udp_receive.make_udp_unicast(port.c_str());
     assert(udp_ne.is_valid());
 
