@@ -262,7 +262,6 @@ int main(int argc, char* argv[]) {
     /******************************/
 
     udp_ne.stop();
-    // wk.stop();
     wk.reset();
 
     return EXIT_SUCCESS;
