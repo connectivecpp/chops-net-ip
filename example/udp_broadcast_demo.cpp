@@ -251,6 +251,7 @@ int main(int argc, char* argv[]) {
         if (ret) {
             if ( *ret == 0) {
                  std::cout << "send failed\n";
+            }
         } else {
             std::cerr << "visit_io_output error: " << ret.error() << std::endl;
         }
