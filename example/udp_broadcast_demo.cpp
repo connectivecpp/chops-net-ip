@@ -4,7 +4,7 @@
  *  @ingroup example_module
  * 
  *  @brief UDP broadcast demo. Text messages are sent to the local network
- *  UDP broadcast address.
+ *  UDP broadcast address, received by @c UPD_receiver_demo.
  * 
  *  @author Thurman Gillespy
  * 
@@ -152,8 +152,6 @@ int main(int argc, char* argv[]) {
     bool print_errors = false;
     int port = PORT;
 
-    // chops::net::udp_io_interface udp_iof; NO LONGER NEEDED
-
     if (process_args(argc, argv, print_errors, ip_address, net_mask,  port, 
             broadcast_addr) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -203,7 +201,6 @@ int main(int argc, char* argv[]) {
             if (print_errors) {
                 std::cout << "io state change: stop_io" << std::endl;
             }
-            // iof.stop_io();
         }
     
     };
@@ -233,7 +230,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Enter text for UDP broadcast on this subnet" << std::endl;
     std::cout << "Enter \'quit\' or empty string to exit proggram" << std::endl;
 
-    // upd_ne declared above, time to start
+    // udp_ne declared above, time to start
     udp_ne.start(io_state_chng_hndlr, err_func);
     
     // get text from user, send to UDP broadcast address
@@ -245,8 +242,6 @@ int main(int argc, char* argv[]) {
             finished = true;
             continue;
         }
-        // assert(udp_iof.is_valid());
-        // udp_iof.send(s.data(), s.size());
         // send text, check result
         auto ret = udp_ne.visit_io_output([&s] (io_output io_out) {
                 io_out.send(s.data(), s.size());
