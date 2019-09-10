@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  @copyright (c) Thurman Gillespy
- *  9/2/19
+ *  9/9/19
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -37,7 +37,7 @@ udp_broadcast_demo.cpp -lpthread -o udp_broad
 #include "net_ip_component/worker.hpp"
 #include "net_ip/io_type_decls.hpp"
 
-using io_output = chops::net::tcp_io_output;
+using io_output = chops::net::udp_io_output;
 
 const std::string HELP_PRM = "-h";
 const std::string ERR_PRM = "-e";
@@ -253,8 +253,11 @@ int main(int argc, char* argv[]) {
             }
         );
 
-        if (ret && *ret == 0) {
-            std::cout << "send failed\n";
+        if (ret) {
+            if ( *ret == 0) {
+                 std::cout << "send failed\n";
+        } else {
+            std::cerr << "visit_io_output error: " << ret.error() << std::endl;
         }
     } // end while
 
