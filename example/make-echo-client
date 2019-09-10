@@ -1,0 +1,6 @@
+g++ -std=c++17 -g3 -fsanitize=address -Wall -Werror \
+-I ../include \
+-I ~/Projects/utility-rack/include/ \
+-I ~/Projects/asio/asio/include/ \
+-I ~/Projects/boost_1_69_0/ \
+echo_binary_text_client_demo.cpp -lpthread -o echo_client
