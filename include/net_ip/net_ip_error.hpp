@@ -104,7 +104,7 @@ struct net_ip_err_category : public std::error_category {
     case net_ip_errc::tcp_connector_timeout:
       return "tcp connector timeout";
     case net_ip_errc::tcp_connector_no_reconnect_attempted:
-      return "tcp connector no reconnect attempted since reconnect timeout is 0";
+      return "tcp connector no reconnect attempted";
 
     case net_ip_errc::functor_variant_mismatch:
       return "function object does not match internal variant";

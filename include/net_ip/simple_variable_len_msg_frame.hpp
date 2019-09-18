@@ -68,8 +68,9 @@ public:
 
   std::size_t operator() (asio::mutable_buffer buf) noexcept {
     if (!m_hdr_processed) {
-      m_hdr_processed = true;
-      return m_hdr_decoder_func(cast_ptr_to<std::byte>(buf.data()), buf.size());
+      auto sz = m_hdr_decoder_func(cast_ptr_to<std::byte>(buf.data()), buf.size());
+      m_hdr_processed = (sz != 0u);
+      return sz;
     }
     m_hdr_processed = false;
     return 0u;
