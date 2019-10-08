@@ -89,7 +89,7 @@ Production external dependencies:
 
 Test external dependencies:
 
-- Version 2.5.0 (or later) of Phil Nash's [Catch 2](https://github.com/catchorg/Catch2) is required for all test scenarios.
+- Version 2.8.0 (or later) of Phil Nash's [Catch 2](https://github.com/catchorg/Catch2) is required for all test scenarios.
 
 See [References](doc/references.md) for additional details on the above libraries.
 
