@@ -2,24 +2,24 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief Example of TCP peer to peer network chat program.
+ *  @brief Example of 2-way TCP peer to peer network chat program.
+ *  See usage text for further information.
  * 
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  8/12/19
+ *  @date 2019-10-14
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
- *  Sample make file:
-g++ -std=c++17 -Wall -Werror \
+ *  Sample make script:
+g++ -std=c++17  -g -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
-simple_chat_demo.cpp -lpthread -o chat
- * 
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
+simple_chat_demo.cpp -lpthread -o chat 
  *
  */ 
 
@@ -27,7 +27,6 @@ simple_chat_demo.cpp -lpthread -o chat
 #include <cstdlib> // EXIT_SUCCESS
 #include <cstddef> // std::size_t 
 #include <string>
-// #include <chrono>
 #include <thread>
 #include <cassert>
 
@@ -44,72 +43,6 @@ using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using tcp_io_interface = chops::net::tcp_io_interface;
 using endpoint = asio::ip::tcp::endpoint;
-
-/** How to use @c chops-net-ip for a simple peer to peer chat program over
- *  a network connection
- *  
- *  NEEDS UPDATING FOR RELEASE 1
- * 
- *  1. Write message handler function.
- * 
- *  The message handler receives text after @c ::send is invoked. Both
- *  the local and remote remote clients obtain the sent text through the
- *  handler. In this demo, the handler inserts the recevied text into the
- *  history scroll text, and then updates the screen output.
- * 
- *  Both message handlers return @c false when the user enters @c 'quit',
- *  otherwise @c true. @c 'quit' shuts down the handler and exits the program.
- *  The message handler must be shut down to preven memory leaks.
- * 
- *  2. Write @ io_state_change handler.
- * 
- *  The @c io_state_change handler calls @c ::start_io on the provided
- *  @c chops::net::tcp_io_interface. The handler needs to return a copy
- *  of the @c io_interface to main. The main copy will use the @c io_interface
- *  to @c send the text message from one client to another. On program
- *  shutdown, @c ::stop_io must be called on the @c io_interface to prevent
- *  memory leaks.
- * 
- *  3. Create an instance of the @c chops::net::worker class, which provides
- *  @c std::thread and @c asio::io_context management. Call @c worker::start 
- *  before the frist call to the @chops::net::ip facilities, then call 
- *  @c worker::stop when finished.
- * 
- *  4. Create an instance of the @c chops::net::ip::net_ip class. The constructor
- *  needs an @c asio:io_context, which is provided by the @c ::get_io_context
- *  method of the @c chops::net::worker instance.
- *  
- *  5. Call @c ::make_tcp_connector on the @c tcp_connector @ net_ip instance
- *  (@c '-connect' connection type), which returns a copy of a
- *  @c tcp_connector_network_entity.
- *  
- *  6. Call @c ::make_tcp_acceptor on the @c tcp_acceptor @ net_ip instance
- *  (@c '-accept' connection type), which returns a copy of a
- *  @c tcp_acceptor_network_entity.
- * 
- *  7. Call @c ::start on the @c network_entity, which emplaces the
- *  message handler and @c io_state change handler.
- * 
- *  8. Call @c ::send on the @c chops::net::tcp_io_interface instance to send
- *  a text string over the network connection.
- * 
- *  9. See the example code and the header files for the signatures of the
- *  handlers.
- *  
- *  10. Program shutdown
- *  
- *  To prevent memory leaks and crashes, the following steps must be taken.
- * 
- *  Shutdown the @c message_handler and call @c ::stop_io on the 
- *  @c io_interface. This program the @c 'quit' command and the
- *  @c finished flag to shutdown the handlers.
- * 
- *  Call @c ::stop on the @c network_entity.
- *  
- *  Comment: This sequence is too convoluted, and a more gracefull 
- *  automatic shutdown will be implemented for release 1.0.
- * 
- */
 
 
 // process command line args, set ip_addr, port, param, print_errors
