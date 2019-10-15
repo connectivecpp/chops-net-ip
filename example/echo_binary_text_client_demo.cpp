@@ -17,9 +17,9 @@
  *  Sample make file:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
 echo_binary_text_client_demo.cpp -lpthread -o echo_client
  * 
  */
@@ -33,12 +33,14 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip/net_entity.hpp"
+#include "net_ip_component/worker.hpp"
 #include "marshall/extract_append.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
-using io_interface = chops::net::tcp_io_interface;
+using io_output = chops::net::tcp_io_output;
+// using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
@@ -92,7 +94,7 @@ int main(int argc, char* argv[]) {
     bool hdr_processed = false;
     bool print_errors = false;
 
-    io_interface tcp_iof; // use this to send text messages
+    // io_interface tcp_iof; // use this to send text messages
 
     if (process_args(argc, argv, print_errors, ip_address, port) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -137,7 +139,7 @@ int main(int argc, char* argv[]) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
             tcp_iof = iof; // return iof to main, used later to send text
         } else {
-            iof.stop_io();
+            // iof.stop_io();
         }
     
     };
@@ -204,12 +206,16 @@ int main(int argc, char* argv[]) {
         buf_out.append(tbuf, sizeof(tbuf)); // write the header
         buf_out.append(s.data(), s.size()); // now add the text data
         // send message to server (TCP_acceptor)
-        tcp_iof.send(buf_out.data(), buf_out.size());
-    }
-
+        // tcp_iof.send(buf_out.data(), buf_out.size());
+        net_entity_connect.visit_io_output([&buf_out] (io_output io_out) {
+                io_out.send(buf_out.data(), buf_out.size()):
+            } // end lambda
+        );
+    } // end while
+ 
     // cleanup
     net_entity_connect.stop();
-    wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }
