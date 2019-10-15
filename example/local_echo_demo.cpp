@@ -10,7 +10,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/11/19
+ *  2019-10-14
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,7 +20,8 @@ g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
 -I ../../asio/asio/include/ \
- local_echo_demo.cpp -lpthread -o local
+-I ../../expected-lite/include/ \
+ local_echo_demo.cpp -lpthread -o local_echo
  *
  */ 
 
@@ -45,61 +46,6 @@ using io_output = chops::net::tcp_io_output;
 using const_buf = asio::const_buffer;
 using tcp_io_interface = chops::net::tcp_io_interface;
 using endpoint = asio::ip::tcp::endpoint;
-
-/** How to use @c chops-net-ip for a simple text send/receive network connection
- *  over a local loop that echos the text (in uppercase) back to the user.
- * 
- *  1. Write message handlers for the @c tcp_connector and @c tcp_acceptor.
- * 
- *  The @c tcp_connector_message_handler receives text from a @c tcp_acceptor
- *  (in-bound messages). In this demo, the handler prints the text to stdout,
- * 
- *  The @c tcp_acceptor_message_handler receives the (out-bound) message from
- *  the @c tcp-connector. In this demo, the handler converts the text to
- *  uppercase, then returns the text over the same connection back to the
- *  @c tcp_connector.
- * 
- *  In this demo, both message handlers return @c false when the user enters
- *  @c "quit", otherwise @c true. @c "quit" shuts down both handlers and exits
- *  the program.
- * 
- *  2. Write @ io_state_change handlers for the @c tcp_connector and @c
- *  @c tcp_acceptor.
- * 
- *  The @c tcp_connector @c io_state_change handler calls @c start_io on the
- *  provided @c chops::net::tcp_io_interface. It then needs to return a copy
- *  of the @c io_interface to main. The main copy will use the @c io_interface
- *  to @c send the text message from the @c tcp_connector to the @c tcp_acceptor.
- *  
- *  The @c tcp_acceptor @c io_state_change handler only needs to call @c start_io
- *  on the provided @c io_interface.
- * 
- *  3. Create an instance of the @c chops::net::worker class, which provides
- *  @c std::thread and @c asio::io_context management. Call @c worker::start 
- *  before the frist call to the @chops::net::ip facilities, then call 
- *  @c worker::stop when finished.
- * 
- *  4. Create an instance of the @c chops::net::ip::net_ip class. The constructor
- *  needs an @c asio:io_context, which is provided by the @c get_io_context()
- *  method of the @c chops::net::worker instance.
- *  
- *  5. Call @c ::make_tcp_connector on the @ net_ip instance, which returns a 
- *  copy of a @c tcp_connecvtor_network_entity.
- *  
- *  6. Call @c ::make_tcp_acceptor on the @ net_ip instance, which returns a
- *  copy of a @c tcp_acceptor_network_entity.
- * 
- *  7. Call @c ::start() on both both @c network_entity. Each @c tcp_connector
- *  and @c tcp_acceptor @ network_entity takes its' own @c io_state_change
- *  handler, and each @ io_state_change handler takes its' own @c message_handler. 
- * 
- *  8. Call @c ::send() on the @c chops::net::tcp_io_interface instance to send
- *  a text string over the local loop network connection.
- * 
- *  9. See the example code and the header files for the signatures of the
- *  handlers.
- * 
- */
 
 const std::string PORT = "5001";
 
