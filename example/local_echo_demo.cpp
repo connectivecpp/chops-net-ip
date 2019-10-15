@@ -5,7 +5,7 @@
  *  @ingroup example_module
  * 
  *  @brief Example of TCP send/receive text string over local loop network
- *  connection.
+ *  connection. Text is returned in uppercase.
  * 
  *  @author Thurman Gillespy
  * 
