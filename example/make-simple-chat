@@ -3,4 +3,4 @@ g++ -std=c++17  -g -Wall -Werror \
 -I ../../utility-rack/include/ \
 -I ../../asio/asio/include/ \
 -I ../../expected-lite/include/ \
-simple_chat_demo.cpp -lpthread -o chat
+simple_chat_demo.cpp -lpthread -o simple_chat
