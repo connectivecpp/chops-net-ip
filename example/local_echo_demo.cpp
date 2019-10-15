@@ -59,8 +59,7 @@ int main() {
             std::string s (static_cast<const char*> (buf.data()), buf.size());
             std::cout << s; // s aleady has terminating '\n'
 
-            // return false if user entered 'quit', otherwise true
-            return s == "QUIT\n" ? false: true;
+            return true;
         };
     
     // message handler for @c tcp_acceptor @c message_handler
@@ -74,8 +73,7 @@ int main() {
             // send uppercase string data back over network connection
             io_out.send(s.data(), s.size());
             
-            // return false if user entered 'quit', otherwise true
-            return s == "QUIT\n" ? false:  true;
+            return true;
         };
 
     // handler for @c tcp_connector
@@ -147,6 +145,9 @@ int main() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
+    // must shutdown the net entities
+    tcne.stop();
+    tane.stop();
     wk.stop();
 
     return EXIT_SUCCESS;
