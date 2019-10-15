@@ -176,7 +176,6 @@ int main(int argc, char* argv[]) {
                 iof.stop_io();
             }
         } else { // flag false
-            // stop iof when flag false
             if (print_errors) {
                 screen.insert_scroll_line("io_interface stop" + DELIM, SYSTEM);
                 screen.draw_screen();
@@ -259,7 +258,7 @@ int main(int argc, char* argv[]) {
         
         // check result
         if (ret && *ret == 0) {
-            // no connection or other used quit
+            // no connection or other user quit
             screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
             screen.draw_screen();
         } // end if
