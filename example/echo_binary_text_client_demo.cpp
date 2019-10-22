@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/30/19
+ *  2019-10-21
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -40,7 +40,6 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 
 using io_context = asio::io_context;
 using io_output = chops::net::tcp_io_output;
-// using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
