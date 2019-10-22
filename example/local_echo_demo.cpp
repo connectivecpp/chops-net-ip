@@ -148,7 +148,7 @@ int main() {
     // must shutdown the net entities
     tcne.stop();
     tane.stop();
-    wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }
