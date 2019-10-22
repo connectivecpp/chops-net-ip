@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/26/19 **** CONVERSION IN PROGRESS ****
+ *  2019-10-21
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
     
     // cleanup
     net_entity_accept.stop();
-    wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }
