@@ -182,11 +182,13 @@ int main(int argc, char* argv[]) {
             shutdown = true;
             continue;
         }
+
+        // REPLACEMMENT FOR THIS FUNCTIONALITY?
         // @c tcp.iof is not valid when there is no network connection
-        if (!tcp_iof.is_valid()) {
-            std::cout << "no connection..." << std::endl;
-            continue; // back to top of loop
-        }
+        // if (!tcp_iof.is_valid()) {
+        //     std::cout << "no connection..." << std::endl;
+        //     continue; // back to top of loop
+        // }
         
         // buffer to send entered message from user
         chops::mutable_shared_buffer buf_out;
