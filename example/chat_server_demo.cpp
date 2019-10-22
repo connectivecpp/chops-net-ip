@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 
    // handles all @c io_interfaces
    // REVIEW WITH CLIFF
-   // chops::net::send_to_all<chops::net::tcp_io> sta;
+   chops::net::send_to_all<chops::net::tcp_io> sta;
 
    /* lamda handlers */
    // receive text from client, send out to others
@@ -130,9 +130,7 @@ int main(int argc, char *argv[])
          // not 'quit' (normal message)
          // so send message to all but originator
          // REVIEW WITH CLIFF - send to all?
-         // sta.send(buf.data(), buf.size(), iof);
-         // for now...
-         io_out.send(buf.data(), buf.size());
+         sta.send(buf.data(), buf.size(), iof);
       }
 
       return true;
