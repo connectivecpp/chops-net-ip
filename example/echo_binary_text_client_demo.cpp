@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
         // send message to server (TCP_acceptor)
         // tcp_iof.send(buf_out.data(), buf_out.size());
         net_entity_connect.visit_io_output([&buf_out] (io_output io_out) {
-                io_out.send(buf_out);
+                io_out.send(buf_out.data(), buf_out.size());
             } // end lambda
         );
     } // end while
