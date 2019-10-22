@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/30/19
+ *  4/30/19 ***** CONVERSION IN PRGRESS ******
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -15,9 +15,9 @@
  *  Sample make file:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
 chat_server_demo.cpp -lpthread -o chat_server
  *
  */
@@ -32,8 +32,9 @@ chat_server_demo.cpp -lpthread -o chat_server
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/net_entity.hpp"
+#include "net_ip/basic_net_entity.hpp"
 #include "net_ip_component/worker.hpp"
+#include "marshall/extract_append.hpp"
 #include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
