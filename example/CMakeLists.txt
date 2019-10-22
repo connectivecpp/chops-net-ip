@@ -13,8 +13,8 @@ set ( example_source_dir "${CMAKE_SOURCE_DIR}/example" )
 
 set ( example_sources 
     "${example_source_dir}/local_echo_demo.cpp"
-    "${example_source_dir}/chat_server_demo.cpp"
-#    "${example_source_dir}/simple_chat_demo.cpp"
+#    "${example_source_dir}/chat_server_demo.cpp"
+    "${example_source_dir}/simple_chat_demo.cpp"
     "${example_source_dir}/echo_binary_text_server_demo.cpp"
     "${example_source_dir}/echo_binary_text_client_demo.cpp"
     "${example_source_dir}/udp_broadcast_demo.cpp"
