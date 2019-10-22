@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip echo_client(wk.get_io_context());
 
     // create a @c tcp_connector network entity
-    chops::net::tcp_connector_net_entity net_entity_connect;
+    chops::net::tcp_net_entity net_entity_connect;
     net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str(),
                         std::chrono::milliseconds(5000));
     assert(net_entity_connect.is_valid());
