@@ -131,14 +131,11 @@ int main(int argc, char* argv[]) {
     };
 
     // io state change handler
-    auto io_state_chng_hndlr = [&msg_hndlr, &msg_frame, &tcp_iof] 
+    auto io_state_chng_hndlr = [&msg_hndlr, &msg_frame] 
         (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
-            tcp_iof = iof; // return iof to main, used later to send text
-        } else {
-            // iof.stop_io();
         }
     
     };
@@ -207,7 +204,7 @@ int main(int argc, char* argv[]) {
         // send message to server (TCP_acceptor)
         // tcp_iof.send(buf_out.data(), buf_out.size());
         net_entity_connect.visit_io_output([&buf_out] (io_output io_out) {
-                io_out.send(buf_out.data(), buf_out.size()):
+                io_out.send(buf_out);
             } // end lambda
         );
     } // end while

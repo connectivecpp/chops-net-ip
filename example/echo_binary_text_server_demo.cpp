@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/26/19
+ *  4/26/19 **** CONVERSION IN PROGRESS ****
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,9 +17,9 @@
  *  Sample make file:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
 echo_binary_text_server_demo.cpp -lpthread -o echo_server
  * 
  */
@@ -34,8 +34,9 @@ echo_binary_text_server_demo.cpp -lpthread -o echo_server
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/basic_net_entity.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip_component/worker.hpp"
 #include "marshall/extract_append.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
 using io_interface = chops::net::tcp_io_interface;
@@ -110,7 +111,7 @@ int main(int argc, char* argv[]) {
         buf_out.append(tbuf, sizeof(tbuf)); // write the header
         buf_out.append(s.data(), s.size()); // now add the text data
         // send message back to the client
-        iof.send(buf_out.data(), buf_out.size());
+        iof.send(buf_out);
 
         return true;
     };
@@ -140,8 +141,6 @@ int main(int argc, char* argv[]) {
         
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
-        } else {
-            iof.stop_io();
         }
     
     };
