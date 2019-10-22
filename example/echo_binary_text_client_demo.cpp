@@ -160,8 +160,7 @@ int main(int argc, char* argv[]) {
 
     // create a @c tcp_connector network entity
     chops::net::net_entity net_entity_connect;
-    net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str(),
-                        std::chrono::milliseconds(5000));
+    net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str(), 5000);
     assert(net_entity_connect.is_valid());
     // start @c network_entity, emplace handlers
     net_entity_connect.start(io_state_chng_hndlr, err_func);
