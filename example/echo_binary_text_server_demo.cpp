@@ -163,7 +163,7 @@ int main(int argc, char* argv[]) {
     
     // create @c net_ip instance
     chops::net::net_ip echo_server(wk.get_io_context());
-    chops::net::tcp_acceptor_net_entity net_entity_accept;
+    chops::net::net_entity net_entity_accept;
 
     // make @ tcp_acceptor, return @c network_entity
     net_entity_accept = echo_server.make_tcp_acceptor(port.c_str());
