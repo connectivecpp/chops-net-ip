@@ -40,6 +40,7 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 
 using io_context = asio::io_context;
 using io_output = chops::net::tcp_io_output;
+using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
 
@@ -103,7 +104,7 @@ int main(int argc, char* argv[]) {
 
     // message handler
     // receive text, display to console
-    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
+    auto msg_hndlr = [] (const_buf buf, io_output io_out, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
         std::cout << s << std::endl;

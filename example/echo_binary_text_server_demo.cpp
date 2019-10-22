@@ -33,12 +33,13 @@ echo_binary_text_server_demo.cpp -lpthread -o echo_server
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
+#include "net_ip/net_entity.hpp"
 #include "net_ip_component/worker.hpp"
 #include "marshall/extract_append.hpp"
 #include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
+using io_output = chops::net::tcp_io_output;
 using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
@@ -87,7 +88,7 @@ int main(int argc, char* argv[]) {
 
     // message handler
     // receive text, convert to uppercase, send back to client
-    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
+    auto msg_hndlr = [] (const_buf buf, io_output io_out, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
         
@@ -111,7 +112,8 @@ int main(int argc, char* argv[]) {
         buf_out.append(tbuf, sizeof(tbuf)); // write the header
         buf_out.append(s.data(), s.size()); // now add the text data
         // send message back to the client
-        iof.send(buf_out);
+        io_out.send(buf_out.data(), buf_out.size());
+        
 
         return true;
     };
