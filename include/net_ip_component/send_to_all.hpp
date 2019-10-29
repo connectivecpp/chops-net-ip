@@ -58,7 +58,7 @@ class send_to_all {
 private:
   using lock_guard  = std::lock_guard<std::mutex>;
   // using io_intf    = basic_io_interface<IOT>;
-  using io_out      = chops::basic_io_output<IOT>;
+  using io_out      = chops::net::basic_io_output<IOT>;
   using io_outs     = std::vector<io_out>;
 
 private:
