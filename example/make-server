@@ -1,4 +1,4 @@
-clang++ -std=c++17  -g3 -fsanitize=address -Wall -Werror \
+g++ -std=c++17  -g3 -fsanitize=address -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
 -I ../../asio/asio/include/ \
