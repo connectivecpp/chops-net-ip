@@ -83,13 +83,13 @@ All the dependencies listed below have links that will take you to the library o
 
 Production external dependencies:
 
-- Version 1.13 (or later) of Chris Kohlhoff's [`asio`] (https://github.com/chriskohlhoff/asio) library is required. Note that it is the stand-alone library, not the Boost Asio implementation.
-- Version 0.9 (or later) of [`utility-rack`](https://connectivecpp.github.io/utility-rack), which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp`, `erase_where.hpp`, `overloaded.hpp`, and `cast_ptr_to` are required).
+- Version 1.13 (or later) of Chris Kohlhoff's [`asio`](https://github.com/chriskohlhoff/asio) library is required. Note that it is the stand-alone library, not the Boost Asio implementation.
+- Version 0.9 (or later) of the [`utility-rack`](https://connectivecpp.github.io/utility-rack) library, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp`, `erase_where.hpp`, `overloaded.hpp`, and `cast_ptr_to` are required).
 - Version 0.3 (or later) of Martin Moene's [`expected-lite`](https://github.com/martinmoene/expected-lite) library.
 
 Test external dependencies:
 
-- Version 2.8.0 (or later) of Phil Nash's [Catch 2](https://github.com/catchorg/Catch2) is required for all test scenarios.
+- Version 2.8.0 (or later) of Phil Nash's [`Catch 2`](https://github.com/catchorg/Catch2) library is required for all test scenarios.
 
 See [References](doc/references.md) for additional details on the above libraries.
 
