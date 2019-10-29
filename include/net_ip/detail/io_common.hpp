@@ -4,6 +4,11 @@
  *
  *  @brief Common code, factored out, for TCP and UDP io handlers.
  *
+ *  The common code includes an IO started flag and output queue management. The
+ *  implementation currently uses a @c std::mutex to protect concurrent access,
+ *  but other designs are possible, including @c asio @c post for writes, or 
+ *  various combinations of a lock-free MPSC queue and @c std::atomic variables.
+ *
  *  @note For internal use only.
  *
  *  @author Cliff Green
@@ -18,101 +23,109 @@
 #ifndef IO_COMMON_HPP_INCLUDED
 #define IO_COMMON_HPP_INCLUDED
 
-#include <atomic>
-#include <system_error>
-#include <functional> // std::function, used for type erased notifications to net_entity objects
-#include <memory> // std::shared_ptr
+#include <optional>
+#include <mutex>
 
 #include "net_ip/detail/output_queue.hpp"
 #include "net_ip/queue_stats.hpp"
-#include "marshall/shared_buffer.hpp"
 
 namespace chops {
 namespace net {
 namespace detail {
 
-template <typename IOT>
+template <typename E>
 class io_common {
 private:
-  using endp_type = typename IOT::endpoint_type;
-
-public:
-  using outq_type = output_queue<typename IOT::endpoint_type>;
-  using outq_opt_el = typename outq_type::opt_queue_element;
-  using queue_stats = chops::net::output_queue_stats;
+  bool                m_io_started; // original implementation this was std::atomic_bool
+  bool                m_write_in_progress;
+  output_queue<E>     m_outq;
+  mutable std::mutex  m_mutex;
 
 private:
+  using lk_guard = std::lock_guard<std::mutex>;
 
-  std::atomic_bool     m_io_started; // may be called from multiple threads concurrently
-  bool                 m_write_in_progress; // internal only, doesn't need to be atomic
-  outq_type            m_outq;
+private:
+  void do_clear() { // mutex should already be locked
+    m_outq.clear();
+    m_write_in_progress = false;
+  }
+
+public:
+  enum write_status { io_stopped, queued, write_started };
 
 public:
 
-  explicit io_common() noexcept :
-    m_io_started(false), m_write_in_progress(false), m_outq() { }
+  io_common() noexcept :
+    m_io_started(false), m_write_in_progress(false), m_outq(), m_mutex() { }
 
   // the following four methods can be called concurrently
-  queue_stats get_output_queue_stats() const noexcept { return m_outq.get_queue_stats(); }
-
-  bool is_io_started() const noexcept { return m_io_started; }
-
-  bool set_io_started() noexcept {
-    bool expected = false;
-    return m_io_started.compare_exchange_strong(expected, true);
+  auto get_output_queue_stats() const noexcept {
+    lk_guard lg(m_mutex);
+    return m_outq.get_queue_stats();
   }
 
-  bool stop() noexcept {
-    bool expected = true;
-    return m_io_started.compare_exchange_strong(expected, false); 
+  bool is_io_started() const noexcept {
+    lk_guard lg(m_mutex);
+    return m_io_started;
+  }
+
+  bool set_io_started() noexcept {
+    lk_guard lg(m_mutex);
+    return m_io_started ? false : (m_io_started = true, true);
+  }
+
+  bool set_io_stopped() noexcept {
+    lk_guard lg(m_mutex);
+    return m_io_started ? (m_io_started = false, true) : false;
   }
 
   // rest of these method called only from within run thread
-  bool is_write_in_progress() const noexcept { return m_write_in_progress; }
+  bool is_write_in_progress() const noexcept {
+    lk_guard lg(m_mutex);
+    return m_write_in_progress;
+  }
 
-  bool start_write_setup(const chops::const_shared_buffer&);
-  bool start_write_setup(const chops::const_shared_buffer&, const endp_type&);
+  void clear() noexcept {
+    lk_guard lg(m_mutex);
+    do_clear();
+  }
 
-  outq_opt_el get_next_element();
+  // func is the code that performs actual write, typically async_write or
+  // async_sendto
+  template <typename F>
+  write_status start_write(const E& elem, F&& func) {
+    lk_guard lg(m_mutex);
+    if (!m_io_started) {
+      do_clear();
+      return io_stopped; // shutdown happening or not io_started, don't start a write
+    }
+    if (m_write_in_progress) { // queue buffer
+      m_outq.add_element(elem);
+      return queued;
+    }
+    m_write_in_progress = true;
+    func(elem);
+    return write_started;
+  }
+
+  template <typename F>
+  void write_next_elem(F&& func) {
+    lk_guard lg(m_mutex);
+    if (!m_io_started) { // shutting down
+      do_clear();
+      return;
+    }
+    auto elem = m_outq.get_next_element();
+    if (!elem) {
+      m_write_in_progress = false;
+      return;
+    }
+    m_write_in_progress = true;
+    func(*elem);
+    return;
+  }
 
 };
-
-template <typename IOT>
-bool io_common<IOT>::start_write_setup(const chops::const_shared_buffer& buf) {
-  if (!m_io_started) {
-    return false; // shutdown happening or not io_started, don't start a write
-  }
-  if (m_write_in_progress) { // queue buffer
-    m_outq.add_element(buf);
-    return false;
-  }
-  m_write_in_progress = true;
-  return true;
-}
-
-template <typename IOT>
-bool io_common<IOT>::start_write_setup(const chops::const_shared_buffer& buf, 
-                                       const endp_type& endp) {
-  if (!m_io_started) {
-    return false; // shutdown happening or not io_started, don't start a write
-  }
-  if (m_write_in_progress) { // queue buffer
-    m_outq.add_element(buf, endp);
-    return false;
-  }
-  m_write_in_progress = true;
-  return true;
-}
-
-template <typename IOT>
-typename io_common<IOT>::outq_opt_el io_common<IOT>::get_next_element() {
-  if (!m_io_started) { // shutting down
-    return outq_opt_el { };
-  }
-  auto elem = m_outq.get_next_element();
-  m_write_in_progress = elem.has_value();
-  return elem;
-}
 
 } // end detail namespace
 } // end net namespace

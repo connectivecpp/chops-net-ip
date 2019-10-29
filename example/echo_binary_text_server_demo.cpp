@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/26/19
+ *  2019-10-21
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,9 +17,9 @@
  *  Sample make file:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
 echo_binary_text_server_demo.cpp -lpthread -o echo_server
  * 
  */
@@ -33,11 +33,13 @@ echo_binary_text_server_demo.cpp -lpthread -o echo_server
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip/net_entity.hpp"
+#include "net_ip_component/worker.hpp"
 #include "marshall/extract_append.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
+using io_output = chops::net::tcp_io_output;
 using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
@@ -86,7 +88,7 @@ int main(int argc, char* argv[]) {
 
     // message handler
     // receive text, convert to uppercase, send back to client
-    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
+    auto msg_hndlr = [] (const_buf buf, io_output io_out, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
         
@@ -110,7 +112,8 @@ int main(int argc, char* argv[]) {
         buf_out.append(tbuf, sizeof(tbuf)); // write the header
         buf_out.append(s.data(), s.size()); // now add the text data
         // send message back to the client
-        iof.send(buf_out.data(), buf_out.size());
+        io_out.send(buf_out.data(), buf_out.size());
+        
 
         return true;
     };
@@ -140,8 +143,6 @@ int main(int argc, char* argv[]) {
         
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
-        } else {
-            iof.stop_io();
         }
     
     };
@@ -162,7 +163,7 @@ int main(int argc, char* argv[]) {
     
     // create @c net_ip instance
     chops::net::net_ip echo_server(wk.get_io_context());
-    chops::net::tcp_acceptor_net_entity net_entity_accept;
+    chops::net::net_entity net_entity_accept;
 
     // make @ tcp_acceptor, return @c network_entity
     net_entity_accept = echo_server.make_tcp_acceptor(port.c_str());
@@ -181,7 +182,7 @@ int main(int argc, char* argv[]) {
     
     // cleanup
     net_entity_accept.stop();
-    wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }

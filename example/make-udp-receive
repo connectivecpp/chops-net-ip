@@ -1,0 +1,6 @@
+g++ -std=c++17 -g -Wall -Werror \
+-I ../include \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
+udp_receiver_demo.cpp -lpthread -o udp_receive

@@ -4,14 +4,17 @@
  *
  *  @brief Utility class to manage output data queueing.
  *
- *  The @c std::atomic counters allow the IO handler to update
- *  while the application queries the stats.
+ *  Concurrency protection is needed at a higher level to enforce data structure and flag
+ *  consistency for data sending, as well as to ensure that only one write is in process at 
+ *  a time. There are multiple ways to accomplish this goal, whether with locks (mutex or 
+ *  spin-lock or semaphore, etc), or by posting all write operations through the Asio 
+ *  executor.
  *
  *  @note For internal use only.
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -22,75 +25,55 @@
 #define OUTPUT_QUEUE_HPP_INCLUDED
 
 #include <queue>
-#include <atomic>
 #include <cstddef> // std::size_t
-#include <utility> // std::pair
 #include <optional>
 
 #include "net_ip/queue_stats.hpp"
-#include "marshall/shared_buffer.hpp"
 
 namespace chops {
 namespace net {
 namespace detail {
 
+// template parameter E is instantiated as either a shared_buffer or a shared_buffer and 
+// endpoint, depending on IO handler; a size() method is expected for E
 template <typename E>
 class output_queue {
 private:
 
-  using opt_endpoint = std::optional<E>;
-  using queue_element = std::pair<chops::const_shared_buffer, opt_endpoint>;
+  std::queue<E>       m_output_queue;
+  std::size_t         m_current_num_bytes;
 
-private:
-
-  std::queue<queue_element> m_output_queue;
-  std::atomic_size_t        m_queue_size;
-  std::atomic_size_t        m_current_num_bytes;
-  // std::size_t               m_total_bufs_sent;
-  // std::size_t               m_total_bytes_sent;
-
-public:
-  using opt_queue_element = std::optional<queue_element>;
+  // std::size_t         m_queue_size;
+  // std::size_t         m_total_bufs_sent;
+  // std::size_t         m_total_bytes_sent;
 
 public:
 
-  output_queue() noexcept : m_output_queue(), m_queue_size(0), m_current_num_bytes(0) { }
+  output_queue() noexcept : m_output_queue(), m_current_num_bytes(0u) { }
 
   // io handlers call this method to get next buffer of data, can be empty
-  opt_queue_element get_next_element() {
+  std::optional<E> get_next_element() {
     if (m_output_queue.empty()) {
-      return opt_queue_element { };
+      return std::optional<E> { };
     }
-    queue_element e = m_output_queue.front();
+    E elem = m_output_queue.front();
     m_output_queue.pop();
-    --m_queue_size;
-    m_current_num_bytes -= e.first.size();
-    return opt_queue_element {e};
+    m_current_num_bytes -= elem.size();
+    return std::optional<E> {elem};
   }
 
-  void add_element(const chops::const_shared_buffer& buf) {
-    add_element(buf, opt_endpoint());
-  }
-
-  void add_element(const chops::const_shared_buffer& buf, const E& endp) {
-    add_element(buf, opt_endpoint(endp));
+  void add_element(const E& element) {
+    m_output_queue.push(element);
+    m_current_num_bytes += element.size(); // note - possible integer overflow
   }
 
   chops::net::output_queue_stats get_queue_stats() const noexcept {
-    return chops::net::output_queue_stats { m_queue_size, m_current_num_bytes };
-    // return chops::net::output_queue_stats {
-    //   m_queue_size, m_current_num_bytes, m_total_bufs_sent, m_total_bytes_sent 
-    // };
+    return chops::net::output_queue_stats { m_output_queue.size(), m_current_num_bytes };
   }
 
-private:
-
-  void add_element(const chops::const_shared_buffer& buf, opt_endpoint&& opt_endp) {
-    m_output_queue.push(queue_element(buf, opt_endp));
-    ++m_queue_size;
-    m_current_num_bytes += buf.size(); // note - possible integer overflow
-    // ++m_total_bufs_sent;
-    // m_total_bytes_sent += buf.size();
+  void clear() noexcept {
+    std::queue<E>().swap(m_output_queue);
+    m_current_num_bytes = 0u;
   }
 
 };
