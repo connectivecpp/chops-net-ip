@@ -77,7 +77,7 @@ While the main production branch will always be developed and tested with C++ 17
 
 # External Dependencies
 
-The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). ~~There are more dependencies in the test code than in the production code.~~
+The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code.
 
 All the dependencies listed below have links that will take you to the library or repository.
 
