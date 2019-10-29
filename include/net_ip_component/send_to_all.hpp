@@ -63,7 +63,7 @@ private:
 
 private:
   mutable std::mutex    m_mutex;
-  io_intfs              m_io_intfs;
+  io_outs               m_io_outs;
 
 public:
 /**
@@ -71,7 +71,7 @@ public:
  */
   void add_io_interface(io_out io) {
     lock_guard gd { m_mutex };
-    m_io_intfs.push_back(io);
+    m_io_outs.push_back(io);
   }
 
 /**
@@ -79,7 +79,7 @@ public:
  */
   void remove_io_interface(io_out io) {
     lock_guard gd { m_mutex };
-    chops::erase_where(m_io_intfs, io);
+    chops::erase_where(m_io_outs, io);
   }
 
 /**
@@ -101,7 +101,7 @@ public:
  */
   void send(chops::const_shared_buffer buf) const {
     lock_guard gd { m_mutex };
-    for (const auto& io : m_io_intfs) {
+    for (const auto& io : m_io_outs) {
       io.send(buf);
     }
   }
@@ -112,7 +112,7 @@ public:
  */
   void send(chops::const_shared_buffer buf, io_out cur_io) const { // TG
     lock_guard gd { m_mutex };
-    for (const auto& io : m_io_intfs) {
+    for (const auto& io : m_io_outs) {
       if ( !(cur_io == io) ) {
         io.send(buf);
       }
@@ -156,7 +156,7 @@ public:
  */
   std::size_t size() const noexcept {
     lock_guard gd { m_mutex };
-    return m_io_intfs.size();
+    return m_io_outs.size();
   }
 
 /**
@@ -167,7 +167,7 @@ public:
   auto get_total_output_queue_stats() const noexcept {
     chops::net::output_queue_stats tot { };
     lock_guard gd { m_mutex };
-    for (const auto& io : m_io_intfs) {
+    for (const auto& io : m_io_outs) {
       auto qs = io.get_output_queue_stats();
       tot.output_queue_size += qs.output_queue_size;
       tot.bytes_in_output_queue += qs.bytes_in_output_queue;
