@@ -34,6 +34,7 @@ chat_server_demo.cpp -lpthread -o chat_server
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
 #include "net_ip_component/worker.hpp"
+#include "net_ip_component/send_to_all.hpp"
 #include "marshall/extract_append.hpp"
 #include "net_ip/io_type_decls.hpp"
 
