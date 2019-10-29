@@ -84,7 +84,7 @@ All the dependencies listed below have links that will take you to the library o
 Production external dependencies:
 
 - Version 1.13 (or later) of Chris Kohlhoff's [`asio`](https://github.com/chriskohlhoff/asio) library is required. Note that it is the stand-alone library, not the Boost Asio implementation.
-- Version 0.9 (or later) of the [`utility-rack`](https://connectivecpp.github.io/utility-rack) library, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp`, `erase_where.hpp`, `overloaded.hpp`, and `cast_ptr_to` are required).
+- Version 0.9 (or later) of the [`utility-rack`](https://github.com/connectivecpp/utility-rack) library, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp`, `erase_where.hpp`, `overloaded.hpp`, and `cast_ptr_to` are required).
 - Version 0.3 (or later) of Martin Moene's [`expected-lite`](https://github.com/martinmoene/expected-lite) library.
 
 Test external dependencies:
