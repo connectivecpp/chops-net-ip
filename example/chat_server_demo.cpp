@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
 
    /* lamda handlers */
    // receive text from client, send out to others
-   const auto msg_hndlr = [finished, &DELIM](const_buf buf, io_output io_out, endpoint ep) {
+   const auto msg_hndlr = [finished, &sta, &DELIM](const_buf buf, io_output io_out, endpoint ep) {
       if (finished) {
          return false;
       }
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
          // not 'quit' (normal message)
          // so send message to all but originator
          // REVIEW WITH CLIFF - send to all?
-         sta.send(buf.data(), buf.size(), iof);
+         sta.send(buf.data(), buf.size(), io_out);
       }
 
       return true;
