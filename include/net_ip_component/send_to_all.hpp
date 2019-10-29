@@ -60,6 +60,7 @@ private:
   // using io_intf    = basic_io_interface<IOT>;
   using io_out      = chops::net::basic_io_output<IOT>;
   using io_outs     = std::vector<io_out>;
+  using io_interface = chops::net::basic_io_interface<IOT>;
 
 private:
   mutable std::mutex    m_mutex;
@@ -86,12 +87,17 @@ public:
  *  @brief Interface for @c io_state_change parameter of @c start
  *  method.
  */
-  void operator() (io_out io, std::size_t, bool starting) {
+  void operator() (io_interface io, std::size_t, bool starting) {
+    auto ret = io.make_io_output();
+    if (!ret) {
+      return;
+    }
+    
     if (starting) {
-      add_io_interface(io);
+      add_io_interface(*ret);
     }
     else {
-      remove_io_interface(io);
+      remove_io_interface(*ret);
     }
   }
 
