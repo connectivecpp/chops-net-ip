@@ -228,7 +228,7 @@ int main(int argc, char* argv[]) {
     std::cout << (print_errors ? "ON" : "OFF") << std::endl;
     std::cout << std::endl;
     std::cout << "Enter text for UDP broadcast on this subnet" << std::endl;
-    std::cout << "Enter \'quit\' or empty string to exit proggram" << std::endl;
+    std::cout << "Enter \'quit\' or empty string to exit program" << std::endl;
 
     // udp_ne declared above, time to start
     udp_ne.start(io_state_chng_hndlr, err_func);
