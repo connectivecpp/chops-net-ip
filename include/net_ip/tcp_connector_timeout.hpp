@@ -6,23 +6,20 @@
  *
  *  @author Nathan Deutsch
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2019 by Cliff Green and Nathan Deutsch
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
- #ifndef DEFAULT_CONNECTOR_TIMEOUT_HPP_INCLUDED
- #define DEFAULT_CONNECTOR_TIMEOUT_HPP_INCLUDED
-
- #include "asio/ip/basic_resolver.hpp"
- #include "asio/io_context.hpp"
+ #ifndef TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
+ #define TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
 
  #include <string_view>
  #include <string>
  #include <utility>
- #include <math.h>       /* pow() */
+ #include <cmath>
 
 namespace chops {
 namespace net {
@@ -32,24 +29,24 @@ namespace net {
    */
 class tcp_connector_timeout {
 public:
-  tcp_connector_timeout(std::chrono::milliseconds initial_timeout, int max_timeout = (60 * 1000), 
-  int multiplier = 2, bool reconn=true, bool backoff=true);
+  tcp_connector_timeout(std::chrono::milliseconds initial_timeout = 500, std::chrono::milliseconds max_timeout = (60 * 1000), 
+  bool reconn=true, bool backoff=true);
 
   std::optional<std::chrono::milliseconds> operator()(std::size_t num_connects) {
     if(!reconn && num_connects > 0) {
       return {};
     }
 
-    if(!backoff) { 
+    if(!backoff || num_connects == 0) { 
       return std::optional<std::chrono::milliseconds> {initial_timeout};
     }
 
-    return exponential_backoff();
+    return exponential_backoff(num_connects + 1);
   } //end operator()
 
 private:
-  std::optional<std::chrono::milliseconds> exponential_backoff() { 
-    int ms = pow(multiplier, num_connects);
+  std::optional<std::chrono::milliseconds> exponential_backoff(int power) { 
+    int ms = std::pow( (int)initial_timeout, power);
 
     if(ms > max_timeout) { 
       ms = max_timeout;
