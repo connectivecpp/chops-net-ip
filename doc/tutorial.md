@@ -36,8 +36,6 @@ g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 simple_chat_demo.cpp -lpthread -o chat_server
 ```
 
-
-
 3. Execute the file:
 ```
 ./chat_server
@@ -341,6 +339,3 @@ Build the example with g++ or clang++ on OSX:
 ```
 
 ## coming soon... udp multicast
-
-
-
