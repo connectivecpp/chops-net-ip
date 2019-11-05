@@ -16,15 +16,27 @@ example/chat_server_demo.cpp
 ```
 cd <path>/chops-net-ip/example
 ```
-2. Build the example with g++ or clang++:
+2. Build the example
+g++ on pc or linux:
 ```
-g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture\
+g++ -std=c++17 -Wall -Werror\
 -I ../include \
 -I <path to utility rack>/include/ \
 -I <path to Asio>/include/ \
 -I <path to expected-lite>/include/ \
 simple_chat_demo.cpp -lpthread -o chat_server
 ```
+Build the example with g++ or clang++ on OSX:
+```
+g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
+-I ../include \
+-I <path to utility rack>/include/ \
+-I <path to Asio>/include/ \
+-I <path to expected-lite>/include/ \
+simple_chat_demo.cpp -lpthread -o chat_server
+```
+
+
 
 3. Execute the file:
 ```
@@ -51,7 +63,18 @@ TCP connector (client) that sends binary text message to a
 ```
 cd <path>/chops-net-ip/example
 ```
-2. Build the example with g++ or clang++:
+2. Build the example 
+
+g++ or clang++ on pc or linux:
+```
+g++ -std=c++17 -Wall -Werror \
+-I ../include \
+-I <path>/utility-rack/include/ \
+-I <path>/asio/asio/include/ \
+-I <path>/expected-lite/include/ \
+echo_binary_text_client_demo.cpp -lpthread -o echo_client
+```
+build with clang++ or g++ on OSX:
 ```
 g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
@@ -247,14 +270,9 @@ Build the example with g++ or clang++ on OSX:
  udp_broadcast_demo.cpp -lpthread -o udp_broad
  ```
  3. Execute the file
- For this demo you're going to need two terminals open in the same example directory 
  In the first terminal:
  ```
- ./chat -accept
- ```
- In the second terminal:
- ```
- ./chat -connect
+ ./udp_broad  <ip address>
  ```
  You can write in either terminal and see the result in the other terminal.
  4. Exit the program
