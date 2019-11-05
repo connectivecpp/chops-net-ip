@@ -245,7 +245,7 @@ or CTRL/CMD + C
 ## UDP Broadcast
 UDP broadcast demo. Text messages are sent to the local network
  UDP broadcast address.
-  ### Directions
+### Directions
  1. Navigate to the example folder in your terminal:
 ```
 cd <path>/chops-net-ip/example
@@ -298,6 +298,47 @@ or CTRL/CMD + C
 
 ## UDP reciever 
 UDP reciever demo. Receive text messages from UDP broadcast agent.
+### Directions
+ 1. Navigate to the example folder in your terminal:
+```
+cd <path>/chops-net-ip/example
+```
+2. Build the example
+ with g++ on pc or linux:
+ ```
+ g++ -std=c++17 -Wall -Werror \
+-I ../include \
+-I <path>/utility-rack/include/ \
+-I <path>/asio/asio/include/ \
+-I <path>/expected-lite/include/ \
+udp_receiver_demo.cpp -lpthread -o udp_receive
+ ```
+Build the example with g++ or clang++ on OSX:
+ ```
+ g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
+-I ../include \
+-I <path>/utility-rack/include/ \
+-I <path>/asio/asio/include/ \
+-I <path>/expected-lite/include/ \
+ udp_receiver_demo.cpp -lpthread -o udp_receive
+ ```
+ 3. Execute the file
+ In the first terminal:
+ ```
+ ./udp_receive 
+ ```
+ You can write in either terminal and see the result in the other terminal.
+ 4. Exit the program
+  Press ENTER/RETURN
+
+ ### Documentation
+ usage:
+ ```
+  ./udp_receive [-h] [-e] [port]
+   -h      Print usage
+   -e      Print error and system messages
+   port    Default: 5005
+```
 
 ## coming soon... udp multicast
 
