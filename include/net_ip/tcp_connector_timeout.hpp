@@ -2,7 +2,7 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief @c default_connector_timeout class
+ *  @brief @c tcp_connector_timeout class
  *
  *  @author Nathan Deutsch
  *
@@ -16,10 +16,9 @@
  #ifndef TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
  #define TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
 
- #include <string_view>
- #include <string>
- #include <utility>
  #include <cmath>
+ #include <chrono>
+ #include <optional>
 
 namespace chops {
 namespace net {
@@ -29,33 +28,41 @@ namespace net {
    */
 class tcp_connector_timeout {
 public:
-  tcp_connector_timeout(std::chrono::milliseconds initial_timeout = 500, std::chrono::milliseconds max_timeout = (60 * 1000), 
-  bool reconn=true, bool backoff=true);
+  tcp_connector_timeout(std::chrono::milliseconds initial_timeout = std::chrono::milliseconds(500), std::chrono::milliseconds max_timeout = std::chrono::milliseconds(60 * 1000), 
+  bool reconn=true, bool backoff=true): m_initial_timeout(initial_timeout), m_max_timeout(max_timeout), m_reconn(reconn), m_backoff(backoff) {}
 
   std::optional<std::chrono::milliseconds> operator()(std::size_t num_connects) {
-    if(!reconn && num_connects > 0) {
+    if(!m_reconn && num_connects > 0) {
       return {};
     }
 
-    if(!backoff || num_connects == 0) { 
-      return std::optional<std::chrono::milliseconds> {initial_timeout};
+    if(!m_backoff || num_connects == 0) { 
+      return std::optional<std::chrono::milliseconds> {m_initial_timeout};
     }
 
     return exponential_backoff(num_connects + 1);
   } //end operator()
 
 private:
-  std::optional<std::chrono::milliseconds> exponential_backoff(int power) { 
-    int ms = std::pow( (int)initial_timeout, power);
+  const std::chrono::milliseconds m_initial_timeout;
+  const std::chrono::milliseconds m_max_timeout;
+  const bool m_reconn;
+  const bool m_backoff;
 
-    if(ms > max_timeout) { 
-      ms = max_timeout;
+  std::optional<std::chrono::milliseconds> exponential_backoff(std::size_t power) { 
+    int initial = static_cast<int>(m_initial_timeout.count());
+    int max = static_cast<int>(m_max_timeout.count());
+
+    int ms = std::pow(initial, power);
+  
+    if(ms > max) { 
+      ms = max;
     }
 
     return std::optional<std::chrono::milliseconds>{ms};
   }
 
-}; // end default_connector_timeout
+}; // end tcp_connector_timeout
 
 } // end net namespace
 } // end chops namespace
