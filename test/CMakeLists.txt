@@ -37,6 +37,7 @@ set ( test_sources
     "${test_source_dir}/net_ip/net_entity_test.cpp"
     "${test_source_dir}/net_ip/net_ip_error_test.cpp"
     "${test_source_dir}/net_ip/simple_variable_len_msg_frame_test.cpp"
+    "${test_source_dir}/net_ip/tcp_connector_timeout_test.cpp"
     "${test_source_dir}/net_ip/net_ip_test.cpp" )
 
 set ( OPTIONS "" )
