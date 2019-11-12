@@ -6,26 +6,35 @@
  *
  *  @author Nathan Deutsch
  *
- *  Copyright (c) 2017-2019 by Cliff Green and Nathan Deutsch
+ *  Copyright (c) 2017-2019 by Cliff Green, Nathan Deutsch
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
- #ifndef TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
- #define TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
+#ifndef TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
+#define TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
 
- #include <cmath>
- #include <chrono>
- #include <optional>
+#include <cstddef> // std::size_t
+#include <cmath>
+#include <chrono>
+#include <optional>
 
 namespace chops {
 namespace net {
 
-  /*
-   *  @brief Class that handles TCP reconnection attempts
-   */
+/*
+ *  @brief Class for computing TCP reconnection attempt timeouts.
+ *
+ *  When a TCP connect attempt fails in a TCP connector, either the connector should quit
+ *  attempting to connect, or should wait for a period of time and attempt another connect.
+ *  This class allows multiple behaviors depending on the constructor parameters.
+ *
+ *  If an application desires different behavior than what is provided by this class, the
+ *  @c make_tcp_connector method takes a function object allowing any application defined
+ *  logic.
+ */
 class tcp_connector_timeout {
 public:
   tcp_connector_timeout(std::chrono::milliseconds initial_timeout = std::chrono::milliseconds(500), std::chrono::milliseconds max_timeout = std::chrono::milliseconds(60 * 1000), 
@@ -68,3 +77,4 @@ private:
 } // end chops namespace
 
 #endif
+
