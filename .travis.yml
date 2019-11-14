@@ -1,0 +1,191 @@
+
+dist: bionic
+language: cpp
+cache: ccache
+
+common_sources: &all_sources
+- ubuntu-toolchain-r-test
+- llvm-toolchain-trusty
+- llvm-toolchain-trusty-3.9
+- llvm-toolchain-trusty-4.0
+- llvm-toolchain-xenial-5.0
+- llvm-toolchain-xenial-6.0
+
+matrix:
+  include:
+
+    # 1/ Linux Clang Builds
+
+    - os: linux
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-3.9']
+      env: COMPILER='clang++-3.9'
+
+    - os: linux
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-4.0']
+      env: COMPILER='clang++-4.0'
+
+    - os: linux
+      dist: bionic
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-5.0']
+      env: COMPILER='clang++-5.0'
+
+    - os: linux
+      dist: bionic
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-6.0']
+      env: COMPILER='clang++-6.0'
+
+    # 2/ Linux GCC Builds
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          sources: *all_sources
+          packages: ['g++-5']
+      env: COMPILER='g++-5'
+
+    - os: linux
+      compiler: gcc
+      addons: &gcc6
+        apt:
+          sources: *all_sources
+          packages: ['g++-6']
+      env: COMPILER='g++-6'
+
+    - os: linux
+      compiler: gcc
+      addons: &gcc7
+        apt:
+          sources: *all_sources
+          packages: ['g++-7']
+      env: COMPILER='g++-7'
+
+    - os: linux
+      compiler: gcc
+      addons: &gcc8
+        apt:
+          sources: *all_sources
+          packages: ['g++-8']
+      env: COMPILER='g++-8'
+
+    # 3b/ Linux C++14 Clang builds
+    # Note that we need newer libstdc++ for C++14 support
+    - os: linux
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-3.9', 'libstdc++-6-dev']
+      env: COMPILER='clang++-3.9' CPP17=1
+
+    - os: linux
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-4.0', 'libstdc++-6-dev']
+      env: COMPILER='clang++-4.0' CPP17=1
+
+    - os: linux
+      dist: bionic
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-5.0', 'libstdc++-6-dev']
+      env: COMPILER='clang++-5.0' CPP17=1
+
+    - os: linux
+      dist: bionic
+      compiler: clang
+      addons:
+          apt:
+              sources: *all_sources
+              packages: ['clang-6.0', 'libstdc++-6-dev']
+      env: COMPILER='clang++-6.0' CPP17=1
+
+
+    # 4a/ Linux C++14 GCC builds
+    - os: linux
+      compiler: gcc
+      addons: *gcc6
+      env: COMPILER='g++-6'
+
+    - os: linux
+      compiler: gcc
+      addons: *gcc7
+      env: COMPILER='g++-7'
+
+    - os: linux
+      compiler: gcc
+      addons: *gcc8
+      env: COMPILER='g++-8'
+
+    # 5/ OSX Clang Builds
+
+    - os: osx
+      osx_image: xcode10.3
+      compiler: clang
+      env: COMPILER='clang++'
+
+    - os: osx
+      osx_image: xcode10.3
+      compiler: clang
+      env: COMPILER='clang++' CPP17=1
+
+    - os: osx
+      osx_image: xcode11.2
+      compiler: clang
+      env: COMPILER='clang++'
+
+    - os: osx
+      osx_image: xcode11.2
+      compiler: clang
+      env: COMPILER='clang++' CPP17=1
+
+before install:
+
+install:
+
+before_script:
+- |
+  if [[ ${CPP17} -eq 1 ]]; then
+    export CPP_STANDARD=17
+  elif [[ ${CPP14} -eq 1 ]]; then
+    export CPP_STANDARD=14
+  else
+    export CPP_STANDARD=11
+  fi
+- cd ..
+- wget https://github.com/connectivecpp/utility-rack/archive/develop.tar.gz && mkdir utility-rack && tar -zxvf develop.tar.gz -C utility-rack --strip-components=1
+- wget https://github.com/martinmoene/expected-lite/archive/v0.3.0.tar.gz && mkdir expected-lite && tar -zxvf v0.3.0.tar.gz -C expected-lite --strip-components=1
+- wget https://github.com/chriskohlhoff/asio/archive/asio-1-14-0.tar.gz && mkdir asio && tar -zxvf asio-1-14-0.tar.gz -C asio --strip-components=1
+- wget https://github.com/catchorg/Catch2/archive/v2.10.2.tar.gz && mkdir Catch2 && tar -zxvf v2.10.2.tar.gz -C Catch2 --strip-components=1
+- wget https://github.com/martinmoene/ring-span-lite/archive/v0.3.0.tar.gz && mkdir ring-span-lite && tar -zxvf v0.3.0.tar.gz -C ring-span-lite --strip-components=1
+- wget https://github.com/JustasMasiulis/circular_buffer/archive/master.tar.gz && mkdir circular_buffer && tar -zxvf master.tar.gz -C circular_buffer --strip-components=1
+- mkdir build && cd build
+- cmake ../chops-net-ip/
+
+script:
+- make all -j2
+- make test -j2
+
+#branches:
+#only:
+#-master
+#-develop
