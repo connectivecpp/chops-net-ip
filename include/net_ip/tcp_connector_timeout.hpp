@@ -2,11 +2,36 @@
  *
  *  @ingroup net_ip_module
  *
- *  @brief @c tcp_connector_timeout class.
+ *  @brief Classes that implement a connect timeout function object interface for the 
+ *  @c tcp_connector detail class.
  *
  *  @author Nathan Deutsch
  *
- *  Copyright (c) 2017-2019 by Cliff Green, Nathan Deutsch
+ *  All classes implement a functor with the following interface:
+ *  @code
+ *  std::optional<std::chrono::milliseconds> operator()(std::size_t connect_attempts);
+ *  @endcode
+ *
+ *  The return value is the number of milliseconds for the TCP connector timeout, if present. If
+ *  the value is not present, no further TCP connects are attempted. 
+ *
+ *  The @c connect_attempts parameter is the number of connect attempts made by the TCP connector. 
+ *  It will always be greater than zero.
+ *
+ *  The following use cases are supported: 1) always return the same timeout (i.e. no scale factor, no 
+ *  backoff); 2) scale the timeout by a multiplier or exponential factor for each connect attempt, cap the 
+ *  timeout at a max timeout value; 3) stop after N connect attempts.
+ *
+ *  Other use cases can be implemented by applications providing a function object or lambda in the 
+ *  @c make_tcp_connector method call.
+ *
+ *  The TCP connector uses a copy of the initial timeout function object when connection attempts are started.
+ *  In other words, if a TCP connection is brought down due to a network error and the "re-connect on error"
+ *  flag is set @c true in the @c make_tcp_connector call, then the timeout function object will start in 
+ *  the initial state (as supplied). This makes a difference for timeout function objects that scale the
+ *  timeout value or use the number of connection attempts.
+ *
+ *  Copyright (c) 2019 by Cliff Green, Nathan Deutsch
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -25,73 +50,151 @@ namespace chops {
 namespace net {
 
 /*
- *  @brief Class for calculating TCP reconnection attempt timeout values.
+ * @brief A @c simple_timeout always returns the same timeout value.
  *
- *  When a TCP connect attempt fails within a TCP connector, either the connector should quit
- *  attempting to connect, or should wait for a period of time before attempting another connect.
- *  This class allows multiple behaviors depending on the constructor parameters.
- *
- *  If an application desires different behavior than what is provided by this class, the
- *  @c make_tcp_connector methods in the @c net_ip class take a function object allowing any application 
- *  defined logic.
  */
-class tcp_connector_timeout {
-public:
+struct simple_timeout {
 
-//   tcp_connector_timeout(std::chrono::milliseconds timeout = std::chrono::milliseconds(500))
-
-// , std::chrono::milliseconds max_timeout = std::chrono::milliseconds(60 * 1000), 
-/*
- * More doxygen to be filled in here
- */
-  tcp_connector_timeout(std::chrono::milliseconds initial_timeout = std::chrono::milliseconds(500), std::chrono::milliseconds max_timeout = std::chrono::milliseconds(60 * 1000), 
-  bool reconn=true, bool backoff=true): m_initial_timeout(initial_timeout), m_max_timeout(max_timeout), m_reconn(reconn), m_backoff(backoff) {}
+  const std::chrono::milliseconds m_timeout;
+  using opt_ms = std::optional<std::chrono::milliseconds>;
 
 /*
- *  @brief Function call interface, used within the TCP connector functionality.
+ * @brief Construct a @c simple_timeout.
+ *
+ * @param timeout Milliseconds to wait between unsuccessful connect attempts.
+ */
+  simple_timeout(std::chrono::milliseconds timeout = std::chrono::milliseconds(1000)) : m_timeout(timeout) {}
+
+/*
+ *  @brief Function call interface, for use by TCP connector functionality.
  *
  *  This method is not directly called by application code. It is called by the TCP connector
- *  internal functionality.
- *
- *  @param num_connects A count of how many times a reconnect has been attempted (the initial TCP connect is 
- *  immediately attempted, this method is called after an initial connect attempt fails).
- *
- *  @return The number of milliseconds the TCP connector should wait before attempting another connect. If the
- *  @c optional is empty, connect attempts are stopped.
+ *  internal functionality. See file documentation for documentation on parameters and return
+ *  value.
+ */
+  opt_ms operator()(std::size_t) const noexcept {
+    return opt_ms { m_timeout };
+  }
+};
+
+/*
+ * @brief A @c counted_timeout limits the number of connect attempts.
  *
  */
-  std::optional<std::chrono::milliseconds> operator()(std::size_t num_connects) const noexcept {
-    if(!m_reconn && num_connects > 0) {
-      return {};
-    }
+struct counted_timeout {
 
-    if(!m_backoff || num_connects == 0) { 
-      return std::optional<std::chrono::milliseconds> {m_initial_timeout};
-    }
+  const std::chrono::milliseconds m_timeout;
+  const std::size_t m_max_attempts;
+  using opt_ms = std::optional<std::chrono::milliseconds>;
 
-    return exponential_backoff(num_connects + 1);
+/*
+ * @brief Construct a @c counted_timeout.
+ *
+ * @param timeout Milliseconds to wait between unsuccessful connect attempts.
+ *
+ * @param max_conn_attempts Maximum number of connect attempts.
+ */
+  counted_timeout (std::chrono::milliseconds timeout, std::size_t max_conn_attempts) :
+    m_timeout(timeout), m_max_attempts(max_conn_attempts) {}
+
+/*
+ *  @brief Function call interface, for use by TCP connector functionality.
+ *
+ *  This method is not directly called by application code. It is called by the TCP connector
+ *  internal functionality. See file documentation for documentation on parameters and return
+ *  value.
+ */
+  opt_ms operator()(std::size_t attempts) const noexcept {
+    return (attempts > m_max_attempts) ? opt_ms { } : opt_ms { m_timeout };
+  }
+};
+
+/*
+ *  @brief Geometrically increase the timeout value up to a maximum.
+ *
+ *  Increase the timeout value for each unsuccessful connect attempt. This decreases network
+ *  traffic where there are multiple connectors all trying to connect to an unreachable host.
+ *
+ */
+struct backoff_timeout {
+
+  using tick_type = typename std::chrono::milliseconds::rep;
+  const tick_type m_initial_ticks;
+  const tick_type m_max_ticks;
+  const int m_scale_factor;
+  using opt_ms = std::optional<std::chrono::milliseconds>;
+
+/*
+ * @brief Construct a @c backoff_timeout.
+
+ *
+ * @param initial_timeout Milliseconds to wait for the first connect attempt.
+ *
+ * @param max_timeout Maximum timeout value.
+ *
+ * @param scale_factor The timeout value is multiplied by this number for each connect attempt.
+ */
+  backoff_timeout(std::chrono::milliseconds initial_timeout, std::chrono::milliseconds max_timeout,
+                  int scale_factor = 2) :
+    m_initial_ticks(initial_timeout.count()), m_max_ticks(max_timeout.count()),
+    m_scale_factor(scale_factor) { }
+
+/*
+ *  @brief Function call interface, for use by TCP connector functionality.
+ *
+ *  This method is not directly called by application code. It is called by the TCP connector
+ *  internal functionality. See file documentation for documentation on parameters and return
+ *  value.
+ */
+  opt_ms operator()(std::size_t attempts) const noexcept {
+    auto tmp = static_cast<tick_type>(attempts * m_scale_factor * m_initial_ticks);
+    std::chrono::milliseconds tout { (tmp > m_max_ticks) ? m_max_ticks : tmp };
+    return opt_ms { tout };
+  }
+};
+
+/*
+ *  @brief Exponentially increase the timeout value up to a maximum.
+ *
+ *  Increase the timeout value similar to @c backoff_timeout, except using an exponential
+ *  @c std::pow calculation instead of a geometric backoff.
+ *
+ */
+struct exponential_backoff_timeout {
+
+  using tick_type = typename std::chrono::milliseconds::rep;
+  const tick_type m_initial_ticks;
+  const tick_type m_max_ticks;
+  using opt_ms = std::optional<std::chrono::milliseconds>;
+
+/*
+ * @brief Construct a @c exponential_backoff_timeout.
+ *
+ * @param initial_timeout Milliseconds to wait for the first connect attempt at startup and each initial
+ * connect attempt after a disconnect.
+ *
+ * @param max_timeout Maximum timeout value.
+ *
+ */
+  exponential_backoff_timeout(std::chrono::milliseconds initial_timeout, 
+                              std::chrono::milliseconds max_timeout) :
+    m_initial_ticks(initial_timeout.count()), m_max_ticks(max_timeout.count()) { }
+
+/*
+ *  @brief Function call interface, for use by TCP connector functionality.
+ *
+ *  This method is not directly called by application code. It is called by the TCP connector
+ *  internal functionality. See file documentation for documentation on parameters and return
+ *  value.
+ */
+  opt_ms operator()(std::size_t attempts) const noexcept {
+
+    auto tmp = static_cast<tick_type>(std::pow(m_initial_ticks, attempts));
+    std::chrono::milliseconds tout { (tmp > m_max_ticks) ? m_max_ticks : tmp };
+    return opt_ms { tout };
   } //end operator()
 
-private:
-  const std::chrono::milliseconds m_initial_timeout;
-  const std::chrono::milliseconds m_max_timeout;
-  const bool m_reconn;
-  const bool m_backoff;
-
-  std::optional<std::chrono::milliseconds> exponential_backoff(std::size_t power) const noexcept { 
-    int initial = static_cast<int>(m_initial_timeout.count());
-    int max = static_cast<int>(m_max_timeout.count());
-
-    int ms = std::pow(initial, power);
-  
-    if(ms > max) { 
-      ms = max;
-    }
-
-    return std::optional<std::chrono::milliseconds>{ms};
-  }
-
-}; // end tcp_connector_timeout
+};
 
 } // end net namespace
 } // end chops namespace
