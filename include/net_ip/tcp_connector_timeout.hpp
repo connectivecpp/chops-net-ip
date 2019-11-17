@@ -28,8 +28,8 @@
  *  The TCP connector uses a copy of the initial timeout function object when connection attempts are started.
  *  In other words, if a TCP connection is brought down due to a network error and the "re-connect on error"
  *  flag is set @c true in the @c make_tcp_connector call, then the timeout function object will start in 
- *  the initial state (as supplied). This makes a difference for timeout function objects that scale the
- *  timeout value or use the number of connection attempts.
+ *  the initial state (as supplied). This may make a difference for function objects that need to store
+ *  store state.
  *
  *  Copyright (c) 2019 by Cliff Green, Nathan Deutsch
  *
@@ -42,7 +42,7 @@
 #define TCP_CONNECTOR_TIMEOUT_HPP_INCLUDED
 
 #include <cstddef> // std::size_t
-#include <cmath>
+#include <cmath> // std::pow
 #include <chrono>
 #include <optional>
 
@@ -110,7 +110,7 @@ struct counted_timeout {
 };
 
 /*
- *  @brief Geometrically increase the timeout value up to a maximum.
+ *  @brief Increase the timeout value by a scaling factor up to a maximum value.
  *
  *  Increase the timeout value for each unsuccessful connect attempt. This decreases network
  *  traffic where there are multiple connectors all trying to connect to an unreachable host.
@@ -126,7 +126,6 @@ struct backoff_timeout {
 
 /*
  * @brief Construct a @c backoff_timeout.
-
  *
  * @param initial_timeout Milliseconds to wait for the first connect attempt.
  *
@@ -147,9 +146,9 @@ struct backoff_timeout {
  *  value.
  */
   opt_ms operator()(std::size_t attempts) const noexcept {
-    auto tmp = static_cast<tick_type>(attempts * m_scale_factor * m_initial_ticks);
-    std::chrono::milliseconds tout { (tmp > m_max_ticks) ? m_max_ticks : tmp };
-    return opt_ms { tout };
+    auto tmp = static_cast<tick_type>((attempts-1u) * m_scale_factor * m_initial_ticks);
+    tmp = (tmp == 0u ? m_initial_ticks : ((tmp > m_max_ticks) ? m_max_ticks : tmp));
+    return opt_ms { std::chrono::milliseconds { tmp } };
   }
 };
 
@@ -157,7 +156,7 @@ struct backoff_timeout {
  *  @brief Exponentially increase the timeout value up to a maximum.
  *
  *  Increase the timeout value similar to @c backoff_timeout, except using an exponential
- *  @c std::pow calculation instead of a geometric backoff.
+ *  @c std::pow calculation instead of a scaled backoff.
  *
  */
 struct exponential_backoff_timeout {
@@ -170,8 +169,7 @@ struct exponential_backoff_timeout {
 /*
  * @brief Construct a @c exponential_backoff_timeout.
  *
- * @param initial_timeout Milliseconds to wait for the first connect attempt at startup and each initial
- * connect attempt after a disconnect.
+ * @param initial_timeout Milliseconds to wait for the first connect attempt.
  *
  * @param max_timeout Maximum timeout value.
  *
