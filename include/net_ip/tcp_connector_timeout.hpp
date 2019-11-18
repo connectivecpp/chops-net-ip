@@ -29,7 +29,7 @@
  *  In other words, if a TCP connection is brought down due to a network error and the "re-connect on error"
  *  flag is set @c true in the @c make_tcp_connector call, then the timeout function object will start in 
  *  the initial state (as supplied). This may make a difference for function objects that need to store
- *  store state.
+ *  state.
  *
  *  Copyright (c) 2019 by Cliff Green, Nathan Deutsch
  *
