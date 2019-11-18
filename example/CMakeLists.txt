@@ -69,7 +69,6 @@ function ( make_exe target src )
     add_target_info       ( ${target} )
     target_link_libraries ( ${target} PRIVATE pthread )
     message ( "Example executable to create: ${target}" )
-    add_test ( NAME ${target} COMMAND ${target} )
 endfunction()
 
 foreach ( example_src IN LISTS example_sources )
