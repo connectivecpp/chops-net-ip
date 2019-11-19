@@ -39,6 +39,7 @@
 #include "net_ip/basic_io_output.hpp"
 
 #include "net_ip/endpoints_resolver.hpp"
+#include "net_ip/tcp_connector_timeout.hpp"
 
 // TCP connector has the most complicated states of any of the net entity detail
 // objects. The states transition from stopped to resolving addresses to connecting
@@ -74,39 +75,48 @@ private:
   resolver_type                 m_resolver;
   endpoints                     m_endpoints;
   asio::steady_timer            m_timer;
-  std::chrono::milliseconds     m_reconn_time;
   std::string                   m_remote_host;
   std::string                   m_remote_port;
+  bool                          m_reconn_on_err;
+  tcp_connector_timeout_func    m_timeout_func;
+  std::size_t                   m_conn_attempts;
   conn_state                    m_state;
 
 public:
   template <typename Iter>
   tcp_connector(asio::io_context& ioc, 
-                Iter beg, Iter end, std::chrono::milliseconds reconn_time) :
+                Iter beg, Iter end,
+                tcp_connector_timeout_func tout_func,
+                bool reconn_on_err) :
       m_entity_common(),
       m_socket(ioc),
       m_io_handler(),
       m_resolver(ioc),
       m_endpoints(beg, end),
       m_timer(ioc),
-      m_reconn_time(reconn_time),
       m_remote_host(),
       m_remote_port(),
+      m_reconn_on_err(reconn_on_err),
+      m_timeout_func(tout_func),
+      m_conn_attempts(0u),
       m_state(stopped)
     { }
 
   tcp_connector(asio::io_context& ioc,
                 std::string_view remote_port, std::string_view remote_host, 
-                std::chrono::milliseconds reconn_time) :
+                tcp_connector_timeout_func tout_func,
+                bool reconn_on_err) :
       m_entity_common(),
       m_socket(ioc),
       m_io_handler(),
       m_resolver(ioc),
       m_endpoints(),
       m_timer(ioc),
-      m_reconn_time(reconn_time),
       m_remote_host(remote_host),
       m_remote_port(remote_port),
+      m_reconn_on_err(reconn_on_err),
+      m_timeout_func(tout_func),
+      m_conn_attempts(0u),
       m_state(stopped)
     { }
 
@@ -192,13 +202,13 @@ private:
             m_endpoints.push_back(e.endpoint());
           }
           clear_strings();
-          start_connect();
+          start_connect(m_timeout_func);
         }
       );
       return { };
     }
     clear_strings();
-    start_connect();
+    start_connect(m_timeout_func);
     return { };
   }
 
@@ -255,20 +265,22 @@ private:
                                   std::make_error_code(net_ip_errc::tcp_connector_closed));
   }
 
-  void start_connect() {
+  void start_connect(tcp_connector_timeout_func tout_func) {
     m_state = connecting;
+    ++m_conn_attempts;
     m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                   std::make_error_code(net_ip_errc::tcp_connector_connecting));
     auto self = shared_from_this();
     asio::async_connect(m_socket, m_endpoints.cbegin(), m_endpoints.cend(),
-          [this, self] 
+          [this, self, tout_func] 
                 (const std::error_code& err, endpoints_iter iter) {
-        handle_connect(err, iter);
+        handle_connect(err, iter, tout_func);
       }
     );
   }
 
-  void handle_connect (const std::error_code& err, endpoints_iter /* iter */) {
+  void handle_connect (const std::error_code& err, endpoints_iter /* iter */,
+                       tcp_connector_timeout_func tout_func) {
     using namespace std::placeholders;
 
     if (m_state != connecting) {
@@ -276,12 +288,13 @@ private:
     }
     if (err) {
       m_entity_common.call_error_cb(tcp_io_shared_ptr(), err);
-      if (m_reconn_time == std::chrono::milliseconds(0)) {
+      auto opt_timeout = m_timeout_func(m_conn_attempts);
+      if (!opt_timeout) {
         close(std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted));
         return;
       }
       try {
-        m_timer.expires_after(m_reconn_time);
+        m_timer.expires_after(*opt_timeout);
       }
       catch (const std::system_error& se) {
         close(se.code());
@@ -291,13 +304,13 @@ private:
       m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                     std::make_error_code(net_ip_errc::tcp_connector_timeout));
       auto self = shared_from_this();
-      m_timer.async_wait( [this, self] 
+      m_timer.async_wait( [this, self, tout_func] 
                           (const std::error_code& err) {
           if (err || m_state != timeout) {
             close(err);
             return;
           }
-          start_connect();
+          start_connect(tout_func);
         }
       );
       return;
@@ -310,6 +323,7 @@ private:
     m_entity_common.call_error_cb(tcp_io_shared_ptr(),
                                   std::make_error_code(net_ip_errc::tcp_connector_connected));
     m_entity_common.call_io_state_chg_cb(m_io_handler, 1, true);
+    m_conn_attempts = 0u;
   }
 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
@@ -319,8 +333,8 @@ private:
     m_entity_common.call_error_cb(iop, err);
     // notify app of tcp_io object shutting down
     m_entity_common.call_io_state_chg_cb(iop, 0, false);
-    if (m_state == connected && m_reconn_time != std::chrono::milliseconds(0)) {
-      start_connect();
+    if (m_state == connected && m_reconn_on_err) {
+      start_connect(m_timeout_func);
       return;
     }
     finish_close(std::make_error_code(net_ip_errc::tcp_connector_no_reconnect_attempted));

@@ -18,12 +18,13 @@
 #ifndef NET_IP_HPP_INCLUDED
 #define NET_IP_HPP_INCLUDED
 
-#include <memory> // for std::shared_ptr
-#include <cstddef> // for std::size_t
+#include <memory> // std::shared_ptr
+#include <cstddef> // std::size_t
 #include <string_view>
 #include <vector>
 #include <chrono>
 #include <variant> // std::visit
+#include <type_traits> // std::enable_if
 
 #include <mutex>
 
@@ -37,6 +38,8 @@
 #include "net_ip/detail/tcp_connector.hpp"
 #include "net_ip/detail/tcp_acceptor.hpp"
 #include "net_ip/detail/udp_entity_io.hpp"
+
+#include "net_ip/tcp_connector_timeout.hpp"
 
 #include "utility/erase_where.hpp"
 #include "utility/overloaded.hpp"
@@ -211,17 +214,16 @@ public:
  *  (after @c start on the @c net_entity is called), and each endpoint will be tried in 
  *  succession.
  *
- *  If a reconnect timeout is provided (parm > 0), connect failures result in reconnect 
- *  attempts after the timeout period. Reconnect attempts will continue until a connect is 
- *  successful or the @c net_entity @c stop method is called. If a connection is broken 
- *  reconnects will be attempted again until the @c net_entity @c stop method is called.
- *
  *  @param remote_port_or_service Port number or service name on remote host.
  *
  *  @param remote_host Remote host name or IP address.
  *
- *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
- *  reconnects are attempted (default is 0).
+ *  @param timeout_func @c tcp_connector_timeout_func, which must be copyable, returns a 
+ *  timeout value for retries on connect failures.
+ *
+ *  @param reconn_on_err When a TCP connection has been established and a network error occurs,
+ *  this flag specifies whether to start a reconnect attempt; this allows connectors that
+ *  run until explicitly stopped.
  *
  *  @return @c net_entity object instantiated for a TCP connector.
  *
@@ -231,66 +233,58 @@ public:
  *  method called.
  *
  */
+  template <typename F = simple_timeout>
   net_entity make_tcp_connector (std::string_view remote_port_or_service,
                                  std::string_view remote_host,
-                                 int reconn_time = 0) {
+                                 const F& timeout_func = simple_timeout { },
+                                 bool reconn_on_err = false) {
 
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, remote_port_or_service, remote_host, 
-                                                     std::chrono::milliseconds(reconn_time));
+                                                     tcp_connector_timeout_func(timeout_func),
+                                                     reconn_on_err);
     lg g(m_mutex);
     m_connectors.push_back(p);
     return net_entity(p);
   }
 
 /**
- *  @brief Create a TCP connector @c net_entity with the endpoints already created.
+ *  @brief Create a TCP connector @c net_entity with the endpoints already created, passing
+ *  in iterators to the endpoint container.
  *
- *  This allows flexibility in creating the remote endpoints for the connector to use.
+ *  This method allows flexibility in creating the remote endpoints for the connector to use.
+ *  It also bypasses the name lookups (DNS lookups) that happen when a remote host and port
+ *  is used.
  *
  *  @param beg A begin iterator to a sequence of remote @c asio::ip::tcp::endpoint
  *  objects.
  *
  *  @param end An end iterator to the sequence of endpoints.
  *
- *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
- *  reconnects are attempted (default is 0).
+ *  @param timeout_func @c tcp_connector_timeout_func, which must be copyable, returns a 
+ *  timeout value for retries on connect failures.
+ *
+ *  @param reconn_on_err When a TCP connection has been established and a network error occurs,
+ *  this flag specifies whether to start a reconnect attempt; this allows connectors that
+ *  run until explicitly stopped.
  *
  *  @return @c net_entity object instantiated for a TCP connector.
  *
+ *  @note To prevent selection of this method when two @c const @c char* parameters are 
+ *  provided for the first two parameters, this method is conditionally enabled. @c const
+ *  @c char* or @c char* should match the @c make_tcp_connector method taking 
+ *  @c std::string_view parameters, not this method.
  */
-  template <typename Iter>
-  net_entity make_tcp_connector (Iter beg, Iter end, int reconn_time = 0) {
+  template <typename Iter, typename F = simple_timeout>
+  auto make_tcp_connector (Iter beg, Iter end,
+                           const F& timeout_func = simple_timeout { },
+                           bool reconn_on_err = false) ->
+        std::enable_if_t<std::is_same_v<std::decay<decltype(*beg)>, asio::ip::tcp::endpoint>, net_entity> {
     auto p = std::make_shared<detail::tcp_connector>(m_ioc, beg, end, 
-                                                     std::chrono::milliseconds(reconn_time));
+                                                     tcp_connector_timeout_func(timeout_func),
+                                                     reconn_on_err);
     lg g(m_mutex);
     m_connectors.push_back(p);
     return net_entity(p);
-  }
-
-/**
- *  @brief Create a TCP connector @c net_entity, which will perform an active TCP
- *  connect to the specified host and port (once started).
- *
- *  This method provides a @c const @c char* overload for the remote port and remote
- *  host that doesn't conflict with the templatized iterator method.
- *
- *  @param remote_port_or_service Port number or service name on remote host.
- *
- *  @param remote_host Remote host name or IP address.
- *
- *  @param reconn_time Time period in milliseconds between connect attempts. If 0, no
- *  reconnects are attempted (default is 0).
- *
- *  @return @c net_entity object instantiated for a TCP connector.
- *
- */
-
-  net_entity make_tcp_connector (const char* remote_port_or_service,
-                                 const char* remote_host,
-                                 int reconn_time = 0) {
-    return make_tcp_connector (std::string_view(remote_port_or_service), 
-                               std::string_view(remote_host),
-                               reconn_time);
   }
 
 /**
@@ -299,15 +293,22 @@ public:
  *  @param endp Remote @c asio::ip::tcp::endpoint to use for the connect
  *  attempt.
  *
- *  @param reconn_time_millis Time period in milliseconds between connect attempts. If 0, no
- *  reconnects are attempted (default is 0).
+ *  @param timeout_func @c tcp_connector_timeout_func, which must be copyable, returns a 
+ *  timeout value for retries on connect failures.
+ *
+ *  @param reconn_on_err When a TCP connection has been established and a network error occurs,
+ *  this flag specifies whether to start a reconnect attempt; this allows connectors that
+ *  run until explicitly stopped.
  *
  *  @return @c net_entity object instantiated for a TCP connector.
  *
  */
-  net_entity make_tcp_connector (const asio::ip::tcp::endpoint& endp, int reconn_time = 0) {
+  template <typename F = simple_timeout>
+  net_entity make_tcp_connector (const asio::ip::tcp::endpoint& endp,
+                                 const F& timeout_func = simple_timeout { },
+                                 bool reconn_on_err = false) {
     std::vector<asio::ip::tcp::endpoint> vec { endp };
-    return make_tcp_connector(vec.cbegin(), vec.cend(), reconn_time);
+    return make_tcp_connector(vec.cbegin(), vec.cend(), timeout_func, reconn_on_err);
   }
 
 /**

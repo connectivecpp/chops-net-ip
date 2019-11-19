@@ -28,8 +28,8 @@
  *  The TCP connector uses a copy of the initial timeout function object when connection attempts are started.
  *  In other words, if a TCP connection is brought down due to a network error and the "re-connect on error"
  *  flag is set @c true in the @c make_tcp_connector call, then the timeout function object will start in 
- *  the initial state (as supplied). This may make a difference for function objects that need to store
- *  state.
+ *  the initial state (as supplied). This may make a difference for function objects that need to modify 
+ *  state. None of the functor classes in this header modify state.
  *
  *  Copyright (c) 2019 by Cliff Green, Nathan Deutsch
  *
@@ -45,9 +45,22 @@
 #include <cmath> // std::pow
 #include <chrono>
 #include <optional>
+#include <functional> // std::function
 
 namespace chops {
 namespace net {
+
+/*
+ * @brief A using declaration for @c std::optional of @c std::chrono::milliseconds.
+ */
+using optional_millis = std::optional<std::chrono::milliseconds>;
+/*
+ * @brief Signature of TCP connector timeout function objects.
+ *
+ * Within the TCP connector the timeout function object is stored within a @c std::function.
+ * The function object must be copy constructible.
+ */
+using tcp_connector_timeout_func = std::function< optional_millis (std::size_t) >;
 
 /*
  * @brief A @c simple_timeout always returns the same timeout value.
@@ -56,7 +69,6 @@ namespace net {
 struct simple_timeout {
 
   const std::chrono::milliseconds m_timeout;
-  using opt_ms = std::optional<std::chrono::milliseconds>;
 
 /*
  * @brief Construct a @c simple_timeout.
@@ -72,8 +84,8 @@ struct simple_timeout {
  *  internal functionality. See file documentation for documentation on parameters and return
  *  value.
  */
-  opt_ms operator()(std::size_t) const noexcept {
-    return opt_ms { m_timeout };
+  optional_millis operator()(std::size_t) const noexcept {
+    return optional_millis { m_timeout };
   }
 };
 
@@ -85,7 +97,6 @@ struct counted_timeout {
 
   const std::chrono::milliseconds m_timeout;
   const std::size_t m_max_attempts;
-  using opt_ms = std::optional<std::chrono::milliseconds>;
 
 /*
  * @brief Construct a @c counted_timeout.
@@ -104,8 +115,8 @@ struct counted_timeout {
  *  internal functionality. See file documentation for documentation on parameters and return
  *  value.
  */
-  opt_ms operator()(std::size_t attempts) const noexcept {
-    return (attempts > m_max_attempts) ? opt_ms { } : opt_ms { m_timeout };
+  optional_millis operator()(std::size_t attempts) const noexcept {
+    return (attempts > m_max_attempts) ? optional_millis { } : optional_millis { m_timeout };
   }
 };
 
@@ -122,7 +133,6 @@ struct backoff_timeout {
   const tick_type m_initial_ticks;
   const tick_type m_max_ticks;
   const int m_scale_factor;
-  using opt_ms = std::optional<std::chrono::milliseconds>;
 
 /*
  * @brief Construct a @c backoff_timeout.
@@ -145,10 +155,10 @@ struct backoff_timeout {
  *  internal functionality. See file documentation for documentation on parameters and return
  *  value.
  */
-  opt_ms operator()(std::size_t attempts) const noexcept {
+  optional_millis operator()(std::size_t attempts) const noexcept {
     auto tmp = static_cast<tick_type>((attempts-1u) * m_scale_factor * m_initial_ticks);
     tmp = (tmp == 0u ? m_initial_ticks : ((tmp > m_max_ticks) ? m_max_ticks : tmp));
-    return opt_ms { std::chrono::milliseconds { tmp } };
+    return optional_millis { std::chrono::milliseconds { tmp } };
   }
 };
 
@@ -164,7 +174,6 @@ struct exponential_backoff_timeout {
   using tick_type = typename std::chrono::milliseconds::rep;
   const tick_type m_initial_ticks;
   const tick_type m_max_ticks;
-  using opt_ms = std::optional<std::chrono::milliseconds>;
 
 /*
  * @brief Construct a @c exponential_backoff_timeout.
@@ -185,11 +194,11 @@ struct exponential_backoff_timeout {
  *  internal functionality. See file documentation for documentation on parameters and return
  *  value.
  */
-  opt_ms operator()(std::size_t attempts) const noexcept {
+  optional_millis operator()(std::size_t attempts) const noexcept {
 
     auto tmp = static_cast<tick_type>(std::pow(m_initial_ticks, attempts));
     std::chrono::milliseconds tout { (tmp > m_max_ticks) ? m_max_ticks : tmp };
-    return opt_ms { tout };
+    return optional_millis { tout };
   } //end operator()
 
 };
