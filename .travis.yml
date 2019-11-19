@@ -185,8 +185,8 @@ script:
 - make all -j2
 - make test
 
-branches:
-only:
+#branches:
+#only:
 #-master
 #-develop
--addTravisCI
+#-addTravisCI
