@@ -63,7 +63,7 @@ using namespace chops::test;
 
 const char*   test_addr = "127.0.0.1";
 constexpr int test_port_base = 30665;
-constexpr int NumMsgs = 50;
+constexpr int num_msgs = 50;
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
@@ -269,8 +269,8 @@ TEST_CASE ( "Udp IO test, checking flexibility in ipv4 vs ipv6 sending",
 TEST_CASE ( "Udp IO handler test, var len msgs, one-way, interval 20, senders 1",
            "[udp_io] [var_len_msg] [one_way] [interval_20] [senders_1]" ) {
 
-  udp_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
-             make_fixed_size_msg_vec(NumMsgs),
+  udp_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', num_msgs),
+             make_fixed_size_msg_vec(num_msgs),
              false, 20, 1);
 
 }
@@ -278,8 +278,8 @@ TEST_CASE ( "Udp IO handler test, var len msgs, one-way, interval 20, senders 1"
 TEST_CASE ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
            "[udp_io] [var_len_msg] [one-way] [interval_0] [senders_1]" ) {
 
-  udp_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
-             make_fixed_size_msg_vec(2*NumMsgs),
+  udp_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*num_msgs),
+             make_fixed_size_msg_vec(2*num_msgs),
              false, 0, 1);
 
 }
@@ -287,8 +287,8 @@ TEST_CASE ( "Udp IO handler test, var len msgs, one-way, interval 0, senders 1",
 TEST_CASE ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 10",
            "[udp_io] [var_len_msg] [two-way] [interval_20] [senders_10]" ) {
 
-  udp_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
-             make_fixed_size_msg_vec(NumMsgs),
+  udp_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', num_msgs),
+             make_fixed_size_msg_vec(num_msgs),
              true, 20, 10);
 
 }
@@ -296,8 +296,8 @@ TEST_CASE ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 10
 TEST_CASE ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 2, many msgs",
            "[udp_io] [var_len_msg] [two_way] [interval_20] [senders_2] [many]" ) {
 
-  udp_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 10*NumMsgs),
-             make_fixed_size_msg_vec(10*NumMsgs),
+  udp_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 10*num_msgs),
+             make_fixed_size_msg_vec(10*num_msgs),
              true, 20, 2);
 
 }
@@ -305,8 +305,8 @@ TEST_CASE ( "Udp IO handler test, var len msgs, two-way, interval 20, senders 2,
 TEST_CASE ( "Udp IO handler test, CR / LF msgs, one-way, interval 10, senders 5",
            "[udp_io] [cr_lf_msg] [one-way] [interval_10] [senders_5]" ) {
 
-  udp_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
-             make_fixed_size_msg_vec(NumMsgs),
+  udp_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', num_msgs),
+             make_fixed_size_msg_vec(num_msgs),
              false, 10, 5);
 
 }
@@ -314,8 +314,8 @@ TEST_CASE ( "Udp IO handler test, CR / LF msgs, one-way, interval 10, senders 5"
 TEST_CASE ( "Udp IO handler test, CR / LF msgs, two-way, interval 20, senders 5",
            "[udp_io] [cr_lf_msg] [two-way] [interval_20] [senders_5]" ) {
 
-  udp_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
-             make_fixed_size_msg_vec(4*NumMsgs),
+  udp_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*num_msgs),
+             make_fixed_size_msg_vec(4*num_msgs),
              true, 20, 5);
 
 }
@@ -324,8 +324,8 @@ TEST_CASE ( "Udp IO handler test, CR / LF msgs, two-way, interval 20, senders 5"
 TEST_CASE ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, many msgs",
            "[udp_io] [cr_lf_msg] [two_way] [interval_0] [senders_1] [many]" ) {
 
-  udp_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
-             make_fixed_size_msg_vec(200*NumMsgs),
+  udp_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*num_msgs),
+             make_fixed_size_msg_vec(200*num_msgs),
              true, 0, 1);
 
 }
@@ -334,8 +334,8 @@ TEST_CASE ( "Udp IO handler test, CR / LF msgs, two-way, interval 0, senders 1, 
 TEST_CASE ( "Udp IO handler test, LF msgs, one-way, interval 20, senders 1",
            "[udp_io] [lf_msg] [two-way] [interval_20] [senders_1]" ) {
 
-  udp_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
-             make_fixed_size_msg_vec(NumMsgs),
+  udp_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', num_msgs),
+             make_fixed_size_msg_vec(num_msgs),
              false, 20, 1);
 
 }
@@ -343,8 +343,8 @@ TEST_CASE ( "Udp IO handler test, LF msgs, one-way, interval 20, senders 1",
 TEST_CASE ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 10",
            "[udp_io] [lf_msg] [two-way] [interval_10] [senders_10]" ) {
 
-  udp_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
-             make_fixed_size_msg_vec(6*NumMsgs),
+  udp_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 4*num_msgs),
+             make_fixed_size_msg_vec(4*num_msgs),
              true, 10, 10);
 
 }
@@ -352,8 +352,8 @@ TEST_CASE ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 10",
 TEST_CASE ( "Udp IO handler test, LF msgs, two-way, interval 10, senders 2, many msgs",
            "[udp_io] [lf_msg] [two-way] [interval_10] [senders_2] [many]" ) {
 
-  udp_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 20*NumMsgs),
-             make_fixed_size_msg_vec(20*NumMsgs),
+  udp_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 10*num_msgs),
+             make_fixed_size_msg_vec(10*num_msgs),
              true, 10, 2);
 
 }

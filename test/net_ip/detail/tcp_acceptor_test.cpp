@@ -61,7 +61,7 @@ using namespace chops::test;
 
 const char* test_port = "30434";
 const char* test_host = "";
-constexpr int NumMsgs = 50;
+constexpr int num_msgs = 50;
 
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
@@ -323,8 +323,8 @@ void acceptor_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
 TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector", 
            "[tcp_acc] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
 
-  acceptor_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
-                  make_fixed_size_msg_vec(NumMsgs),
+  acceptor_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', num_msgs),
+                  make_fixed_size_msg_vec(num_msgs),
                   false, 50, 1,
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -333,8 +333,8 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 50, 1 connector"
 TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector", 
            "[tcp_acc] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
 
-  acceptor_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
-                  make_fixed_size_msg_vec(2*NumMsgs),
+  acceptor_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*num_msgs),
+                  make_fixed_size_msg_vec(2*num_msgs),
                   false, 0, 1,
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -343,8 +343,8 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, one-way, interval 0, 1 connector",
 TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
 
-  acceptor_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
-                  make_fixed_size_msg_vec(NumMsgs),
+  acceptor_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', num_msgs),
+                  make_fixed_size_msg_vec(num_msgs),
                   true, 50, 1,
                   std::string_view(), make_empty_variable_len_msg() );
 
@@ -353,19 +353,19 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 50, 1 connector"
 TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  acceptor_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
-                  make_fixed_size_msg_vec(100*NumMsgs),
+  acceptor_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 50*num_msgs),
+                  make_fixed_size_msg_vec(50*num_msgs),
                   true, 0, 10,
                   std::string_view(), make_empty_variable_len_msg() );
 
 }
 
-TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors, many msgs", 
-           "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_60] [many]" ) {
+TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 30 connectors, many msgs", 
+           "[tcp_acc] [var_len_msg] [two_way] [interval_0] [connectors_30] [many]" ) {
 
-  acceptor_test ( make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 50*NumMsgs),
-                  make_fixed_size_msg_vec(50*NumMsgs),
-                  true, 0, 60, 
+  acceptor_test ( make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 20*num_msgs),
+                  make_fixed_size_msg_vec(20*num_msgs),
+                  true, 0, 30, 
                   std::string_view(), make_empty_variable_len_msg() );
 
 }
@@ -373,8 +373,8 @@ TEST_CASE ( "Tcp acceptor test, var len msgs, two-way, interval 0, 60 connectors
 TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
-  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Whaaaat", 'T', NumMsgs),
-                  make_fixed_size_msg_vec(NumMsgs),
+  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Whaaaat", 'T', num_msgs),
+                  make_fixed_size_msg_vec(num_msgs),
                   false, 50, 1,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -383,8 +383,8 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 1 connectors
 TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
 
-  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
-                  make_fixed_size_msg_vec(NumMsgs),
+  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', num_msgs),
+                  make_fixed_size_msg_vec(num_msgs),
                   false, 50, 10,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -393,8 +393,8 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 50, 10 connector
 TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors", 
            "[tcp_acc] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
 
-  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
-                  make_fixed_size_msg_vec(4*NumMsgs),
+  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*num_msgs),
+                  make_fixed_size_msg_vec(4*num_msgs),
                   false, 0, 20,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -403,8 +403,8 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, one-way, interval 0, 20 connectors
 TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connectors", 
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_30] [connectors_20]" ) {
 
-  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
-                  make_fixed_size_msg_vec(5*NumMsgs),
+  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 2*num_msgs),
+                  make_fixed_size_msg_vec(2*num_msgs),
                   true, 30, 20,
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -413,8 +413,8 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 30, 20 connector
 TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors, many msgs", 
            "[tcp_acc] [cr_lf_msg] [two_way] [interval_0] [connectors_20] [many]" ) {
 
-  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*NumMsgs),
-                  make_fixed_size_msg_vec(50*NumMsgs),
+  acceptor_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 15*num_msgs),
+                  make_fixed_size_msg_vec(15*num_msgs),
                   true, 0, 20, 
                   std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -423,8 +423,8 @@ TEST_CASE ( "Tcp acceptor test, CR / LF msgs, two-way, interval 0, 20 connectors
 TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 50, 1 connectors", 
            "[tcp_acc] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
 
-  acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
-                  make_fixed_size_msg_vec(NumMsgs),
+  acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', num_msgs),
+                  make_fixed_size_msg_vec(num_msgs),
                   false, 50, 1,
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -433,8 +433,8 @@ TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 50, 1 connectors",
 TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 0, 25 connectors", 
            "[tcp_acc] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
 
-  acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
-                  make_fixed_size_msg_vec(6*NumMsgs),
+  acceptor_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*num_msgs),
+                  make_fixed_size_msg_vec(6*num_msgs),
                   false, 0, 25,
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -443,8 +443,8 @@ TEST_CASE ( "Tcp acceptor test,  LF msgs, one-way, interval 0, 25 connectors",
 TEST_CASE ( "Tcp acceptor test,  LF msgs, two-way, interval 20, 25 connectors", 
            "[tcp_acc] [lf_msg] [two_way] [interval_20] [connectors_25]" ) {
 
-  acceptor_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs),
-                  make_fixed_size_msg_vec(2*NumMsgs),
+  acceptor_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*num_msgs),
+                  make_fixed_size_msg_vec(2*num_msgs),
                   true, 20, 25,
                   std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -453,8 +453,8 @@ TEST_CASE ( "Tcp acceptor test,  LF msgs, two-way, interval 20, 25 connectors",
 TEST_CASE ( "Tcp acceptor test,  LF msgs, two-way, interval 0, 25 connectors, many msgs", 
            "[tcp_acc] [lf_msg] [two_way] [interval_0] [connectors_25] [many]" ) {
 
-  acceptor_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 80*NumMsgs),
-                  make_fixed_size_msg_vec(80*NumMsgs),
+  acceptor_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 30*num_msgs),
+                  make_fixed_size_msg_vec(30*num_msgs),
                   true, 0, 25, 
                   std::string_view("\n"), make_empty_lf_text_msg() );
 

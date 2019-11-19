@@ -51,8 +51,8 @@ const char* test_host_udp = "127.0.0.1";
 const char* test_port_tcp1 = "30556";
 const char* test_port_tcp2 = "30557";
 const char* test_host_tcp = "";
-constexpr int NumMsgs = 2000;
-constexpr int ReconnTime = 400;
+constexpr int num_msgs = 2000;
+constexpr std::chrono::milliseconds tout { 400 };
 
 template <typename IOT>
 struct no_start_io_state_chg {
@@ -314,7 +314,7 @@ TEST_CASE ( "Net entity method and comparison testing, UDP entity, TCP acceptor,
     auto sp = std::make_shared<chops::net::detail::tcp_connector>(ioc,
                                                      std::string_view(test_port_tcp1),
                                                      std::string_view(test_host_tcp),
-                                                     std::chrono::milliseconds(ReconnTime ));
+                                                     chops::net::simple_timeout(tout), false);
     chops::net::net_entity ne_conn(sp);
     test_methods<chops::net::tcp_io, asio::ip::tcp::socket>(ne_conn, err_wq);
   }
@@ -333,11 +333,11 @@ TEST_CASE ( "Net entity method and comparison testing, UDP entity, TCP acceptor,
   }
 
   {
-    auto msg_vec = make_msg_vec (make_variable_len_msg, "Having fun?", 'F', NumMsgs);
+    auto msg_vec = make_msg_vec (make_variable_len_msg, "Having fun?", 'F', num_msgs);
     auto sp_conn = std::make_shared<chops::net::detail::tcp_connector>(ioc,
                                                         std::string_view(test_port_tcp2),
                                                         std::string_view(test_host_tcp),
-                                                        std::chrono::milliseconds(ReconnTime ));
+                                                        chops::net::simple_timeout(tout), false);
     chops::net::net_entity ne_conn(sp_conn);
     auto sp_acc = std::make_shared<chops::net::detail::tcp_acceptor>(ioc, 
                                                test_port_tcp2, test_host_tcp, true );

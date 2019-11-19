@@ -48,7 +48,7 @@ using namespace chops::test;
 
 const char*   test_port = "30434";
 const char*   test_addr = "";
-constexpr int NumMsgs = 50;
+constexpr int num_msgs = 50;
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
 // thread;
@@ -218,8 +218,8 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
 TEST_CASE ( "Tcp IO handler test, variable len header msgs, one-way, interval 50",
             "[tcp_io] [var_len_msg] [one-way] [interval_50]" ) {
 
-  perform_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', NumMsgs),
-                 make_fixed_size_msg_vec(NumMsgs),
+  perform_test ( make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', num_msgs),
+                 make_fixed_size_msg_vec(num_msgs),
                  false, 50,
                  std::string_view(), make_empty_variable_len_msg() );
 
@@ -228,8 +228,8 @@ TEST_CASE ( "Tcp IO handler test, variable len header msgs, one-way, interval 50
 TEST_CASE ( "Tcp IO handler test, variable len header msgs, one-way, interval 0",
             "[tcp_io] [var_len_msg] [one-way] [interval_0]" ) {
 
-  perform_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*NumMsgs),
-                 make_fixed_size_msg_vec(2*NumMsgs),
+  perform_test ( make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*num_msgs),
+                 make_fixed_size_msg_vec(2*num_msgs),
                  false, 0,
                  std::string_view(), make_empty_variable_len_msg() );
 
@@ -238,8 +238,8 @@ TEST_CASE ( "Tcp IO handler test, variable len header msgs, one-way, interval 0"
 TEST_CASE ( "Tcp IO handler test, variable len header msgs, two-way, interval 50",
             "[tcp_io] [var_len_msg] [two_way] [interval_50]" ) {
 
-  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', NumMsgs),
-                 make_fixed_size_msg_vec(NumMsgs),
+  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', num_msgs),
+                 make_fixed_size_msg_vec(num_msgs),
                  true, 50,
                  std::string_view(), make_empty_variable_len_msg() );
 
@@ -248,8 +248,8 @@ TEST_CASE ( "Tcp IO handler test, variable len header msgs, two-way, interval 50
 TEST_CASE ( "Tcp IO handler test, variable len header msgs, two-way, interval 0, many msgs",
             "[tcp_io] [var_len_msg] [two_way] [interval_0] [many]" ) {
 
-  perform_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*NumMsgs),
-                 make_fixed_size_msg_vec(100*NumMsgs),
+  perform_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 50*num_msgs),
+                 make_fixed_size_msg_vec(50*num_msgs),
                  true, 0, 
                  std::string_view(), make_empty_variable_len_msg() );
 
@@ -258,8 +258,8 @@ TEST_CASE ( "Tcp IO handler test, variable len header msgs, two-way, interval 0,
 TEST_CASE ( "Tcp IO handler test, CR / LF msgs, one-way, interval 50",
             "[tcp_io] [cr_lf_msg] [one-way] [interval_50]" ) {
 
-  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', NumMsgs),
-                 make_fixed_size_msg_vec(NumMsgs),
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', num_msgs),
+                 make_fixed_size_msg_vec(num_msgs),
                  false, 50,
                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -268,8 +268,8 @@ TEST_CASE ( "Tcp IO handler test, CR / LF msgs, one-way, interval 50",
 TEST_CASE ( "Tcp IO handler test, CR / LF msgs, one-way, interval 0",
             "[tcp_io] [cr_lf_msg] [one-way] [interval_0]" ) {
 
-  perform_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*NumMsgs),
-                 make_fixed_size_msg_vec(4*NumMsgs),
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*num_msgs),
+                 make_fixed_size_msg_vec(4*num_msgs),
                  false, 0,
                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -278,8 +278,8 @@ TEST_CASE ( "Tcp IO handler test, CR / LF msgs, one-way, interval 0",
 TEST_CASE ( "Tcp IO handler test, CR / LF msgs, two-way, interval 30",
             "[tcp_io] [cr_lf_msg] [two-way] [interval_30]" ) {
 
-  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*NumMsgs),
-                 make_fixed_size_msg_vec(5*NumMsgs),
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*num_msgs),
+                 make_fixed_size_msg_vec(5*num_msgs),
                  true, 30,
                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -288,8 +288,8 @@ TEST_CASE ( "Tcp IO handler test, CR / LF msgs, two-way, interval 30",
 TEST_CASE ( "Tcp IO handler test, CR / LF msgs, two-way, interval 0, many msgs",
             "[tcp_io] [cr_lf_msg] [two-way] [interval_0] [many]" ) {
 
-  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*NumMsgs),
-                 make_fixed_size_msg_vec(200*NumMsgs),
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 100*num_msgs),
+                 make_fixed_size_msg_vec(100*num_msgs),
                  true, 0, 
                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -298,8 +298,8 @@ TEST_CASE ( "Tcp IO handler test, CR / LF msgs, two-way, interval 0, many msgs",
 TEST_CASE ( "Tcp IO handler test, LF msgs, one-way, interval 50",
             "[tcp_io] [lf_msg] [one_way] [interval_50]" ) {
 
-  perform_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', NumMsgs),
-                 make_fixed_size_msg_vec(NumMsgs),
+  perform_test ( make_msg_vec (make_lf_text_msg, "Excited!", 'E', num_msgs),
+                 make_fixed_size_msg_vec(num_msgs),
                  false, 50,
                  std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -308,8 +308,8 @@ TEST_CASE ( "Tcp IO handler test, LF msgs, one-way, interval 50",
 TEST_CASE ( "Tcp IO handler test, LF msgs, one-way, interval 0",
             "[tcp_io] [lf_msg] [one_way] [interval_0]" ) {
 
-  perform_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*NumMsgs),
-                 make_fixed_size_msg_vec(6*NumMsgs),
+  perform_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*num_msgs),
+                 make_fixed_size_msg_vec(6*num_msgs),
                  false, 0,
                  std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -318,8 +318,8 @@ TEST_CASE ( "Tcp IO handler test, LF msgs, one-way, interval 0",
 TEST_CASE ( "Tcp IO handler test, LF msgs, two-way, interval 20",
             "[tcp_io] [lf_msg] [two_way] [interval_20]" ) {
 
-  perform_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*NumMsgs),
-                 make_fixed_size_msg_vec(2*NumMsgs),
+  perform_test ( make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*num_msgs),
+                 make_fixed_size_msg_vec(2*num_msgs),
                  true, 20,
                  std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -328,8 +328,8 @@ TEST_CASE ( "Tcp IO handler test, LF msgs, two-way, interval 20",
 TEST_CASE ( "Tcp IO handler test, LF msgs, two-way, interval 0, many msgs",
             "[tcp_io] [lf_msg] [two_way] [interval_0] [many]" ) {
 
-  perform_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*NumMsgs),
-                 make_fixed_size_msg_vec(300*NumMsgs),
+  perform_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 200*num_msgs),
+                 make_fixed_size_msg_vec(200*num_msgs),
                  true, 0, 
                  std::string_view("\n"), make_empty_lf_text_msg() );
 

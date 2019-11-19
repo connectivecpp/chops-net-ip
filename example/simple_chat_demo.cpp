@@ -223,8 +223,7 @@ int main(int argc, char* argv[]) {
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, return @c network_entity
         // TODO: why does this not work with std::string, but acceptor does?
-        net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
-                    5000);
+        net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str());
     } else {
         // make @ tcp_acceptor, return @c network_entity
         net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
