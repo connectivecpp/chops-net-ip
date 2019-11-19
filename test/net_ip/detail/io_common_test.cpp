@@ -209,10 +209,10 @@ TEST_CASE ( "Io common stress test, single element, multiplier 50, 10 threads",
 
 }
 
-TEST_CASE ( "Io common stress test, single element, multiplier 100, 60 threads", 
-           "[io_common] [single_element] [multiplier_100] [threads_60]" ) {
+TEST_CASE ( "Io common stress test, single element, multiplier 40, 60 threads", 
+           "[io_common] [single_element] [multiplier_40] [threads_60]" ) {
 
-  io_common_stress_test(chops::test::make_io_buf_vec(), 100, 60);
+  io_common_stress_test(chops::test::make_io_buf_vec(), 40, 60);
 
 }
 
@@ -244,10 +244,10 @@ TEST_CASE ( "Io common stress test, double element, multiplier 50, 10 threads",
 
 }
 
-TEST_CASE ( "Io common stress test, double element, multiplier 100, 60 threads",
-           "[io_common] [double_element] [multiplier_100] [threads_60]" ) {
+TEST_CASE ( "Io common stress test, double element, multiplier 40, 60 threads",
+           "[io_common] [double_element] [multiplier_40] [threads_60]" ) {
 
-  io_common_stress_test(chops::test::make_io_buf_and_int_vec(), 100, 60);
+  io_common_stress_test(chops::test::make_io_buf_and_int_vec(), 40, 60);
 
 }
 

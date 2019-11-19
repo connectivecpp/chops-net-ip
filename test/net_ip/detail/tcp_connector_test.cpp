@@ -372,8 +372,8 @@ TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 30, 1 connector
 TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 0, 1 connector, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_1]" ) {
 
-  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', 100*num_msgs),
-                 make_fixed_size_msg_vec(100*num_msgs),
+  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', 50*num_msgs),
+                 make_fixed_size_msg_vec(50*num_msgs),
                  true, 0, 1,
                  std::string_view(), make_empty_variable_len_msg() );
 
@@ -402,8 +402,8 @@ TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 0, 2 connectors
 TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  perform_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*num_msgs),
-                 make_fixed_size_msg_vec(100*num_msgs),
+  perform_test ( make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 20*num_msgs),
+                 make_fixed_size_msg_vec(20*num_msgs),
                  true, 0, 10,
                  std::string_view(), make_empty_variable_len_msg() );
 
@@ -452,8 +452,8 @@ TEST_CASE ( "Tcp connector test, CR / LF msgs, two-way, interval 10, 5 connector
 TEST_CASE ( "Tcp connector test, CR / LF msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_conn] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*num_msgs),
-                 make_fixed_size_msg_vec(5*num_msgs),
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*num_msgs),
+                 make_fixed_size_msg_vec(50*num_msgs),
                  true, 0, 10, 
                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -482,8 +482,8 @@ TEST_CASE ( "Tcp connector test, LF msgs, one-way, interval 0, 15 connectors",
 TEST_CASE ( "Tcp connector test, LF msgs, two-way, interval 0, 15 connectors, many msgs", 
            "[tcp_conn] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
 
-  perform_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*num_msgs),
-                 make_fixed_size_msg_vec(5*num_msgs),
+  perform_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 40*num_msgs),
+                 make_fixed_size_msg_vec(40*num_msgs),
                  true, 0, 15, 
                  std::string_view("\n"), make_empty_lf_text_msg() );
 

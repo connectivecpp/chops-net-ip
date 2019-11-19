@@ -355,8 +355,8 @@ TEST_CASE ( "Net IP test, var len msgs, two-way, interval 50, 1 connector or pai
 TEST_CASE ( "Net IP test, var len msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
             "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  perform_test(make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 100*num_msgs),
-               make_fixed_size_msg_vec(100*num_msgs),
+  perform_test(make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 30*num_msgs),
+               make_fixed_size_msg_vec(30*num_msgs),
                true, 0, 10,
                std::string_view(), make_empty_variable_len_msg() );
 
@@ -365,8 +365,8 @@ TEST_CASE ( "Net IP test, var len msgs, two-way, interval 0, 10 connectors or pa
 TEST_CASE ( "Net IP test, var len msgs, two-way, interval 0, 40 connectors or pairs", 
             "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_40] [many]" ) {
 
-  perform_test(make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 100*num_msgs),
-               make_fixed_size_msg_vec(100*num_msgs),
+  perform_test(make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 30*num_msgs),
+               make_fixed_size_msg_vec(30*num_msgs),
                true, 0, 40,
                std::string_view(), make_empty_variable_len_msg() );
 
@@ -415,8 +415,8 @@ TEST_CASE ( "Net IP test, CR / LF msgs, two-way, interval 30, 10 connectors or p
 TEST_CASE ( "Net IP test, CR / LF msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
             "[net_ip] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  perform_test(make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 200*num_msgs),
-               make_fixed_size_msg_vec(200*num_msgs),
+  perform_test(make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*num_msgs),
+               make_fixed_size_msg_vec(50*num_msgs),
                true, 0, 10,
                std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -455,8 +455,8 @@ TEST_CASE ( "Net IP test,  LF msgs, two-way, interval 20, 15 connectors or pairs
 TEST_CASE ( "Net IP test,  LF msgs, two-way, interval 0, 15 connectors or pairs, many msgs", 
             "[net_ip] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
 
-  perform_test(make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 300*num_msgs),
-               make_fixed_size_msg_vec(300*num_msgs),
+  perform_test(make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 30*num_msgs),
+               make_fixed_size_msg_vec(30*num_msgs),
                true, 0, 15,
                std::string_view("\n"), make_empty_lf_text_msg() );
 
