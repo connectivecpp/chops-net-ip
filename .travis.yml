@@ -136,41 +136,11 @@ matrix:
       addons: *gcc8
       env: COMPILER='g++-8'
 
-    # 5/ OSX Clang Builds
-
-    - os: osx
-      osx_image: xcode10.3
-      compiler: clang
-      env: COMPILER='clang++'
-
-    - os: osx
-      osx_image: xcode10.3
-      compiler: clang
-      env: COMPILER='clang++' CPP17=1
-
-    - os: osx
-      osx_image: xcode11.2
-      compiler: clang
-      env: COMPILER='clang++'
-
-    - os: osx
-      osx_image: xcode11.2
-      compiler: clang
-      env: COMPILER='clang++' CPP17=1
-
 before install:
 
 install:
 
 before_script:
-- |
-  if [[ ${CPP17} -eq 1 ]]; then
-    export CPP_STANDARD=17
-  elif [[ ${CPP14} -eq 1 ]]; then
-    export CPP_STANDARD=14
-  else
-    export CPP_STANDARD=11
-  fi
 - cd ..
 - wget https://github.com/connectivecpp/utility-rack/archive/develop.tar.gz && mkdir utility-rack && tar -zxvf develop.tar.gz -C utility-rack --strip-components=1
 - wget https://github.com/martinmoene/expected-lite/archive/v0.3.0.tar.gz && mkdir expected-lite && tar -zxvf v0.3.0.tar.gz -C expected-lite --strip-components=1
@@ -184,9 +154,3 @@ before_script:
 script:
 - make all -j2
 - make test
-
-#branches:
-#only:
-#-master
-#-develop
-#-addTravisCI
