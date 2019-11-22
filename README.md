@@ -1,3 +1,9 @@
+Branch | Status
+|---|---|
+**Master** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=master)](https://travis-ci.org/connectivecpp/chops-net-ip)
+**Develop** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
+
+
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
 Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer, without significantly sacrificing performance. It is layered on top of the Asio asynchronous networking library, which can be difficult to use correctly. It handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
