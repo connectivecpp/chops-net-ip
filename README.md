@@ -12,6 +12,8 @@ Chops Net IP is not like any other high-level, general purpose C++ socket librar
 
 # License
 
+[![Licence](https://img.shields.io/badge/license-boost-4480cc.svg)](http://www.boost.org/LICENSE_1_0.txt)
+
 This project is distributed under the [Boost Software License](LICENSE.txt).
 
 ## Chops Net IP Release Status
