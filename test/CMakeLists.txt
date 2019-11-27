@@ -31,6 +31,7 @@ set ( test_sources
     "${test_source_dir}/net_ip_component/error_delivery_test.cpp"
     "${test_source_dir}/net_ip_component/io_output_delivery_test.cpp"
     "${test_source_dir}/net_ip_component/output_queue_stats_test.cpp"
+    "${test_source_dir}/net_ip_component/send_to_all_test.cpp"
     "${test_source_dir}/net_ip/basic_io_interface_test.cpp"
     "${test_source_dir}/net_ip/basic_io_output_test.cpp"
     "${test_source_dir}/net_ip/endpoints_resolver_test.cpp"
