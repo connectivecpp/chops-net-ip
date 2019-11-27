@@ -3,10 +3,12 @@
  *  @ingroup net_ip_component_module
  *
  *  @brief A class template that manages a collection of 
- *  @c basic_io_interface objects and provides "send to all" functionality.
+ *  @c basic_io_output objects and provides "send to all" functionality.
  *
  *  @author Cliff Green, Thurman Gillespy
  *  @date 2019-10-28
+ *
+ *  The "send to all but one" functionality added by Thurman in Oct, 2019.
  *
  *  Copyright (c) 2019 by Cliff Green, Thurman Gillespy
  *
@@ -24,9 +26,10 @@
 #include <mutex>
 #include <vector>
 
-// #include "net_ip/basic_io_interface.hpp"
+#include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
-#include "net_ip/queue_stats.hpp"
+
+#include "net_ip_component/output_queue_stats.hpp"
 
 #include "utility/erase_where.hpp"
 #include "marshall/shared_buffer.hpp"
@@ -42,7 +45,12 @@ namespace net {
  *  UDP destinations. This class manages a collection of @c basic_io_output objects
  *  and simplifies sending to all of them, or to all except a specific object.
  *
- *  In particular, if the buffer of data to be sent is not yet in a reference counted buffer 
+ *  A use case for "send to all but one @c io_output" is when "forward a message"
+ *  functionality is desired. A message can come in on one connection and will be 
+ *  sent on to all other connections except for the incoming connection.
+ *
+ *  Buffer copying is kept to a minimum with this class. In particular, if the 
+ *  buffer of data to be sent is not yet in a reference counted buffer 
  *  and the @c void pointer interface is used, only one buffer copy is made, and all TCP 
  *  connections or UDP sockets will shared the same reference counted buffer, saving buffer 
  *  copies across all of the connections or UDP sockets.
@@ -57,7 +65,6 @@ template <typename IOT>
 class send_to_all {
 private:
   using lock_guard  = std::lock_guard<std::mutex>;
-  // using io_intf    = basic_io_interface<IOT>;
   using io_out      = chops::net::basic_io_output<IOT>;
   using io_outs     = std::vector<io_out>;
   using io_interface = chops::net::basic_io_interface<IOT>;
@@ -68,17 +75,21 @@ private:
 
 public:
 /**
- *  @brief Add a @c basic_io_interface object to the collection.
+ *  @brief Add a @c basic_io_output object to the collection.
+ *
+ *  @param io @c basic_io_output object to be added.
  */
-  void add_io_interface(io_out io) {
+  void add_io_output(io_out io) {
     lock_guard gd { m_mutex };
     m_io_outs.push_back(io);
   }
 
 /**
- *  @brief Remove a @c basic_io_interface object to the collection.
+ *  @brief Remove a @c basic_io_output object from the collection.
+ *
+ *  @param io @c basic_io_output object to be removed.
  */
-  void remove_io_interface(io_out io) {
+  void remove_io_output(io_out io) {
     lock_guard gd { m_mutex };
     chops::erase_where(m_io_outs, io);
   }
@@ -86,6 +97,9 @@ public:
 /**
  *  @brief Interface for @c io_state_change parameter of @c start
  *  method.
+ *
+ *  See documentation of @c net_entity for @c start callback
+ *  parameters.
  */
   void operator() (io_interface io, std::size_t, bool starting) {
     auto ret = io.make_io_output();
@@ -94,16 +108,18 @@ public:
     }
     
     if (starting) {
-      add_io_interface(*ret);
+      add_io_output(*ret);
     }
     else {
-      remove_io_interface(*ret);
+      remove_io_output(*ret);
     }
   }
 
 /**
- *  @brief Send a reference counted buffer to all @c basic_io_interface
+ *  @brief Send a reference counted buffer to all @c basic_io_output
  *  objects.
+ *
+ *  @param buf Reference counted buffer to send.
  */
   void send(chops::const_shared_buffer buf) const {
     lock_guard gd { m_mutex };
@@ -113,8 +129,12 @@ public:
   }
 
 /**
- *  @brief Send a reference counted buffer to all @c basic_io_interface
+ *  @brief Send a reference counted buffer to all @c basic_io_output
  *  objects except @c cur_io.
+ *
+ *  @param buf Reference counted buffer to send.
+ *
+ *  @param cur_io @c basic_io_output object to skip.
  */
   void send(chops::const_shared_buffer buf, io_out cur_io) const { // TG
     lock_guard gd { m_mutex };
@@ -127,7 +147,12 @@ public:
 
 /**
  *  @brief Copy the bytes, create a reference counted buffer, then send it to
- *  all @c basic_io_interface objects.
+ *  all @c basic_io_output objects.
+ *
+ *  @param buf Pointer to @c char or @c std::byte array (other types can be
+ *  used but will be treated as bytes).
+ *
+ *  @param sz Number of bytes to send.
  */
   void send(const void* buf, std::size_t sz) const {
     send(chops::const_shared_buffer(buf, sz));
@@ -135,15 +160,23 @@ public:
 
 /**
  *  @brief Copy the bytes, create a reference counted buffer, then send it to
- *  all @c basic_io_interface objects except @c cur_io.
+ *  all @c basic_io_output objects except @c cur_io.
+ *
+ *  @param buf Pointer to @c char or @c std::byte array.
+ *
+ *  @param sz Number of bytes to send.
+ *
+ *  @param cur_io @c basic_io_output object to skip.
  */
   void send(const void* buf, std::size_t sz, io_out cur_io) const { // TG
     send(chops::const_shared_buffer(buf, sz), cur_io);
   }
 
 /**
- *  @brief Move the buffer from a writable reference counted buffer to a 
+ *  @brief Move the buffer from a writable reference counted buffer to an
  *  immutable reference counted buffer, then send to all.
+ *
+ *  @param buf Reference counted buffer to send.
  */
   void send(chops::mutable_shared_buffer&& buf) const { 
     send(chops::const_shared_buffer(std::move(buf)));
@@ -152,13 +185,17 @@ public:
 /**
  *  @brief Move the buffer from a writable reference counted buffer to a 
  *  immutable reference counted buffer, then send to all except @c cur_io.
+ *
+ *  @param buf Reference counted buffer to send.
+ *
+ *  @param cur_io @c basic_io_output object to skip.
  */
   void send(chops::mutable_shared_buffer&& buf, io_out cur_io) const { 
     send(chops::const_shared_buffer(std::move(buf)), cur_io);
   }
 
 /**
- *  @brief Return the number of @c basic_io_interface objects in the collection.
+ *  @brief Return the number of @c basic_io_output objects in the collection.
  */
   std::size_t size() const noexcept {
     lock_guard gd { m_mutex };
@@ -171,14 +208,8 @@ public:
  *  @return @c output_queue_stats object containing total counts.
  */
   auto get_total_output_queue_stats() const noexcept {
-    chops::net::output_queue_stats tot { };
     lock_guard gd { m_mutex };
-    for (const auto& io : m_io_outs) {
-      auto qs = io.get_output_queue_stats();
-      tot.output_queue_size += qs.output_queue_size;
-      tot.bytes_in_output_queue += qs.bytes_in_output_queue;
-    }
-    return tot;
+    return accumulate_output_queue_stats(m_io_outs.cbegin(), m_io_outs.cend());
   }
 };
 
