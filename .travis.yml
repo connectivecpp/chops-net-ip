@@ -58,6 +58,15 @@ matrix:
           sources: *all_sources
           packages: ['g++-5']
       env: COMPILER='g++-5'
+#test
+    - os: linux
+      arch: arm64
+      compiler: gcc
+      addons:
+        apt:
+          sources: *all_sources
+          packages: ['g++-5']
+      env: COMPILER='g++-5' #end test
 
     - os: linux
       compiler: gcc
@@ -82,6 +91,15 @@ matrix:
           sources: *all_sources
           packages: ['g++-8']
       env: COMPILER='g++-8'
+#test
+    - os: linux
+      arch: arm64
+      compiler: gcc
+      addons: &gcc8
+        apt:
+          sources: *all_sources
+          packages: ['g++-8']
+      env: COMPILER='g++-8' #end test
 
     # 3b/ Linux C++14 Clang builds
     # Note that we need newer libstdc++ for C++14 support
@@ -135,6 +153,12 @@ matrix:
       compiler: gcc
       addons: *gcc8
       env: COMPILER='g++-8'
+#test
+    - os: linux
+      arch: arm64
+      compiler: gcc
+      addons: *gcc8
+      env: COMPILER='g++-8' #end test
 
 before install:
 
