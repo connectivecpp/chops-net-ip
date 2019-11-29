@@ -77,7 +77,7 @@ matrix:
           packages: ['g++-5']
       env: COMPILER='g++-5'
 
-      - os: linux
+    - os: linux
       arch: s390x
       compiler: gcc
       addons:
