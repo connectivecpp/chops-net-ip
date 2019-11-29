@@ -76,6 +76,15 @@ matrix:
           sources: *all_sources
           packages: ['g++-5']
       env: COMPILER='g++-5'
+
+      - os: linux
+      arch: s390x
+      compiler: gcc
+      addons:
+        apt:
+          sources: *all_sources
+          packages: ['g++-5']
+      env: COMPILER='g++-5'
        #end test
 
     - os: linux
