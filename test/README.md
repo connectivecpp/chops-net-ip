@@ -9,7 +9,7 @@ All of the unit tests run on one host, with the networking unit tests using `loc
 
 ### Shared Test
 
-The `shared_test` directory contains common test code used in unit tests and other testing applications. 
+The `shared_test` directory contains common test code used in the unit tests as well as the other testing applications. 
 
 ## Distributed Test Applications
 
@@ -18,7 +18,5 @@ and other security settings can be appropriately set.
 
 ### TDB - Test Data Blaster
 
-The Test Data Blaster application consists of two executables:
-- Data sender / receiver
-- Statistics and logging monitor
+The [README](test_data_blaster/README.md) in the `test_data_blaster` directory contains details of the TDB application.
 
