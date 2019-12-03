@@ -2,8 +2,7 @@
 
 ## Unit Tests
 
-There is a `Catch2` main source in the `test` directory, which is used in building `Catch2` based unit tests. Each individual unit test 
-is in a subdirectory corresponding to the production source subdirectory.
+There is a `Catch2` main source named `main_test` in the `test` directory, which is used in building `Catch2` based unit tests. Each individual unit test is in a subdirectory corresponding to the production source subdirectory.
 
 All of the unit tests run on one host, with the networking unit tests using `localhost` (or equivalent).
 
