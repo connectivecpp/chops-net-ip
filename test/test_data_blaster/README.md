@@ -39,5 +39,13 @@ TODO - define a format that makes Python deserialization easy. Specifically, are
 
 ## TCP Data Sender Receiver
 
-The 
+Each DSR instance can start multiple TCP connectors and multiple TCP acceptors as provided via the command line arguments.
+
+If the DSR instance is configured to send messages (send count > 0), messages are sent when a connection is made. For TCP connectors this is when the connect succeeds. For acceptors it is when each incoming connection is made.
+
+Degenerate configurations are possible, with infinite message loops or where connection and shutdown timing is not clear. The T-DB is meant to be run by knowledgeable users, not general developers.
+
+The internal data messages are using the binary marshalled messages from the `shared_test` facilities (see `msg_handling.hpp` for specific code).
+
+
 
