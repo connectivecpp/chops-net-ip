@@ -3,7 +3,7 @@
  *  @ingroup test_module
  *
  *  @brief Test application that receives progress messages from data sender / receiver (DSR)
- *  applications, both TCP and UDP.
+ *  processes, both TCP and UDP versions.
  *
  *  @author (fill in)
  *

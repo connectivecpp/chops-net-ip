@@ -14,9 +14,11 @@ While the data sender and receiver apps are written in C++, the monitor app can 
 
 The T-DB Monitor is run as a server (only). It accepts TCP connections on one port, each connection corresponding to one instance of either a TCP T-DB sender / receiver or a UDP T-DB sender / receiver.
 
-There are no "begin" or "end" messages, a new incoming TCP connection is the indication that a new DSR instance has started, and the end of the TCP connection is the indication that the DSR instance has ended.
+There are no "begin" or "end" data messages, a new incoming TCP connection is the indication that a new DSR instance has started, and the end of the TCP connection is the indication that the DSR instance has ended.
 
 The DSR will not send a monitor message for every test message sent between DSR instances. A "modulo" command line parameter specifies how often a monitor message will be sent (for each test data set). (A modulo of 1 would generate one monitor message per test data set message.)
+
+The monitor process will notify all DSR processes to shutdown by sending a shutdown message through each monitor connection. The monitor process will have a user initiated way to send the shutdown messages and end the monitor process.
 
 ### Monitor Message Definition
 
@@ -31,6 +33,7 @@ Each message to the Monitor has the following fields:
 - Current message size
 - Current message prefix
 - Current message body character
+- Outgoing queue size (only meaningful for outgoing data)
 
 Each of the fields is a text string, and the full message is delimited by
 
@@ -41,11 +44,16 @@ TODO - define a format that makes Python deserialization easy. Specifically, are
 
 Each DSR instance can start multiple TCP connectors and multiple TCP acceptors as provided via the command line arguments.
 
-If the DSR instance is configured to send messages (send count > 0), messages are sent when a connection is made. For TCP connectors this is when the connect succeeds. For acceptors it is when each incoming connection is made.
+If the DSR instance is configured to send messages (send count > 0), messages are sent when a connection is made. For TCP connectors this is when the connect succeeds. For acceptors it is when each incoming connection is made. Each connection will send out the full set of test messages.
 
-Degenerate configurations are possible, with infinite message loops or where connection and shutdown timing is not clear. The T-DB is meant to be run by knowledgeable users, not general developers.
+Degenerate configurations are possible, with infinite message loops or where connection and shutdown timing is not clear. The T-DB is meant to be run by knowledgeable users, not general developers, so no special coding is in the T-DB to protect for bad configurations.
 
-The internal data messages are using the binary marshalled messages from the `shared_test` facilities (see `msg_handling.hpp` for specific code).
+The internal data messages uses the binary marshalled message format from the `shared_test` facilities (see `msg_handling.hpp` for specific code). The monitor messages are text based messages with all fields in a string format easy to unmarshall for Python applications.
 
-
+The general logic flow:
+- Process command line arguments
+- Start connector to monitor
+- Start acceptors and connectors
+- If non-empty outgoing message set, for each connection made (whether connector or acceptor) start thread to send the messages, with a delay time between each message (delay may be 0)
+- Shutdown when the future pops by an incoming shutdown message from the monitor process
 
