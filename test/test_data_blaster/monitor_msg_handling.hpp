@@ -21,28 +21,62 @@
 #include <cstddef> // std::size_t
 #include <future>
 #include <utility> // std::move
+#include <optional>
+#include <type_traits> // std::is_same
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
 
+#include "asio/ip/basic_endpoint.hpp"
+
 namespace chops {
 namespace test {
 
-enum protocol_type { tcp, udp };
 enum msg_direction { incoming, outgoing };
 
 struct monitor_msg_data {
-  std::string     m_dsr_name;
-  protocol_type   m_protocol;
-  std::string     m_remote_host;
-  std::string     m_remote_port;
-  msg_direction   m_direction;
-  std::size_t     m_curr_msg_num;
-  std::size_t     m_total_msgs;
-  std::size_t     m_curr_msg_size;
-  std::string     m_curr_prefix;
-  char            m_curr_body_char;
-  std::size_t     m_outgoing_queue_size; // only meaningful for outgoing data
+  std::string                  m_dsr_name;
+  std::string                  m_protocol; // "tcp" or "udp"
+  std::string                  m_remote_host;
+  std::string                  m_remote_port;
+  msg_direction                m_direction;
+  std::size_t                  m_curr_msg_num;
+  std::size_t                  m_curr_msg_size;
+  std::string                  m_curr_prefix;
+  char                         m_curr_body_char;
+  std::optional<std::size_t>   m_total_msgs_to_send;  // only meaningful for outgoing data
+  std::optional<std::size_t>   m_outgoing_queue_size; // only meaningful for outgoing data
+
+  template <typename AsioIpProtocol>
+  monitor_msg_data (const asio::ip::basic_endpoint<AsioIpProtocol>& remote_endpoint,
+                    const std::string& dsr_name,
+                    msg_direction direction,
+                    std::size_t curr_msg_num,
+                    std::size_t curr_msg_size,
+                    const std::string& curr_prefix,
+                    char curr_body_char,
+                    std::size_t total_msgs_to_send,
+                    std::size_t outgoing_queue_size) :
+      m_dsr_name(dsr_name),
+      m_protocol("tcp"),
+      m_remote_host(),
+      m_remote_port(),
+      m_direction(direction),
+      m_curr_msg_num(curr_msg_num),
+      m_curr_msg_size(curr_msg_size),
+      m_curr_prefix(curr_prefix),
+      m_curr_body_char(curr_body_char),
+      m_total_msgs_to_send(total_msgs_to_send),
+      m_outgoing_queue_size(outgoing_queue_size)
+  {
+    m_remote_host = remote_endpoint.address().to_string();
+    m_remote_port = std::to_string(remote_endpoint.port());
+    if constexpr (std::is_same_v<asio::ip::udp, AsioIpProtocol>) {
+      m_protocol = "udp";
+    }
+  }
+                    
+  // more constructors to be added
 };
 
 struct shutdown_msg {

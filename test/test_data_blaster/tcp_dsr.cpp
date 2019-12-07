@@ -40,6 +40,11 @@
 
 #include "test_data_blaster/tcp_dsr_args.hpp"
 
+struct state_chg {
+
+};
+
+
 int main (int argc, char* argv[]) {
 
   auto parms = chops::test::tcp_dsr_args_parse_command_line(argc, argv);
@@ -61,6 +66,8 @@ int main (int argc, char* argv[]) {
 
   std::promise<void> shutdown_prom;
   auto shutdown_fut = shutdown_prom.get_future();
+
+  chops::test::monitor_connector mon(nip, parms.m_monitor.m_port, parms.m_monitor.m_host, std::move(shutdown_prom));
 
   for (const auto& s : parms.m_acceptors) {
 
