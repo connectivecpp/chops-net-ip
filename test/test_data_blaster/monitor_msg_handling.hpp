@@ -35,17 +35,17 @@ namespace test {
 enum msg_direction { incoming, outgoing };
 
 struct monitor_msg_data {
-  std::string                  m_dsr_name;
-  std::string                  m_protocol; // "tcp" or "udp"
-  std::string                  m_remote_host;
-  std::string                  m_remote_port;
-  msg_direction                m_direction;
-  std::size_t                  m_curr_msg_num;
-  std::size_t                  m_curr_msg_size;
-  std::string                  m_curr_prefix;
-  char                         m_curr_body_char;
-  std::optional<std::size_t>   m_total_msgs_to_send;  // only meaningful for outgoing data
-  std::optional<std::size_t>   m_outgoing_queue_size; // only meaningful for outgoing data
+  std::string    m_dsr_name;
+  std::string    m_protocol; // "tcp" or "udp"
+  std::string    m_remote_host;
+  std::string    m_remote_port;
+  msg_direction  m_direction;
+  std::size_t    m_curr_msg_num;
+  std::size_t    m_curr_msg_size;
+  std::string    m_curr_prefix;
+  char           m_curr_body_char;
+  std::size_t    m_total_msgs_to_send;  // 0 if incoming direction, since total not known
+  std::size_t    m_outgoing_queue_size;
 
   template <typename AsioIpProtocol>
   monitor_msg_data (const asio::ip::basic_endpoint<AsioIpProtocol>& remote_endpoint,
