@@ -14,7 +14,6 @@
  *
  */
 
-#include <system_error> // std::error_code
 #include <cstddef> // std::size_t
 #include <utility> // std::move
 #include <thread>
@@ -22,8 +21,7 @@
 #include <chrono>
 #include <functional> // std::ref, std::cref
 #include <string_view>
-#include <vector>
-#include <cassert>
+#include <algorithm> // std::min
 
 #include <iostream> // std::cerr for error sink
 
@@ -42,44 +40,128 @@
 
 const std::string_view msg_prefix { "Tasty testing!" };
 
-std::size_t send_msgs_func (chops::net::io_output io_out, char body_char,
-                            int send_count, std::chrono::milliseconds delay) {
+void send_mon_msg (chops::test::monitor_connector& mon,
+                   chops::test::monitor_msg_data& mon_msg,
+                   int curr_msg_num, int mod,
+                   chops::net::tcp_io_output io_out,
+                   const std::byte* msg_ptr,
+                   std::size_t msg_size) {
+
+  // the +2 and -2 on msg pointer and size is adjusting for 16 bit binary length header
+  if (curr_msg_num % mod == 0) {
+    mon_msg.m_curr_msg_num = static_cast<std::size_t>(curr_msg_num);
+    mon_msg.m_curr_msg_size = msg_size - 2u;
+    mon_msg.m_curr_msg_beginning = std::string(chops::cast_ptr_to<char>(msg_ptr + 2),
+                   std::min(chops::test::monitor_msg_data::max_msg_data_to_capture, (msg_size - 2u)));
+    auto oqs = io_out.get_output_queue_stats();
+    mon_msg.m_outgoing_queue_size = oqs ? (*oqs).output_queue_size : 0u;
+    mon.send_monitor_msg(mon_msg);
+  }
+}
+
+int send_msgs_func (chops::net::tcp_io_output io_out, char body_char,
+                    int send_count, int mod,
+                    std::chrono::milliseconds delay,
+                    chops::test::monitor_connector& mon,
+                    chops::test::monitor_msg_data mon_msg) {
+
+  mon_msg.m_total_msgs_to_send = static_cast<std::size_t>(send_count);
+  mon_msg.m_direction = chops::test::monitor_msg_data::outgoing;
 
   auto msgs = chops::test::make_msg_vec (chops::test::make_variable_len_msg, msg_prefix, 
                                          body_char, send_count);
+  int num_sent { 0 };
   for (const auto& m : msgs) {
     if (!io_out.is_valid()) {
       break;
     }
     io_out.send(m);
-    --send_count;
+    send_mon_msg(mon, mon_msg, ++num_sent, mod, io_out, m.data(), m.size());
     std::this_thread::sleep_for(delay);
   }
-  return send_count; // 0 unless stopped early
+  return num_sent;
 }
 
+struct msg_hdlr {
+  int                              m_count;
+  bool                             m_reply;
+  int                              m_modulo;
+  chops::test::monitor_connector&  m_mon;
+  chops::test::monitor_msg_data    m_mon_msg;
+
+  msg_hdlr(bool reply, int mod, chops::test::monitor_connector& mon,
+           chops::test::monitor_msg_data mon_msg) : 
+        m_count(0), m_reply(reply), m_modulo(mod), m_mon(mon), m_mon_msg(mon_msg)
+  {
+    m_mon_msg.m_total_msgs_to_send = 0u;
+    m_mon_msg.m_direction = chops::test::monitor_msg_data::incoming;
+  }
+
+  bool operator()(asio::const_buffer buf, chops::net::tcp_io_output io_out, const asio::ip::tcp::endpoint&) {
+    
+    if (m_reply) {
+      io_out.send(buf.data(), buf.size());
+    }
+    send_mon_msg(m_mon, m_mon_msg, ++m_count, m_modulo, io_out,
+                 chops::cast_ptr_to<std::byte>(buf.data()), buf.size());
+    return true;
+  }
+};
+
+using send_fut_vec = std::vector<std::future<int>>;
 
 struct state_chg {
-  int                       m_send_count;
-  char                      m_body_char;
-  std::chrono::milliseconds m_delay;
-  bool                      m_reply;
+  int                              m_send_count;
+  char                             m_body_char;
+  std::chrono::milliseconds        m_delay;
+  bool                             m_reply;
+  int                              m_modulo;
+  send_fut_vec&                    m_send_futs;
+  chops::test::monitor_connector&  m_mon;
+  chops::test::monitor_msg_data    m_mon_msg;
 
-  state_chg(int send_count, char body_char, std::chrono::milliseconds delay) :
-    m_send_count(send_count), m_body_char(body_char), m_delay(delay) { }
+  state_chg(int send_count, char body_char, std::chrono::milliseconds delay,
+            bool reply, int mod, send_fut_vec& send_futs,
+            chops::test::monitor_connector& mon,
+            chops::test::monitor_msg_data mon_msg) :
+    m_send_count(send_count), m_body_char(body_char), m_delay(delay),
+    m_reply(reply), m_modulo(mod), m_send_futs(send_futs),
+    m_mon(mon), m_mon_msg(mon_msg) { }
 
   void operator() (chops::net::tcp_io_interface io_intf, std::size_t, bool starting) {
     if (starting) {
-      
+      std::string addr;
+      io_intf.visit_socket([&addr] (asio::ip::tcp::socket& sock) {
+            addr = chops::test::format_addr(sock.remote_endpoint());
+        }
+      );
+      m_mon_msg.m_remote_addr = addr;
+      io_intf.start_io(2u, msg_hdlr(m_reply, m_modulo, m_mon, m_mon_msg), 
+                           chops::test::decode_variable_len_msg_hdr);
+      if (m_send_count > 0) {
+        auto send_fut = std::async(std::launch::async, send_msgs_func,
+                                   *(io_intf.make_io_output()),
+                                   m_body_char, m_send_count, m_modulo, m_delay,
+                                   std::ref(m_mon), m_mon_msg);
+        m_send_futs.push_back(std::move(send_fut));
+      }
     }
   }
 
 };
 
+void start_entity (chops::net::net_entity ent, char body_char,
+                   const chops::test::tcp_dsr_args& parms, send_fut_vec& send_futs,
+                   chops::test::monitor_connector& mon, chops::test::monitor_msg_data mon_msg,
+                   chops::net::err_wait_q& err_wq) {
+  ent.start(state_chg(parms.m_send_count, body_char, parms.m_delay, parms.m_reply,
+                      parms.m_modulus, send_futs, mon, mon_msg),
+            chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
+}
 
 int main (int argc, char* argv[]) {
 
-  auto parms = chops::test::tcp_dsr_args_parse_command_line(argc, argv);
+  auto parms = chops::test::parse_command_line(argc, argv);
 
   char body_char { 'a' };
 
@@ -97,196 +179,38 @@ int main (int argc, char* argv[]) {
   chops::test::monitor_connector mon(nip, parms.m_monitor.m_port, parms.m_monitor.m_host, 
                                      std::move(shutdown_prom), err_wq);
 
+  chops::test::monitor_msg_data mon_msg;
+  mon_msg.m_dsr_name = parms.m_dsr_name;
+  mon_msg.m_protocol = "tcp";
+
+  send_fut_vec send_futs;
   for (const auto& s : parms.m_acceptors) {
-
+    auto ent = nip.make_tcp_acceptor(s);
+    start_entity(ent, body_char++, parms, send_futs, mon, mon_msg, err_wq);
   }
-  for (const auto& s : parms.m_connectors) {
-
+  for (const auto& t : parms.m_connectors) {
+    auto ent = nip.make_tcp_connector(t.m_port, t.m_host);
+    start_entity(ent, body_char++, parms, send_futs, mon, mon_msg, err_wq);
   }
 
+  // everything up and running, block waiting on shutdown msg
+  shutdown_fut.get(); // monitor sent shutdown msg
+  nip.stop_all(); // stop all entities
 
-  shutdown_fut.get();
+  int t_num { 0 };
+  for (auto& t : send_futs) {
+    auto num = t.get();
+    std::cerr << "TCP DSR " << parms.m_dsr_name << 
+      ", sending thread num " << ++t_num << " finished, num msgs sent: " << num << std::endl;
+  }
+  
   err_wq.close();
   auto err_cnt = err_fut.get();
-  wk.reset();
-
-}
-
-
-void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
-                   bool reply, int interval, 
-                   int num_entities, std::string_view delim, chops::const_shared_buffer empty_msg) {
-
-  chops::net::worker wk;
-  wk.start();
-  auto& ioc = wk.get_io_context();
-
-  chops::net::err_wait_q err_wq;
-  auto err_fut = std::async(std::launch::async, chops::net::ostream_error_sink_with_wait_queue,
-                            std::ref(err_wq), std::ref(std::cerr));
-
-  {
-    std::size_t total_msgs = num_entities * var_msg_vec.size();
-    auto cnt1 = acc_conn_var_test(ioc, err_wq, var_msg_vec, reply, num_entities, delim, empty_msg);
-    REQUIRE (cnt1 == total_msgs);
-    auto cnt2 = udp_test(ioc, err_wq, var_msg_vec, interval, num_entities);
-    CHECK (cnt2 == total_msgs);
-  }
-
-  {
-    std::size_t total_msgs = num_entities * fixed_msg_vec.size();
-    auto cnt1 = acc_conn_fixed_test(ioc, err_wq, fixed_msg_vec, num_entities);
-    REQUIRE (cnt1 == total_msgs);
-    auto cnt2 = udp_test(ioc, err_wq, fixed_msg_vec, interval, num_entities);
-    CHECK (cnt2 == total_msgs);
-  }
-
-  while (!err_wq.empty()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
-  err_wq.close();
-  auto err_cnt = err_fut.get();
-  INFO ("Num err messages in sink: " << err_cnt);
 
   wk.reset();
-}
 
-TEST_CASE ( "Net IP test, var len msgs, one-way, interval 50, 1 connector or pair", 
-            "[netip_acc_conn] [var_len_msg] [one_way] [interval_50] [connectors_1]" ) {
-
-  perform_test(make_msg_vec (make_variable_len_msg, "Heehaw!", 'Q', num_msgs),
-               make_fixed_size_msg_vec(num_msgs),
-               false, 50, 1,
-               std::string_view(), make_empty_variable_len_msg() );
+  std::cerr << "TCP DSR " << parms.m_dsr_name << 
+    ", shutting down, num error logs displayed: " << err_cnt << std::endl;
 
 }
 
-TEST_CASE ( "Net IP test, var len msgs, one-way, interval 0, 1 connector or pair", 
-            "[netip_acc_conn] [var_len_msg] [one_way] [interval_0] [connectors_1]" ) {
-
-  perform_test(make_msg_vec (make_variable_len_msg, "Haw!", 'R', 2*num_msgs),
-               make_fixed_size_msg_vec(2*num_msgs),
-               false, 0, 1,
-               std::string_view(), make_empty_variable_len_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, var len msgs, two-way, interval 50, 1 connector or pair", 
-            "[net_ip] [var_len_msg] [two_way] [interval_50] [connectors_1]" ) {
-
-  perform_test(make_msg_vec (make_variable_len_msg, "Yowser!", 'X', num_msgs),
-               make_fixed_size_msg_vec(num_msgs),
-               true, 50, 1,
-               std::string_view(), make_empty_variable_len_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, var len msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
-            "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
-
-  perform_test(make_msg_vec (make_variable_len_msg, "Whoah, fast!", 'X', 30*num_msgs),
-               make_fixed_size_msg_vec(30*num_msgs),
-               true, 0, 10,
-               std::string_view(), make_empty_variable_len_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, var len msgs, two-way, interval 0, 40 connectors or pairs", 
-            "[net_ip] [var_len_msg] [two_way] [interval_0] [connectors_40] [many]" ) {
-
-  perform_test(make_msg_vec (make_variable_len_msg, "Many, many, fast!", 'G', 30*num_msgs),
-               make_fixed_size_msg_vec(30*num_msgs),
-               true, 0, 40,
-               std::string_view(), make_empty_variable_len_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, CR / LF msgs, one-way, interval 50, 1 connector or pair", 
-            "[net_ip] [cr_lf_msg] [one_way] [interval_50] [connectors_1]" ) {
-
-  perform_test(make_msg_vec (make_cr_lf_text_msg, "Pretty easy, eh?", 'C', num_msgs),
-               make_fixed_size_msg_vec(num_msgs),
-               false, 50, 1,
-               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, CR / LF msgs, one-way, interval 50, 10 connectors or pairs", 
-            "[net_ip] [cr_lf_msg] [one_way] [interval_50] [connectors_10]" ) {
-
-  perform_test(make_msg_vec (make_cr_lf_text_msg, "Hohoho!", 'Q', num_msgs),
-               make_fixed_size_msg_vec(num_msgs),
-               false, 50, 10,
-               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, CR / LF msgs, one-way, interval 0, 20 connectors or pairs", 
-            "[net_ip] [cr_lf_msg] [one_way] [interval_0] [connectors_20]" ) {
-
-  perform_test(make_msg_vec (make_cr_lf_text_msg, "HawHeeHaw!", 'N', 4*num_msgs),
-               make_fixed_size_msg_vec(4*num_msgs),
-               false, 0, 20,
-               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, CR / LF msgs, two-way, interval 30, 10 connectors or pairs", 
-            "[net_ip] [cr_lf_msg] [two_way] [interval_30] [connectors_10]" ) {
-
-  perform_test(make_msg_vec (make_cr_lf_text_msg, "Yowzah!", 'G', 5*num_msgs),
-               make_fixed_size_msg_vec(4*num_msgs),
-               true, 30, 10,
-               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test, CR / LF msgs, two-way, interval 0, 10 connectors or pairs, many msgs", 
-            "[net_ip] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
-
-  perform_test(make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*num_msgs),
-               make_fixed_size_msg_vec(50*num_msgs),
-               true, 0, 10,
-               std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test,  LF msgs, one-way, interval 50, 1 connector or pair", 
-            "[net_ip] [lf_msg] [one_way] [interval_50] [connectors_1]" ) {
-
-  perform_test(make_msg_vec (make_lf_text_msg, "Excited!", 'E', num_msgs),
-               make_fixed_size_msg_vec(num_msgs),
-               false, 50, 1,
-               std::string_view("\n"), make_empty_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test,  LF msgs, one-way, interval 0, 25 connectors or pairs", 
-            "[net_ip] [lf_msg] [one_way] [interval_0] [connectors_25]" ) {
-
-  perform_test(make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*num_msgs),
-               make_fixed_size_msg_vec(6*num_msgs),
-               false, 0, 25,
-               std::string_view("\n"), make_empty_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test,  LF msgs, two-way, interval 20, 15 connectors or pairs", 
-            "[net_ip] [lf_msg] [two_way] [interval_20] [connectors_15]" ) {
-
-  perform_test(make_msg_vec (make_lf_text_msg, "Whup whup!", 'T', 2*num_msgs),
-               make_fixed_size_msg_vec(2*num_msgs),
-               true, 20, 15,
-               std::string_view("\n"), make_empty_lf_text_msg() );
-
-}
-
-TEST_CASE ( "Net IP test,  LF msgs, two-way, interval 0, 15 connectors or pairs, many msgs", 
-            "[net_ip] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
-
-  perform_test(make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 30*num_msgs),
-               make_fixed_size_msg_vec(30*num_msgs),
-               true, 0, 15,
-               std::string_view("\n"), make_empty_lf_text_msg() );
-
-}

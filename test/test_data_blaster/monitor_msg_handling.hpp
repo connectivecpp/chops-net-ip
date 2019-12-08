@@ -32,16 +32,19 @@
 namespace chops {
 namespace test {
 
-enum msg_direction { incoming, outgoing };
+template <typename AsioIpProtocol>
+std::string format_addr (const asio::ip::basic_endpoint<AsioIpProtocol>& endpoint) {
+  return endpoint.address().to_string() + ":" + std::to_string(endpoint.port());
+}
 
 struct monitor_msg_data {
 
-  static constexpr max_msg_data_to_capture = 15;
+  static constexpr std::size_t max_msg_data_to_capture = 15;
+  enum msg_direction { incoming, outgoing };
 
   std::string    m_dsr_name;
   std::string    m_protocol; // "tcp" or "udp"
-  std::string    m_remote_host;
-  std::string    m_remote_port;
+  std::string    m_remote_addr; // in "host:port" format, see format_addr above
   msg_direction  m_direction;
   std::size_t    m_curr_msg_num;
   std::size_t    m_curr_msg_size;
@@ -49,32 +52,6 @@ struct monitor_msg_data {
   std::size_t    m_total_msgs_to_send;  // 0 if direction is incoming, since total not known in advance
   std::size_t    m_outgoing_queue_size;
 
-  template <typename AsioIpProtocol>
-  monitor_msg_data (const asio::ip::basic_endpoint<AsioIpProtocol>& remote_endpoint,
-                    const std::string& dsr_name,
-                    msg_direction direction,
-                    std::size_t curr_msg_num,
-                    std::size_t curr_msg_size,
-                    const std::string& curr_msg_beginning,
-                    std::size_t total_msgs_to_send,
-                    std::size_t outgoing_queue_size) :
-      m_dsr_name(dsr_name),
-      m_protocol("tcp"),
-      m_remote_host(),
-      m_remote_port(),
-      m_direction(direction),
-      m_curr_msg_num(curr_msg_num),
-      m_curr_msg_size(curr_msg_size),
-      m_curr_msg_beginning(curr_msg_beginning),
-      m_total_msgs_to_send(total_msgs_to_send),
-      m_outgoing_queue_size(outgoing_queue_size)
-  {
-    m_remote_host = remote_endpoint.address().to_string();
-    m_remote_port = std::to_string(remote_endpoint.port());
-    if constexpr (std::is_same_v<asio::ip::udp, AsioIpProtocol>) {
-      m_protocol = "udp";
-    }
-  }
 };
 
 struct shutdown_msg {

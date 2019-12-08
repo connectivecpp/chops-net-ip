@@ -49,7 +49,8 @@ struct tcp_dsr_args {
 // return std::optional<tcp_dsr_args>, or return std::expected<tcp_dsr_args>, or throwing an 
 // exception
 inline tcp_dsr_args parse_command_line (int argc, char* argvp[]) {
-
+  tcp_dsr_args args { };
+  return args;
 }
 
 inline void print_help () {
