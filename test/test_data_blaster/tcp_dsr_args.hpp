@@ -19,19 +19,10 @@
 #include <string>
 #include <cstddef> // std::size_t
 #include <vector>
-#include <optional>
+#include <chrono>
 
 namespace chops {
 namespace test {
-
-constexpr int prefix_max_size {20}; // arbitrary max size - we can adjust as needed
-
-struct sending_parms {
-  int           m_send_count;    // num msgs to send
-  std::string   m_prefix;        // prefix string, same for each message
-  char          m_body_char;     // each message will be filled with this char, after the prefix
-  int           m_delay;         // delay in milliseconds between messages
-};
 
 struct connector_info {
   std::string     m_port;
@@ -41,10 +32,11 @@ struct connector_info {
 // command line argument data for use by TCP DSR
 struct tcp_dsr_args {
   std::string     m_dsr_name;      // name of this DSR instance
-  bool            m_reply;         // if true, incoming messages are reflected back to sender
+  bool            m_reply;         // if true, incoming messages reflected back to sender
   int             m_modulus;       // how often to send log msg to monitor, both outgoing and incoming messages
-  std::optional<sending_parms>
-                  m_sending_parms; // if present - count, prefix, body char
+  int             m_send_count;    // if 0, don't send any messages
+  std::chrono::milliseconds
+                  m_delay;
   std::vector<std::string>
                   m_acceptors;     // 0 - N TCP acceptors, port for each entry
   std::vector<connector_info>
@@ -54,7 +46,8 @@ struct tcp_dsr_args {
 
 
 // besides filling in the command line parsing, decide on error handling - possibilities include
-// return std::optiona<tcp_dsr_args>, or throwing an exception
+// return std::optional<tcp_dsr_args>, or return std::expected<tcp_dsr_args>, or throwing an 
+// exception
 inline tcp_dsr_args parse_command_line (int argc, char* argvp[]) {
 
 }

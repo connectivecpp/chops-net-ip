@@ -21,11 +21,11 @@
 #include <cstddef> // std::size_t
 #include <future>
 #include <utility> // std::move
-#include <optional>
 #include <type_traits> // std::is_same
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
+#include "net_ip_component/error_delivery.hpp"
 
 #include "asio/ip/basic_endpoint.hpp"
 
@@ -35,6 +35,9 @@ namespace test {
 enum msg_direction { incoming, outgoing };
 
 struct monitor_msg_data {
+
+  static constexpr max_msg_data_to_capture = 15;
+
   std::string    m_dsr_name;
   std::string    m_protocol; // "tcp" or "udp"
   std::string    m_remote_host;
@@ -42,9 +45,8 @@ struct monitor_msg_data {
   msg_direction  m_direction;
   std::size_t    m_curr_msg_num;
   std::size_t    m_curr_msg_size;
-  std::string    m_curr_prefix;
-  char           m_curr_body_char;
-  std::size_t    m_total_msgs_to_send;  // 0 if incoming direction, since total not known
+  std::string    m_curr_msg_beginning; // up to max_msg_data_to_capture chars
+  std::size_t    m_total_msgs_to_send;  // 0 if direction is incoming, since total not known in advance
   std::size_t    m_outgoing_queue_size;
 
   template <typename AsioIpProtocol>
@@ -53,8 +55,7 @@ struct monitor_msg_data {
                     msg_direction direction,
                     std::size_t curr_msg_num,
                     std::size_t curr_msg_size,
-                    const std::string& curr_prefix,
-                    char curr_body_char,
+                    const std::string& curr_msg_beginning,
                     std::size_t total_msgs_to_send,
                     std::size_t outgoing_queue_size) :
       m_dsr_name(dsr_name),
@@ -64,8 +65,7 @@ struct monitor_msg_data {
       m_direction(direction),
       m_curr_msg_num(curr_msg_num),
       m_curr_msg_size(curr_msg_size),
-      m_curr_prefix(curr_prefix),
-      m_curr_body_char(curr_body_char),
+      m_curr_msg_beginning(curr_msg_beginning),
       m_total_msgs_to_send(total_msgs_to_send),
       m_outgoing_queue_size(outgoing_queue_size)
   {
@@ -75,8 +75,6 @@ struct monitor_msg_data {
       m_protocol = "udp";
     }
   }
-                    
-  // more constructors to be added
 };
 
 struct shutdown_msg {
@@ -84,15 +82,20 @@ struct shutdown_msg {
 };
 
 
-// shutdown message from monitor process will cause promise to be set, which is signal to DSR to
-// shutdown
+// shutdown message from monitor process will set promise, which causes future to pop, which
+// tells DSR to shutdown
 class monitor_connector {
 public:
 
-  monitor_connector(chops::net::net_ip& net_ip, std::string_view monitor_port, std::string_view monitor_host,
-                    std::promise<void> prom) : // fill in initializer list, promise must use std::move
+  monitor_connector(chops::net::net_ip& net_ip,
+                    std::string_view monitor_port, std::string_view monitor_host,
+                    std::promise<void> prom,
+                    chops::net::err_wait_q& err_wq) : m_monitor(), m_io_output()
+          // fill in initializer list, promise must use std::move
 
   {
+     // make_tcp_connector, start, provide state chg func obj that does start_io,
+     // providing msg handler for shutdown, make_err_func_with_wait_queue for error display
   }
   void send_monitor_msg (const monitor_msg_data& msg_data) const {
 

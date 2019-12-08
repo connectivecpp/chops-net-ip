@@ -31,7 +31,6 @@
 #include "net_ip/net_entity.hpp"
 
 #include "net_ip_component/worker.hpp"
-#include "net_ip_component/io_output_delivery.hpp"
 #include "net_ip_component/output_queue_stats.hpp"
 #include "net_ip_component/error_delivery.hpp"
 
@@ -39,8 +38,41 @@
 #include "marshall/shared_buffer.hpp"
 
 #include "test_data_blaster/tcp_dsr_args.hpp"
+#include "test_data_blaster/monitor_msg_handling.hpp"
+
+const std::string_view msg_prefix { "Tasty testing!" };
+
+std::size_t send_msgs_func (chops::net::io_output io_out, char body_char,
+                            int send_count, std::chrono::milliseconds delay) {
+
+  auto msgs = chops::test::make_msg_vec (chops::test::make_variable_len_msg, msg_prefix, 
+                                         body_char, send_count);
+  for (const auto& m : msgs) {
+    if (!io_out.is_valid()) {
+      break;
+    }
+    io_out.send(m);
+    --send_count;
+    std::this_thread::sleep_for(delay);
+  }
+  return send_count; // 0 unless stopped early
+}
+
 
 struct state_chg {
+  int                       m_send_count;
+  char                      m_body_char;
+  std::chrono::milliseconds m_delay;
+  bool                      m_reply;
+
+  state_chg(int send_count, char body_char, std::chrono::milliseconds delay) :
+    m_send_count(send_count), m_body_char(body_char), m_delay(delay) { }
+
+  void operator() (chops::net::tcp_io_interface io_intf, std::size_t, bool starting) {
+    if (starting) {
+      
+    }
+  }
 
 };
 
@@ -48,13 +80,8 @@ struct state_chg {
 int main (int argc, char* argv[]) {
 
   auto parms = chops::test::tcp_dsr_args_parse_command_line(argc, argv);
-  chops::test::vec_buf msgs{};
-  int delay{0};
-  if (parms.m_sending_parms) {
-    const auto& t = *parms.m_sending_parms;
-    delay = t.m_delay;
-    msgs = chops::test::make_msg_vec (chops::test::make_variable_len_msg, t.m_prefix, t.m_body_char, t.m_send_count);
-  }
+
+  char body_char { 'a' };
 
   chops::net::worker wk;
   wk.start();
@@ -67,11 +94,16 @@ int main (int argc, char* argv[]) {
   std::promise<void> shutdown_prom;
   auto shutdown_fut = shutdown_prom.get_future();
 
-  chops::test::monitor_connector mon(nip, parms.m_monitor.m_port, parms.m_monitor.m_host, std::move(shutdown_prom));
+  chops::test::monitor_connector mon(nip, parms.m_monitor.m_port, parms.m_monitor.m_host, 
+                                     std::move(shutdown_prom), err_wq);
 
   for (const auto& s : parms.m_acceptors) {
 
   }
+  for (const auto& s : parms.m_connectors) {
+
+  }
+
 
   shutdown_fut.get();
   err_wq.close();
