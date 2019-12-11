@@ -2,7 +2,8 @@
  *
  *  @ingroup test_module
  *
- *  @brief Parse command line arguments for the TCP data sender / receiver (DSR).
+ *  @brief Parse command line arguments for the data sender / receiver (DSR), both
+ *  TCP and UDP (UDP to be implemented later).
  *
  *  @author (fill in)
  *
@@ -13,8 +14,8 @@
  *
  */
 
-#ifndef TCP_DSR_ARGS_HPP_INCLUDED
-#define TCP_DSR_ARGS_HPP_INCLUDED
+#ifndef DSR_ARGS_HPP_INCLUDED
+#define DSR_ARGS_HPP_INCLUDED
 
 #include <string>
 #include <cstddef> // std::size_t
