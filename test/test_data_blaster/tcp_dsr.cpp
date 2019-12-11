@@ -21,6 +21,7 @@
 #include <chrono>
 #include <functional> // std::ref, std::cref
 #include <string_view>
+#include <string>
 #include <algorithm> // std::min
 
 #include <iostream> // std::cerr for error sink
@@ -35,7 +36,7 @@
 #include "shared_test/msg_handling.hpp"
 #include "marshall/shared_buffer.hpp"
 
-#include "test_data_blaster/tcp_dsr_args.hpp"
+#include "test_data_blaster/dsr_args.hpp"
 #include "test_data_blaster/monitor_msg_handling.hpp"
 
 const std::string_view msg_prefix { "Tasty testing!" };
@@ -55,7 +56,17 @@ void send_mon_msg (chops::test::monitor_connector& mon,
                    std::min(chops::test::monitor_msg_data::max_msg_data_to_capture, (msg_size - 2u)));
     auto oqs = io_out.get_output_queue_stats();
     mon_msg.m_outgoing_queue_size = oqs ? (*oqs).output_queue_size : 0u;
-    mon.send_monitor_msg(mon_msg);
+//    mon.send_monitor_msg(mon_msg);
+// temporary display until monitor functionality is ready
+    std::cerr << "Mon msg: " << mon_msg.m_dsr_name << ", " <<
+      mon_msg.m_protocol << ", " <<
+      mon_msg.m_remote_addr << ", " <<
+      (m_direction == chops;:monitor_msg_data::incoming ? "incoming, " : "outgoing, ") <<
+      mon_msg.m_curr_msg_num << "/" << mon_msg.m_total_msgs_to_send ", " <<
+      mon_msg.curr_msg_size << ", " <<
+      mon_msg.curr_msg_beginning << ", " <<
+      mon_msg.m_outgoing_queue_size << std::endl;
+      
   }
 }
 
@@ -159,9 +170,39 @@ void start_entity (chops::net::net_entity ent, char body_char,
             chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
 }
 
+// temporary command line parsing while production version is being developed
+// 1 - dsr name
+// 2 - R means reply is true, anything else not
+// 3 - mod
+// 4 - send count
+// 5 - delay
+// 6 - A means acceptor, C means connector
+// 7 - port
+// 8 - host, if connector
+auto temp_parse_cmd (int argc, char* argv[]) {
+
+  chops::test::args parms;
+  parms.m_dsr_name = std::string(argv[1]);
+  parms.m_reply = (*(argv[2]) == 'R');
+  parms.m_modulus = std::stoi(std::string(argv[3]));
+  parms.m_send_count = std::stoi(std::string(argv[4]));
+  parms.m_delay = std::chrono::milliseconds(std::stoi(std::string(argv[5])));
+  std::string port { argv[7] };
+  if (argv[6] == 'A') {
+    parms.m_acceptors.push_back(port);
+  }
+  else {
+    std::string host { argv[8] };
+    parms.m_connectors.push_back(chops::test::connector_info(port, host));
+  }
+
+  return parms;
+}
+
 int main (int argc, char* argv[]) {
 
-  auto parms = chops::test::parse_command_line(argc, argv);
+  // auto parms = chops::test::parse_command_line(argc, argv);
+  auto parms - temp_pars_cmd (argc, argv);
 
   char body_char { 'a' };
 
@@ -212,5 +253,6 @@ int main (int argc, char* argv[]) {
   std::cerr << "TCP DSR " << parms.m_dsr_name << 
     ", shutting down, num error logs displayed: " << err_cnt << std::endl;
 
+  return 0;
 }
 
