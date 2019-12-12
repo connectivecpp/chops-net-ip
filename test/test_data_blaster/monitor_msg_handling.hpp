@@ -67,9 +67,8 @@ public:
   monitor_connector(chops::net::net_ip& net_ip,
                     std::string_view monitor_port, std::string_view monitor_host,
                     std::promise<void> prom,
-                    chops::net::err_wait_q& err_wq) : m_monitor(), m_io_output()
-          // fill in initializer list, promise must use std::move
-
+                    chops::net::err_wait_q& err_wq) : 
+      m_monitor(), m_io_output(), m_prom(std::move(prom))
   {
      // make_tcp_connector, start, provide state chg func obj that does start_io,
      // providing msg handler for shutdown, make_err_func_with_wait_queue for error display
@@ -77,10 +76,16 @@ public:
   void send_monitor_msg (const monitor_msg_data& msg_data) const {
 
   }
+  // temporary - used for testing DSR
+  void shutdown() {
+  // send shutdown msg
+    m_prom.set_value();
+  }
 
 private:
   chops::net::net_entity     m_monitor;
   chops::net::tcp_io_output  m_io_output;
+  std::promise<void>         m_prom;
   // more member data to fill in
 
 };

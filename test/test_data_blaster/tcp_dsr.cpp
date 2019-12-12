@@ -15,6 +15,7 @@
  */
 
 #include <cstddef> // std::size_t
+#include <cstdlib> // std::exit
 #include <utility> // std::move
 #include <thread>
 #include <future>
@@ -39,7 +40,7 @@
 #include "test_data_blaster/dsr_args.hpp"
 #include "test_data_blaster/monitor_msg_handling.hpp"
 
-const std::string_view msg_prefix { "Tasty testing!" };
+const std::string_view msg_prefix { "Tasty!" };
 
 void send_mon_msg (chops::test::monitor_connector& mon,
                    chops::test::monitor_msg_data& mon_msg,
@@ -58,15 +59,14 @@ void send_mon_msg (chops::test::monitor_connector& mon,
     mon_msg.m_outgoing_queue_size = oqs ? (*oqs).output_queue_size : 0u;
 //    mon.send_monitor_msg(mon_msg);
 // temporary display until monitor functionality is ready
-    std::cerr << "Mon msg: " << mon_msg.m_dsr_name << ", " <<
+    std::cerr << "Mon: " << mon_msg.m_dsr_name << ", " <<
       mon_msg.m_protocol << ", " <<
       mon_msg.m_remote_addr << ", " <<
       (mon_msg.m_direction == chops::test::monitor_msg_data::incoming ? "incoming, " : "outgoing, ") <<
       mon_msg.m_curr_msg_num << "/" << mon_msg.m_total_msgs_to_send << ", " <<
-      mon_msg.m_curr_msg_size << ", " <<
-      mon_msg.m_curr_msg_beginning << ", " <<
-      mon_msg.m_outgoing_queue_size << std::endl;
-      
+      mon_msg.m_curr_msg_size << ", q sz: " <<
+      mon_msg.m_outgoing_queue_size << ", " <<
+      mon_msg.m_curr_msg_beginning << std::endl;
   }
 }
 
@@ -181,6 +181,29 @@ void start_entity (chops::net::net_entity ent, char body_char,
 // 8 - host, if connector
 auto temp_parse_cmd (int argc, char* argv[]) {
 
+  if (argc < 8) {
+    std::cerr << "Parameters (temporary):" << '\n' <<
+      "  name R/n mod cnt delay A/C port (host)" << '\n' <<
+      "  where:" << '\n' <<
+      "    name = DSR name" << '\n' <<
+      "    R = reply (anything else means no reply)" << '\n' <<
+      "    mod = display modulo number" << '\n' <<
+      "    cnt = send count (0 for receive only)" << '\n' <<
+      "    delay = delay in milliseconds between sends (ignored if send count is 0)" << '\n' <<
+      "    A/C = A for acceptor, C for connector" << '\n' <<
+      "    port = port number (for either acceptor or connector)" << '\n' <<
+      "    host = if connector, host name or IP number" << '\n' << std::endl;
+    std::exit(0);
+  }
+// 1 - dsr name
+// 2 - R for reply
+// 3 - mod
+// 4 - send count
+// 5 - delay
+// 6 - A for acceptor, C for connector
+// 7 - port
+// 8 - host, if connector
+
   chops::test::tcp_dsr_args parms;
   parms.m_dsr_name = std::string(argv[1]);
   parms.m_reply = (*(argv[2]) == 'R');
@@ -234,6 +257,9 @@ int main (int argc, char* argv[]) {
     start_entity(ent, body_char++, parms, send_futs, mon, mon_msg, err_wq);
   }
 
+  // temporary - wait a while, then cause future to pop
+  std::this_thread::sleep_for(std::chrono::minutes(1));
+  mon.shutdown();
   // everything up and running, block waiting on shutdown msg
   shutdown_fut.get(); // monitor sent shutdown msg
   nip.stop_all(); // stop all entities
