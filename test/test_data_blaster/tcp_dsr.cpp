@@ -61,10 +61,10 @@ void send_mon_msg (chops::test::monitor_connector& mon,
     std::cerr << "Mon msg: " << mon_msg.m_dsr_name << ", " <<
       mon_msg.m_protocol << ", " <<
       mon_msg.m_remote_addr << ", " <<
-      (m_direction == chops;:monitor_msg_data::incoming ? "incoming, " : "outgoing, ") <<
-      mon_msg.m_curr_msg_num << "/" << mon_msg.m_total_msgs_to_send ", " <<
-      mon_msg.curr_msg_size << ", " <<
-      mon_msg.curr_msg_beginning << ", " <<
+      (mon_msg.m_direction == chops::test::monitor_msg_data::incoming ? "incoming, " : "outgoing, ") <<
+      mon_msg.m_curr_msg_num << "/" << mon_msg.m_total_msgs_to_send << ", " <<
+      mon_msg.m_curr_msg_size << ", " <<
+      mon_msg.m_curr_msg_beginning << ", " <<
       mon_msg.m_outgoing_queue_size << std::endl;
       
   }
@@ -181,19 +181,19 @@ void start_entity (chops::net::net_entity ent, char body_char,
 // 8 - host, if connector
 auto temp_parse_cmd (int argc, char* argv[]) {
 
-  chops::test::args parms;
+  chops::test::tcp_dsr_args parms;
   parms.m_dsr_name = std::string(argv[1]);
   parms.m_reply = (*(argv[2]) == 'R');
   parms.m_modulus = std::stoi(std::string(argv[3]));
   parms.m_send_count = std::stoi(std::string(argv[4]));
   parms.m_delay = std::chrono::milliseconds(std::stoi(std::string(argv[5])));
   std::string port { argv[7] };
-  if (argv[6] == 'A') {
+  if (*(argv[6]) == 'A') {
     parms.m_acceptors.push_back(port);
   }
   else {
     std::string host { argv[8] };
-    parms.m_connectors.push_back(chops::test::connector_info(port, host));
+    parms.m_connectors.push_back( chops::test::connector_info { port, host } );
   }
 
   return parms;
@@ -202,7 +202,7 @@ auto temp_parse_cmd (int argc, char* argv[]) {
 int main (int argc, char* argv[]) {
 
   // auto parms = chops::test::parse_command_line(argc, argv);
-  auto parms - temp_pars_cmd (argc, argv);
+  auto parms = temp_parse_cmd (argc, argv);
 
   char body_char { 'a' };
 
