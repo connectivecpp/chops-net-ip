@@ -31,17 +31,16 @@ set ( header_dirs
 # Still learning find_package and related ways to bring in third party dependent include directories,
 # so don't judge, instead please help.
 
-set ( utility_rack_include_dir "${CMAKE_SOURCE_DIR}/../utility-rack/include" )
+set ( utility_rack_include_dir
+     "${CMAKE_SOURCE_DIR}/../utility-rack/include"
+     "${CMAKE_SOURCE_DIR}/../utility-rack/third_party"
+    )
 if ( NOT $ENV{UTILITY_RACK_INCLUDE_DIR} STREQUAL "" )
     set ( utility_rack_include_dir $ENV{UTILITY_RACK_INCLUDE_DIR}} )
 endif()
 set ( asio_include_dir "${CMAKE_SOURCE_DIR}/../asio/asio/include" )
 if ( NOT $ENV{ASIO_INCLUDE_DIR} STREQUAL "" )
     set ( asio_include_dir $ENV{ASIO_INCLUDE_DIR}} )
-endif()
-set ( expected_lite_include_dir "${CMAKE_SOURCE_DIR}/../expected-lite/include" )
-if ( NOT $ENV{EXPECTED_LITE_INCLUDE_DIR} STREQUAL "" )
-    set ( expected_lite_include_dir $ENV{EXPECTED_LITE_INCLUDE_DIR}} )
 endif()
 
 function ( add_target_dependencies target )
@@ -51,9 +50,6 @@ function ( add_target_dependencies target )
 #    find_package ( asio REQUIRED )
 #    target_include_directories ( ${target} PRIVATE ${asio_INCLUDE_DIRS} )
     target_include_directories ( ${target} PRIVATE ${asio_include_dir} )
-#    find_package ( expected-lite REQUIRED )
-#    target_include_directories ( ${target} PRIVATE ${expected-lite_INCLUDE_DIRS} )
-    target_include_directories ( ${target} PRIVATE ${expected_lite_include_dir} )
 endfunction()
 
 function ( add_target_info target )

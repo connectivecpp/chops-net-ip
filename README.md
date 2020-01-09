@@ -6,9 +6,11 @@ Branch | Status
 
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
-Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer, without significantly sacrificing performance. It is layered on top of the Asio asynchronous networking library, which can be difficult to use correctly. It handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
+Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer, without significantly sacrificing performance. Chops Net IP handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
 
 Chops Net IP is not like any other high-level, general purpose C++ socket library.
+
+Chops Net IP is layered on top of the Asio asynchronous networking library, taking advantage of the portability and functionality that Asio provides. However, it simplifies network programming compared to coding against the Asio API, while providing easy scalability through the asynchronous facilities.
 
 # License
 
@@ -18,7 +20,7 @@ This project is distributed under the [Boost Software License](LICENSE.txt).
 
 ## Chops Net IP Release Status
 
-Release 1.0 is under development as of October 2019, awaiting CMake config file completion, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
+Release 1.0 is under development as of January 2020, awaiting CMake enhancements, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
@@ -91,15 +93,18 @@ All the dependencies listed below have links that will take you to the library o
 
 Production external dependencies:
 
-- Version 1.13 (or later) of Chris Kohlhoff's [`asio`](https://github.com/chriskohlhoff/asio) library is required. Note that it is the stand-alone library, not the Boost Asio implementation.
-- Version 0.9 (or later) of the [`utility-rack`](https://github.com/connectivecpp/utility-rack) library, which is a repository in the same GitHub account as Chops Net IP (`shared_buffer.hpp`, `erase_where.hpp`, `overloaded.hpp`, and `cast_ptr_to` are required).
-- Version 0.3 (or later) of Martin Moene's [`expected-lite`](https://github.com/martinmoene/expected-lite) library.
+- Version 1.13 (or later) of Chris Kohlhoff's [`asio`](https://github.com/chriskohlhoff/asio) library is required. Note that it is the stand-alone Asio library, not the Boost Asio version.
+- The [`utility-rack`](https://github.com/connectivecpp/utility-rack) library, which is a repository in the same GitHub account as Chops Net IP.
 
 Test external dependencies:
 
 - Version 2.8.0 (or later) of Phil Nash's [`Catch2`](https://github.com/catchorg/Catch2) library is required for all test scenarios.
 
-See [References](doc/references.md) for additional details on the above libraries.
+There are single file headers that have been copied into the `third_party` directory of the `utility-rack` repository from various GitHub repositories and do not require any external dependency management. These are:
+
+- Martin Moene's [`expected-lite`](https://github.com/martinmoene/expected-lite) library.
+
+See [References](doc/references.md) for additional details.
 
 # Supported Compilers and Platforms
 
@@ -107,6 +112,8 @@ Chops Net IP has been compiled and tests run on:
 
 - g++ 7.2, g++ 7.3, Linux (Ubuntu 17.10 - kernel 4.13, Ubuntu 18.04 - kernel 4.15)
 - (TBD, will include at least clang on linux and vc++ on Windows)
+
+Follow the CI links for additional build environments.
 
 # Installation
 
@@ -118,9 +125,5 @@ See [References](doc/references.md) for details on dependencies and inspirations
 
 # About
 
-The primary author of Chops is Cliff Green, cliffg at connectivecpp dot com. The primary co-author is Thurman Gillespy, thurmang at connectivecpp dot com, and Roxanne Agerone roxannea at connectivecpp dot com.
-
-Collaborators include Roxanne Agerone and Nathan Deutsch.
-
-Additional information including author comments is [available here](doc/about.md).
+Team member information is [available here](https://connectivecpp.github.io/), and a few random author comments are [available here](doc/about.md).
 

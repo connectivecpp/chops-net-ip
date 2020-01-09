@@ -143,11 +143,8 @@ install:
 before_script:
 - cd ..
 - wget https://github.com/connectivecpp/utility-rack/archive/develop.tar.gz && mkdir utility-rack && tar -zxvf develop.tar.gz -C utility-rack --strip-components=1
-- wget https://github.com/martinmoene/expected-lite/archive/v0.3.0.tar.gz && mkdir expected-lite && tar -zxvf v0.3.0.tar.gz -C expected-lite --strip-components=1
 - wget https://github.com/chriskohlhoff/asio/archive/asio-1-14-0.tar.gz && mkdir asio && tar -zxvf asio-1-14-0.tar.gz -C asio --strip-components=1
 - wget https://github.com/catchorg/Catch2/archive/v2.10.2.tar.gz && mkdir Catch2 && tar -zxvf v2.10.2.tar.gz -C Catch2 --strip-components=1
-- wget https://github.com/martinmoene/ring-span-lite/archive/v0.3.0.tar.gz && mkdir ring-span-lite && tar -zxvf v0.3.0.tar.gz -C ring-span-lite --strip-components=1
-- wget https://github.com/JustasMasiulis/circular_buffer/archive/master.tar.gz && mkdir circular_buffer && tar -zxvf master.tar.gz -C circular_buffer --strip-components=1
 - mkdir build && cd build
 - cmake ../chops-net-ip/
 

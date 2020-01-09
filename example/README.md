@@ -31,7 +31,6 @@ The following dependencies are required to build the example apps (an additional
 
 * [Asio](https://github.com/chriskohlhoff/asio)
 * [Utility Rack](https://github.com/connectivecpp/utility-rack)
-* [Expected Lite](https://github.com/martinmoene/expected-lite)
 
 # Building and Running Individual Example Apps
 
@@ -54,8 +53,8 @@ g++ on pc or linux:
 g++ -std=c++17 -Wall -Werror\
 -I ../include \
 -I <path to utility rack>/include/ \
+-I <path to utility rack>/third_party/ \
 -I <path to Asio>/include/ \
--I <path to expected-lite>/include/ \
 simple_chat_demo.cpp -lpthread -o chat_server
 ```
 Build the example with g++ or clang++ on OSX:
@@ -63,8 +62,8 @@ Build the example with g++ or clang++ on OSX:
 g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
 -I <path to utility rack>/include/ \
+-I <path to utility rack>/third_party/ \
 -I <path to Asio>/include/ \
--I <path to expected-lite>/include/ \
 simple_chat_demo.cpp -lpthread -o chat_server
 ```
 
@@ -100,8 +99,8 @@ g++ or clang++ on pc or linux:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
 echo_binary_text_client_demo.cpp -lpthread -o echo_client
 ```
 build with clang++ or g++ on OSX:
@@ -109,8 +108,8 @@ build with clang++ or g++ on OSX:
 g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
 echo_binary_text_client_demo.cpp -lpthread -o echo_client
 ```
 3. Execute the file:
@@ -149,8 +148,8 @@ with g++ on pc or linux:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
 echo_binary_text_server_demo.cpp -lpthread -o echo_server
 ```
 Build the example with g++ or clang++ on OSX:
@@ -158,8 +157,8 @@ Build the example with g++ or clang++ on OSX:
 g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
 echo_binary_text_server_demo.cpp -lpthread -o echo_server
 ```
 3. Execute the file:
@@ -194,8 +193,8 @@ cd <path>/chops-net-ip/example
  g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
  local_echo_demo.cpp -lpthread -o local_echo
  ```
 Build the example with g++ or clang++ on OSX:
@@ -203,8 +202,8 @@ Build the example with g++ or clang++ on OSX:
  g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
  local_echo_demo.cpp -lpthread -o local_echo
  ```
  3. Execute the file
@@ -231,8 +230,8 @@ cd <path>/chops-net-ip/example
  g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
  simple_chat_demo.cpp -lpthread -o chat
  ```
 Build the example with g++ or clang++ on OSX:
@@ -240,8 +239,8 @@ Build the example with g++ or clang++ on OSX:
  g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
  simple_chat_demo.cpp -lpthread -o chat
  ```
  3. Execute the file
@@ -286,8 +285,8 @@ cd <path>/chops-net-ip/example
  g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
  udp_broadcast_demo.cpp -lpthread -o udp_broad
  ```
 Build the example with g++ or clang++ on OSX:
@@ -295,8 +294,8 @@ Build the example with g++ or clang++ on OSX:
  g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
  udp_broadcast_demo.cpp -lpthread -o udp_broad
  ```
  3. Execute the file
@@ -339,8 +338,8 @@ cd <path>/chops-net-ip/example
  g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
 udp_receiver_demo.cpp -lpthread -o udp_receive
  ```
 Build the example with g++ or clang++ on OSX:
@@ -348,8 +347,8 @@ Build the example with g++ or clang++ on OSX:
  g++ -std=c++17 -Wall -Werror -Wno-unused-lambda-capture \
 -I ../include \
 -I <path>/utility-rack/include/ \
+-I <path>/utility-rack/third_party/ \
 -I <path>/asio/asio/include/ \
--I <path>/expected-lite/include/ \
  udp_receiver_demo.cpp -lpthread -o udp_receive
  ```
  3. Execute the file
