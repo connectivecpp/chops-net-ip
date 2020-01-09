@@ -19,8 +19,8 @@
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
+-I ../../utility-rack/third_party/ \
 -I ../../asio/asio/include/ \
--I ../../expected-lite/include/ \
  local_echo_demo.cpp -lpthread -o local_echo
  *
  */ 

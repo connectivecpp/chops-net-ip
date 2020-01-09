@@ -18,8 +18,8 @@
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
+-I ../../utility-rack/third_party/ \
 -I ../../asio/asio/include/ \
--I ../../expected-lite/include/ \
 udp_receiver_demo.cpp -lpthread -o udp_receive
 
  *

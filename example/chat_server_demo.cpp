@@ -16,8 +16,8 @@
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
 -I ../../utility-rack/include/ \
+-I ../../utility-rack/third_party/ \
 -I ../../asio/asio/include/ \
--I ../../expected-lite/include/ \
 chat_server_demo.cpp -lpthread -o chat_server
  *
  */
