@@ -11,11 +11,15 @@ project ( chops-net-ip-test VERSION 1.0 LANGUAGES CXX )
 
 set ( test_source_dir "${CMAKE_SOURCE_DIR}/test" )
 set ( test_main_src "${test_source_dir}/main_test.cpp" )
-set ( test_include_dir "${test_source_dir}/include" )
+set ( test_include_dir "${test_source_dir}" )
 set ( tester_suffix "_runner" )
 set ( main_test_lib_name "main_test_lib" )
 
 set ( test_sources 
+    "${test_source_dir}/shared_test/mock_classes_test.cpp"
+    "${test_source_dir}/shared_test/msg_handling_test.cpp"
+    "${test_source_dir}/shared_test/msg_handling_start_funcs_test.cpp"
+    "${test_source_dir}/shared_test/io_buf_test.cpp"
     "${test_source_dir}/net_ip/detail/io_common_test.cpp"
     "${test_source_dir}/net_ip/detail/net_entity_common_test.cpp"
     "${test_source_dir}/net_ip/detail/output_queue_test.cpp"
@@ -23,16 +27,18 @@ set ( test_sources
     "${test_source_dir}/net_ip/detail/tcp_connector_test.cpp"
     "${test_source_dir}/net_ip/detail/tcp_io_test.cpp"
     "${test_source_dir}/net_ip/detail/udp_entity_io_test.cpp"
-    "${test_source_dir}/net_ip/component/error_delivery_test.cpp"
-    "${test_source_dir}/net_ip/component/io_interface_delivery_test.cpp"
-    "${test_source_dir}/net_ip/component/send_to_all_test.cpp"
-    "${test_source_dir}/net_ip/component/simple_variable_len_msg_frame_test.cpp"
+    "${test_source_dir}/net_ip/detail/wp_access_test.cpp"
+    "${test_source_dir}/net_ip_component/error_delivery_test.cpp"
+    "${test_source_dir}/net_ip_component/io_output_delivery_test.cpp"
+    "${test_source_dir}/net_ip_component/output_queue_stats_test.cpp"
+    "${test_source_dir}/net_ip_component/send_to_all_test.cpp"
     "${test_source_dir}/net_ip/basic_io_interface_test.cpp"
-    "${test_source_dir}/net_ip/basic_net_entity_test.cpp"
+    "${test_source_dir}/net_ip/basic_io_output_test.cpp"
     "${test_source_dir}/net_ip/endpoints_resolver_test.cpp"
+    "${test_source_dir}/net_ip/net_entity_test.cpp"
     "${test_source_dir}/net_ip/net_ip_error_test.cpp"
-    "${test_source_dir}/net_ip/shared_utility_test.cpp"
-    "${test_source_dir}/net_ip/shared_utility_func_test.cpp"
+    "${test_source_dir}/net_ip/simple_variable_len_msg_frame_test.cpp"
+    "${test_source_dir}/net_ip/tcp_connector_timeout_test.cpp"
     "${test_source_dir}/net_ip/net_ip_test.cpp" )
 
 set ( OPTIONS "" )
@@ -50,25 +56,16 @@ set ( catch2_include_dir "${CMAKE_SOURCE_DIR}/../Catch2/single_include" )
 if ( NOT $ENV{CATCH2_INCLUDE_DIR} STREQUAL "" )
     set ( catch2_include_dir $ENV{CATCH2_INCLUDE_DIR}} )
 endif()
-set ( utility_rack_include_dir "${CMAKE_SOURCE_DIR}/../utility-rack/include" )
+set ( utility_rack_include_dir
+    "${CMAKE_SOURCE_DIR}/../utility-rack/include"
+    "${CMAKE_SOURCE_DIR}/../utility-rack/third_party"
+    )
 if ( NOT $ENV{UTILITY_RACK_INCLUDE_DIR} STREQUAL "" )
     set ( utility_rack_include_dir $ENV{UTILITY_RACK_INCLUDE_DIR}} )
-endif()
-set ( boost_include_dir "${CMAKE_SOURCE_DIR}/../boost_1_69_0" )
-if ( NOT $ENV{BOOST_INCLUDE_DIR} STREQUAL "" )
-    set ( boost_include_dir $ENV{BOOST_INCLUDE_DIR}} )
 endif()
 set ( asio_include_dir "${CMAKE_SOURCE_DIR}/../asio/asio/include" )
 if ( NOT $ENV{ASIO_INCLUDE_DIR} STREQUAL "" )
     set ( asio_include_dir $ENV{ASIO_INCLUDE_DIR}} )
-endif()
-set ( ring_span_lite_include_dir "${CMAKE_SOURCE_DIR}/../ring-span-lite/include" )
-if ( NOT $ENV{RING_SPAN_LITE_INCLUDE_DIR} STREQUAL "" )
-    set ( ring_span_lite_include_dir $ENV{RING_SPAN_LITE_INCLUDE_DIR}} )
-endif()
-set ( expected_lite_include_dir "${CMAKE_SOURCE_DIR}/../expected-lite/include" )
-if ( NOT $ENV{EXPECTED_LITE_INCLUDE_DIR} STREQUAL "" )
-    set ( expected_lite_include_dir $ENV{EXPECTED_LITE_INCLUDE_DIR}} )
 endif()
 
 function ( add_target_dependencies target )
@@ -78,18 +75,9 @@ function ( add_target_dependencies target )
 #    find_package ( Catch2 REQUIRED )
 #    target_include_directories ( ${target} PRIVATE ${Catch2_INCLUDE_DIRS} )
     target_include_directories ( ${target} PRIVATE ${catch2_include_dir} )
-#    find_package ( Boost REQUIRED )
-#    target_include_directories ( ${target} PRIVATE ${Boost_INCLUDE_DIRS} )
-    target_include_directories ( ${target} PRIVATE ${boost_include_dir} )
 #    find_package ( asio REQUIRED )
 #    target_include_directories ( ${target} PRIVATE ${asio_INCLUDE_DIRS} )
     target_include_directories ( ${target} PRIVATE ${asio_include_dir} )
-#    find_package ( ring-span-lite REQUIRED )
-#    target_include_directories ( ${target} PRIVATE ${ring-span-lite_INCLUDE_DIRS} )
-    target_include_directories ( ${target} PRIVATE ${ring_span_lite_include_dir} )
-#    find_package ( expected-lite REQUIRED )
-#    target_include_directories ( ${target} PRIVATE ${expected-lite_INCLUDE_DIRS} )
-    target_include_directories ( ${target} PRIVATE ${expected_lite_include_dir} )
 endfunction()
 
 function ( add_target_info target )

@@ -7,7 +7,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/30/19
+ *  2019-10-28
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -15,9 +15,9 @@
  *  Sample make file:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
 chat_server_demo.cpp -lpthread -o chat_server
  *
  */
@@ -32,11 +32,14 @@ chat_server_demo.cpp -lpthread -o chat_server
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
-#include "net_ip/component/worker.hpp"
-#include "net_ip/component/send_to_all.hpp"
+#include "net_ip/net_entity.hpp"
+#include "net_ip_component/worker.hpp"
+#include "net_ip_component/send_to_all.hpp"
+#include "marshall/extract_append.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
+using io_output = chops::net::tcp_io_output;
 using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
@@ -108,11 +111,12 @@ int main(int argc, char *argv[])
    wk.start();
 
    // handles all @c io_interfaces
+   // REVIEW WITH CLIFF
    chops::net::send_to_all<chops::net::tcp_io> sta;
 
    /* lamda handlers */
    // receive text from client, send out to others
-   const auto msg_hndlr = [&sta, finished, &DELIM](const_buf buf, io_interface iof, endpoint ep) {
+   const auto msg_hndlr = [finished, &sta, &DELIM](const_buf buf, io_output io_out, endpoint ep) {
       if (finished) {
          return false;
       }
@@ -122,11 +126,12 @@ int main(int argc, char *argv[])
       if (s == "quit" + DELIM) {
          // send 'quit' to originator
          // originator needs message for io_state_change halt
-         iof.send(buf.data(), buf.size()); 
+         io_out.send(buf.data(), buf.size()); 
       } else {
          // not 'quit' (normal message)
          // so send message to all but originator
-         sta.send(buf.data(), buf.size(), iof);
+         // REVIEW WITH CLIFF - send to all?
+         sta.send(buf.data(), buf.size(), io_out);
       }
 
       return true;

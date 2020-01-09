@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Test the lower level utility code shared between @c net_ip tests.
+ *  @brief Test the message handling utility test code shared between @c net_ip tests.
  *
  *  The body of a msg is constructed of a preamble followed by a repeated 
  *  char. There are three forms of messages:
@@ -12,7 +12,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018 by Cliff Green
+ *  Copyright (c) 2018-2019 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <memory> // std::shared_ptr, std::make_shared
 #include <future>
+#include <iostream> // std::cerr
 
 #include "asio/ip/udp.hpp"
 #include "asio/buffer.hpp"
@@ -35,11 +36,11 @@
 #include "utility/make_byte_array.hpp"
 #include "marshall/shared_buffer.hpp"
 
-#include "net_ip/basic_io_interface.hpp"
-#include "net_ip/io_interface.hpp"
-#include "net_ip/component/simple_variable_len_msg_frame.hpp"
+#include "net_ip/basic_io_output.hpp"
+#include "net_ip/queue_stats.hpp"
 
-#include "net_ip/shared_utility_test.hpp"
+#include "shared_test/msg_handling.hpp"
+#include "shared_test/mock_classes.hpp"
 
 void make_msg_test() {
   using namespace chops::test;
@@ -128,7 +129,7 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
   auto msgs = make_msg_vec(f, pre, body_char, num_msgs);
   auto empty = make_empty_body_msg(f);
 
-  auto iohp = std::make_shared<io_handler_mock>();
+  auto ioh_sp = std::make_shared<io_handler_mock>();
   asio::ip::udp::endpoint endp { };
 
   test_counter cnt(0);
@@ -136,12 +137,12 @@ std::size_t msg_hdlr_stress_test(F&& f, std::string_view pre, char body_char, in
 
   int m = 0;
   for (auto i : msgs) {
-    auto ret = mh(asio::const_buffer(i.data(), i.size()), io_interface_mock(iohp), endp);
+    auto ret = mh(asio::const_buffer(i.data(), i.size()), io_output_mock(ioh_sp), endp);
     if (++m % 1000 == 0) {
       REQUIRE(ret);
     }
   }
-  REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), io_interface_mock(iohp), endp));
+  REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), io_output_mock(ioh_sp), endp));
 
   return cnt.load();
 
@@ -157,15 +158,15 @@ std::size_t msg_hdlr_stress_test_lf_text_msg(std::string_view pre, char body_cha
   return msg_hdlr_stress_test(chops::test::make_lf_text_msg, pre, body_char, num_msgs);
 }
 
-SCENARIO ( "Shared Net IP test utility, make msg",
-           "[shared_utility] [make_msg]" ) {
+SCENARIO ( "Message handling shared test utility, make msg",
+           "[msg_handling] [make_msg]" ) {
 
   make_msg_test();
 
 }
 
-SCENARIO ( "Shared Net IP test utility, make msg vec",
-           "[shared_utility] [make_msg_vec]" ) {
+SCENARIO ( "Message handling shared test utility, make msg vec",
+           "[msg_handling] [make_msg_vec]" ) {
   using namespace chops::test;
 
   make_msg_vec_test(make_variable_len_msg);
@@ -174,37 +175,12 @@ SCENARIO ( "Shared Net IP test utility, make msg vec",
 
 }
 
-SCENARIO ( "Shared Net IP test utility, decode variable len msg header",
-           "[shared_utility] [decode_variable_len_msg]" ) {
+SCENARIO ( "Message handling shared test utility, msg hdlr function object",
+           "[msg_handling] [msg_hdlr]" ) {
   using namespace chops::test;
 
-  auto ba = chops::make_byte_array(0x02, 0x01); // 513 in big endian
-
-  GIVEN ("A two byte buffer that is a variable len msg header") {
-    WHEN ("the decode variable len msg hdr function is called") {
-      THEN ("the correct length is returned") {
-        REQUIRE(decode_variable_len_msg_hdr(ba.data(), 2) == 513);
-      }
-    }
-    AND_WHEN ("a simple variable len msg frame is constructed") {
-      asio::mutable_buffer buf(ba.data(), ba.size());
-      auto mf = chops::net::make_simple_variable_len_msg_frame(decode_variable_len_msg_hdr);
-      THEN ("the returned length toggles between the decoded length and zero") {
-        REQUIRE(mf(buf) == 513);
-        REQUIRE(mf(buf) == 0);
-        REQUIRE(mf(buf) == 513);
-        REQUIRE(mf(buf) == 0);
-      }
-    }
-  } // end given
-}
-
-SCENARIO ( "Shared Net IP test utility, msg hdlr",
-           "[shared_utility] [msg_hdlr]" ) {
-  using namespace chops::test;
-
-  auto iohp = std::make_shared<io_handler_mock>();
-  REQUIRE_FALSE(iohp->send_called);
+  auto ioh_sp = std::make_shared<io_handler_mock>();
+  REQUIRE_FALSE(ioh_sp->send_called);
   asio::ip::udp::endpoint endp { };
 
   auto msg = make_variable_len_msg(make_body_buf("Bah, humbug!", 'T', 4));
@@ -216,10 +192,10 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
       test_counter cnt(0);
       msg_hdlr<io_handler_mock> mh(true, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
-        REQUIRE(iohp->send_called);
+        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(ioh_sp->send_called);
         REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), 
-                      io_interface_mock(iohp), endp));
+                      io_output_mock(ioh_sp), endp));
         REQUIRE(cnt == 1);
       }
     }
@@ -227,17 +203,17 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr",
       test_counter cnt(0);
       msg_hdlr<io_handler_mock> mh(false, cnt);
       THEN ("the shutdown message is handled correctly and count is correct") {
-        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_interface_mock(iohp), endp));
+        REQUIRE(mh(asio::const_buffer(msg.data(), msg.size()), io_output_mock(ioh_sp), endp));
         REQUIRE_FALSE(mh(asio::const_buffer(empty.data(), empty.size()), 
-                      io_interface_mock(iohp), endp));
+                      io_output_mock(ioh_sp), endp));
         REQUIRE(cnt == 1);
       }
     }
   } // end given
 }
 
-SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
-           "[shared_utility] [msg_hdlr] [stress]" ) {
+SCENARIO ( "Message handling shared test utility, msg hdlr function object async stress test",
+           "[msg_handling] [msg_hdlr] [stress]" ) {
   using namespace chops::test;
 
   constexpr int sz1 = 2000;
@@ -259,125 +235,64 @@ SCENARIO ( "Shared Net IP test utility, msg hdlr async stress test",
   } // end given
 }
 
-SCENARIO ( "Shared Net IP test utility, io_handler_mock test",
-           "[shared_utility] [io_handler_mock]" ) {
+SCENARIO ( "Message handling shared test utility, output queue stats poll condition",
+           "[msg_handling] [output_stats_cond]" ) {
   using namespace chops::test;
 
-  io_handler_mock io_mock { };
+  poll_output_queue_cond cond(100, std::cerr);
 
-  REQUIRE_FALSE (io_mock.mf_sio_called);
-  REQUIRE_FALSE (io_mock.delim_sio_called);
-  REQUIRE_FALSE (io_mock.rd_sio_called);
-  REQUIRE_FALSE (io_mock.rd_endp_sio_called);
-  REQUIRE_FALSE (io_mock.send_sio_called);
-  REQUIRE_FALSE (io_mock.send_endp_sio_called);
+  chops::net::output_queue_stats stats1 { 20u, 100u };
+  chops::net::output_queue_stats stats2 { 0u, 0u };
 
-  auto t = io_mock.sock;
+  REQUIRE_FALSE(cond(stats1));
+  REQUIRE(cond(stats2));
 
-  GIVEN ("A default constructed io_handler_mock") {
-    WHEN ("is_io_started is called") {
-      THEN ("the return is false") {
-        REQUIRE_FALSE (io_mock.is_io_started());
-      }
-    }
-    AND_WHEN ("get_socket is called") {
-      THEN ("the correct value is returned") {
-        REQUIRE (io_mock.get_socket() == t);
-      }
-    }
-    AND_WHEN ("get_socket is used as a modifying call") {
-      THEN ("the correct value is returned") {
-        io_mock.get_socket() += 2;
-        REQUIRE (io_mock.get_socket() == (t+2));
-      }
-    }
-    AND_WHEN ("get_output_queue_stats is called") {
-      THEN ("the correct value is returned") {
-        auto qs = io_mock.get_output_queue_stats();
-        REQUIRE (qs.output_queue_size == io_mock.qs_base);
-        REQUIRE (qs.bytes_in_output_queue == (io_mock.qs_base+1));
-      }
-    }
-    AND_WHEN ("first start_io overload is called") {
-      THEN ("is_io_started and related flag is true") {
-        io_mock.start_io(0, [] { }, [] { });
-        REQUIRE (io_mock.is_io_started());
-        REQUIRE (io_mock.mf_sio_called);
-      }
-    }
-    AND_WHEN ("second start_io overload is called") {
-      THEN ("the related flag is true") {
-        io_mock.start_io(std::string_view(), [] { });
-        REQUIRE (io_mock.delim_sio_called);
-      }
-    }
-    AND_WHEN ("third start_io overload is called") {
-      THEN ("the related flag is true") {
-        io_mock.start_io(0, [] { });
-        REQUIRE (io_mock.rd_sio_called);
-      }
-    }
-    AND_WHEN ("fourth start_io overload is called") {
-      THEN ("the related flag is true") {
-        io_mock.start_io(asio::ip::udp::endpoint(), 0, [] { });
-        REQUIRE (io_mock.rd_endp_sio_called);
-      }
-    }
-    AND_WHEN ("fifth start_io overload is called") {
-      THEN ("the related flag is true") {
-        io_mock.start_io();
-        REQUIRE (io_mock.send_sio_called);
-      }
-    }
-    AND_WHEN ("sixth start_io overload is called") {
-      THEN ("the related flag is true") {
-        io_mock.start_io(asio::ip::udp::endpoint());
-        REQUIRE (io_mock.send_endp_sio_called);
-      }
-    }
-    AND_WHEN ("stop_io is called") {
-      THEN ("is_io_started is false") {
-        io_mock.start_io(std::string_view(), [] { });
-        REQUIRE (io_mock.is_io_started());
-        io_mock.stop_io();
-        REQUIRE_FALSE (io_mock.is_io_started());
-      }
-    }
-  } // end given
 }
 
-SCENARIO ( "Shared Net IP test utility, net_entity_mock test",
-           "[shared_utility] [net_entity_mock]" ) {
+SCENARIO ( "Message handling shared test utility, fixed size message handling",
+           "[msg_handling] [fixed_size]" ) {
   using namespace chops::test;
 
-  net_entity_mock ne_mock { };
-  REQUIRE_FALSE (ne_mock.is_started());
+  auto buf = make_fixed_size_buf();
+  REQUIRE (buf.size() == fixed_size_buf_size);
+  REQUIRE (*(buf.data()+0) == static_cast<std::byte>(0xDE));
+  REQUIRE (*(buf.data()+1) == static_cast<std::byte>(0xAD));
+  REQUIRE (*(buf.data()+2) == static_cast<std::byte>(0xBE));
+  REQUIRE (*(buf.data()+3) == static_cast<std::byte>(0xEF));
+  REQUIRE (*(buf.data()+32) == static_cast<std::byte>(0xCC));
 
-  auto t = ne_mock.special_val;
+  auto vec = make_fixed_size_msg_vec(3);
+  REQUIRE (vec.size() == 3u);
 
-  GIVEN ("A default constructed net_entity_mock") {
-    WHEN ("is_started is called") {
-      THEN ("the return is false") {
-        REQUIRE_FALSE (ne_mock.is_started());
-      }
-    }
-    AND_WHEN ("get_socket is called") {
-      THEN ("the correct value is returned") {
-        REQUIRE (ne_mock.get_socket() == t);
-      }
-    }
-    AND_WHEN ("get_socket is used as a modifying call") {
-      THEN ("the correct value is returned") {
-        ne_mock.get_socket() += 1.0;
-        REQUIRE (ne_mock.get_socket() == (t+1.0));
-      }
-    }
-    AND_WHEN ("start and then stop is called") {
-      THEN ("is_started is set appropriately") {
-        ne_mock.start(io_state_chg_mock, err_func_mock);
-        REQUIRE (ne_mock.is_started());
-        ne_mock.stop();
-        REQUIRE_FALSE (ne_mock.is_started());
+  auto ioh_sp = std::make_shared<io_handler_mock>();
+  REQUIRE_FALSE(ioh_sp->send_called);
+  asio::ip::udp::endpoint endp { };
+
+  GIVEN ("A mock io handler and a fixed size msg with a body") {
+
+    WHEN ("a fixed size msg hdlr is created and msg hdlr invoked") {
+      test_counter cnt(0);
+      test_prom prom1;
+      test_prom prom2;
+      auto fut1 = prom1.get_future();
+      auto fut2 = prom2.get_future();
+      fixed_size_msg_hdlr<io_handler_mock> mh1(std::move(prom1), 5u, cnt);
+      fixed_size_msg_hdlr<io_handler_mock> mh2(std::move(prom2), 4u, cnt);
+      THEN ("the count is incremented correctly and promises are satisfied") {
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(cnt == 3);
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(cnt == 5);
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh1(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(mh2(asio::const_buffer(buf.data(), buf.size()), io_output_mock(ioh_sp), endp));
+        REQUIRE(fut1.get() == 0u);
+        REQUIRE(fut2.get() == 0u);
+        REQUIRE(cnt == 9);
       }
     }
   } // end given

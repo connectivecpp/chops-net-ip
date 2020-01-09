@@ -9,7 +9,7 @@
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) Thurman Gillespy
- *  4/30/19
+ *  2019-10-21
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,9 +17,9 @@
  *  Sample make file:
 g++ -std=c++17 -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
 echo_binary_text_client_demo.cpp -lpthread -o echo_client
  * 
  */
@@ -33,11 +33,13 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip/net_entity.hpp"
+#include "net_ip_component/worker.hpp"
 #include "marshall/extract_append.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
+using io_output = chops::net::tcp_io_output;
 using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using endpoint = asio::ip::tcp::endpoint;
@@ -92,7 +94,7 @@ int main(int argc, char* argv[]) {
     bool hdr_processed = false;
     bool print_errors = false;
 
-    io_interface tcp_iof; // use this to send text messages
+    // io_interface tcp_iof; // use this to send text messages
 
     if (process_args(argc, argv, print_errors, ip_address, port) == EXIT_FAILURE) {
         return EXIT_FAILURE;
@@ -102,7 +104,7 @@ int main(int argc, char* argv[]) {
 
     // message handler
     // receive text, display to console
-    auto msg_hndlr = [] (const_buf buf, io_interface iof, endpoint ep) {
+    auto msg_hndlr = [] (const_buf buf, io_output io_out, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
         std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
         std::cout << s << std::endl;
@@ -130,14 +132,11 @@ int main(int argc, char* argv[]) {
     };
 
     // io state change handler
-    auto io_state_chng_hndlr = [&msg_hndlr, &msg_frame, &tcp_iof] 
+    auto io_state_chng_hndlr = [&msg_hndlr, &msg_frame] 
         (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
             iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
-            tcp_iof = iof; // return iof to main, used later to send text
-        } else {
-            iof.stop_io();
         }
     
     };
@@ -160,9 +159,8 @@ int main(int argc, char* argv[]) {
     chops::net::net_ip echo_client(wk.get_io_context());
 
     // create a @c tcp_connector network entity
-    chops::net::tcp_connector_net_entity net_entity_connect;
-    net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str(),
-                        std::chrono::milliseconds(5000));
+    chops::net::net_entity net_entity_connect;
+    net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str());
     assert(net_entity_connect.is_valid());
     // start @c network_entity, emplace handlers
     net_entity_connect.start(io_state_chng_hndlr, err_func);
@@ -184,11 +182,13 @@ int main(int argc, char* argv[]) {
             shutdown = true;
             continue;
         }
+
+        // REPLACEMMENT FOR THIS FUNCTIONALITY?
         // @c tcp.iof is not valid when there is no network connection
-        if (!tcp_iof.is_valid()) {
-            std::cout << "no connection..." << std::endl;
-            continue; // back to top of loop
-        }
+        // if (!tcp_iof.is_valid()) {
+        //     std::cout << "no connection..." << std::endl;
+        //     continue; // back to top of loop
+        // }
         
         // buffer to send entered message from user
         chops::mutable_shared_buffer buf_out;
@@ -204,12 +204,16 @@ int main(int argc, char* argv[]) {
         buf_out.append(tbuf, sizeof(tbuf)); // write the header
         buf_out.append(s.data(), s.size()); // now add the text data
         // send message to server (TCP_acceptor)
-        tcp_iof.send(buf_out.data(), buf_out.size());
-    }
-
+        // tcp_iof.send(buf_out.data(), buf_out.size());
+        net_entity_connect.visit_io_output([&buf_out] (io_output io_out) {
+                io_out.send(buf_out.data(), buf_out.size());
+            } // end lambda
+        );
+    } // end while
+ 
     // cleanup
     net_entity_connect.stop();
-    wk.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }

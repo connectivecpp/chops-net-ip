@@ -40,15 +40,21 @@ Chops Net IP has the following design goals:
 
 ## Component Directory
 
-All of the essential (core) Chops Net IP headers are in the `net_ip` and `detail` directories. There are additional useful (and tested) classes and functions in the `component` directory. One of the `component` headers provides an executor and "run loop" convenience class, and other headers provide classes or functions for common use cases such as returning `std::future` objects that provide an `io_interface` object for starting the read processing and enabling sends.
+All of the essential (core) Chops Net IP headers are in the `net_ip` and `detail` directories. There are additional useful (and tested) classes and functions in the `net_ip_component` directory. One of the `net_ip_component` headers provides an executor and "run loop" convenience class, and other headers provide classes or functions for common use cases such as returning `std::future` objects that provide an `io_interface` object for starting the read processing and enabling sends.
 
 ## Exceptions and Error Handling
 
-The public class methods (e.g. in `net_ip`, `basic_io_interface`, `basic_net_entity`) may throw exceptions, although these are kept to an essential minimum. All internal and asynchronous operations use error code reporting for all network errors. This means that any function objects passed in to the Chops Net IP library do not need to have `try / catch` blocks in any of their code.
+There are no exceptions thrown by Chops Net IP code. All exceptions thrown by the Asio library are caught and reported through other error mechanisms.
+
+Many public methods use an experimental version of `std::expected` to report errors. A `std::expected` object either evaluates to `true` and provides a return value (as needed, through pointer syntax), or evaluates to `false` and provides an error code.
+
+(The experimental version of `std::expected` is provided by Martin Moene, and uses the namespace `nonstd`. See [References](doc/references.md)).
+
+Besides the `std::expected` return value, errors are also reported through a function object callback specified in the `net_entity` `start` method.
 
 ## States and Transitions
 
-Chops Net IP states and transitions match existing standard network protocol behavior. For example, when a TCP connector is created, an actual TCP data connection does not exist until the connect succeeds. When this happens (connect succeeds), the abstract state transitions from unconnected to connected. In Chops Net IP, when a TCP connector connects, a data connection object is created and an application state transition function object callback is invoked containing the connection object.
+Chops Net IP states and transitions match existing standard network protocol behavior. For example, when a TCP connector is created, an actual TCP data connection does not exist until the connect succeeds. When this happens (connect succeeds), the abstract state transitions from unconnected to connected. In Chops Net IP, when a TCP connector connects, a data connection object is created and an application state transition function object callback is invoked containing a handle object to the connection object.
 
 Even though an implicit state transition table exists within the Chops Net IP library (matching network protocol behavior), there are not any explicit state flags or methods to query the state through the API. Instead, state transitions are handled through application supplied function object callbacks, which notify the application that something interesting has happened and containing objects for further interaction and processing. In other words, there is not an "is_connected" method with the Chops Net IP library. Instead, an application can layer its own state on top of Chops Net IP (if desired), using the function object callbacks to manage the state.
 
@@ -83,7 +89,7 @@ Chops Net IP strives to provide an application customization point (via function
 - Message framing customization - decoding a header and determining how to read the rest of the message (TCP only).
 - Message handling customization - processing a message once it arrives (both TCP and UDP).
 - IO state change customization - steps to perform when a connection or socket becomes available and when the connection or socket is torn down.
-- Error notification - errors can be easily reported or collected with a function object supplied by the application (within Chops Net IP there are no direct logging mechanisms).
+- Error and log notification - errors and Chops Net IP internal log information can be easily reported or collected with a function object supplied by the application (within Chops Net IP there are no direct logging mechanisms).
 
 ### State Change Customization Point
 
@@ -120,29 +126,31 @@ The full incoming byte buffer (message) is always provided to the message handli
 
 ## Library Implementation Design Considerations
 
-Reference counting (through `std::shared_ptr` facilities) is an aspect of many of the internal (`detail` namespace) Chops Net IP classes. This simplifies the lifetime management of all of the objects at the expense of the reference counting overhead.
+Reference counting (through `std::shared_ptr` and `std::weak_ptr` facilities) is an aspect of many of the internal (`detail` namespace) Chops Net IP classes. This simplifies the lifetime management of all of the objects at the expense of the reference counting overhead.
 
 Future versions of the library may have more move semantics and less reference counting, but will always implement safety over performance.
 
-Most of the Chops Net IP public classes use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have an exception thrown by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
+Most of the Chops Net IP public classes (`net_entity`, `basic_io_interface`, `basic_io_output`) use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have errors returned by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
 
 ![Image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.png)
 
 ![Image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.png)
 
-Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`.
+Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. In general, performance critical paths, primarily reading and writing data, always use function objects passed through as template parameters, while less performance critical paths may use a `std::function`.
 
-Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring.
+Since data can be sent at any time and at any rate by the application, a sending queue is required. The queue can be queried to find out if congestion is occurring. (An interface for sending data which returns a `std::future` and bypasses the output queue may be implemented in future releases.)
 
-Mutex locking is kept to a minimum in the library. Alternatively, some of the internal handler classes take incoming parameters and post the data through the `io context`. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Asio executor and posting queue code.
+Mutex locking is kept to a minimum in the library. Alternatively, some of the internal handler classes may serialize certain operations by posting functions through the `io context` executor. This allows multiple threads to be calling into one internal handler and as long as the parameter data is thread-safe (which it is), thread safety is managed by the Asio executor and posting queue code.
 
-In the areas where data is potentially accessed concurrently, it is typically protected by `std::atomic` wraps. For example, outgoing queue statistics and `is_started` flags are all `std::atomic`. While this guarantees runtime integrity (i.e. no crashes), it does mean that statistics might have temporary inconsistency with each other. For example, an outgoing buffer might be popped from the queue exactly between an application querying and accessing two outgoing counters. This potential inconsistency is not considered to be an issue, since the queue counters are only meant for general congestion queries, not exact statistical gathering.
+Many of the public methods that call into internal handlers use a `std::future` and Asio `post` to coordinate and serialize certain state changing operations.
 
 ## Future Directions
 
-- Strand design and support will be considered.
-- Older compiler (along with older C++ standard) support is likely to be implemented sooner than later depending on availability and collaboration support.
-- The internal queue container may become a template parameter if the flexibility is needed. This would allow circular buffers (ring spans) or other data structures to be used instead of the default `std::queue` (which is instantiated to use a `std::deque`).
-- SSL support may be added, depending on collaborators with expertise being available.
+- Strand design and support will be considered and likely implemented, allowing thread pools to be used for a given `net_ip` instance, instead of limiting it to a single thread.
+- Older compiler (along with older C++ standard) support is likely to be implemented, depending on availability and collaboration support.
+- The outgoing queue container is likely to become a template parameter. This would allow circular buffers (ring spans) or other data structures to be used instead of the default `std::queue` (which is instantiated to use a `std::deque`).
+- The reference counted outgoing buffer type is likely to become a template parameter, allowing applications to use a different reference counting scheme, or a wrapper over some form of static memory (the requirement will be that the memory is valid while the write is in progress). Alternatively, a generic copy and move, versus reference counting, may be supported in future versions.
+- Containers used internally in Chops Net IP (other than the outgoing queue) may also be templatized. These include the container used in the TCP acceptor for TCP connection objects, and the container used in the `net_ip` object that holds all of the network entities.
+- SSL or TLS support may be added, depending on collaborators with expertise being available.
 - Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP unicast, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
 

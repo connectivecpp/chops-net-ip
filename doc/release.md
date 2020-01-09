@@ -1,10 +1,48 @@
 # Chops Net IP Release Status
 
+## Release 1.0
+
+Release 1.0 is under development, expected in the first part of 2020. Additional platform and compiler testing is under way, in-depth tutorials are under development, and the marshalling library in the `utility-rack` repository needs to be completed.
+
 ## Release 0.3
 
-Release 0.3 (or 0.x) is under development. The main change will be using the (future standard) C++ facility `std::expected` for all public error handling returns (instead of throwing exceptions). In advance of C++ 20, this will be implemented with Martin Moene's `expected-lite` library.
+Significant API and internal changes have been made. 
 
-Additional platform and compiler testing will be performed, and some of the minor internal "TODOs" will be implemented.
+- `basic_io_interface` is now split into `basic_io_interface` and `basic_io_output`. The `send` and `get_output_queue_stats` methods have moved from `basic_io_interface` to `basic_io_output`. There is now a `make_io_output` method in `basic_io_interface`. (Motivation: separation of responsibilities, allow optimized data sending path.)
+
+- There is no longer a `basic_net_entity` class. It is now `net_entity` and is not a class template. (Motivation: simplify usage of `net_entity` class.)
+
+- The message handler callback interface now provides a `basic_io_output` (either a `tcp_io_output` or a `udp_io_output`) instead of a `basic_io_interface`. (Motivation: constrain possibilities within a message callback reply.)
+
+- `get_socket` is now `visit_socket` with a different signature (now takes a function object instead of returning a socket reference). (Motivation: simplifies template method design.)
+
+- `net_entity` now has a `visit_io_output` method to allow passing data into all available `basic_io_output` objects associated with that `net_entity`. (Motivation: consistency with `visit_socket` and simplifies template method design.)
+
+- `io_interface.hpp` is now named `io_type_decls.hpp`, which contains `using` declarations to instantiate `basic_io_interface` and `basic_io_output` with `tcp_io` and `udp_io`. (Motivation: `using` declarations are for two different class templates, both related to IO.)
+
+- The TCP connector timeout parameter has been enhanced into a timeout function object, allowing customization of the timeout value (e.g. providing an exponential backoff). (This feature is still under development.)
+
+- All exception throwing within Chops Net IP has been removed, and error returns in many places have been replaced with a `std::expected` return (currently using the `nonstd` namespace instead of `std` through Martin Moene's `expected-lite` library). (Motivation: remove need for `try`, `catch` blocks, provide useful error return information.)
+
+Specifics on each change (including non-API changes):
+
+- `basic_net_entity` has gone away, replaced by a non-template class supporting all three entity types (TCP connector, TCP acceptor, UDP). Internally it is now using a `std::variant`.
+
+- The TCP connector now will attempt re-connects after a TCP connection error (or shutdown), depending on the timeout parameter. This simplifies the uses cases where re-connects are the desired behavior.
+
+- A new `start_io` method is available for the `basic_io_interface` class, supporting simple variable length message framing (a common use case).
+
+- `basic_io_interface` is now split into `basic_io_interface` and `basic_io_output`. This simplifies the responsibility of `basic_io_interface`, as it now is (primarily) responsible only for starting and stopping IO. `basic_io_output` is only responsible for sending data (and providing output queue statistics). This allows some optimization of the send path, since a `weak_ptr` no longer has to be locked into a `shared_ptr` for every `send`. (This fits into the overall performance goal of making the sending and receiving of data to be as fast as possible, while other operations such as starting and stopping connections to have more overhead).
+
+- The message handler callback now provides a `basic_io_output` object instead of a `basic_io_interface` object. This constrains the message handler callback, which is appropriate (since `start_io` and `stop_io` should never be called from within the message handler).
+
+- The `net_entity` class now allows data to be passed into a `visit_io_output` method (by function object), allowing that data (in the function object) to be sent to all associated and active IO handlers. This allows certain use cases to be simplified.
+
+- The `send_to_all` and `simple_variable_len_message_frame` component headers have been removed (now supported in the core library as described in the previous changes).
+
+- Internal shutdown logic has been improved.
+
+- The `net_ip_component` directory has been moved to `net_ip_component` to make it more visible and to show that it is parallel to (and not part of) the core `net_ip` library.
 
 ## Release 0.2
 

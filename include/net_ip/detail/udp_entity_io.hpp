@@ -19,7 +19,7 @@
 #define UDP_ENTITY_IO_HPP_INCLUDED
 
 #include "asio/io_context.hpp"
-#include "asio/executor.hpp"
+#include "asio/post.hpp"
 #include "asio/ip/udp.hpp"
 #include "asio/buffer.hpp"
 
@@ -28,23 +28,43 @@
 
 #include <cstddef> // std::size_t
 #include <utility> // std::forward, std::move
+#include <functional> // std::function
+#include <future>
 
 #include "net_ip/detail/io_common.hpp"
 #include "net_ip/detail/net_entity_common.hpp"
-#include "net_ip/detail/output_queue.hpp"
 
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/net_ip_error.hpp"
-#include "net_ip/basic_io_interface.hpp"
+
+#include "net_ip/basic_io_output.hpp"
+#include "net_ip/endpoints_resolver.hpp"
+
 #include "marshall/shared_buffer.hpp"
+
+//////
+// #include <iostream>
 
 namespace chops {
 namespace net {
 namespace detail {
 
+struct udp_queue_element {
+  const_shared_buffer     m_buf;
+  asio::ip::udp::endpoint m_endp;
+
+  udp_queue_element (const const_shared_buffer& buf,
+                     const asio::ip::udp::endpoint& endp) noexcept : 
+        m_buf(buf), m_endp(endp) { }
+
+  std::size_t size() const noexcept {
+    return m_buf.size();
+  }
+
+};
+
 class udp_entity_io : public std::enable_shared_from_this<udp_entity_io> {
 public:
-  using socket_type = asio::ip::udp::socket;
   using endpoint_type = asio::ip::udp::endpoint;
 
 private:
@@ -52,26 +72,42 @@ private:
 
 private:
 
-  io_common<udp_entity_io>          m_io_common;
+  io_common<udp_queue_element>      m_io_common;
   net_entity_common<udp_entity_io>  m_entity_common;
-  asio::io_context&                 m_io_context;
-  socket_type                       m_socket;
+  asio::io_context&                 m_ioc;
+  asio::ip::udp::socket             m_socket;
   endpoint_type                     m_local_endp;
   endpoint_type                     m_default_dest_endp;
+  std::string                       m_local_port_or_service;
+  std::string                       m_local_intf;
+  bool                              m_shutting_down;
+
   // TODO: multicast stuff
 
   // following members could be passed through handler, but are members for 
   // simplicity and less copying
   byte_vec                          m_byte_vec;
-  std::size_t                       m_max_size;
   endpoint_type                     m_sender_endp;
 
 public:
+
   udp_entity_io(asio::io_context& ioc, 
                 const endpoint_type& local_endp) noexcept : 
-    m_io_common(), m_entity_common(), m_io_context(ioc),
+    m_io_common(), m_entity_common(), m_ioc(ioc),
     m_socket(ioc), m_local_endp(local_endp), m_default_dest_endp(), 
-    m_byte_vec(), m_max_size(0), m_sender_endp() { }
+    m_local_port_or_service(), m_local_intf(),
+    m_shutting_down(false),
+    m_byte_vec(), m_sender_endp() 
+    { }
+
+  udp_entity_io(asio::io_context& ioc, 
+                std::string_view local_port_or_service, std::string_view local_intf) noexcept :
+    m_io_common(), m_entity_common(), m_ioc(ioc),
+    m_socket(ioc), m_local_endp(), m_default_dest_endp(), 
+    m_local_port_or_service(local_port_or_service), m_local_intf(local_intf),
+    m_shutting_down(false),
+    m_byte_vec(), m_sender_endp() 
+    { }
 
 private:
   // no copy or assignment semantics for this class
@@ -89,35 +125,40 @@ public:
 
   bool is_io_started() const noexcept { return m_io_common.is_io_started(); }
 
-  socket_type& get_socket() noexcept { return m_socket; }
+  template <typename F>
+  void visit_socket(F&& f) {
+    f(m_socket);
+  }
+
+  template <typename F>
+  std::size_t visit_io_output(F&& func) {
+    auto self = shared_from_this();
+    std::promise<std::size_t> prom;
+    auto fut = prom.get_future();
+    // send to executor for concurrency protection
+    asio::post(m_socket.get_executor(), [this, self, &func, p = std::move(prom)] () mutable {
+        if (m_io_common.is_io_started()) {
+          func(basic_io_output<udp_entity_io>(weak_from_this()));
+          p.set_value(1u);
+        }
+        else {
+          p.set_value(0u);
+        }
+      }
+    );
+    return fut.get();
+  }
 
   output_queue_stats get_output_queue_stats() const noexcept {
     return m_io_common.get_output_queue_stats();
   }
 
   template <typename F1, typename F2>
-  bool start(F1&& io_state_chg, F2&& err_cb) {
-    if (!m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb))) {
-      // already started
-      return false;
-    }
-    try {
-      // assume default constructed endpoints compare equal
-      if (m_local_endp == endpoint_type()) {
-// TODO: this needs to be changed, doesn't allow sending to an ipV6 endpoint
-        m_socket.open(asio::ip::udp::v4());
-      }
-      else {
-        m_socket = socket_type(m_io_context, m_local_endp);
-      }
-    }
-    catch (const std::system_error& se) {
-      err_notify(se.code());
-      stop();
-      return false;
-    }
-    m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true);
-    return true;
+  std::error_code start(F1&& io_state_chg, F2&& err_cb) {
+    auto self = shared_from_this();
+    return m_entity_common.start(std::forward<F1>(io_state_chg), std::forward<F2>(err_cb),
+                                 m_socket.get_executor(),
+             [this, self] () { return do_start(); } );
   }
 
   template <typename MH>
@@ -125,7 +166,12 @@ public:
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
-    m_max_size = max_size;
+    if (m_local_endp == endpoint_type()) { // mismatch between start_io and initialized UDP entity
+      return false;
+    }
+    m_byte_vec.resize(max_size);
+// std::cerr << "Inside start_io AAA, ready to start read, buf resized to: " << max_size << 
+// ", local endp: " << m_local_endp << ", default dest endp: " << m_default_dest_endp << std::endl;
     start_read(std::forward<MH>(msg_handler));
     return true;
   }
@@ -135,8 +181,13 @@ public:
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
-    m_max_size = max_size;
+    if (m_local_endp == endpoint_type()) {
+      return false;
+    }
     m_default_dest_endp = endp;
+    m_byte_vec.resize(max_size);
+// std::cerr << "Inside start_io BBB, ready to start read, buf resized to: " << max_size << 
+// ", local endp: " << m_local_endp << ", default dest endp: " << m_default_dest_endp << std::endl;
     start_read(std::forward<MH>(msg_handler));
     return true;
   }
@@ -145,6 +196,8 @@ public:
     if (!m_io_common.set_io_started()) { // concurrency protected
       return false;
     }
+// std::cerr << "Inside start_io no read CCC" << 
+// ", local endp: " << m_local_endp << ", default dest endp: " << m_default_dest_endp << std::endl;
     return true;
   }
 
@@ -153,49 +206,43 @@ public:
       return false;
     }
     m_default_dest_endp = endp;
+// std::cerr << "Inside start_io no read DDD" << 
+// ", local endp: " << m_local_endp << ", default dest endp: " << m_default_dest_endp << std::endl;
     return true;
   }
 
   bool stop_io() {
-    if (!m_io_common.stop()) {
+    // handle start_io never called - close the open socket, etc
+    bool ret = !m_io_common.is_io_started();
+    close(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
+    return ret;
+  }
+
+  std::error_code stop() {
+    auto self = shared_from_this();
+    return m_entity_common.stop(m_socket.get_executor(),
+             [this, self] () {
+               close(std::make_error_code(net_ip_errc::udp_entity_stopped));
+               return std::error_code();
+             }
+    );
+  }
+
+  // io_common has concurrency protection
+  bool send(const chops::const_shared_buffer& buf) {
+    return send(buf, m_default_dest_endp);
+  }
+
+  bool send(const chops::const_shared_buffer& buf, const endpoint_type& endp) {
+    if (endp == endpoint_type()) { // mismatch between start_io and send
       return false;
     }
-    std::error_code ec;
-    m_socket.close(ec);
-    err_notify(std::make_error_code(net_ip_errc::udp_io_handler_stopped));
-    m_entity_common.call_io_state_chg_cb(shared_from_this(), 0, false);
-    return true;
-  }
-
-  bool stop() {
-    if (!m_entity_common.stop()) {
-      return false; // stop already called
-    }
-    stop_io();
-    err_notify(std::make_error_code(net_ip_errc::udp_entity_stopped));
-    return true;
-  }
-
-  void send(chops::const_shared_buffer buf) {
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf] {
-        if (!m_io_common.start_write_setup(buf)) {
-          return; // buf queued or shutdown happening
+    auto ret = m_io_common.start_write(udp_queue_element(buf, endp), 
+        [this] (const udp_queue_element& e) {
+          start_write(e);
         }
-        start_write(buf, m_default_dest_endp);
-      }
-    );
-  }
-
-  void send(chops::const_shared_buffer buf, const endpoint_type& endp) {
-    auto self { shared_from_this() };
-    post(m_socket.get_executor(), [this, self, buf, endp] {
-        if (!m_io_common.start_write_setup(buf, endp)) {
-          return; // buf queued or shutdown happening
-        }
-        start_write(buf, endp);
-      }
-    );
+      );
+    return ret != io_common<udp_queue_element>::write_status::io_stopped;
   }
 
 private:
@@ -203,53 +250,99 @@ private:
   template <typename MH>
   void start_read(MH&& msg_hdlr) {
     auto self { shared_from_this() };
-    m_byte_vec.resize(m_max_size);
     m_socket.async_receive_from(
               asio::mutable_buffer(m_byte_vec.data(), m_byte_vec.size()),
               m_sender_endp,
-                [this, self, mh = std::move(msg_hdlr)] 
+                [this, self, msg_hdlr = std::move(msg_hdlr)] 
                   (const std::error_code& err, std::size_t nb) mutable {
-        handle_read(err, nb, mh);
+        handle_read(err, nb, std::move(msg_hdlr));
       }
     );
-  }
-
-  void err_notify (const std::error_code& err) {
-    m_entity_common.call_error_cb(shared_from_this(), err);
   }
 
   template <typename MH>
   void handle_read(const std::error_code&, std::size_t, MH&&);
 
-  void start_write(chops::const_shared_buffer, const endpoint_type&);
+  void start_write(const udp_queue_element&);
 
   void handle_write(const std::error_code&, std::size_t);
 
+private:
+
+  std::error_code do_start() {
+    if (!m_local_port_or_service.empty()) {
+      endpoints_resolver<asio::ip::udp> resolver(m_ioc);
+      auto ret = resolver.make_endpoints(true, m_local_intf, m_local_port_or_service);
+      if (!ret) {
+        close(ret.error());
+        return ret.error();
+      }
+      m_local_endp = ret->cbegin()->endpoint();
+      m_local_port_or_service.clear();
+      m_local_port_or_service.shrink_to_fit();
+      m_local_intf.clear();
+      m_local_intf.shrink_to_fit();
+    }
+    std::error_code ec;
+    m_socket.open(m_local_endp.protocol(), ec);
+    if (ec) {
+      close(ec);
+      return ec;
+    }
+    if (m_local_endp != endpoint_type()) { // local bind needed
+      m_socket.bind(m_local_endp, ec);
+      if (ec) {
+        close(ec);
+        return ec;
+      }
+    }
+    m_entity_common.call_io_state_chg_cb(shared_from_this(), 1, true);
+    return { };
+  }
+
+  void close(const std::error_code& err) {
+    auto self { shared_from_this() };
+    m_entity_common.call_error_cb(self, err);
+    if (m_shutting_down) { // already been through close once
+      return;
+    }
+    m_shutting_down = true;
+    m_io_common.set_io_stopped();
+    m_entity_common.set_stopped();
+    m_io_common.clear();
+    std::error_code ec;
+    m_socket.close(ec);
+    m_entity_common.call_error_cb(self, std::make_error_code(net_ip_errc::udp_entity_closed));
+    m_entity_common.call_io_state_chg_cb(self, 0, false);
+  }
+
 };
 
-// method implementations, just to make the class declaration a little more readable
+// method implementations, split out just to make the class declaration a little more readable
 
 template <typename MH>
-void udp_entity_io::handle_read(const std::error_code& err, std::size_t num_bytes, MH&& msg_hdlr) {
+void udp_entity_io::handle_read(const std::error_code& err, 
+                                std::size_t num_bytes, MH&& msg_hdlr) {
 
   if (err) {
-    err_notify(err);
-    stop();
+    close(err);
     return;
   }
   if (!msg_hdlr(asio::const_buffer(m_byte_vec.data(), num_bytes), 
-                basic_io_interface<udp_entity_io>(weak_from_this()), m_sender_endp)) {
+                basic_io_output<udp_entity_io>(weak_from_this()), m_sender_endp)) {
     // message handler not happy, tear everything down
-    err_notify(std::make_error_code(net_ip_errc::message_handler_terminated));
-    stop();
+    close(std::make_error_code(net_ip_errc::message_handler_terminated));
     return;
   }
   start_read(std::forward<MH>(msg_hdlr));
 }
 
-inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const endpoint_type& endp) {
+inline void udp_entity_io::start_write(const udp_queue_element& e) {
   auto self { shared_from_this() };
-  m_socket.async_send_to(asio::const_buffer(buf.data(), buf.size()), endp,
+// if (e.m_endp == asio::ip::udp::endpoint()) {
+// std::cerr << "Ack! Empty endpoint in UDP write" << std::endl;
+// }
+  m_socket.async_send_to(asio::const_buffer(e.m_buf.data(), e.m_buf.size()), e.m_endp,
             [this, self] (const std::error_code& err, std::size_t nb) {
       handle_write(err, nb);
     }
@@ -258,20 +351,20 @@ inline void udp_entity_io::start_write(chops::const_shared_buffer buf, const end
 
 inline void udp_entity_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (err) {
-    err_notify(err);
-    stop();
+    close(err);
     return;
   }
-  auto elem = m_io_common.get_next_element();
-  if (!elem) {
-    return;
-  }
-  start_write(elem->first, elem->second ? *(elem->second) : m_default_dest_endp);
+  m_io_common.write_next_elem([this] (const udp_queue_element& e) {
+      start_write(e);
+    }
+  );
 }
 
-using udp_entity_io_ptr = std::shared_ptr<udp_entity_io>;
+using udp_entity_io_shared_ptr = std::shared_ptr<udp_entity_io>;
+using udp_entity_io_weak_ptr = std::weak_ptr<udp_entity_io>;
 
 } // end detail namespace
+
 } // end net namespace
 } // end chops namespace
 

@@ -2,24 +2,24 @@
  * 
  *  @ingroup example_module
  * 
- *  @brief Example of TCP peer to peer network chat program.
+ *  @brief Example of 2-way TCP peer to peer network chat program.
+ *  See usage text for further information.
  * 
  *  @author Thurman Gillespy
  * 
  *  Copyright (c) 2019 Thurman Gillespy
- *  4/30/19
+ *  @date 2019-10-14
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *  
- *  Sample make file:
-g++ -std=c++17 -Wall -Werror \
+ *  Sample compile script:
+g++ -std=c++17  -g -Wall -Werror \
 -I ../include \
--I ~/Projects/utility-rack/include/ \
--I ~/Projects/asio/asio/include/ \
--I ~/Projects/boost_1_69_0/ \
-simple_chat_demo.cpp -lpthread -o chat
- * 
+-I ../../utility-rack/include/ \
+-I ../../asio/asio/include/ \
+-I ../../expected-lite/include/ \
+simple_chat_demo.cpp -lpthread -o chat 
  *
  */ 
 
@@ -27,85 +27,22 @@ simple_chat_demo.cpp -lpthread -o chat
 #include <cstdlib> // EXIT_SUCCESS
 #include <cstddef> // std::size_t 
 #include <string>
-#include <chrono>
 #include <thread>
 #include <cassert>
 
 #include "net_ip/net_ip.hpp"
-#include "net_ip/basic_net_entity.hpp"
-#include "net_ip/component/worker.hpp"
+#include "net_ip/net_entity.hpp"
+#include "net_ip_component/worker.hpp"
 #include "simple_chat_screen.hpp"
 #include "queue/wait_queue.hpp"
+#include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
+using io_output = chops::net::tcp_io_output;
 using io_interface = chops::net::tcp_io_interface;
 using const_buf = asio::const_buffer;
 using tcp_io_interface = chops::net::tcp_io_interface;
 using endpoint = asio::ip::tcp::endpoint;
-
-/** How to use @c chops-net-ip for a simple peer to peer chat program over
- *  a network connection
- * 
- *  1. Write message handler function.
- * 
- *  The message handler receives text after @c ::send is invoked. Both
- *  the local and remote remote clients obtain the sent text through the
- *  handler. In this demo, the handler inserts the recevied text into the
- *  history scroll text, and then updates the screen output.
- * 
- *  Both message handlers return @c false when the user enters @c 'quit',
- *  otherwise @c true. @c 'quit' shuts down the handler and exits the program.
- *  The message handler must be shut down to preven memory leaks.
- * 
- *  2. Write @ io_state_change handler.
- * 
- *  The @c io_state_change handler calls @c ::start_io on the provided
- *  @c chops::net::tcp_io_interface. The handler needs to return a copy
- *  of the @c io_interface to main. The main copy will use the @c io_interface
- *  to @c send the text message from one client to another. On program
- *  shutdown, @c ::stop_io must be called on the @c io_interface to prevent
- *  memory leaks.
- * 
- *  3. Create an instance of the @c chops::net::worker class, which provides
- *  @c std::thread and @c asio::io_context management. Call @c worker::start 
- *  before the frist call to the @chops::net::ip facilities, then call 
- *  @c worker::stop when finished.
- * 
- *  4. Create an instance of the @c chops::net::ip::net_ip class. The constructor
- *  needs an @c asio:io_context, which is provided by the @c ::get_io_context
- *  method of the @c chops::net::worker instance.
- *  
- *  5. Call @c ::make_tcp_connector on the @c tcp_connector @ net_ip instance
- *  (@c '-connect' connection type), which returns a copy of a
- *  @c tcp_connector_network_entity.
- *  
- *  6. Call @c ::make_tcp_acceptor on the @c tcp_acceptor @ net_ip instance
- *  (@c '-accept' connection type), which returns a copy of a
- *  @c tcp_acceptor_network_entity.
- * 
- *  7. Call @c ::start on the @c network_entity, which emplaces the
- *  message handler and @c io_state change handler.
- * 
- *  8. Call @c ::send on the @c chops::net::tcp_io_interface instance to send
- *  a text string over the network connection.
- * 
- *  9. See the example code and the header files for the signatures of the
- *  handlers.
- *  
- *  10. Program shutdown
- *  
- *  To prevent memory leaks and crashes, the following steps must be taken.
- * 
- *  Shutdown the @c message_handler and call @c ::stop_io on the 
- *  @c io_interface. This program the @c 'quit' command and the
- *  @c finished flag to shutdown the handlers.
- * 
- *  Call @c ::stop on the @c network_entity.
- *  
- *  Comment: This sequence is too convoluted, and a more gracefull 
- *  automatic shutdown will be implemented for release 1.0.
- * 
- */
 
 
 // process command line args, set ip_addr, port, param, print_errors
@@ -189,6 +126,7 @@ int main(int argc, char* argv[]) {
     bool print_errors = false;
     bool shutdown = false;
 
+    // command line arguments
     if (process_args(argc, argv, ip_addr, port, param, print_errors) == EXIT_FAILURE) {
         return EXIT_FAILURE;
     }
@@ -196,21 +134,13 @@ int main(int argc, char* argv[]) {
     // create instance of @c simple_chat_screen class
     simple_chat_screen screen(ip_addr, port, param, print_errors);
 
-    /* lambda callbacks */
-    // message handler for @c network_entity
-    // note: cannot explicitly capture REMOTE
-    auto msg_hndlr = [&] (const_buf buf, io_interface iof, endpoint ep)
-        {
-            if (shutdown) {
-                if (print_errors) {
-                    screen.insert_scroll_line("msg_hndlr shutdown" + DELIM,
-                        SYSTEM);
-                    screen.draw_screen();
-                }
-                // must return false on shutdown
-                return false; 
-            }
+    /**************************************/
+    /********** lambda callbacks **********/
+    /**************************************/
 
+    // message handler for @c network_entity
+    auto msg_hndlr = [&] (const_buf buf, io_output io_out, endpoint ep)
+        {
             // receive network text message, display to user
             // remove deliminator here?
             std::string s(static_cast<const char *>(buf.data()), buf.size());
@@ -218,15 +148,8 @@ int main(int argc, char* argv[]) {
             screen.insert_scroll_line(s, REMOTE);
             screen.draw_screen();
 
-            // if user sent quit, echo back to allow her io_interface to stop
-            if (s == "quit" + DELIM) {
-                iof.send(s.data(), s.size());
-            }
-
             return true;
         };
-
-    io_interface tcp_iof; // use this to send text messages
 
     // handler for @c tcp_connector
     auto io_state_chng_hndlr = [&] (io_interface iof, std::size_t n, bool flag) {
@@ -238,7 +161,7 @@ int main(int argc, char* argv[]) {
                     screen.draw_screen();
                 }
                 iof.start_io(DELIM, msg_hndlr);
-                tcp_iof = iof; // return @c iof to main
+                // tcp_iof = iof; // return @c iof to main
             } else {
                 // since we are peer to peer, reject >1 connections
                 screen.insert_scroll_line("2nd tcp_connector client rejected" + 
@@ -246,18 +169,17 @@ int main(int argc, char* argv[]) {
                 screen.draw_screen();
                 iof.start_io(DELIM, msg_hndlr);
                 const std::string err = "only one tcp connection allowed";
-                iof.send(err.data(), err.size());
+                auto ret = iof.make_io_output();
+                auto io_out = *ret;
+                io_out.send(err.data(), err.size());
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 iof.stop_io();
             }
         } else { // flag false
-            // stop iof when flag false
             if (print_errors) {
                 screen.insert_scroll_line("io_interface stop" + DELIM, SYSTEM);
                 screen.draw_screen();
             }
-            // IMPORTANT: needed to avert memory leaks and crashes
-            iof.stop_io();
         }
     };
 
@@ -266,7 +188,7 @@ int main(int argc, char* argv[]) {
         { 
             static int count = 0;
             // shudtown if too many error messages
-            if (++count > 15) {
+            if (++count > 20) {
                 std::cerr << ABORT << std::endl;
                 exit(1);
             }
@@ -285,38 +207,39 @@ int main(int argc, char* argv[]) {
             }
         };
 
+    /********************************/
+    /********** start here **********/
+    /********************************/
+
     // work guard - handles @c std::thread and @c asio::io_context management
     chops::net::worker wk;
     wk.start();
     
     // create @c net_ip instance
     chops::net::net_ip chat(wk.get_io_context());
-    
-
-    chops::net::tcp_connector_net_entity net_entity_connect;
-    chops::net::tcp_acceptor_net_entity net_entity_accept;
+    // empty(default) @c net_entity
+    chops::net::net_entity net_entity;
 
     if (param == PARAM_CONNECT) {
         // make @c tcp_connector, return @c network_entity
         // TODO: why does this not work with std::string, but acceptor does?
-        net_entity_connect = chat.make_tcp_connector(port.c_str(), ip_addr.c_str(),
-                    std::chrono::milliseconds(5000));
-        assert(net_entity_connect.is_valid());
-        // start network entity, emplace handlers
-        net_entity_connect.start(io_state_chng_hndlr, err_func);
+        net_entity = chat.make_tcp_connector(port.c_str(), ip_addr.c_str());
     } else {
         // make @ tcp_acceptor, return @c network_entity
-        net_entity_accept = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
-        assert(net_entity_accept.is_valid());
-        // start network entity, emplace handlers
-        net_entity_accept.start(io_state_chng_hndlr, err_func);
+        net_entity = chat.make_tcp_acceptor(port.c_str(), ip_addr.c_str());
     }
+    assert(net_entity.is_valid());
+     // start network entity, emplace handlers
+    net_entity.start(io_state_chng_hndlr, err_func);
 
-    screen.draw_screen();
-        
+    /**************************************/
+    /********** user interaction **********/
+    /**************************************/
+
+    screen.draw_screen();      
     // get std::string from user, send string data over network, update screen
-    std::string s;
     while (!shutdown) {
+        std::string s;
         std::getline (std::cin, s); // user input
         if (s == "quit") {
             shutdown = true;
@@ -324,30 +247,28 @@ int main(int argc, char* argv[]) {
         s += DELIM; // needed for deliminator
         screen.insert_scroll_line(s, LOCAL);
         screen.draw_screen();
-        // tcp.iof is not valid when there is no network connection
-        if (!tcp_iof.is_valid()) {
-            screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
-            screen.draw_screen();
-            continue; // back to top of loop
-        }
+
         // send user text message over network
         // note correct method of sending string data over network
-        tcp_iof.send(s.data(), s.size());
-    }
+        auto ret = net_entity.visit_io_output([&s] (io_output io_out) {
+                io_out.send(s.data(), s.size());
+            } // end lambda
+        );
+        
+        // check result
+        if (ret && *ret == 0) {
+            // no connection or other user quit
+            screen.insert_scroll_line(NO_CONNECTION, SYSTEM);
+            screen.draw_screen();
+        } // end if
+    } // end while
 
-    // allow last message to be sent before shutting down connection
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    /******************************/
+    /********** shutdown **********/
+    /******************************/
 
-    // shutdown
-    if (param == PARAM_CONNECT) {
-        net_entity_connect.stop();
-    } else {
-        net_entity_accept.stop();
-    }
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-
-    wk.stop();
+    net_entity.stop();
+    wk.reset();
 
     return EXIT_SUCCESS;
 }
