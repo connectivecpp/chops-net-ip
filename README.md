@@ -13,7 +13,7 @@ Branch | Status
 **Master** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=master)](https://travis-ci.org/connectivecpp/chops-net-ip)
 **Develop** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
 
-Latest tag: ![Latest Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip)
+*Latest tag:* ![Latest Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip)
 
 Release 1.0 is under development as of January 2020, awaiting CMake enhancements, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
 
