@@ -6,7 +6,7 @@ Chops Net IP is not like any other high-level, general purpose C++ socket librar
 
 Chops Net IP is layered on top of the Asio asynchronous networking library, taking advantage of the portability and functionality that Asio provides. However, it simplifies network programming compared to coding against the Asio API, while providing easy scalability through the asynchronous facilities.
 
-# License, Build and Release Status
+# Build and Release Status, License Info
 
 Branch | Status
 |---|---|
@@ -14,13 +14,14 @@ Branch | Status
 **Develop** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
 
 ![Latest Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip)
-[![Licence](https://img.shields.io/badge/license-boost-4480cc.svg)](http://www.boost.org/LICENSE_1_0.txt)
-
-This project is distributed under the [Boost Software License](LICENSE.txt).
 
 Release 1.0 is under development as of January 2020, awaiting CMake enhancements, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
+
+[![Licence](https://img.shields.io/badge/license-boost-4480cc.svg)](http://www.boost.org/LICENSE_1_0.txt)
+
+This project is distributed under the [Boost Software License](LICENSE.txt).
 
 # Overview
 
