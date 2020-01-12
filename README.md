@@ -4,7 +4,9 @@ Branch | Status
 **Develop** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
 
 
-**Latest Tag**  ![Latest Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip)
+### Latest Tag
+
+![Latest Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip)
 
 
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
