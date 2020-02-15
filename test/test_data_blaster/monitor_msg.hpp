@@ -2,7 +2,7 @@
  *
  *  @ingroup test_module
  *
- *  @brief Monitor message marshalling, unmarshalling, sending, and shutdown msg handling.
+ *  @brief Data structures sent between nodes in test data blaster
  *
  *  @author (fill in)
  *
@@ -13,15 +13,11 @@
  *
  */
 
-#ifndef MONITOR_MSG_HANDLING_HPP_INCLUDED
-#define MONITOR_MSG_HANDLING_HPP_INCLUDED
+#ifndef MONITOR_MSG_HPP_INCLUDED
+#define MONITOR_MSG_HPP_INCLUDED
 
 #include <string>
 #include <string_view>
-#include <cstddef> // std::size_t
-#include <future>
-#include <utility> // std::move
-#include <type_traits> // std::is_same
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
@@ -31,6 +27,7 @@
 
 namespace chops {
 namespace test {
+
 
 template <typename AsioIpProtocol>
 std::string format_addr (const asio::ip::basic_endpoint<AsioIpProtocol>& endpoint) {
@@ -59,55 +56,26 @@ struct shutdown_msg {
 };
 
 
-// shutdown message from monitor process will set promise, which causes future to pop, which
-// tells DSR to shutdown
-class monitor_connector {
-public:
-
-  monitor_connector(chops::net::net_ip& net_ip,
-                    std::string_view monitor_port, std::string_view monitor_host,
-                    std::promise<void> prom,
-                    chops::net::err_wait_q& err_wq) : 
-      m_monitor(), m_io_output(), m_prom(std::move(prom))
-  {
-     // make_tcp_connector, start, provide state chg func obj that does start_io,
-     // providing msg handler for shutdown, make_err_func_with_wait_queue for error display
-  }
-  void send_monitor_msg (const monitor_msg_data& msg_data) const {
-
-  }
-  // temporary - used for testing DSR
-  void shutdown() {
-  // send shutdown msg
-    m_prom.set_value();
-  }
-
-private:
-  chops::net::net_entity     m_monitor;
-  chops::net::tcp_io_output  m_io_output;
-  std::promise<void>         m_prom;
-  // more member data to fill in
-
-};
-
 inline chops::const_shared_buffer marshall_monitor_msg_data (const monitor_msg_data& msg_data) {
-  chops::const_shared_buffer buf = 
+    // work in progress
+    return null;
 }
 
 inline monitor_msg_data unmarshall_monitor_msg_data (const chops::const_shared_buffer& buf) {
-
+    // work in progress
+    return null;
 }
 
 inline chops::const_shared_buffer marshall_shutdown_message() {
-
+    // work in progress
+    return null;
 }
 
 inline std::string unmarshall_shutdown_message() {
-  
-} 
+  // work in progress
+  return null;
+}
 
-} // end namespace test
-} // end namespace chops
 
-#endif
-
+}
+}
