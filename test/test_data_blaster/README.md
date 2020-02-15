@@ -6,9 +6,9 @@ The Test Data Blaster (T-DB) is a set of binaries that performs both TCP and UDP
 
 Multiple data sender / receiver (DSR) instances are running at the same time (at least two must be running for sending and receiving data). Each TCP DSR instance can be configured for multiple TCP connectors and multiple TCP acceptors at the same time. Each (future) UDP DSR can be configured for multiple senders and receivers at the same time.
 
-A single instance of the monitor shows statistics from the DSR instances. The monitor is also responsible for shutting down the DSRs. The same monitor instance can be running for both TCP and UDP (the messages sent to the monitor from the DSRs specify whether the test data is being sent over TCP or UDP).
+A single instance of the monitor shows statistics from the DSR instances. The monitor is also responsible for shutting down the DSRs. The same monitor instance can be running for both TCP and UDP (the log messages sent to the monitor from the DSRs specify whether the test data is being sent over TCP or UDP).
 
-While the DSRs are written in C++, the monitor app can be written in any language (and both a C++ and Python version is expected, with the Python version having a simple GUI display). The monitor message definition is text only, so binary endianness is not a factor.
+While the DSRs are written in C++, there is a monitor app written in both C++ and Python version. The monitor message definitions are text only, so binary endianness is not a factor.
 
 ## Usage
 
@@ -22,7 +22,9 @@ While the DSRs are written in C++, the monitor app can be written in any languag
 
 All of the C++ components can be built using CMake. 
 
-(Fill in details, including single build instructions in Linux, and future Python build instructions.)
+The Python monitor is built by ...
+
+(Fill in details, including single build instructions in Linux, and Python build instructions.)
 
 ## Internals and Design
 
@@ -36,11 +38,11 @@ The T-DB Monitor is run as a TCP acceptor (server) only. It accepts TCP connecti
 
 There are no "begin" or "end" data messages that the monitor has to process, a new incoming TCP connection is the indication that a new DSR instance has started, and the end of the TCP connection is the indication that the DSR instance has ended.
 
-The DSR will not send a monitor message for every test message sent between DSR instances. A "modulo" command line parameter specifies how often a monitor message will be sent (for each test data set). (A modulo of 1 would generate one monitor message per test data set message.)
+The DSR will not send a monitor log message for every test message sent between DSR instances. A "modulo" command line parameter specifies how often a monitor log message will be sent (for each test data set). (A modulo of 1 would generate one monitor log message per test data set message.)
 
 The monitor process will notify all DSR processes to shutdown by sending a shutdown message through each monitor connection. The monitor process will have a user initiated mechanism to send the shutdown messages and end the monitor process.
 
-#### Monitor Message Definition
+#### Monitor Log Message Contents
 
 Each message from the DSRs to the monitor has the following fields:
 - DSR name
@@ -48,18 +50,22 @@ Each message from the DSRs to the monitor has the following fields:
 - Remote endpoint (host, port)
 - Data direction, either "incoming" or "outgoing"
 - Current message number
-- Total messages expected to be sent (or 0 if incoming messages -- with the previous field this makes "100th message out of 10,000 to be sent" displays possible)
 - Current message size
 - Current message beginning (first 15 characters)
+- Total messages expected to be sent (or 0 if incoming messages -- with the previous field this makes "100th message out of 10,000 to be sent" displays possible)
 - Outgoing queue size (will always be 0 for incoming data, and 0 for outgoing data if the receiving end is keeping up)
 
-Each of the fields is a text string, and the full message is delimited by (fill in details).
+#### Monitor Log Message Wire Protocol
 
-TODO - define a format that makes Python deserialization easy. Specifically, are each of the text fields nul character terminated, or is there a length prefix? Do we want name / value pairs instead of value only fields? Is the end of the message delimited by a LF (line feed) character or CR / LF (carriage return / line feed)?
+The monitor message will be sent as a text message, with a newline ("\n") as the end character.
 
-The shutdown message is the only message sent from the monitor to the DSRs and has the following fields:
+Each of the fields is a text string (array of Ascii characters, UTF-8 without any extended characters) with a null character ("\0") at the end of the string.
 
-(Fill in details.)
+#### Shutdown Message Contents and Wire Protocol
+
+The shutdown message is the only message sent from the monitor to the DSRs and consists of three characters: "s\0\n"
+
+These three characters are a lower case "s" (short for shutdown), a null character and a newline character.
 
 ### TCP Data Sender Receiver
 
