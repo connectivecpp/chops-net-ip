@@ -71,7 +71,15 @@ public:
       m_monitor(), m_io_output(), m_prom(std::move(prom))
   {
      // make_tcp_connector, start, provide state chg func obj that does start_io,
+     chops::net::net_entity net_entity;
+     net_entity = net_ip.make_tcp_connector(monitor_port, monitor_host);
+     net_ip.start_io(HDR_SIZE, msg_hndlr, msg_frame);
+
      // providing msg handler for shutdown, make_err_func_with_wait_queue for error display
+     chops::net::err_wait_q wq; // copied this from error_delivery_test
+     auto err_func = chops::net::make_error_func_with_wait_queue<io_handler_mock>(wq);
+
+     auto shutdown_fut = shutdown_prom.get_future();
   }
   void send_monitor_msg (const monitor_msg_data& msg_data) const {
 
@@ -91,11 +99,11 @@ private:
 };
 
 inline chops::const_shared_buffer marshall_monitor_msg_data (const monitor_msg_data& msg_data) {
-
+// marshall transform to steam of bytes
 }
 
 inline monitor_msg_data unmarshall_monitor_msg_data (const chops::const_shared_buffer& buf) {
-
+// transform bytes to obj
 }
 
 } // end namespace test

@@ -17,5 +17,8 @@
 #include "test_data_blaster/monitor_msg.hpp"
 
 TEST_CASE("monitor message test", "[monitor_msg_test]") {
-
+// arrange act assert
+// set up monitor and recieve message on port
+// assert that messages are output via cout
+REQUIRE();
 }
