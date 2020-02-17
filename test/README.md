@@ -12,8 +12,7 @@ The `shared_test` directory contains common code used in the unit tests as well 
 
 ## Distributed Test Applications
 
-Since the networking unit tests run on `localhost`, there is a different set of applications in `test` which allow distributed testing. Typically these would be run on an internal private network, although they can also be run through public networks where the firewall 
-and other security settings can be appropriately set.
+Since the networking unit tests run on `localhost`, there is a another set of applications in `test` which allow distributed testing. Typically these would be run on an internal private network, although they can also be run through public networks where the firewall and other security settings can be appropriately set.
 
 ### Test Data Blaster (T-DB)
 
