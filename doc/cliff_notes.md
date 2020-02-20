@@ -14,6 +14,6 @@
 
 >Even though I didn't use "openhearted" in the name, it's an aspect that I aspire to in every part of my life. I fall short, very often, but not because of lack of effort or desire.
 
->I mentioned Tal earlier in this note, so here are two representative YouTube videos of her playing with Jeff Beck, who I consider one of the all time best guitarists. The first video is a blend of jazz, rock, and funk, the second is the two of them playing one of my favorite rock / jazz fusion ballads: https://www.youtube.com/watch?v=jVb-izZVCwQ, https://www.youtube.com/watch?v=blp7hPFaIfU
+>I mentioned Tal earlier in this note, so here is a representative YouTube video of her playing with Jeff Beck, who I consider one of the all time best guitarists. It is a blend of jazz, rock, and funk - https://www.youtube.com/watch?v=jVb-izZVCwQ.
 
->And since I'm on a music digression, an artist I often listen to while writing code is Helios. His music is instrumental, space music'ey, ambient, contains a nice amount of harmonic and rhythmic complexity, and is very melodic. Most important it doesn't interfere with my concentration. A good album to start with is Eingya: https://www.youtube.com/watch?v=fud-Lz76MHg
+>And since I'm on a music digression, an artist I often listen to while writing code is Helios. His music is instrumental, space music'ey, ambient, contains a nice amount of harmonic and rhythmic complexity, and is very melodic. Most important it doesn't interfere with my concentration. A good album to start with is Eingya.
