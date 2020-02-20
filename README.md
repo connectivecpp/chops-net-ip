@@ -114,5 +114,7 @@ See [References](https://connectivecpp.github.io/doc/references.html) for detail
 
 # About
 
-Team member information is [available here](https://connectivecpp.github.io/), and a few random author comments are [available here](doc/about.md).
+Team member information is [available here](https://connectivecpp.github.io/).
+
+A few "Cliff Notes" are [available here](doc/cliff_notes.md).
 

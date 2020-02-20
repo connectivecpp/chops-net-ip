@@ -1,5 +1,3 @@
-# Author Notes and Contributor Information
-
 ## A Cliff Note on the Chops Name
 
 >(from Cliff, 2018) Yes, the name / acronym is a stretch. Quite a stretch. I like the word "chops", which is a jazz term for strong technique, so I decided on that for a name. For example, "Check out Tal Wilkenfeld, she's got mad chops."
