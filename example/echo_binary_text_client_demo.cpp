@@ -27,10 +27,13 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 #include <iostream>
 #include <cstdlib> // EXIT_SUCCESS
 #include <cstddef> // std::size_t 
+#include <cstdint> // std::uint16_t, etc
 #include <string>
 #include <thread>
 #include <chrono>
 #include <cassert>
+
+#include "utility/cast_ptr_to.hpp"
 
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
@@ -83,9 +86,9 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
     return EXIT_SUCCESS;
 }
 
+constexpr std::size_t HDR_SIZE{2}; // 1st 2 bytes of data is message size
 
 int main(int argc, char* argv[]) {
-    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of data is message size
     const std::string PORT = "5002";
     const std::string LOCAL_LOOP = "127.0.0.1";
 
@@ -106,7 +109,7 @@ int main(int argc, char* argv[]) {
     // receive text, display to console
     auto msg_hndlr = [] (const_buf buf, io_output io_out, endpoint ep) {
         // create string from buf, omit 1st 2 bytes (header)
-        std::string s (static_cast<const char*> (buf.data()) + 2, buf.size() - 2);
+        std::string s (chops::cast_ptr_to<char>(buf.data()) + 2, buf.size() - 2);
         std::cout << s << std::endl;
     
         return true;
@@ -124,8 +127,8 @@ int main(int argc, char* argv[]) {
             hdr_processed = true;
             // 1st 2 bytes is message size
             // endian correct data marshalling
-            uint16_t size = chops::extract_val<uint16_t> 
-                                (static_cast<std::byte*> (buf.data()));
+	    std::uint16_t size = chops::extract_val<std::uint16_t> 
+                                (chops::cast_ptr_to<std::byte>(buf.data()));
             
             return size;
         }
@@ -194,11 +197,11 @@ int main(int argc, char* argv[]) {
         chops::mutable_shared_buffer buf_out;
         
         // 1st 2 bytes size of message (header) are the string length
-        uint16_t size_val = s.size();
+	std::uint16_t size_val = static_cast<std::uint16_t>(s.size()); // narrowing, hence the static cast
         // endian correct data marshalling
         std::byte tbuf[HDR_SIZE]; // temp buffer to hold the header
         // write those 2 bytes to the temp buffer
-        std::size_t result = chops::append_val<uint16_t>(tbuf, size_val);
+        std::size_t result = chops::append_val<std::uint16_t>(tbuf, size_val);
         assert(result == HDR_SIZE);
         // now append our header and string data to the output buffer
         buf_out.append(tbuf, sizeof(tbuf)); // write the header
