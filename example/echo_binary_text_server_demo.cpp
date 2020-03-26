@@ -72,8 +72,9 @@ bool processArgs(int argc, char* argv[], bool& print_errors, std::string& port) 
     return EXIT_SUCCESS;
 }
 
+constexpr std::size_t HDR_SIZE{2}; // 1st 2 bytes of data is message size
+
 int main(int argc, char* argv[]) {
-    const std::size_t HDR_SIZE = 2; // 1st 2 bytes of data is message size
     const std::string PORT = "5002";
 
     std::string port = PORT;

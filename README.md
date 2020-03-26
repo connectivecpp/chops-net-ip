@@ -1,9 +1,3 @@
-Branch | Status
-|---|---|
-**Master** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=master)](https://travis-ci.org/connectivecpp/chops-net-ip)
-**Develop** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
-
-
 # Chops Net IP - Connective Handcrafted Openwork Software for Asynchronous IP Networking
 
 Chops Net IP is a C++ library that makes asynchronous networking programming fun. Or at least if not fun, it makes network programming easier and safer, without significantly sacrificing performance. Chops Net IP handles Internet Protocol (IP) communications including TCP, UDP, and UDP multicast. It is written using modern C++ design idioms and the latest (2017) C++ standard.
@@ -12,23 +6,26 @@ Chops Net IP is not like any other high-level, general purpose C++ socket librar
 
 Chops Net IP is layered on top of the Asio asynchronous networking library, taking advantage of the portability and functionality that Asio provides. However, it simplifies network programming compared to coding against the Asio API, while providing easy scalability through the asynchronous facilities.
 
-# License
+# Build and Release Status, License Info
 
-[![Licence](https://img.shields.io/badge/license-boost-4480cc.svg)](http://www.boost.org/LICENSE_1_0.txt)
+Branch | Status
+|---|---|
+**Master** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=master)](https://travis-ci.org/connectivecpp/chops-net-ip)
+**Develop** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
 
-This project is distributed under the [Boost Software License](LICENSE.txt).
-
-## Chops Net IP Release Status
+**Latest tag:** ![Latest Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip)
 
 Release 1.0 is under development as of January 2020, awaiting CMake enhancements, a comprehensive tutorial, and additional testing under multiple compilers and platforms.
 
 Release notes and upcoming development plans are [available here](doc/release.md).
 
+This project is distributed under the [Boost Software License](LICENSE.txt): [![Licence](https://img.shields.io/badge/license-boost-4480cc.svg)](http://www.boost.org/LICENSE_1_0.txt)
+
 # Overview
 
 For many software developers, asynchronous network programming in C++ is not easy. It is complex, has many pitfalls, and requires designing C++ code in a way that is not natural, even for those with years of experience. Chops Net IP ("C"onnective "H"andcrafted "Op"enwork "S"oftware, Networking over Internet Protocol) simplifies asynchronous network programming and provides useful (and tasty!) abstractions for many types of communication patterns.
 
-Chops Net IP is layered on top of Chris Kohlhoff's Asio library (see [References](doc/references.md)) allowing it to be portable across many compilers and platforms. When the C++ Networking TS is standardized (possibly C++ 23 but more likely C++ 26) Chops Net IP will directly use the networking facilities of the C++ standard library.
+Chops Net IP is layered on top of Chris Kohlhoff's Asio library (see [References](https://connectivecpp.github.io/doc/references.html)) allowing it to be portable across many compilers and platforms. When the C++ Networking TS is standardized (possibly C++ 23 but more likely C++ 26) Chops Net IP will directly use the networking facilities of the C++ standard library.
 
 Chops Net IP simplifies application code that processes data on multiple simultaneous TCP connections or UDP endpoints. All Chops Net IP operations (from the application viewpoint) are no-wait (i.e. there are no blocking methods) and all network processing operations are performed asynchronously.
 
@@ -79,17 +76,9 @@ A detailed overview, a C++ socket library comparison, and a FAQ is [available he
 
 # C++ Language Requirements and Alternatives
 
-C++ 17 is the primary standards baseline for this repository. There is also one future C++ facility in use (`std::expected`, allowing error handling without using exceptions).
-
-A significant number of C++ 11 features are in the implementation and API. There are also C++ 14 and 17 features in use such as `std::byte`, `std::optional`, `std::variant` and `auto` parameters in lambda functions. For users that don't want to use the latest C++ compilers or compile with C++ 17 flags, Martin Moene provides an excellent set of header-only libraries that implement many useful C++ 17 library features (for older compilers or standards), as well as future C++ features (see [References](doc/references.md)).
-
-While the main production branch will always be developed and tested with C++ 17 features (and relatively current compilers), alternative branches and forks for older compiler versions are welcome. In particular, a branch using Martin's libraries and general C++ 11 (or C++ 14) conformance would be useful. A branch supporting a pre-C++ 11 compiler or language conformance is not likely to be directly supported through this repository (since it would require so many changes that it would result in a defacto different codebase).
+C++ 17 is the primary baseline for this repository. Additional notes on possible alternatives are [available here](https://connectivecpp.github.io/).
 
 # External Dependencies
-
-The libraries and API's have minimal (as possible) library dependencies (there are heavy dependencies on the C++ standard library in all of the code). There are more dependencies in the test code than in the production code.
-
-All the dependencies listed below have links that will take you to the library or repository.
 
 Production external dependencies:
 
@@ -104,7 +93,7 @@ There are single file headers that have been copied into the `third_party` direc
 
 - Martin Moene's [`expected-lite`](https://github.com/martinmoene/expected-lite) library.
 
-See [References](doc/references.md) for additional details.
+See [References](https://connectivecpp.github.io/doc/references.html) for additional details.
 
 # Supported Compilers and Platforms
 
@@ -121,9 +110,11 @@ Chops Net IP is header-only, so installation consists of downloading or cloning 
 
 # References
 
-See [References](doc/references.md) for details on dependencies and inspirations for Chops Net IP.
+See [References](https://connectivecpp.github.io/doc/references.html) for details on dependencies and inspirations for Chops Net IP.
 
 # About
 
-Team member information is [available here](https://connectivecpp.github.io/), and a few random author comments are [available here](doc/about.md).
+Team member information is [available here](https://connectivecpp.github.io/).
+
+A few "Cliff Notes" are [available here](doc/cliff_notes.md).
 

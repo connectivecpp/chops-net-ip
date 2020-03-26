@@ -134,7 +134,7 @@ int main() {
     // get std::string from user
     // send string data over network connection
     std::string s;
-    while (s != "quit\n") {
+    while (s != "quit\n" && std::cin.good()) {
         std::cout << "> ";
         std::getline (std::cin, s);
         s += "\n"; // needed for deliminator

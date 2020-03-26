@@ -1,4 +1,4 @@
-# Copyright 2019 by Cliff Green
+# Copyright 2019-2020 by Cliff Green
 #
 # https://github.com/connectivecpp/chops-net-ip
 #
@@ -9,11 +9,11 @@ cmake_minimum_required ( VERSION 3.8 )
 
 project ( chops-net-ip-test VERSION 1.0 LANGUAGES CXX )
 
-set ( test_source_dir "${CMAKE_SOURCE_DIR}/test" )
-set ( test_main_src "${test_source_dir}/main_test.cpp" )
-set ( test_include_dir "${test_source_dir}" )
-set ( tester_suffix "_runner" )
-set ( main_test_lib_name "main_test_lib" )
+include ( "${cmake_all_repos_include_dir}/unit_test_vars.cmake" )
+
+include ( "${cmake_include_dir}/header_dirs_var.cmake" )
+# the following will allow shared_test headers to be picked up by test code
+set (header_dirs ${header_dirs} "${CMAKE_SOURCE_DIR}/test" )
 
 set ( test_sources 
     "${test_source_dir}/shared_test/mock_classes_test.cpp"
@@ -41,71 +41,18 @@ set ( test_sources
     "${test_source_dir}/net_ip/tcp_connector_timeout_test.cpp"
     "${test_source_dir}/net_ip/net_ip_test.cpp" )
 
-set ( OPTIONS "" )
-set ( DEFINITIONS "" )
+include ( "${cmake_include_dir}/add_target_dependencies.cmake" )
 
-set ( header_dirs
-    "${include_source_dir}"
-    "${test_include_dir}"
-    )
-
-# Still learning find_package and related ways to bring in third party dependent include directories,
-# so don't judge, instead please help.
-
-set ( catch2_include_dir "${CMAKE_SOURCE_DIR}/../Catch2/single_include" )
-if ( NOT $ENV{CATCH2_INCLUDE_DIR} STREQUAL "" )
-    set ( catch2_include_dir $ENV{CATCH2_INCLUDE_DIR}} )
-endif()
-set ( utility_rack_include_dir
-    "${CMAKE_SOURCE_DIR}/../utility-rack/include"
-    "${CMAKE_SOURCE_DIR}/../utility-rack/third_party"
-    )
-if ( NOT $ENV{UTILITY_RACK_INCLUDE_DIR} STREQUAL "" )
-    set ( utility_rack_include_dir $ENV{UTILITY_RACK_INCLUDE_DIR}} )
-endif()
-set ( asio_include_dir "${CMAKE_SOURCE_DIR}/../asio/asio/include" )
-if ( NOT $ENV{ASIO_INCLUDE_DIR} STREQUAL "" )
-    set ( asio_include_dir $ENV{ASIO_INCLUDE_DIR}} )
-endif()
-
-function ( add_target_dependencies target )
-#    find_package ( utility-rack REQUIRED )
-#    target_include_directories ( ${target} PRIVATE ${utility-rack_INCLUDE_DIRS} )
-    target_include_directories ( ${target} PRIVATE ${utility_rack_include_dir} )
-#    find_package ( Catch2 REQUIRED )
-#    target_include_directories ( ${target} PRIVATE ${Catch2_INCLUDE_DIRS} )
-    target_include_directories ( ${target} PRIVATE ${catch2_include_dir} )
-#    find_package ( asio REQUIRED )
-#    target_include_directories ( ${target} PRIVATE ${asio_INCLUDE_DIRS} )
-    target_include_directories ( ${target} PRIVATE ${asio_include_dir} )
-endfunction()
-
-function ( add_target_info target )
-    target_compile_features    ( ${target} PRIVATE cxx_std_17 )
-    target_compile_options     ( ${target} PRIVATE ${OPTIONS} )
-    target_compile_definitions ( ${target} PRIVATE ${DEFINITIONS} )
-    target_include_directories ( ${target} PRIVATE ${header_dirs} )
-    add_target_dependencies    ( ${target} )
-endfunction()
-
-add_library ( ${main_test_lib_name} STATIC ${test_main_src} )
-add_target_info ( ${main_test_lib_name} )
-
-function ( make_exe target src )
-    add_executable        ( ${target} ${src} )
-    add_target_info       ( ${target} )
-    target_link_libraries ( ${target} PRIVATE pthread )
-    target_link_libraries ( ${target} PRIVATE ${main_test_lib_name} )
-    message ( "Test executable to create: ${target}" )
-    add_test ( NAME ${target}${tester_suffix} COMMAND ${target} )
-endfunction()
+include ( "${cmake_all_repos_include_dir}/add_target_info_func.cmake" )
+include ( "${cmake_all_repos_include_dir}/unit_test_main_lib.cmake" )
+include ( "${cmake_all_repos_include_dir}/target_exe_func.cmake" )
 
 enable_testing()
 
 foreach ( test_src IN LISTS test_sources )
     get_filename_component ( targ ${test_src} NAME_WE )
-    message ( "Calling make_exe for: ${targ}" )
-    make_exe ( ${targ} ${test_src} )
+    message ( "Calling unit_test_target_exe for: ${targ}" )
+    unit_test_target_exe ( ${targ} ${test_src} )
 endforeach()
 
 # end of file

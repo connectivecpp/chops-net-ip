@@ -2,7 +2,13 @@
 
 ## Release 1.0
 
-Release 1.0 is under development, expected in the first part of 2020. Additional platform and compiler testing is under way, in-depth tutorials are under development, and the marshalling library in the `utility-rack` repository needs to be completed.
+Release 1.0 is under development, expected in the first part of 2020. The functionality is already well tested under g++ and clang++ on Linux, MacOS, and Raspbian, but needs additional testing on other compilers and platforms including VC++ on Windows.
+
+### Next Steps, ToDo's, Problems, and Constraints:
+
+- The CMake files (CMakeLists.txts, etc) are working but enhancements and improvements are needed. CMake is relatively new for the Connective C++ team and enhancement requests are welcome.
+- Code coverage tools have not been used on the codebase.
+- The Doxygen annotation is mostly complete, but additional tutorial content is needed.
 
 ## Release 0.3
 
