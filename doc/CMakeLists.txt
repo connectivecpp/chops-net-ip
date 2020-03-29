@@ -5,7 +5,7 @@
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-cmake_minimum_required ( VERSION 3.9 )
+cmake_minimum_required ( VERSION 3.12 )
 
 project ( chops-net-ip-doc VERSION 1.0 LANGUAGES CXX )
 
