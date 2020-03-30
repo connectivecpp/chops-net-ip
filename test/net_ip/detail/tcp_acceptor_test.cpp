@@ -60,7 +60,7 @@
 using namespace chops::test;
 
 const char* test_port = "30434";
-const char* test_host = "";
+const char* test_host = "localhost";
 constexpr int num_msgs = 50;
 
 

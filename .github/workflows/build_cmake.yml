@@ -1,0 +1,85 @@
+# Note differences between Unix variants and Windows shell when invoking
+# multiple commands on one line - bash uses double ampersand, powershell
+# uses semi-colon
+#
+# Currently there is duplication, specially for the dependency management,
+# this should be refactored in the future
+#
+name: CMake Build Matrix
+
+on:
+  push:
+    branches:
+      - master
+      - develop
+
+jobs:
+
+  build-unixes:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        path: main
+    - name: checkout-utility-rack
+      uses: actions/checkout@v2
+      with:
+        repository: connectivecpp/utility-rack
+        path: utility-rack
+    - name: checkout-catch
+      uses: actions/checkout@v2
+      with:
+        repository: catchorg/Catch2
+        ref:  master
+        path: Catch2
+    - name: checkout-asio
+      uses: actions/checkout@v2
+      with:
+        repository: chriskohlhoff/asio
+        ref:  master
+        path: asio
+    - name: configure-cmake
+      run:  mkdir build && cd build && cmake ../main
+    - name: build
+      run:  cd build && cmake --build .
+    - name: unit-test
+      run:  cd build && ctest
+
+  build-windows:
+
+    runs-on: windows-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v2
+      with:
+        path: main
+    - name: checkout-utility-rack
+      uses: actions/checkout@v2
+      with:
+        repository: connectivecpp/utility-rack
+        path: utility-rack
+    - name: checkout-catch
+      uses: actions/checkout@v2
+      with:
+        repository: catchorg/Catch2
+        ref:  master
+        path: Catch2
+    - name: checkout-asio
+      uses: actions/checkout@v2
+      with:
+        repository: chriskohlhoff/asio
+        ref:  master
+        path: asio
+    - name: configure-cmake
+      run: mkdir build; cd build; cmake ../main
+    - name: build
+      run: cd build; cmake --build .
+    - name: unit-test
+      run: cd build; ctest -C "Debug"

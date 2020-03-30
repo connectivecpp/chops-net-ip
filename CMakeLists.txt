@@ -7,7 +7,7 @@
 
 # CMake 3.8 required for cxx_std_17 target_compile_features
 
-cmake_minimum_required ( VERSION 3.8 )
+cmake_minimum_required ( VERSION 3.12 )
 
 option ( CHOPS_NET_IP_OPT_BUILD_TESTS  "Build and perform chops-net-ip tests" ON )
 option ( CHOPS_NET_IP_OPT_BUILD_EXAMPLES  "Build and perform chops-net-ip examples" ON )

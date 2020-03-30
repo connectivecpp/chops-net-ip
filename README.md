@@ -8,10 +8,14 @@ Chops Net IP is layered on top of the Asio asynchronous networking library, taki
 
 # Build and Release Status, License Info
 
-Branch | Status
-|---|---|
-**Master** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=master)](https://travis-ci.org/connectivecpp/chops-net-ip)
-**Develop** | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
+**Travis CI Build Status:**
+
+*Master Branch* | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=master)](https://travis-ci.org/connectivecpp/chops-net-ip)
+*Develop Branch* | [![Build Status](https://travis-ci.org/connectivecpp/chops-net-ip.svg?branch=develop)](https://travis-ci.org/connectivecpp/chops-net-ip)
+
+**GitHub Actions CI Build Status:**
+
+![CMake Build Matrix](https://github.com/connectivecpp/chops-net-ip/workflows/CMake%20Build%20Matrix/badge.svg)
 
 **Latest tag:** ![Latest Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip)
 
