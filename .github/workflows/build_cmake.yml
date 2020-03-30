@@ -30,7 +30,7 @@ jobs:
     - name: checkout-utility-rack
       uses: actions/checkout@v2
       with:
-        repository: utility-rack
+        repository: connectivecpp/utility-rack
         path: utility-rack
     - name: checkout-catch
       uses: actions/checkout@v2
@@ -63,7 +63,7 @@ jobs:
     - name: checkout-utility-rack
       uses: actions/checkout@v2
       with:
-        repository: utility-rack
+        repository: connectivecpp/utility-rack
         path: utility-rack
     - name: checkout-catch
       uses: actions/checkout@v2
