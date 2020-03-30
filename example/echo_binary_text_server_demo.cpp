@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
         // create buffer to send altered text back to client
         chops::mutable_shared_buffer buf_out;
         // 1st 2 bytes are the size of the message
-        uint16_t size_val = s.size();
+        uint16_t size_val = static_cast<uint16_t>(s.size());
         // endian correct data marshalling
         std::byte tbuf[HDR_SIZE]; // temp buffer to hold the header
         // write those 2 bytes to the temp buffer

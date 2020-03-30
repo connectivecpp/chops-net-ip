@@ -50,7 +50,7 @@ void output_queue_test(const std::vector<E>& data_vec, int multiplier) {
   REQUIRE (qs.output_queue_size == tot);
   REQUIRE (qs.bytes_in_output_queue == chops::test::accum_io_buf_size(data_vec) * multiplier);
 
-  chops::repeat(tot, [&outq] {
+  chops::repeat(static_cast<int>(tot), [&outq] {
       auto e = outq.get_next_element();
 //      REQUIRE (e);
       assert (e);

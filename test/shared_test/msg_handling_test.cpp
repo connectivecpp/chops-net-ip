@@ -110,7 +110,7 @@ void make_msg_vec_test(F&& f) {
 
   GIVEN ("A preamble and a char to repeat") {
     auto empty = make_empty_body_msg(f);
-    int delta = empty.size();
+    auto delta = empty.size();
     REQUIRE (delta <= 2);
     WHEN ("make_msg_vec is called") {
       auto vb = make_msg_vec(f, "Good tea!", 'Z', 20);
