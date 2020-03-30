@@ -47,7 +47,7 @@
 using namespace chops::test;
 
 const char*   test_port = "30434";
-const char*   test_addr = "";
+const char*   test_addr = "localhost";
 constexpr int num_msgs = 50;
 
 // Catch test framework is not thread-safe, therefore all REQUIRE clauses must be in a single 
@@ -153,6 +153,7 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
   auto res = 
       chops::net::endpoints_resolver<asio::ip::tcp>(ioc).make_endpoints(true, test_addr, test_port);
   REQUIRE(res);
+
   asio::ip::tcp::acceptor acc(ioc, *(res->cbegin()));
 
   {

@@ -174,7 +174,7 @@ private:
     }
     m_io_common.clear();
     std::error_code ec;
-    m_socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+    m_socket.shutdown(asio::ip::tcp::socket::shutdown_receive, ec);
     m_socket.close(ec); 
     // notify the acceptor or connector that this tcp_io object is closed
     m_notifier_cb(err, shared_from_this());
@@ -298,7 +298,7 @@ inline void tcp_io::start_write(const chops::const_shared_buffer& buf) {
 inline void tcp_io::handle_write(const std::error_code& err, std::size_t /* num_bytes */) {
   if (err) {
     // read pops first, so usually no error is needed in write handlers
-    // m_notifier_cb(err, shared_from_this());
+    close(err);
     return;
   }
   m_io_common.write_next_elem([this] (const chops::const_shared_buffer& buf) {

@@ -46,7 +46,7 @@
 using namespace chops::test;
 
 const char* tcp_test_port = "30465";
-const char* tcp_test_host = "";
+const char* tcp_test_host = "localhost";
 constexpr int num_msgs = 50;
 
 const char*   udp_test_addr = "127.0.0.1";

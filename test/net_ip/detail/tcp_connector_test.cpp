@@ -60,7 +60,7 @@ using namespace chops::test;
 
 const char* test_port_var = "30777";
 const char* test_port_fixed = "30778";
-const char* test_host = "";
+const char* test_host = "localhost";
 constexpr int num_msgs = 50;
 constexpr std::chrono::milliseconds tout { 800 };
 
