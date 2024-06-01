@@ -1,24 +1,22 @@
 /** @file
  *
- *  @ingroup test_module
+ * @brief Test scenarios for @c udp_entity_io detail class.
  *
- *  @brief Test scenarios for @c udp_entity_io detail class.
+ * This test design is different in a few respects from the tcp_io, tcp_acceptor,
+ * and tcp_connector tests. In particular, multiple UDP senders are sending to one
+ * UDP receiver, so an empty message shutdown sequence won't work the same as with
+ * TCP connections (which are always one-to-one).
  *
- *  This test design is different in a few respects from the tcp_io, tcp_acceptor,
- *  and tcp_connector tests. In particular, multiple UDP senders are sending to one
- *  UDP receiver, so an empty message shutdown sequence won't work the same as with
- *  TCP connections (which are always one-to-one).
+ * @author Cliff Green
  *
- *  @author Cliff Green
+ * @copyright (c) 2018-2024 by Cliff Green
  *
- *  Copyright (c) 2018-2019 by Cliff Green
- *
- *  Distributed under the Boost Software License, Version 1.0. 
- *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+ * Distributed under the Boost Software License, Version 1.0. 
+ * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "asio/ip/udp.hpp"
 #include "asio/io_context.hpp"

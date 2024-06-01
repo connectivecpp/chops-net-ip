@@ -27,6 +27,9 @@ add_library ( chops::chops_net_ip ALIAS chops_net_ip )
 
 # thread support specified in Asio download
 
+include ( cmake/download_cpm.cmake )
+CPMAddPackage ( "gh:connectivecpp/shared_buffer@v1.0.0"
+
 include ( cmake/download_asio_cpm.cmake )
 
 # configure library target

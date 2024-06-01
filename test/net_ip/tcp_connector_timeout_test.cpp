@@ -1,19 +1,17 @@
 /** @file
  *
- *  @ingroup test_module
+ * @brief Unit tests for classes and functions in tcp_connector_timeout.hpp.
  *
- *  @brief Unit tests for classes and functions in tcp_connector_timeout.hpp.
+ * @author Nathan Deutsch
  *
- *  @author Nathan Deutsch
+ * @copyright (c) 2019-2024 by Cliff Green, Nathan Deutsch
  *
- *  Copyright (c) 2019 by Cliff Green, Nathan Deutsch
- *
- *  Distributed under the Boost Software License, Version 1.0. 
- *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+ * Distributed under the Boost Software License, Version 1.0. 
+ * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 #include "net_ip/tcp_connector_timeout.hpp"
 
 using namespace std::chrono_literals;
