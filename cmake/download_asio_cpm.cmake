@@ -11,7 +11,7 @@ set ( THREADS_PREFER_PTHREAD_FLAG TRUE )
 find_package ( Threads REQUIRED )
 
 include ( cmake/download_cpm.cmake )
-CPMAddPackage ( "gh:chriskohlhoff/asio#asio-1-30-2@1.30.2" )
+CPMAddPackage ( "gh:chriskohlhoff/asio#asio-1-32-0@1.32.0" )
 
 # ASIO doesn't use CMake, we have to configure it manually. Extra notes for using on Windows:
 #
