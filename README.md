@@ -6,6 +6,13 @@ Chops Net IP is not like any other high-level, general purpose C++ socket librar
 
 Chops Net IP is layered on top of the Asio asynchronous networking library, taking advantage of the portability and functionality that Asio provides. However, it simplifies network programming compared to coding against the Asio API, while providing easy scalability through the asynchronous facilities.
 
+Chops Net IP:
+
+1. Asio gotchas
+2. Simplifies many use cases
+3. API between TCP and UDP is similar, allowing shared code
+4. Provides callback points 
+
 #### Unit Test and Documentation Generation Workflow Status
 
 ![GH Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/connectivecpp/chops-net-ip/build_run_unit_test_cmake.yml?branch=main&label=GH%20Actions%20build,%20unit%20tests%20on%20main)
@@ -18,23 +25,23 @@ Chops Net IP is layered on top of the Asio asynchronous networking library, taki
 
 ## Overview
 
-`periodic_timer` is an asynchronous periodic timer that wraps and simplifies Asio timers when periodic callbacks are needed. The periodicity can be based on either a simple duration or on timepoints based on a duration.
-
-Timepoint calculations are performed by this class template so that timepoint durations don't "drift". In other words, if the processing during a callback takes 15 milliseconds, the next callback invocation is adjusted accordingly.
-
-Asynchronous timers from Asio are relatively easy to use. However, there are no timers that are periodic. This class simplifies the usage, using application supplied function object callbacks. When the timer is started, the application specifies whether each callback is invoked based on a duration (e.g. one second after the last callback), or on timepoints (e.g. a callback will be invoked each second according to the clock).
+(fill in)
 
 ## Generated Documentation
 
-The generated Doxygen documentation for `periodic_timer` is [here](https://connectivecpp.github.io/chops-net-ip/).
+The generated Doxygen documentation for `chops_net_ip` is [here](https://connectivecpp.github.io/chops-net-ip/).
 
 ## Dependencies
 
-The `periodic_timer` header file has the stand-alone Asio library for a dependency. Specific version (or branch) specs for the Asio dependency is in `cmake/download_asio_cpm.cmake`.
+The stand-alone Asio library is a dependency for Chops Net IP. Specific version (or branch) specs for the Asio dependency is in `cmake/download_asio_cpm.cmake`.
+
+The `shared_buffer` library from Connective C++ is a dependency, providing reference counted `std::byte` buffers.
+
+`expected_lite` from Martin Moene is a dependency, providing `std::expected` functionality for C++ 20 code baselines. If Chops Net IP transitions to a C++ 23 baseline, `expected_lite` will be replaced with `std::expected`.
 
 ## C++ Standard
 
-`periodic_timer` is built under C++ 20, but (currently) does not use any specific C++ 20 features. In the future `concepts` / `requires` will be added.
+`chops_net_ip` is built under C++ 20, using features such as `std::span`. In the future `concepts` / `requires` will be added.
 
 ## Supported Compilers
 
@@ -42,18 +49,18 @@ Continuous integration workflows build and unit test on g++ (through Ubuntu), MS
 
 ## Unit Test Dependencies
 
-The unit test code uses [Catch2](https://github.com/catchorg/Catch2). If the `PERIODIC_TIMER_BUILD_TESTS` flag is provided to Cmake (see commands below) the Cmake configure / generate will download the Catch2 library as appropriate using the [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) dependency manager. If Catch2 (v3 or greater) is already installed using a different package manager (such as Conan or vcpkg), the `CPM_USE_LOCAL_PACKAGES` variable can be set which results in `find_package` being attempted. Note that v3 (or later) of Catch2 is required.
+The unit test code uses [Catch2](https://github.com/catchorg/Catch2). If the `CHOPS_NET_IP_BUILD_TESTS` flag is provided to Cmake (see commands below) the Cmake configure / generate will download the Catch2 library as appropriate using the [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) dependency manager. If Catch2 (v3 or greater) is already installed using a different package manager (such as Conan or vcpkg), the `CPM_USE_LOCAL_PACKAGES` variable can be set which results in `find_package` being attempted. Note that v3 (or later) of Catch2 is required.
 
 Specific version (or branch) specs for the Catch2 dependency is in the [test/CMakeLists.txt](test/CMakeLists.txt) file, look for the `CPMAddPackage` command.
 
 ## Build and Run Unit Tests
 
-To build and run the unit test program:
+To build and run the unit test programs:
 
-First clone the `periodic-timer` repository, then create a build directory in parallel to the `periodic-timer` directory (this is called "out of source" builds, which is recommended), then `cd` (change directory) into the build directory. The CMake commands:
+First clone the `chops-net-ip` repository, then create a build directory in parallel to the `chops-net-ip` directory (this is called "out of source" builds, which is recommended), then `cd` (change directory) into the build directory. The CMake commands:
 
 ```
-cmake -D PERIODIC_TIMER_BUILD_TESTS:BOOL=ON ../periodic-timer
+cmake -D CHOPS_NET_IP_BUILD_TESTS:BOOL=ON ../chops_net_ip
 
 cmake --build .
 
@@ -63,8 +70,8 @@ ctest
 For additional test output, run the unit test individually, for example:
 
 ```
-test/periodic_timer_test -s
+test/net_ip/basic_io_output_test -s
 ```
 
-The example can be built by adding `-D PERIODIC_TIMER_BUILD_EXAMPLES:BOOL=ON` to the CMake configure / generate step.
+The examples can be built by adding `-D CHOPS_NET_IP_BUILD_EXAMPLES:BOOL=ON` to the CMake configure / generate step.
 

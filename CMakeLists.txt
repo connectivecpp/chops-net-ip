@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2024 by Cliff Green
+# Copyright (c) 2019-2025 by Cliff Green
 #
 # https://github.com/connectivecpp/chops-net-ip
 #
@@ -27,8 +27,11 @@ add_library ( chops::chops_net_ip ALIAS chops_net_ip )
 
 # thread support specified in Asio download
 
+# dependencies needed for main library
+
 include ( cmake/download_cpm.cmake )
-CPMAddPackage ( "gh:connectivecpp/shared_buffer@v1.0.0"
+CPMAddPackage ( "gh:connectivecpp/shared-buffer@1.0.3" )
+CPMAddPackage ( "gh:martinmoene/expected-lite@0.8.0" )
 
 include ( cmake/download_asio_cpm.cmake )
 

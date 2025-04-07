@@ -4,7 +4,7 @@
  *
  * @author Cliff Green
  *
- * @copyright (c) 2017-2024 by Cliff Green
+ * @copyright (c) 2017-2025 by Cliff Green
  *
  * Distributed under the Boost Software License, Version 1.0. 
  * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -18,9 +18,7 @@
 
 #include "net_ip/detail/output_queue.hpp"
 
-#include "marshall/shared_buffer.hpp"
-
-#include "utility/repeat.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "shared_test/io_buf.hpp"
 

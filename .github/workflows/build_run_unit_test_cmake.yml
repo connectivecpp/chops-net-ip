@@ -1,0 +1,31 @@
+# Build, run unit tests
+name: CMake build and run unit test matrix
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+env:
+  BUILD_TYPE: Release
+jobs:
+  build_matrix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15]
+          # os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: create-build-dir
+        run: mkdir build
+      - name: configure-cmake
+        run: cd build && cmake -D CHOPS_NET_IP_BUILD_TESTS:BOOL=ON -D CHOPS_NET_IP_BUILD_EXAMPLES:BOOL=ON ..
+      - name: build
+        run: cd build && cmake --build . --config $BUILD_TYPE
+      - name: run-unit-test
+        run: cd build && ctest -C $BUILD_TYPE

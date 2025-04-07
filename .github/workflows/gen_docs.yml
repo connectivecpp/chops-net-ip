@@ -1,0 +1,28 @@
+# Build, run unit tests
+name: Generate documentation
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build_matrix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: run-doxygen
+        uses: mattnotmitt/doxygen-action@v1.12.0
+        with:
+          working-directory: doc
+      - name: deploy-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./doc/doc_output/html

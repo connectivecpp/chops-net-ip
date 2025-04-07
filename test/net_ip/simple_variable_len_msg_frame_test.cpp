@@ -4,7 +4,7 @@
  *
  * @author Cliff Green
  *
- * @copyright (c) 2019-2024 by Cliff Green
+ * @copyright (c) 2019-2025 by Cliff Green
  *
  * Distributed under the Boost Software License, Version 1.0. 
  * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -15,7 +15,7 @@
 
 #include "asio/buffer.hpp"
 
-#include "utility/make_byte_array.hpp"
+#include "utility/byte_array.hpp"
 
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 #include "shared_test/msg_handling.hpp"

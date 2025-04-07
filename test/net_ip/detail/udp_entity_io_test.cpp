@@ -9,7 +9,7 @@
  *
  * @author Cliff Green
  *
- * @copyright (c) 2018-2024 by Cliff Green
+ * @copyright (c) 2018-2025 by Cliff Green
  *
  * Distributed under the Boost Software License, Version 1.0. 
  * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -32,6 +32,7 @@
 #include <functional> // std::ref, std::cref
 #include <algorithm> // std::transform
 #include <iterator> // std::back_inserter
+#include <ranges> // std::views::iota
 
 #include <cassert>
 
@@ -47,10 +48,9 @@
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/msg_handling_start_funcs.hpp"
 
-#include "marshall/shared_buffer.hpp"
+#include "buffer/shared_buffer.hpp"
 
-#include "utility/repeat.hpp"
-#include "utility/make_byte_array.hpp"
+#include "utility/byte_array.hpp"
 
 #include <iostream> // std::err for error sink
 
@@ -106,20 +106,19 @@ void start_var_udp_senders(const vec_buf& in_msg_vec, bool reply, int interval, 
 
   std::vector<iosp> senders;
 
-  chops::repeat(num_senders, [&ioc, &senders, &send_cnt, &err_wq] (int i) {
-      std::string port_num = std::to_string(test_port_base + i + 1);
-      auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, port_num, test_addr);
-      senders.push_back(send_ptr);
-      send_ptr->start([&send_cnt] (chops::net::udp_io_interface io, std::size_t, bool starting) {
-            if (starting) {
-              auto r = udp_start_io(io, false, send_cnt);
-              assert (r);
-            }
-          }, 
-        chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
-      );
-    }
-  );
+  for (int i : std::views::iota(0, num_senders)) {
+    std::string port_num = std::to_string(test_port_base + i + 1);
+    auto send_ptr = std::make_shared<chops::net::detail::udp_entity_io>(ioc, port_num, test_addr);
+    senders.push_back(send_ptr);
+    send_ptr->start([&send_cnt] (chops::net::udp_io_interface io, std::size_t, bool starting) {
+          if (starting) {
+            auto r = udp_start_io(io, false, send_cnt);
+            assert (r);
+          }
+        }, 
+      chops::net::make_error_func_with_wait_queue<chops::net::udp_io>(err_wq)
+    );
+  }
   send_data (in_msg_vec, interval, recv_endp, senders, false);
 }
 

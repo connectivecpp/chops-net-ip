@@ -30,7 +30,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -50,6 +50,7 @@
 #include <chrono>
 #include <thread>
 #include <future>
+#include <ranges> // std::views::iota
 
 #include <cassert>
 #include <limits>
@@ -58,11 +59,10 @@
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 #include "asio/ip/address.hpp" // make_address
 
-#include "utility/repeat.hpp"
-#include "utility/make_byte_array.hpp"
+#include "utility/byte_array.hpp"
 
-#include "marshall/extract_append.hpp"
-#include "marshall/shared_buffer.hpp"
+#include "serialize/extract_append.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "net_ip/basic_io_output.hpp"
 #include "net_ip/queue_stats.hpp"
@@ -117,10 +117,9 @@ using vec_buf = std::vector<chops::const_shared_buffer>;
 template <typename F>
 vec_buf make_msg_vec(F&& func, std::string_view pre, char body_char, int num_msgs) {
   vec_buf vec;
-  chops::repeat(num_msgs, [&vec, f = std::forward<F>(func), pre, body_char] (int i) {
-      vec.push_back (f(make_body_buf(pre, body_char, i+1)));
-    }
-  );
+  for (int i : std::views::iota(0, num_msgs)) {
+    vec.push_back (func(make_body_buf(pre, body_char, i+1)));
+  }
   return vec;
 }
 
@@ -139,10 +138,9 @@ inline chops::const_shared_buffer make_fixed_size_buf() {
 
 inline vec_buf make_fixed_size_msg_vec(int num_msgs) {
   vec_buf vec;
-  chops::repeat(num_msgs, [&vec] {
-      vec.push_back (make_fixed_size_buf());
-    }
-  );
+  for (int i : std::views::iota(0, num_msgs)) {
+    vec.push_back (make_fixed_size_buf());
+  }
   return vec;
 }
 

@@ -9,7 +9,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018-2019 by Cliff Green
+ *  Copyright (c) 2018-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -33,6 +33,7 @@
 #include <string_view>
 #include <vector>
 #include <deque>
+#include <ranges> // std::views::iota
 
 #include <cassert>
 
@@ -50,8 +51,7 @@
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/msg_handling_start_funcs.hpp"
 
-#include "marshall/shared_buffer.hpp"
-#include "utility/repeat.hpp"
+#include "buffer/shared_buffer.hpp"
 #include "queue/wait_queue.hpp"
 
 #include <iostream> // std::cerr for error sink
@@ -81,29 +81,28 @@ std::size_t start_fixed_connectors(int num_conns, std::size_t expected_cnt,
     std::vector<chops::net::detail::tcp_connector_shared_ptr> connectors;
     std::vector<std::future<std::size_t>> conn_futs;
 
-    chops::repeat(num_conns, [&connectors, &conn_futs, &conn_cnt, &err_wq, &ioc, expected_cnt] () {
-        auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                           std::string_view(test_port_fixed), std::string_view(test_host),
-                           chops::net::simple_timeout(tout), false);
+    for (int i : std::views::iota(0, num_conns)) {
+      auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                         std::string_view(test_port_fixed), std::string_view(test_host),
+                         chops::net::simple_timeout(tout), false);
 
-        connectors.push_back(conn_ptr);
-        // promise needs to be copyable since io state chg is stored in std::function
-        auto prom_ptr = std::make_shared<test_prom>();
-        conn_futs.push_back(std::move(prom_ptr->get_future()));
+      connectors.push_back(conn_ptr);
+      // promise needs to be copyable since io state chg is stored in std::function
+      auto prom_ptr = std::make_shared<test_prom>();
+      conn_futs.push_back(std::move(prom_ptr->get_future()));
 
-        auto r = conn_ptr->start( [&conn_cnt, expected_cnt, &err_wq, prom_ptr]
-                         (chops::net::tcp_io_interface io, std::size_t num, bool starting) {
-              if (starting) {
-                auto r = io.start_io(fixed_size_buf_size,
-                                     tcp_fixed_size_msg_hdlr(std::move(*prom_ptr), expected_cnt, conn_cnt));
-                assert(r);
-              }
-            },
-          chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-        );
-        assert (!r);
-      }
-    );
+      auto r = conn_ptr->start( [&conn_cnt, expected_cnt, &err_wq, prom_ptr]
+                       (chops::net::tcp_io_interface io, std::size_t num, bool starting) {
+            if (starting) {
+              auto r = io.start_io(fixed_size_buf_size,
+                                   tcp_fixed_size_msg_hdlr(std::move(*prom_ptr), expected_cnt, conn_cnt));
+              assert(r);
+            }
+          },
+        chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+      );
+      assert (!r);
+    }
 
     // wait for futures to pop
     for (auto& fut : conn_futs) {
@@ -154,40 +153,37 @@ std::size_t start_var_connectors(const vec_buf& in_msg_vec,
   {
     std::vector<chops::net::detail::tcp_connector_shared_ptr> connectors;
 
-    chops::repeat(num_conns, [&connectors, &start_io_wq, &stop_io_wq,
-                              delim, &conn_cnt, &err_wq, &ioc] () {
-        auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
-                           std::string_view(test_port_var), std::string_view(test_host),
-                           chops::net::simple_timeout(tout), false);
+    for (int i : std::views::iota(0, num_conns)) {
+      auto conn_ptr = std::make_shared<chops::net::detail::tcp_connector>(ioc,
+                         std::string_view(test_port_var), std::string_view(test_host),
+                         chops::net::simple_timeout(tout), false);
 
-        connectors.push_back(conn_ptr);
+      connectors.push_back(conn_ptr);
 
-        auto r = conn_ptr->start( [&start_io_wq, &stop_io_wq, delim, &conn_cnt, &err_wq]
-                         (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
-              if (starting) {
-                auto r = tcp_start_io(io, false, delim, conn_cnt);
-                assert(r);
-                start_io_wq.emplace_push(*(io.make_io_output()), num, starting);
-              }
-              else {
-                stop_io_wq.emplace_push(*(io.make_io_output()), num, starting);
-              }
-            },
-          chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-        );
-        assert (!r);
-      }
-    );
+      auto r = conn_ptr->start( [&start_io_wq, &stop_io_wq, delim, &conn_cnt, &err_wq]
+                       (chops::net::tcp_io_interface io, std::size_t num, bool starting ) {
+            if (starting) {
+              auto r = tcp_start_io(io, false, delim, conn_cnt);
+              assert(r);
+              start_io_wq.emplace_push(*(io.make_io_output()), num, starting);
+            }
+            else {
+              stop_io_wq.emplace_push(*(io.make_io_output()), num, starting);
+            }
+          },
+        chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
+      );
+      assert (!r);
+    }
     // get all of the starting io_output objects
     std::vector<chops::net::tcp_io_output> io_outs;
-    chops::repeat(num_conns, [&start_io_wq, &io_outs] () {
-        // will hang if num io_outputs popped doesn't match num pushed
-        auto d = *(start_io_wq.wait_and_pop());
-        assert (d.starting);
-        assert (d.num_handlers == 1u);
-        io_outs.push_back(d.io_out);
-      }
-    );
+    for (int i : std::views::iota(0, num_conns)) {
+      // will hang if num io_outputs popped doesn't match num pushed
+      auto d = *(start_io_wq.wait_and_pop());
+      assert (d.starting);
+      assert (d.num_handlers == 1u);
+      io_outs.push_back(d.io_out);
+    }
     // send messages through all the connectors
     for (const auto& buf : in_msg_vec) {
       for (auto& io : io_outs) {
@@ -206,12 +202,11 @@ std::size_t start_var_connectors(const vec_buf& in_msg_vec,
           poll_output_queue_cond(200, std::cerr));
 
     // wait for disconnect indications
-    chops::repeat(num_conns, [&stop_io_wq] () {
-        auto d = *(stop_io_wq.wait_and_pop());
-        assert (!d.starting);
-        assert (d.num_handlers == 0u);
-      }
-    );
+    for (int i : std::views::iota(0, num_conns)) {
+      auto d = *(stop_io_wq.wait_and_pop());
+      assert (!d.starting);
+      assert (d.num_handlers == 0u);
+    }
     // stop all connectors
     for (auto& conn : connectors) {
       conn->stop();

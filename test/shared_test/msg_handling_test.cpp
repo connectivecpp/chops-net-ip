@@ -12,7 +12,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018-2019 by Cliff Green
+ *  Copyright (c) 2018-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -29,12 +29,13 @@
 #include <memory> // std::shared_ptr, std::make_shared
 #include <future>
 #include <iostream> // std::cerr
+#include <ranges> // std::views::iota
 
 #include "asio/ip/udp.hpp"
 #include "asio/buffer.hpp"
 
-#include "utility/make_byte_array.hpp"
-#include "marshall/shared_buffer.hpp"
+#include "utility/byte_array.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "net_ip/basic_io_output.hpp"
 #include "net_ip/queue_stats.hpp"
@@ -116,7 +117,9 @@ void make_msg_vec_test(F&& f) {
       auto vb = make_msg_vec(f, "Good tea!", 'Z', 20);
       THEN ("a vector of buffers is returned") {
         REQUIRE (vb.size() == 20);
-        chops::repeat(20, [&vb, delta] (int i) { REQUIRE (vb[i].size() == (i+10+delta)); } );
+        for (int i : std::views::iota(0, 20)) {
+          REQUIRE (vb[i].size() == (i+10+delta));
+	}
       }
     }
   } // end given

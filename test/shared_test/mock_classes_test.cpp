@@ -26,8 +26,8 @@
 #include "asio/ip/udp.hpp"
 #include "asio/buffer.hpp"
 
-#include "utility/make_byte_array.hpp"
-#include "marshall/shared_buffer.hpp"
+#include "utility/byte_array.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 

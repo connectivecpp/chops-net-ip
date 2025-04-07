@@ -23,7 +23,7 @@
 
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 
-#include "marshall/shared_buffer.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"

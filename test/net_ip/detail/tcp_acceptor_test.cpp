@@ -1,5 +1,4 @@
-/** @file
- *
+/*
  * @brief Test scenarios for @c tcp_acceptor detail class.
  *
  * This test is similar to the tcp_io_test code, with a little bit less
@@ -9,7 +8,7 @@
  *
  * @author Cliff Green
  *
- * @copyright (c) 2018-2024 by Cliff Green
+ * @copyright (c) 2018-2025 by Cliff Green
  *
  * Distributed under the Boost Software License, Version 1.0. 
  * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -35,6 +34,7 @@
 #include <functional> // std::ref, std::cref
 #include <string_view>
 #include <vector>
+#include <ranges> // std::views::iota
 
 #include <cassert>
 
@@ -49,8 +49,7 @@
 #include "shared_test/msg_handling.hpp"
 #include "shared_test/msg_handling_start_funcs.hpp"
 
-#include "marshall/shared_buffer.hpp"
-#include "utility/repeat.hpp"
+#include "buffer/shared_buffer.hpp"
 
 
 // #include <iostream>
@@ -84,10 +83,9 @@ std::error_code read_only_func(asio::io_context& ioc) {
 
 void start_read_only_funcs (asio::io_context& ioc, int num_conns) {
   std::vector<std::future<std::error_code>> conn_futs;
-  chops::repeat(num_conns, [&ioc, &conn_futs] () {
-      conn_futs.emplace_back(std::async(std::launch::async, read_only_func, std::ref(ioc)));
-    }
-  );
+  for (int i : std::views::iota(0, num_conns)) {
+    conn_futs.emplace_back(std::async(std::launch::async, read_only_func, std::ref(ioc)));
+  }
   for (auto& fut : conn_futs) {
     auto e = fut.get(); // wait for connectors to finish
     std::cerr << "Read only future popped, err code: " << e.message() << std::endl;
@@ -120,11 +118,9 @@ std::size_t start_fixed_data_funcs (asio::io_context& ioc, int num_conns) {
   std::size_t conn_cnt = 0;
   std::vector<std::future<std::size_t>> conn_futs;
 
-  chops::repeat(num_conns, [&ioc, &conn_futs] () {
-      conn_futs.emplace_back(std::async(std::launch::async, fixed_data_func, std::ref(ioc)));
-
-    }
-  );
+  for (int i : std::views::iota(0, num_conns)) {
+    conn_futs.emplace_back(std::async(std::launch::async, fixed_data_func, std::ref(ioc)));
+  }
   for (auto& fut : conn_futs) {
     conn_cnt += fut.get(); // wait for connectors to finish
   }
@@ -160,12 +156,11 @@ std::size_t start_var_data_funcs (const vec_buf& var_msg_vec, asio::io_context& 
   std::size_t conn_cnt = 0;
   std::vector<std::future<std::size_t>> conn_futs;
 
-  chops::repeat(num_conns, [&] () {
-      conn_futs.emplace_back(std::async(std::launch::async, var_data_func, std::cref(var_msg_vec), 
-                             std::ref(ioc), reply, interval, empty_msg));
+  for (int i : std::views::iota(0, num_conns)) {
+    conn_futs.emplace_back(std::async(std::launch::async, var_data_func, std::cref(var_msg_vec), 
+                           std::ref(ioc), reply, interval, empty_msg));
 
-    }
-  );
+  }
   for (auto& fut : conn_futs) {
     conn_cnt += fut.get(); // wait for connectors to finish
   }
