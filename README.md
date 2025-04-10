@@ -37,7 +37,7 @@ The stand-alone Asio library is a dependency for Chops Net IP. Specific version 
 
 The `shared_buffer` library from Connective C++ is a dependency, providing reference counted `std::byte` buffers.
 
-`expected_lite` from Martin Moene is a dependency, providing `std::expected` functionality for C++ 20 code baselines. If Chops Net IP transitions to a C++ 23 baseline, `expected_lite` will be replaced with `std::expected`.
+`expected_lite` from Martin Moene is a dependency, providing `std::expected` functionality for C++ 20 code baselines. Chops Net IP uses `nonstd::expected` in the codebase per Martin's library and will transition to `std::expected` when C++ 23 becomes the baseline.
 
 ## C++ Standard
 

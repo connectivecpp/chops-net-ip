@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -26,7 +26,7 @@
 #include <variant> // std::visit
 #include <type_traits> // std::enable_if
 
-#include <mutex>
+#include <mutex> // std::scoped_lock, std::mutex
 
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
@@ -130,7 +130,7 @@ private:
   std::vector<detail::udp_entity_io_shared_ptr> m_udp_entities;
 
 private:
-  using lg = std::lock_guard<std::mutex>;
+  using lg = std::scoped_lock<std::mutex>;
 
 public:
 
