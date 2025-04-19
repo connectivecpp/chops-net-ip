@@ -31,13 +31,13 @@ Chops Net IP:
 
 The generated Doxygen documentation for `chops_net_ip` is [here](https://connectivecpp.github.io/chops-net-ip/).
 
-## Dependencies
+## Library Dependencies
 
-The stand-alone Asio library is a dependency for Chops Net IP. Specific version (or branch) specs for the Asio dependency is in `cmake/download_asio_cpm.cmake`.
+The stand-alone Asio library is a dependency for Chops Net IP. Specific version (or branch) specs for the Asio dependency is in [`cmake/download_asio_cpm.cmake`](cmake/download_asio_cpm.cmake).
 
-The `shared_buffer` library from Connective C++ is a dependency, providing reference counted `std::byte` buffers.
+The [`shared_buffer`](https://github.com/connectivecpp/shared-buffer) library from Connective C++ is a dependency, providing reference counted `std::byte` buffers.
 
-`expected_lite` from Martin Moene is a dependency, providing `std::expected` functionality for C++ 20 code baselines. Chops Net IP uses `nonstd::expected` in the codebase per Martin's library and will transition to `std::expected` when C++ 23 becomes the baseline.
+[`expected_lite`](https://github.com/martinmoene/expected-lite) from Martin Moene is a dependency, providing `std::expected` functionality for C++ 20 code baselines. Chops Net IP uses `nonstd::expected` in the codebase per Martin's library and will transition to `std::expected` when C++ 23 becomes the baseline.
 
 ## C++ Standard
 
@@ -52,6 +52,10 @@ Continuous integration workflows build and unit test on g++ (through Ubuntu), MS
 The unit test code uses [Catch2](https://github.com/catchorg/Catch2). If the `CHOPS_NET_IP_BUILD_TESTS` flag is provided to Cmake (see commands below) the Cmake configure / generate will download the Catch2 library as appropriate using the [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) dependency manager. If Catch2 (v3 or greater) is already installed using a different package manager (such as Conan or vcpkg), the `CPM_USE_LOCAL_PACKAGES` variable can be set which results in `find_package` being attempted. Note that v3 (or later) of Catch2 is required.
 
 Specific version (or branch) specs for the Catch2 dependency is in the [test/CMakeLists.txt](test/CMakeLists.txt) file, look for the `CPMAddPackage` command.
+
+## Example Dependencies
+
+(Fill in).
 
 ## Build and Run Unit Tests
 
