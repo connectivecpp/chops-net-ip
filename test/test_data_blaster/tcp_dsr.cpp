@@ -7,7 +7,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2019 by Cliff Green
+ *  Copyright (c) 2019-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -35,7 +35,7 @@
 #include "net_ip_component/error_delivery.hpp"
 
 #include "shared_test/msg_handling.hpp"
-#include "marshall/shared_buffer.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "test_data_blaster/dsr_args.hpp"
 #include "test_data_blaster/monitor_msg_handling.hpp"

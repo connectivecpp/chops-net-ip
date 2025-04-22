@@ -8,7 +8,7 @@ Multiple data sender / receiver (DSR) instances are running at the same time (at
 
 A single instance of the monitor (either the C++ or Python version) shows statistics from the DSR instances. The monitor is also responsible for shutting down the DSRs. The same monitor instance can be running for both TCP and UDP DSRs (the log messages sent to the monitor from the DSRs specify whether the test data is being sent over TCP or UDP).
 
-The message definitions between the DSRs and the monitor are text only, so binary endianness is not a factor, and will run on any platform. The data flowing between DSRs is marshalled and unmarshalled as needed by the DSRs.
+The message definitions between the DSRs and the monitor are text only, so binary endianness is not a factor, and will run on any platform. The data flowing between DSRs is serialized and deserialized as needed by the DSRs.
 
 ## Usage
 
@@ -88,7 +88,7 @@ If the "reply" command line parameter is set, an incoming message is reflected b
 
 Degenerate configurations are possible, with infinite message loops or where connection and shutdown timing is not clear. No special coding is in the T-DB to protect for bad configurations.
 
-The DSR internal data messages uses the binary marshalled message format from the `shared_test` facilities (see `msg_handling.hpp` for specific code). The monitor messages are text based messages with all fields in a string format easy to unmarshall for Python applications.
+The DSR internal data messages uses the binary serialized message format from the `shared_test` facilities (see `msg_handling.hpp` for specific code). The monitor messages are text based messages with all fields in a string format easy to deserialize for Python applications.
 
 The general logic flow:
 - Process command line arguments

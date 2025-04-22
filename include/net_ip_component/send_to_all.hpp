@@ -10,7 +10,7 @@
  *
  *  The "send to all but one" functionality added by Thurman in Oct, 2019.
  *
- *  Copyright (c) 2019 by Cliff Green, Thurman Gillespy
+ *  Copyright (c) 2019-2025 by Cliff Green, Thurman Gillespy
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -31,8 +31,7 @@
 
 #include "net_ip_component/output_queue_stats.hpp"
 
-#include "utility/erase_where.hpp"
-#include "marshall/shared_buffer.hpp"
+#include "buffer/shared_buffer.hpp"
 
 namespace chops {
 namespace net {
@@ -64,7 +63,7 @@ namespace net {
 template <typename IOT>
 class send_to_all {
 private:
-  using lock_guard  = std::lock_guard<std::mutex>;
+  using lock_guard  = std::scoped_lock<std::mutex>;
   using io_out      = chops::net::basic_io_output<IOT>;
   using io_outs     = std::vector<io_out>;
   using io_interface = chops::net::basic_io_interface<IOT>;
@@ -91,7 +90,7 @@ public:
  */
   void remove_io_output(io_out io) {
     lock_guard gd { m_mutex };
-    chops::erase_where(m_io_outs, io);
+    std::erase_if (m_io_outs, [io] (auto out) { return io == out; } );
   }
 
 /**

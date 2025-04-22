@@ -41,9 +41,6 @@
 
 #include "net_ip/tcp_connector_timeout.hpp"
 
-#include "utility/erase_where.hpp"
-#include "utility/overloaded.hpp"
-
 namespace chops {
 namespace net {
 
@@ -391,10 +388,17 @@ public:
  */
   void remove(net_entity ent) {
     lg g(m_mutex);
-    std::visit (chops::overloaded {
-        [this] (detail::tcp_acceptor_weak_ptr p) { chops::erase_where(m_acceptors, p.lock()); },
-        [this] (detail::tcp_connector_weak_ptr p) { chops::erase_where(m_connectors, p.lock()); },
-        [this] (detail::udp_entity_io_weak_ptr p) { chops::erase_where(m_udp_entities, p.lock()); },
+// overloaded utility brought in from net_entity.hpp
+    std::visit (detail::overloaded {
+        [this] (detail::tcp_acceptor_weak_ptr p) { 
+          std::erase_if(m_acceptors, [p] (detail::tcp_acceptor_shared_ptr sp) { sp == p.lock(); } )
+	},
+        [this] (detail::tcp_connector_weak_ptr p) { 
+          std::erase_if(m_connectors, [p] (detail::tcp_connector_shared_ptr sp) { sp == p.lock(); } )
+	},
+        [this] (detail::udp_entity_io_weak_ptr p) {
+          std::erase_if(m_udp_entities, [p] (detail::udp_entity_io_shared_ptr sp) { sp == p.lock(); } )
+	}
       }, ent.m_wptr);
   }
 
