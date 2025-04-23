@@ -15,7 +15,7 @@ set ( example_app_names local_echo_demo
                         echo_binary_text_server_demo
                         echo_binary_text_client_demo
                         udp_broadcast_demo
-                        udp_receive_demo )
+                        udp_receiver_demo )
 
 set ( CMAKE_THREAD_PREFER_PTHREAD TRUE )
 set ( THREADS_PREFER_PTHREAD_FLAG TRUE )
