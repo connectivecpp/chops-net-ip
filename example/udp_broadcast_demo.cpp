@@ -36,6 +36,7 @@ udp_broadcast_demo.cpp -lpthread -o udp_broad
 #include "net_ip/net_entity.hpp"
 #include "net_ip_component/worker.hpp"
 #include "net_ip/io_type_decls.hpp"
+#include "asio/ip/network_v4.hpp"
 
 using io_output = chops::net::udp_io_output;
 
@@ -68,7 +69,7 @@ bool process_args(int argc, char* argv[], bool& print_errors, std::string& ip_ad
                 
     int offset = 0;
 
-    using addr4 = asio::ip::address_v4;
+    using addr4 = asio::ip::network_v4;
 
     if (argc == 1 || argv[1] == HELP_PRM) {
         print_useage();

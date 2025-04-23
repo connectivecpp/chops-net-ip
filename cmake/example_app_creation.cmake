@@ -9,6 +9,8 @@ foreach ( example_app_name IN LISTS example_app_names )
   add_executable ( ${example_app_name} ${example_app_name}.cpp )
   target_compile_features ( ${example_app_name} PRIVATE cxx_std_20 )
   target_link_libraries ( ${example_app_name} PRIVATE 
-      Threads::Threads chops_net_ip asio shared_buffer expected-lite Catch2::Catch2WithMain )
+      Threads::Threads 
+      chops_net_ip asio expected-lite shared_buffer
+      utility_rack wait_queue binary_serialize )
 endforeach()
 
