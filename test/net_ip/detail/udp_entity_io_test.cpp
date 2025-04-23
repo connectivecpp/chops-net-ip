@@ -231,7 +231,7 @@ void udp_test (const vec_buf& in_msg_vec, const vec_buf& fixed_msg_vec,
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  err_wq.close();
+  err_wq.request_stop();
   auto cnt = err_fut.get();
   INFO ("Number of messages passed thru error queue: " << cnt);
 

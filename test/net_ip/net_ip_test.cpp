@@ -187,6 +187,7 @@ std::size_t acc_conn_fixed_test (asio::io_context& ioc, chops::net::err_wait_q& 
 
   for (int i : std::views::iota(0, num_conns)) {
 
+    auto exp = fixed_msg_vec.size();
     auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host);
     auto prom_ptr = std::make_shared<test_prom>();
     conn_futs.push_back(std::move(prom_ptr->get_future()));
@@ -310,7 +311,7 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  err_wq.close();
+  err_wq.request_stop();
   auto err_cnt = err_fut.get();
   INFO ("Num err messages in sink: " << err_cnt);
 

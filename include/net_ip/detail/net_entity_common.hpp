@@ -17,7 +17,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -27,7 +27,7 @@
 #ifndef NET_ENTITY_COMMON_HPP_INCLUDED
 #define NET_ENTITY_COMMON_HPP_INCLUDED
 
-#include "asio/executor.hpp"
+#include "asio/any_io_executor.hpp"
 #include "asio/post.hpp"
 
 #include <atomic>
@@ -75,7 +75,7 @@ public:
 
   template <typename F1, typename F2, typename SF>
   std::error_code start(F1&& io_state_chg_func, F2&& err_func, 
-                        const asio::executor& exec,
+                        const asio::any_io_executor& exec,
                         SF&& start_func) {
     int expected = 0;
     if (!m_started.compare_exchange_strong(expected, 1)) {
@@ -95,7 +95,7 @@ public:
  
 
   template <typename SF>
-  std::error_code stop(const asio::executor& exec,
+  std::error_code stop(const asio::any_io_executor& exec,
                        SF&& stop_func) {
     int expected = 1;
     if (!m_started.compare_exchange_strong(expected, 2)) {

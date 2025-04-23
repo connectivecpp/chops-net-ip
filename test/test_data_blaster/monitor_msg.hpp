@@ -56,6 +56,7 @@ struct shutdown_msg {
 };
 
 
+/*
 inline chops::const_shared_buffer serialize_monitor_msg_data (const monitor_msg_data& msg_data) {
     // work in progress
     return null;
@@ -75,7 +76,10 @@ inline std::string deserialize_shutdown_message() {
   // work in progress
   return null;
 }
+*/
 
 
 }
 }
+#endif
+

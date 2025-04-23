@@ -72,7 +72,7 @@ namespace test {
 
 inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
   assert (sz == 2u);
-  return extract_val<std::uint16_t>(buf_ptr);
+  return extract_val<std::endian::big, std::uint16_t>(buf_ptr);
 }
 
 inline chops::mutable_shared_buffer make_body_buf(std::string_view pre, 
@@ -86,7 +86,7 @@ inline chops::mutable_shared_buffer make_body_buf(std::string_view pre,
 inline chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
   assert(body.size() < std::numeric_limits<std::uint16_t>::max());
   std::byte hdr[2];
-  auto sz = append_val(hdr, static_cast<std::uint16_t>(body.size()));
+  auto sz = append_val<std::endian::big, std::uint16_t>(hdr, body.size());
   chops::mutable_shared_buffer msg(hdr, 2);
   return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
 }

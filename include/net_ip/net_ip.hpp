@@ -94,7 +94,10 @@ namespace net {
  *  other words, no event loop or @c run methods are available. Instead, the
  *  @c net_ip class takes an @c asio @c io_context as a constructor parameter and 
  *  application code will use the @c asio executor methods for invoking
- *  the underlying asynchronous operations.
+ *  the underlying asynchronous operations. The most current (as of early 2025)
+ *  @c asio executor class, matching the C++ 26 standard executor, is the @c asio 
+ *  @c any_io_executor class.
+ *
  *
  *  For convenience, a class named @c worker in the @c net_ip_component directory 
  *  combines an executor with a work guard and creates a thread to invoke the asynchronous 
@@ -391,13 +394,13 @@ public:
 // overloaded utility brought in from net_entity.hpp
     std::visit (detail::overloaded {
         [this] (detail::tcp_acceptor_weak_ptr p) { 
-          std::erase_if(m_acceptors, [p] (detail::tcp_acceptor_shared_ptr sp) { sp == p.lock(); } )
+          std::erase_if(m_acceptors, [p] (detail::tcp_acceptor_shared_ptr sp) { return sp == p.lock(); } );
 	},
         [this] (detail::tcp_connector_weak_ptr p) { 
-          std::erase_if(m_connectors, [p] (detail::tcp_connector_shared_ptr sp) { sp == p.lock(); } )
+          std::erase_if(m_connectors, [p] (detail::tcp_connector_shared_ptr sp) { return sp == p.lock(); } );
 	},
         [this] (detail::udp_entity_io_weak_ptr p) {
-          std::erase_if(m_udp_entities, [p] (detail::udp_entity_io_shared_ptr sp) { sp == p.lock(); } )
+          std::erase_if(m_udp_entities, [p] (detail::udp_entity_io_shared_ptr sp) { return sp == p.lock(); } );
 	}
       }, ent.m_wptr);
   }

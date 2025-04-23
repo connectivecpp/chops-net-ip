@@ -357,7 +357,7 @@ TEST_CASE ( "Net entity method and comparison testing, UDP entity, TCP acceptor,
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  err_wq.close();
+  err_wq.request_stop();
   auto err_cnt = err_fut.get();
   INFO ("Num err messages in sink: " << err_cnt);
 

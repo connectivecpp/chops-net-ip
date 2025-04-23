@@ -19,7 +19,7 @@
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <string_view>
 #include <cstddef> // std::size_t, std::byte

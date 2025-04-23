@@ -21,6 +21,7 @@
 #include <chrono>
 #include <functional> // std::cref, std::ref
 #include <cstddef> // std::size_t
+#include <ranges> // std::views::iota
 
 #include "net_ip/detail/io_common.hpp"
 
@@ -103,14 +104,14 @@ template <typename E>
 std::size_t start_writes(const std::vector<E>& data_vec, 
                          chops::net::detail::io_common<E>& io_comm,
                          int multiplier, int wait_offset) {
-  chops::repeat(multiplier, [&data_vec, &io_comm, wait_offset] {
-      for (const auto& e : data_vec) {
-        auto r = io_comm.start_write(e, empty_write_func<E>);
-        assert (r != chops::net::detail::io_common<E>::write_status::io_stopped);
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(Wait+wait_offset));
-      assert (io_comm.is_io_started());
-  } );
+  for (int i : std::views::iota(0, multiplier)) {
+    for (const auto& e : data_vec) {
+      auto r = io_comm.start_write(e, empty_write_func<E>);
+      assert (r != chops::net::detail::io_common<E>::write_status::io_stopped);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(Wait+wait_offset));
+    assert (io_comm.is_io_started());
+  }
   return data_vec.size() * multiplier;
 }
 
@@ -132,11 +133,11 @@ void io_common_stress_test(const std::vector<E>& data_vec, int multiplier, int n
 
   std::vector<std::future<std::size_t>> futs;
 
-  chops::repeat(num_thrs, [&iocommon, multiplier, &data_vec, &futs] (int i) {
+  for (int i : std::views::iota(0, num_thrs)) {
     futs.push_back(std::async(std::launch::async, start_writes<E>,
                               std::cref(data_vec), std::ref(iocommon),
                               multiplier, 2*i));
-  } );
+  }
 
   std::size_t tot = 0u;
   for (auto& fut : futs) {
@@ -149,10 +150,10 @@ void io_common_stress_test(const std::vector<E>& data_vec, int multiplier, int n
 
   futs.clear();
   
-  chops::repeat(num_thrs, [&iocommon, &data_vec, &futs] {
+  for (int i : std::views::iota(0, num_thrs)) {
     futs.push_back(std::async(std::launch::async, write_next_elems<E>,
                               std::cref(data_vec), std::ref(iocommon)));
-  } );
+  }
 
   for (auto& fut : futs) {
     tot += fut.get(); // join threads

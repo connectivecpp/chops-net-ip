@@ -13,7 +13,7 @@
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <cstddef> // std::size_t
 #include <system_error>
@@ -61,7 +61,7 @@ SCENARIO ( "Testing ostream_error_sink_with_wait_queue function",
   while (!wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  wq.close();
+  wq.request_stop();
   
 
   auto cnt = sink_fut.get();
