@@ -22,42 +22,37 @@
 
 #include "net_ip/detail/wp_access.hpp"
 
-SCENARIO ( "Weak pointer access utility functions testing",
-           "[wp_access]" ) {
+using ne_wp = std::weak_ptr<chops::test::net_entity_mock>;
+using ne_sp = std::shared_ptr<chops::test::net_entity_mock>;
 
-  using ne_wp = std::weak_ptr<chops::test::net_entity_mock>;
-  using ne_sp = std::shared_ptr<chops::test::net_entity_mock>;
+TEST_CASE ( "Weak pointer access utility functions, empty weak ptr",
+            "[wp_access]" ) {
 
   ne_wp empty_wp;
 
-  GIVEN ("An empty weak pointer") {
-    WHEN ("is_started is called, returning bool") {
-      THEN ("the return value contains an error") {
-        auto r = chops::net::detail::wp_access<bool>(empty_wp, [] (ne_sp nesp) { return nesp->is_started(); } );
-        REQUIRE_FALSE (r);
-        INFO("Error code: " << r.error());
-      }
-    }
-    AND_WHEN ("the wp_access_void function is called") {
-      THEN ("the return value contains an error") {
-        auto r = chops::net::detail::wp_access_void(empty_wp, [] (ne_sp) { return std::error_code(); } );
-        REQUIRE_FALSE (r);
-        INFO("Error code: " << r.error());
-      }
-    }
-  } // end given
+  SECTION ("Check for false when is_started is called on empty weak ptr") {
+    auto r = chops::net::detail::wp_access<bool>(empty_wp, [] (ne_sp nesp) { return nesp->is_started(); } );
+    REQUIRE_FALSE (r);
+    INFO("Error code: " << r.error());
+  }
 
+  SECTION ("Check for error code return on wp_access_void") {
+    auto r = chops::net::detail::wp_access_void(empty_wp, [] (ne_sp) { return std::error_code(); } );
+    REQUIRE_FALSE (r);
+    INFO("Error code: " << r.error());
+  }
+}
+
+TEST_CASE ("Weak pointer pointing to default constructed net_entity_mock") {
   auto sp = std::make_shared<chops::test::net_entity_mock>();
   ne_wp wp(sp);
 
-  GIVEN ("A weak pointer to a default constructed net_entity_mock") {
-    WHEN ("is_started is called") {
-      THEN ("the return value is false") {
-        auto r = chops::net::detail::wp_access<bool>(wp, [] (ne_sp nesp) { return nesp->is_started(); } );
-        REQUIRE (r);
-        REQUIRE_FALSE (*r);
-      }
-    }
+  SECTION ("Calling is_started on mock object should return false") {
+    auto r = chops::net::detail::wp_access<bool>(wp, [] (ne_sp nesp) { return nesp->is_started(); } );
+    REQUIRE (r);
+    REQUIRE_FALSE (*r);
+  }
+
     AND_WHEN ("start is called followed by is_started followed by stop") {
       THEN ("all calls succeed") {
         auto r1 = chops::net::detail::wp_access_void(wp,

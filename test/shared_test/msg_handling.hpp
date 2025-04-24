@@ -86,7 +86,7 @@ inline chops::mutable_shared_buffer make_body_buf(std::string_view pre,
 inline chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
   assert(body.size() < std::numeric_limits<std::uint16_t>::max());
   std::byte hdr[2];
-  auto sz = append_val<std::endian::big, std::uint16_t>(hdr, body.size());
+  auto sz = append_val<std::endian::big, std::uint16_t>(hdr, static_cast<std::uint16_t>(body.size()));
   chops::mutable_shared_buffer msg(hdr, 2);
   return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
 }
