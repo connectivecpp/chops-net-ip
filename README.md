@@ -64,7 +64,7 @@ To build and run the unit test programs:
 First clone the `chops-net-ip` repository, then create a build directory in parallel to the `chops-net-ip` directory (this is called "out of source" builds, which is recommended), then `cd` (change directory) into the build directory. The CMake commands:
 
 ```
-cmake -D CHOPS_NET_IP_BUILD_TESTS:BOOL=ON ../chops_net_ip
+cmake -D CHOPS_NET_IP_BUILD_TESTS:BOOL=ON ../chops-net-ip
 
 cmake --build .
 

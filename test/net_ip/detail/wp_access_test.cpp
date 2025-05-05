@@ -53,35 +53,31 @@ TEST_CASE ("Weak pointer pointing to default constructed net_entity_mock") {
     REQUIRE_FALSE (*r);
   }
 
-    AND_WHEN ("start is called followed by is_started followed by stop") {
-      THEN ("all calls succeed") {
-        auto r1 = chops::net::detail::wp_access_void(wp,
-            [] (ne_sp nesp) { return nesp->start(chops::test::io_state_chg_mock, chops::test::err_func_mock ); }
-        );
-        REQUIRE (r1);
-        auto r2 = chops::net::detail::wp_access<bool>(wp, [] (ne_sp nesp) { return nesp->is_started(); } );
-        REQUIRE (r2);
-        REQUIRE(*r2);
-        auto r3 = chops::net::detail::wp_access_void(wp, [] (ne_sp nesp) { return nesp->stop(); } );
-        REQUIRE (r3);
-        auto r4 = chops::net::detail::wp_access<bool>(wp, [] (ne_sp nesp) { return nesp->is_started(); } );
-        REQUIRE (r4);
-        REQUIRE_FALSE(*r4);
-      }
-    }
-    AND_WHEN ("visit_io_output is called") {
-      THEN ("the call succeeds with the correct return value") {
-        auto r = chops::net::detail::wp_access<std::size_t>(wp,
-            [] (ne_sp nesp) { return nesp->visit_io_output(
-                [] (chops::net::basic_io_output<chops::test::io_handler_mock>) { } ); 
-            }
-        );
-        REQUIRE (r);
-        REQUIRE (*r == 1u);
-      }
-    }
-  } // end given
+  SECTION ("Calling start followed by stop should return false for is_started") {
+    auto r1 = chops::net::detail::wp_access_void(wp,
+        [] (ne_sp nesp) { return nesp->start(chops::test::io_state_chg_mock, chops::test::err_func_mock ); }
+    );
+    REQUIRE (r1);
+    auto r2 = chops::net::detail::wp_access<bool>(wp, [] (ne_sp nesp) { return nesp->is_started(); } );
+    REQUIRE (r2);
+    REQUIRE(*r2);
+    auto r3 = chops::net::detail::wp_access_void(wp, [] (ne_sp nesp) { return nesp->stop(); } );
+    REQUIRE (r3);
+    auto r4 = chops::net::detail::wp_access<bool>(wp, [] (ne_sp nesp) { return nesp->is_started(); } );
+    REQUIRE (r4);
+    REQUIRE_FALSE(*r4);
+  }
 
+  SECTION ("When visit_io_output the correct return value should be returned") {
+    auto r = chops::net::detail::wp_access<std::size_t>(wp,
+        [] (ne_sp nesp) { return nesp->visit_io_output(
+            [] (chops::net::basic_io_output<chops::test::io_handler_mock>) { } ); 
+        }
+    );
+    REQUIRE (r);
+    REQUIRE (*r == 1u);
+  }
 }
+
 
 

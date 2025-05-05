@@ -168,9 +168,10 @@ public:
  *  Within the function object socket options can be queried or modified or any valid
  *  socket method called.
  *
- *  @return @c nonstd::expected - socket has been visited on success; on error (if no 
+ *  @return @c nonstd::expected - @c bool socket has been visited; on error (if no 
  *  associated IO handler), a @c std::error_code is returned.
  */
+
   template <typename F>
   auto visit_socket(F&& func) const ->
           nonstd::expected<void, std::error_code> {
