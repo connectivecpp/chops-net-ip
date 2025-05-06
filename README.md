@@ -45,7 +45,7 @@ The [`shared_buffer`](https://github.com/connectivecpp/shared-buffer) library fr
 
 ## Supported Compilers
 
-Continuous integration workflows build and unit test on g++ (through Ubuntu), MSVC (through Windows), and clang (through macOS).
+Continuous integration workflows build and unit test on g++ (through Ubuntu) and MSVC (through Windows). Clang (through macOS) will be supported for continuous integration when C++ 20 thread feature `std::stop_source` (and related functionality) is fully supported in the GitHub macOS runners. The C++ 20 thread features are only needed for unit testing (through `wait_queue`). Conditional unit test builds (on macOS) could be implemented, but macOS clang updating to a standard that is now almost six years old is a better solution.
 
 ## Unit Test Dependencies
 
@@ -53,9 +53,14 @@ The unit test code uses [Catch2](https://github.com/catchorg/Catch2). If the `CH
 
 Specific version (or branch) specs for the Catch2 dependency is in the [test/CMakeLists.txt](test/CMakeLists.txt) file, look for the `CPMAddPackage` command.
 
+The unit tests use the following libraries from Connective C++:
+- [wait-queue](https://github.com/connectivecpp/wait-queue)
+- [binary-serialize](https://github.com/connectivecpp/binary-serialize)
+- [utility-rack](https://github.com/connectivecpp/utility-rack)
+
 ## Example Dependencies
 
-(Fill in).
+The example apps do not (currently) have external dependencies other than the required dependencies for `chops_net_ip`.
 
 ## Build and Run Unit Tests
 
