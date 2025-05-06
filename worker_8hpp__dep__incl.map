@@ -1,0 +1,27 @@
+<map id="/github/workspace/include/net_ip_component/worker.hpp" name="/github/workspace/include/net_ip_component/worker.hpp">
+<area shape="rect" id="Node000001" title=" " alt="" coords="1069,5,1268,46"/>
+<area shape="rect" id="Node000002" href="$chat__server__demo_8cpp.html" title="Example of TCP multichat server network program." alt="" coords="5,102,185,142"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1054,31,886,35,673,46,435,66,198,97,164,104,163,98,197,91,435,61,672,41,886,30,1054,25"/>
+<area shape="rect" id="Node000003" href="$local__echo__demo_8cpp.html" title=" " alt="" coords="209,102,389,142"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="1054,34,758,53,580,71,402,97,369,103,368,98,401,91,579,66,757,48,1054,28"/>
+<area shape="rect" id="Node000004" href="$simple__chat__demo_8cpp.html" title="Example of 2&#45;way TCP peer to peer network chat program. See usage text for further information." alt="" coords="413,102,593,142"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="1054,39,845,61,725,77,606,97,575,103,573,98,605,91,724,72,844,55,1053,33"/>
+<area shape="rect" id="Node000005" href="$net__entity__common__test_8cpp.html" title="Test scenarios for net_entity_common detail class." alt="" coords="617,94,773,150"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="1054,46,924,68,785,97,774,99,773,94,784,91,923,63,1053,41"/>
+<area shape="rect" id="Node000006" href="$tcp__connector__test_8cpp.html" title="Test scenarios for tcp_connector detail class." alt="" coords="796,94,978,150"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="1096,54,969,96,967,91,1094,49"/>
+<area shape="rect" id="Node000007" href="$tcp__io__test_8cpp.html" title="Test scenarios for tcp_io detail class." alt="" coords="1002,94,1156,150"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="1141,59,1107,95,1103,92,1137,55"/>
+<area shape="rect" id="Node000008" href="$udp__entity__io__test_8cpp.html" title="Test scenarios for udp_entity_io detail class." alt="" coords="1180,94,1338,150"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="1200,55,1235,91,1231,95,1196,59"/>
+<area shape="rect" id="Node000009" href="$endpoints__resolver__test_8cpp.html" title="Test scenarios for make_endpoints functions." alt="" coords="1362,94,1535,150"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="1242,49,1368,91,1367,96,1241,54"/>
+<area shape="rect" id="Node000010" href="$net__entity__test_8cpp.html" title="Test scenarios for net_entity class." alt="" coords="1559,102,1732,142"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="1283,42,1411,64,1548,91,1576,98,1575,104,1546,97,1410,69,1282,47"/>
+<area shape="rect" id="Node000011" href="$net__ip__test_8cpp.html" title="Test scenarios for net_ip class." alt="" coords="1757,102,1910,142"/>
+<area shape="poly" id="edge10_Node000001_Node000011" title=" " alt="" coords="1283,32,1498,53,1622,70,1745,91,1773,98,1772,103,1744,97,1622,75,1498,58,1283,37"/>
+<area shape="rect" id="Node000012" href="$io__output__delivery__test_8cpp.html" title="Test scenarios for basic_io_output delivery functions." alt="" coords="1934,94,2122,150"/>
+<area shape="poly" id="edge11_Node000001_Node000012" title=" " alt="" coords="1283,29,1575,49,1749,67,1923,91,1934,93,1933,99,1923,97,1749,72,1574,54,1283,34"/>
+<area shape="rect" id="Node000013" href="$tcp__dsr_8cpp.html" title="Test application that sends and receives data as well as sends progress messages to a monitor applica..." alt="" coords="2146,94,2300,150"/>
+<area shape="poly" id="edge12_Node000001_Node000013" title=" " alt="" coords="1283,24,1450,27,1663,37,1899,58,2019,73,2135,91,2147,94,2145,99,2135,97,2018,78,1899,63,1663,43,1450,33,1283,29"/>
+</map>

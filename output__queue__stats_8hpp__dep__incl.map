@@ -1,0 +1,19 @@
+<map id="/github/workspace/include/net_ip_component/output_queue_stats.hpp" name="/github/workspace/include/net_ip_component/output_queue_stats.hpp">
+<area shape="rect" id="Node000001" title="Functions that collect and deliver output_queue_stats from a sequence." alt="" coords="590,5,762,61"/>
+<area shape="rect" id="Node000002" href="$send__to__all_8hpp.html" title="A class template that manages a collection of basic_io_output objects and provides &quot;send to all&quot; func..." alt="" coords="106,109,278,165"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="576,55,440,80,292,112,279,114,278,109,290,106,439,75,575,49"/>
+<area shape="rect" id="Node000005" href="$tcp__connector__test_8cpp.html" title="Test scenarios for tcp_connector detail class." alt="" coords="303,109,484,165"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="587,69,471,111,469,106,586,64"/>
+<area shape="rect" id="Node000006" href="$udp__entity__io__test_8cpp.html" title="Test scenarios for udp_entity_io detail class." alt="" coords="508,109,666,165"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="644,75,613,110,609,107,640,71"/>
+<area shape="rect" id="Node000007" href="$net__ip__test_8cpp.html" title="Test scenarios for net_ip class." alt="" coords="690,116,844,157"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="713,71,752,115,748,118,709,74"/>
+<area shape="rect" id="Node000008" href="$output__queue__stats__test_8cpp.html" title="Test scenarios for output_queue_stats accumulation functions." alt="" coords="868,109,1039,165"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="766,64,880,106,878,111,764,69"/>
+<area shape="rect" id="Node000009" href="$tcp__dsr_8cpp.html" title="Test application that sends and receives data as well as sends progress messages to a monitor applica..." alt="" coords="1064,109,1217,165"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="778,49,909,75,1052,106,1064,110,1063,115,1050,112,908,80,777,55"/>
+<area shape="rect" id="Node000003" href="$chat__server__demo_8cpp.html" title="Example of TCP multichat server network program." alt="" coords="5,220,185,261"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="158,178,115,222,112,218,154,174"/>
+<area shape="rect" id="Node000004" href="$send__to__all__test_8cpp.html" title="Test scenario for send_to_all class template." alt="" coords="209,213,373,268"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="231,174,266,210,263,214,227,178"/>
+</map>

@@ -1,0 +1,18 @@
+<map id="/github/workspace/include/net_ip/detail/io_common.hpp" name="/github/workspace/include/net_ip/detail/io_common.hpp">
+<area shape="rect" id="Node000001" title="Common code, factored out, for TCP and UDP io handlers." alt="" coords="55,5,246,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,183,72,208"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="108,49,78,69,54,95,46,113,41,131,39,167,34,167,36,130,41,111,50,93,75,65,105,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="64,102,120,127"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="139,48,111,90,106,87,135,45"/>
+<area shape="rect" id="Node000004" href="$output__queue_8hpp.html" title="Utility class to manage output data queueing." alt="" coords="144,94,275,135"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="166,45,190,80,185,83,162,48"/>
+<area shape="rect" id="Node000007" href="$queue__stats_8hpp.html" title="Structures containing statistics gathered on internal queues." alt="" coords="242,183,398,208"/>
+<area shape="poly" id="edge9_Node000001_Node000007" title=" " alt="" coords="216,44,255,64,288,92,301,110,309,129,319,167,314,168,304,131,296,112,285,96,252,68,214,49"/>
+<area shape="poly" id="edge6_Node000004_Node000002" title=" " alt="" coords="168,138,80,178,77,173,165,133"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="112,183,168,208"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="194,137,162,173,158,169,190,133"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="230,256,295,282"/>
+<area shape="poly" id="edge5_Node000004_Node000006" title=" " alt="" coords="215,135,222,169,233,207,250,242,245,244,228,209,216,170,209,136"/>
+<area shape="poly" id="edge7_Node000004_Node000007" title=" " alt="" coords="238,133,292,171,289,175,235,137"/>
+<area shape="poly" id="edge8_Node000007_Node000006" title=" " alt="" coords="312,210,284,246,280,242,308,207"/>
+</map>

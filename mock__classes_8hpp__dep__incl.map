@@ -1,0 +1,21 @@
+<map id="/github/workspace/test/shared_test/mock_classes.hpp" name="/github/workspace/test/shared_test/mock_classes.hpp">
+<area shape="rect" id="Node000001" title="Mock classes shared between various chops_net_ip tests." alt="" coords="726,5,931,46"/>
+<area shape="rect" id="Node000002" href="$basic__io__interface__test_8cpp.html" title="Test scenarios for basic_io_interface class template." alt="" coords="5,94,175,150"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="711,36,469,57,328,74,188,97,176,99,175,94,187,91,327,69,468,52,711,31"/>
+<area shape="rect" id="Node000003" href="$basic__io__output__test_8cpp.html" title="Test scenarios for basic_io_output class template." alt="" coords="199,94,354,150"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="711,42,548,64,368,97,355,100,354,94,367,91,547,59,711,37"/>
+<area shape="rect" id="Node000004" href="$net__entity__common__test_8cpp.html" title="Test scenarios for net_entity_common detail class." alt="" coords="379,94,534,150"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="726,53,547,97,535,100,534,95,545,91,725,47"/>
+<area shape="rect" id="Node000005" href="$wp__access__test_8cpp.html" title="Test scenarios for wp_access and wp_access_void function templates." alt="" coords="558,94,723,150"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="777,56,696,96,694,91,775,51"/>
+<area shape="rect" id="Node000006" href="$error__delivery__test_8cpp.html" title="Test scenario for error delivery component." alt="" coords="748,94,909,150"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="831,61,831,93,826,93,826,61"/>
+<area shape="rect" id="Node000007" href="$output__queue__stats__test_8cpp.html" title="Test scenarios for output_queue_stats accumulation functions." alt="" coords="934,94,1105,150"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="883,51,965,91,963,96,881,56"/>
+<area shape="rect" id="Node000008" href="$send__to__all__test_8cpp.html" title="Test scenario for send_to_all class template." alt="" coords="1130,94,1293,150"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="933,47,1117,91,1130,95,1129,100,1116,97,932,53"/>
+<area shape="rect" id="Node000009" href="$mock__classes__test_8cpp.html" title="Test the mock classes shared between net_ip tests." alt="" coords="1317,94,1498,150"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="947,37,1117,60,1305,91,1317,94,1316,99,1304,97,1116,65,947,43"/>
+<area shape="rect" id="Node000010" href="$msg__handling__test_8cpp.html" title="Test the message handling utility test code shared between net_ip tests." alt="" coords="1523,94,1700,150"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="947,30,1206,51,1359,68,1510,91,1523,94,1522,99,1510,97,1358,73,1206,56,946,36"/>
+</map>

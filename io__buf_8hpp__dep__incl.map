@@ -1,0 +1,9 @@
+<map id="/github/workspace/test/shared_test/io_buf.hpp" name="/github/workspace/test/shared_test/io_buf.hpp">
+<area shape="rect" id="Node000001" title="Shared code used in IO unit tests, such as output_queue_test.cpp and io_common_test...." alt="" coords="194,5,351,46"/>
+<area shape="rect" id="Node000002" href="$io__common__test_8cpp.html" title="Test scenarios for io_common detail class." alt="" coords="5,94,172,150"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="222,56,143,96,140,91,219,51"/>
+<area shape="rect" id="Node000003" href="$output__queue__test_8cpp.html" title="Test scenarios for output_queue detail class." alt="" coords="196,94,349,150"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="275,61,275,93,270,93,270,61"/>
+<area shape="rect" id="Node000004" href="$io__buf__test_8cpp.html" title="Test io_buf.hpp." alt="" coords="373,102,558,142"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="328,51,427,99,424,103,326,56"/>
+</map>

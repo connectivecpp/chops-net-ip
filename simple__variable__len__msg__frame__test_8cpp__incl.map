@@ -1,0 +1,78 @@
+<map id="/github/workspace/test/net_ip/simple_variable_len_msg_frame_test.cpp" name="/github/workspace/test/net_ip/simple_variable_len_msg_frame_test.cpp">
+<area shape="rect" id="Node000001" title="Test the simple variable length message framing functor." alt="" coords="269,5,440,61"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,116,205,142"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="283,64,152,113,150,108,281,59"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="211,198,316,223"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="312,63,288,84,270,110,261,147,262,183,256,183,256,146,265,108,284,81,308,59"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="392,198,530,223"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="398,60,423,81,443,108,458,145,463,182,458,183,452,147,439,110,419,85,395,64"/>
+<area shape="rect" id="Node000005" href="$simple__variable__len__msg__frame_8hpp.html" title="Function object class and declaration for simple variable length TCP message framing." alt="" coords="279,109,430,150"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="357,62,357,94,352,94,352,62"/>
+<area shape="rect" id="Node000007" href="$msg__handling_8hpp.html" title="Declarations and implementations for shared test code dealing with test message building and message ..." alt="" coords="1132,116,1329,142"/>
+<area shape="poly" id="edge7_Node000001_Node000007" title=" " alt="" coords="440,41,1116,113,1116,118,440,46"/>
+<area shape="poly" id="edge5_Node000005_Node000003" title=" " alt="" coords="334,152,291,189,287,185,330,148"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="502,345,566,371"/>
+<area shape="poly" id="edge6_Node000005_Node000006" title=" " alt="" coords="359,149,367,185,382,222,408,257,440,288,502,334,499,339,436,292,404,261,377,225,361,186,354,151"/>
+<area shape="poly" id="edge21_Node000007_Node000003" title=" " alt="" coords="1132,140,380,200,332,205,332,200,379,195,1131,135"/>
+<area shape="poly" id="edge24_Node000007_Node000004" title=" " alt="" coords="1132,142,868,167,549,200,546,201,545,195,549,195,868,161,1131,137"/>
+<area shape="poly" id="edge9_Node000007_Node000006" title=" " alt="" coords="1132,138,851,160,713,178,656,188,614,200,577,213,549,225,526,243,505,272,501,287,503,302,517,331,512,334,497,304,495,287,500,270,522,239,546,220,575,208,612,195,655,183,712,172,851,155,1131,133"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="856,198,943,223"/>
+<area shape="poly" id="edge8_Node000007_Node000008" title=" " alt="" coords="1180,145,959,198,958,193,1179,140"/>
+<area shape="rect" id="Node000009" title=" " alt="" coords="967,198,1027,223"/>
+<area shape="poly" id="edge10_Node000007_Node000009" title=" " alt="" coords="1195,145,1043,197,1041,192,1194,140"/>
+<area shape="rect" id="Node000010" title=" " alt="" coords="1051,198,1108,223"/>
+<area shape="poly" id="edge11_Node000007_Node000010" title=" " alt="" coords="1209,145,1117,193,1115,188,1206,140"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="1106,271,1157,297"/>
+<area shape="poly" id="edge12_Node000007_Node000011" title=" " alt="" coords="1225,144,1150,260,1145,257,1220,141"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="1235,198,1295,223"/>
+<area shape="poly" id="edge13_Node000007_Node000012" title=" " alt="" coords="1238,142,1256,182,1251,184,1233,144"/>
+<area shape="rect" id="Node000013" title=" " alt="" coords="1319,198,1387,223"/>
+<area shape="poly" id="edge14_Node000007_Node000013" title=" " alt="" coords="1250,140,1323,187,1320,191,1248,145"/>
+<area shape="rect" id="Node000014" title=" " alt="" coords="1411,198,1471,223"/>
+<area shape="poly" id="edge15_Node000007_Node000014" title=" " alt="" coords="1264,140,1397,190,1395,195,1262,145"/>
+<area shape="rect" id="Node000015" title=" " alt="" coords="1495,198,1552,223"/>
+<area shape="poly" id="edge16_Node000007_Node000015" title=" " alt="" coords="1278,140,1481,194,1479,199,1276,145"/>
+<area shape="rect" id="Node000016" title=" " alt="" coords="1576,198,1631,223"/>
+<area shape="poly" id="edge17_Node000007_Node000016" title=" " alt="" coords="1301,140,1419,163,1562,194,1560,199,1418,168,1300,145"/>
+<area shape="rect" id="Node000017" title=" " alt="" coords="1655,198,1715,223"/>
+<area shape="poly" id="edge18_Node000007_Node000017" title=" " alt="" coords="1322,140,1467,162,1640,195,1639,200,1466,168,1321,145"/>
+<area shape="rect" id="Node000018" title=" " alt="" coords="1740,198,1804,223"/>
+<area shape="poly" id="edge19_Node000007_Node000018" title=" " alt="" coords="1330,138,1510,160,1725,195,1724,200,1509,165,1329,143"/>
+<area shape="rect" id="Node000019" title=" " alt="" coords="1828,198,1880,223"/>
+<area shape="poly" id="edge20_Node000007_Node000019" title=" " alt="" coords="1330,134,1548,154,1679,172,1813,195,1813,200,1678,177,1547,160,1329,139"/>
+<area shape="rect" id="Node000020" title=" " alt="" coords="1904,198,2012,223"/>
+<area shape="poly" id="edge22_Node000007_Node000020" title=" " alt="" coords="1330,136,1580,159,1889,195,1889,200,1579,164,1329,141"/>
+<area shape="rect" id="Node000021" title=" " alt="" coords="2037,198,2170,223"/>
+<area shape="poly" id="edge23_Node000007_Node000021" title=" " alt="" coords="1330,134,1635,157,2022,195,2022,200,1634,163,1329,140"/>
+<area shape="rect" id="Node000022" title=" " alt="" coords="2194,198,2378,223"/>
+<area shape="poly" id="edge25_Node000007_Node000022" title=" " alt="" coords="1330,134,1699,157,2179,195,2179,200,1698,163,1329,139"/>
+<area shape="rect" id="Node000023" title=" " alt="" coords="1181,271,1341,297"/>
+<area shape="poly" id="edge26_Node000007_Node000023" title=" " alt="" coords="1229,143,1222,179,1221,201,1225,222,1243,257,1238,260,1220,224,1216,201,1217,179,1224,142"/>
+<area shape="rect" id="Node000024" href="$basic__io__output_8hpp.html" title="basic_io_output class template, providing send and get_output_queue_stats methods." alt="" coords="656,198,831,223"/>
+<area shape="poly" id="edge27_Node000007_Node000024" title=" " alt="" coords="1156,145,834,197,833,192,1155,140"/>
+<area shape="rect" id="Node000028" href="$queue__stats_8hpp.html" title="Structures containing statistics gathered on internal queues." alt="" coords="514,271,669,297"/>
+<area shape="poly" id="edge44_Node000007_Node000028" title=" " alt="" coords="1131,134,1005,139,863,150,733,169,682,183,645,200,631,212,619,227,603,258,598,256,615,224,627,208,642,195,680,178,732,164,862,144,1005,134,1131,129"/>
+<area shape="poly" id="edge30_Node000024_Node000006" title=" " alt="" coords="740,225,718,261,702,281,683,299,633,328,582,347,580,342,630,324,679,295,698,278,713,258,735,223"/>
+<area shape="poly" id="edge31_Node000024_Node000011" title=" " alt="" coords="826,221,950,242,1088,269,1092,269,1090,275,1087,274,949,247,825,227"/>
+<area shape="poly" id="edge33_Node000024_Node000023" title=" " alt="" coords="832,221,1166,267,1166,272,831,227"/>
+<area shape="rect" id="Node000025" title=" " alt="" coords="763,345,831,371"/>
+<area shape="poly" id="edge28_Node000024_Node000025" title=" " alt="" coords="751,223,790,330,785,331,746,225"/>
+<area shape="rect" id="Node000026" title=" " alt="" coords="950,419,1046,444"/>
+<area shape="poly" id="edge29_Node000024_Node000026" title=" " alt="" coords="813,221,925,245,971,257,995,269,1012,302,1017,338,1015,374,1009,404,1004,403,1009,373,1012,338,1007,304,991,273,969,262,924,250,812,226"/>
+<area shape="rect" id="Node000027" title=" " alt="" coords="1212,345,1352,371"/>
+<area shape="poly" id="edge32_Node000024_Node000027" title=" " alt="" coords="829,221,930,240,1038,269,1067,281,1095,295,1226,338,1224,343,1093,299,1065,286,1036,274,929,246,828,227"/>
+<area shape="poly" id="edge34_Node000024_Node000028" title=" " alt="" coords="719,226,633,267,630,262,717,221"/>
+<area shape="rect" id="Node000029" href="$wp__access_8hpp.html" title="Common code for accessing std::weak_ptr referenced objects, used in basic_io_interface and net_entity..." alt="" coords="795,271,980,297"/>
+<area shape="poly" id="edge36_Node000024_Node000029" title=" " alt="" coords="769,221,851,262,848,266,767,226"/>
+<area shape="poly" id="edge35_Node000028_Node000006" title=" " alt="" coords="584,299,556,334,552,331,580,296"/>
+<area shape="poly" id="edge37_Node000029_Node000025" title=" " alt="" coords="874,300,826,338,822,333,871,295"/>
+<area shape="poly" id="edge38_Node000029_Node000026" title=" " alt="" coords="899,296,982,405,978,408,895,299"/>
+<area shape="poly" id="edge39_Node000029_Node000027" title=" " alt="" coords="956,295,1201,339,1200,344,955,300"/>
+<area shape="rect" id="Node000030" href="$net__ip__error_8hpp.html" title="Error codes, exception class, and error category within Chops net_ip library." alt="" coords="1036,345,1188,371"/>
+<area shape="poly" id="edge40_Node000029_Node000030" title=" " alt="" coords="926,295,1060,337,1058,342,925,300"/>
+<area shape="poly" id="edge42_Node000030_Node000026" title=" " alt="" coords="1094,373,1032,412,1029,408,1091,369"/>
+<area shape="rect" id="Node000031" title=" " alt="" coords="1072,419,1149,444"/>
+<area shape="poly" id="edge41_Node000030_Node000031" title=" " alt="" coords="1114,371,1114,403,1108,403,1109,371"/>
+<area shape="rect" id="Node000032" title=" " alt="" coords="1173,419,1226,444"/>
+<area shape="poly" id="edge43_Node000030_Node000032" title=" " alt="" coords="1128,369,1175,407,1171,411,1125,373"/>
+</map>

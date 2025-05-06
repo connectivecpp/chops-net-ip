@@ -1,0 +1,5 @@
+<map id="chops::test::tcp_dsr_args" name="chops::test::tcp_dsr_args">
+<area shape="rect" id="Node000001" title=" " alt="" coords="10,94,176,120"/>
+<area shape="rect" id="Node000002" href="$structchops_1_1test_1_1connector__info.html" title=" " alt="" coords="5,5,181,31"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="96,47,96,94,90,94,90,47"/>
+</map>

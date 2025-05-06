@@ -1,0 +1,14 @@
+<map id="/github/workspace/test/net_ip/net_ip_error_test.cpp" name="/github/workspace/test/net_ip/net_ip_error_test.cpp">
+<area shape="rect" id="Node000001" title="Test scenarios for net_ip error and exception code." alt="" coords="150,5,335,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,94,205,120"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="209,49,140,88,138,84,207,44"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="196,168,292,193"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="245,46,246,152,241,152,240,46"/>
+<area shape="rect" id="Node000004" href="$net__ip__error_8hpp.html" title="Error codes, exception class, and error category within Chops net_ip library." alt="" coords="280,94,432,120"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="272,44,328,83,325,87,269,49"/>
+<area shape="poly" id="edge5_Node000004_Node000003" title=" " alt="" coords="338,122,277,161,274,157,335,118"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="316,168,393,193"/>
+<area shape="poly" id="edge4_Node000004_Node000005" title=" " alt="" coords="358,120,358,152,352,152,353,120"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="417,168,470,193"/>
+<area shape="poly" id="edge6_Node000004_Node000006" title=" " alt="" coords="372,118,419,156,415,160,369,122"/>
+</map>

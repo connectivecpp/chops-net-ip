@@ -1,6 +1,0 @@
-g++ -std=c++17 -g3 -fsanitize=address -Wall -Werror \
--I ../include \
--I ../../utility-rack/include/ \
--I ../../utility-rack/third_party/ \
--I ../../asio/asio/include/ \
-echo_binary_text_client_demo.cpp -lpthread -o echo_client

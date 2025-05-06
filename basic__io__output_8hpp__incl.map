@@ -1,0 +1,30 @@
+<map id="/github/workspace/include/net_ip/basic_io_output.hpp" name="/github/workspace/include/net_ip/basic_io_output.hpp">
+<area shape="rect" id="Node000001" title="basic_io_output class template, providing send and get_output_queue_stats methods." alt="" coords="305,5,484,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="21,168,88,193"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="305,40,220,60,176,76,136,96,100,125,73,157,69,153,96,121,133,92,174,71,218,55,303,35"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="77,241,173,267"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="305,30,225,39,182,48,140,62,100,80,64,103,34,133,11,169,8,179,9,189,20,206,41,221,67,233,64,238,38,226,16,210,4,190,3,179,7,167,30,129,61,99,98,75,138,57,181,43,224,34,304,25"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="503,168,568,193"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="404,45,421,81,447,118,472,140,499,157,496,162,468,144,443,121,417,84,399,48"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="637,94,688,120"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="462,44,622,91,621,96,461,49"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="339,168,479,193"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="398,46,404,119,408,152,402,153,398,120,393,47"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="712,94,871,120"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="485,42,716,88,715,93,484,47"/>
+<area shape="rect" id="Node000008" href="$queue__stats_8hpp.html" title="Structures containing statistics gathered on internal queues." alt="" coords="457,94,612,120"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="431,44,501,84,498,88,428,49"/>
+<area shape="rect" id="Node000009" href="$wp__access_8hpp.html" title="Common code for accessing std::weak_ptr referenced objects, used in basic_io_interface and net_entity..." alt="" coords="146,94,331,120"/>
+<area shape="poly" id="edge9_Node000001_Node000009" title=" " alt="" coords="357,49,277,89,275,84,354,44"/>
+<area shape="poly" id="edge8_Node000008_Node000004" title=" " alt="" coords="537,120,538,152,532,152,532,120"/>
+<area shape="poly" id="edge10_Node000009_Node000002" title=" " alt="" coords="208,123,101,164,99,159,206,118"/>
+<area shape="poly" id="edge11_Node000009_Node000003" title=" " alt="" coords="212,123,181,142,152,169,138,197,131,226,126,225,133,195,148,166,178,138,210,118"/>
+<area shape="poly" id="edge12_Node000009_Node000006" title=" " alt="" coords="268,118,367,159,365,164,266,123"/>
+<area shape="rect" id="Node000010" href="$net__ip__error_8hpp.html" title="Error codes, exception class, and error category within Chops net_ip library." alt="" coords="162,168,314,193"/>
+<area shape="poly" id="edge13_Node000009_Node000010" title=" " alt="" coords="241,120,241,152,236,152,236,120"/>
+<area shape="poly" id="edge15_Node000010_Node000003" title=" " alt="" coords="220,196,159,235,156,230,218,192"/>
+<area shape="rect" id="Node000011" title=" " alt="" coords="281,241,358,267"/>
+<area shape="poly" id="edge14_Node000010_Node000011" title=" " alt="" coords="254,192,296,229,293,233,250,196"/>
+<area shape="rect" id="Node000012" title=" " alt="" coords="204,241,257,267"/>
+<area shape="poly" id="edge16_Node000010_Node000012" title=" " alt="" coords="240,194,236,226,231,226,234,193"/>
+</map>

@@ -1,0 +1,7 @@
+<map id="/github/workspace/include/net_ip_component/send_to_all.hpp" name="/github/workspace/include/net_ip_component/send_to_all.hpp">
+<area shape="rect" id="Node000001" title="A class template that manages a collection of basic_io_output objects and provides &quot;send to all&quot; func..." alt="" coords="106,5,278,61"/>
+<area shape="rect" id="Node000002" href="$chat__server__demo_8cpp.html" title="Example of TCP multichat server network program." alt="" coords="5,116,185,157"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="158,74,115,118,112,115,154,71"/>
+<area shape="rect" id="Node000003" href="$send__to__all__test_8cpp.html" title="Test scenario for send_to_all class template." alt="" coords="209,109,373,165"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="231,70,266,106,263,110,227,74"/>
+</map>

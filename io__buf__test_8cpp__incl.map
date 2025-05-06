@@ -1,0 +1,17 @@
+<map id="/github/workspace/test/shared_test/io_buf_test.cpp" name="/github/workspace/test/shared_test/io_buf_test.cpp">
+<area shape="rect" id="Node000001" title="Test io_buf.hpp." alt="" coords="112,5,298,46"/>
+<area shape="rect" id="Node000002" title=" " alt="" coords="5,94,205,120"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="182,49,134,86,130,82,179,44"/>
+<area shape="rect" id="Node000003" href="$io__buf_8hpp.html" title="Shared code used in IO unit tests, such as output_queue_test.cpp and io_common_test...." alt="" coords="229,94,381,120"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="231,44,280,82,276,86,228,49"/>
+<area shape="rect" id="Node000004" title=" " alt="" coords="97,168,161,193"/>
+<area shape="poly" id="edge3_Node000003_Node000004" title=" " alt="" coords="276,123,174,164,172,159,274,118"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="185,168,252,193"/>
+<area shape="poly" id="edge4_Node000003_Node000005" title=" " alt="" coords="292,122,246,160,243,156,289,118"/>
+<area shape="rect" id="Node000006" title=" " alt="" coords="276,168,334,193"/>
+<area shape="poly" id="edge5_Node000003_Node000006" title=" " alt="" coords="308,120,308,152,302,152,302,120"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="357,168,517,193"/>
+<area shape="poly" id="edge6_Node000003_Node000007" title=" " alt="" coords="329,118,403,158,400,162,326,123"/>
+<area shape="rect" id="Node000008" title=" " alt="" coords="541,168,680,193"/>
+<area shape="poly" id="edge7_Node000003_Node000008" title=" " alt="" coords="358,118,544,161,543,166,357,123"/>
+</map>

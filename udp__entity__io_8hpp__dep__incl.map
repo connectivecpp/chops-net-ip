@@ -1,0 +1,78 @@
+<map id="/github/workspace/include/net_ip/detail/udp_entity_io.hpp" name="/github/workspace/include/net_ip/detail/udp_entity_io.hpp">
+<area shape="rect" id="Node000001" title="Internal class that combines a UDP entity and UDP io handler." alt="" coords="1150,5,1349,46"/>
+<area shape="rect" id="Node000002" href="$io__type__decls_8hpp.html" title="IO type declarations, relating to the basic_io_interface and basic_io_output class templates." alt="" coords="1164,94,1336,135"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="1252,62,1252,94,1247,94,1247,62"/>
+<area shape="rect" id="Node000006" href="$net__entity_8hpp.html" title="net_entity class and related functionality." alt="" coords="721,190,893,231"/>
+<area shape="poly" id="edge50_Node000001_Node000006" title=" " alt="" coords="1189,55,856,192,854,187,1187,50"/>
+<area shape="rect" id="Node000007" href="$net__ip_8hpp.html" title=" " alt="" coords="445,294,617,334"/>
+<area shape="poly" id="edge51_Node000001_Node000007" title=" " alt="" coords="1135,49,1041,70,932,99,818,137,710,185,664,212,621,241,554,296,551,291,618,237,661,207,707,180,816,132,930,94,1039,65,1134,44"/>
+<area shape="rect" id="Node000018" href="$net__entity__test_8cpp.html" title="Test scenarios for net_entity class." alt="" coords="1660,294,1834,334"/>
+<area shape="poly" id="edge53_Node000001_Node000018" title=" " alt="" coords="1298,52,1715,291,1712,296,1296,57"/>
+<area shape="rect" id="Node000021" href="$udp__entity__io__test_8cpp.html" title="Test scenarios for udp_entity_io detail class." alt="" coords="2188,286,2346,342"/>
+<area shape="poly" id="edge52_Node000001_Node000021" title=" " alt="" coords="1365,35,1558,55,1788,87,1901,107,2003,129,2090,153,2154,180,2185,203,2213,230,2253,284,2249,288,2209,234,2182,207,2151,185,2088,158,2002,134,1900,112,1787,92,1558,61,1364,40"/>
+<area shape="rect" id="Node000003" href="$chat__server__demo_8cpp.html" title="Example of TCP multichat server network program." alt="" coords="209,398,389,438"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="1149,124,951,141,833,154,712,172,596,193,492,220,407,251,374,269,349,288,329,314,316,343,303,398,298,397,311,341,325,311,345,284,371,265,405,247,491,215,595,188,712,166,832,149,950,136,1148,119"/>
+<area shape="rect" id="Node000004" href="$local__echo__demo_8cpp.html" title=" " alt="" coords="5,398,185,438"/>
+<area shape="poly" id="edge3_Node000002_Node000004" title=" " alt="" coords="1148,120,974,125,765,137,568,156,488,169,428,185,378,206,330,232,240,293,166,352,116,399,113,395,163,348,237,288,327,228,376,202,426,180,487,164,567,151,765,131,973,120,1148,115"/>
+<area shape="rect" id="Node000005" href="$simple__chat__demo_8cpp.html" title="Example of 2&#45;way TCP peer to peer network chat program. See usage text for further information." alt="" coords="889,398,1069,438"/>
+<area shape="poly" id="edge4_Node000002_Node000005" title=" " alt="" coords="1232,149,1168,240,1126,293,1080,344,1045,374,1011,399,1008,395,1042,370,1076,340,1122,290,1164,237,1227,146"/>
+<area shape="poly" id="edge5_Node000002_Node000006" title=" " alt="" coords="1149,140,894,193,893,188,1148,134"/>
+<area shape="rect" id="Node000009" href="$io__output__delivery__test_8cpp.html" title="Test scenarios for basic_io_output delivery functions." alt="" coords="1093,390,1281,446"/>
+<area shape="poly" id="edge41_Node000002_Node000009" title=" " alt="" coords="1245,150,1195,390,1190,389,1240,149"/>
+<area shape="rect" id="Node000015" href="$io__output__delivery_8hpp.html" title="Functions that deliver a basic_io_output object, either through std::future objects or through other ..." alt="" coords="1242,286,1430,342"/>
+<area shape="poly" id="edge34_Node000002_Node000015" title=" " alt="" coords="1267,148,1327,285,1322,287,1262,150"/>
+<area shape="rect" id="Node000016" href="$tcp__connector__test_8cpp.html" title="Test scenarios for tcp_connector detail class." alt="" coords="2060,390,2242,446"/>
+<area shape="poly" id="edge38_Node000002_Node000016" title=" " alt="" coords="1351,116,1541,122,1773,135,1993,153,2084,166,2153,180,2219,196,2273,210,2296,220,2319,235,2340,256,2360,285,2368,300,2371,314,2368,329,2360,344,2336,369,2307,388,2275,401,2243,410,2242,405,2274,396,2305,383,2333,365,2356,340,2363,327,2365,315,2363,302,2355,288,2335,260,2315,239,2294,225,2271,215,2218,201,2152,185,2083,171,1993,159,1772,140,1541,128,1351,121"/>
+<area shape="poly" id="edge40_Node000002_Node000018" title=" " alt="" coords="1314,138,1699,291,1697,296,1312,143"/>
+<area shape="rect" id="Node000019" href="$output__queue__stats__test_8cpp.html" title="Test scenarios for output_queue_stats accumulation functions." alt="" coords="895,286,1066,342"/>
+<area shape="poly" id="edge42_Node000002_Node000019" title=" " alt="" coords="1166,143,1125,161,1086,185,1059,209,1035,236,998,288,994,284,1030,233,1055,205,1083,181,1122,156,1164,138"/>
+<area shape="rect" id="Node000020" href="$io__state__change_8hpp.html" title="Functions that create IO state change function objects used in the net_entity start method,..." alt="" coords="1455,286,1636,342"/>
+<area shape="poly" id="edge35_Node000002_Node000020" title=" " alt="" coords="1293,141,1507,284,1504,288,1290,146"/>
+<area shape="poly" id="edge39_Node000002_Node000021" title=" " alt="" coords="1351,114,1529,119,1742,130,1944,150,2026,163,2088,180,2133,202,2176,229,2242,284,2238,288,2172,233,2131,206,2086,185,2025,169,1943,155,1742,136,1529,125,1351,120"/>
+<area shape="rect" id="Node000022" href="$msg__handling__start__funcs_8hpp.html" title="Function declarations and implementations that create and start shared test msg handling objects." alt="" coords="1897,183,2074,238"/>
+<area shape="poly" id="edge43_Node000002_Node000022" title=" " alt="" coords="1351,126,1897,195,1896,200,1351,131"/>
+<area shape="poly" id="edge6_Node000006_Node000003" title=" " alt="" coords="706,216,639,223,565,236,490,257,419,289,385,313,355,343,313,399,309,395,351,339,381,309,416,284,488,252,564,231,638,218,705,211"/>
+<area shape="poly" id="edge7_Node000006_Node000004" title=" " alt="" coords="706,222,536,244,441,263,348,289,304,308,245,337,131,399,128,395,242,332,302,303,346,284,440,258,535,239,705,216"/>
+<area shape="poly" id="edge8_Node000006_Node000005" title=" " alt="" coords="793,246,785,269,780,294,781,318,791,340,807,355,835,369,906,394,904,399,833,374,804,359,786,344,776,319,775,293,780,268,788,244"/>
+<area shape="poly" id="edge9_Node000006_Node000007" title=" " alt="" coords="740,239,585,296,584,291,739,234"/>
+<area shape="rect" id="Node000008" href="$net__ip__test_8cpp.html" title="Test scenarios for net_ip class." alt="" coords="1305,398,1458,438"/>
+<area shape="poly" id="edge27_Node000006_Node000008" title=" " alt="" coords="824,244,854,301,870,325,885,340,920,355,967,365,1084,375,1203,379,1294,387,1322,394,1321,399,1293,393,1202,384,1083,381,967,371,918,360,881,344,866,328,850,303,820,246"/>
+<area shape="poly" id="edge28_Node000006_Node000009" title=" " alt="" coords="809,246,816,295,825,320,841,340,869,363,896,376,922,381,949,383,1009,380,1043,382,1081,387,1093,390,1092,395,1080,393,1042,387,1009,386,949,388,922,387,894,381,866,367,837,344,821,322,811,297,803,247"/>
+<area shape="rect" id="Node000010" href="$monitor__connector_8hpp.html" title="Monitor message serializing, deserializing, sending, and shutdown msg handling." alt="" coords="544,494,716,549"/>
+<area shape="poly" id="edge31_Node000006_Node000010" title=" " alt="" coords="772,243,749,264,729,288,697,342,671,399,639,494,634,492,666,397,692,339,725,285,745,260,768,239"/>
+<area shape="rect" id="Node000012" href="$monitor__msg_8hpp.html" title="Data structures sent between nodes in test data blaster." alt="" coords="693,390,865,446"/>
+<area shape="poly" id="edge32_Node000006_Node000012" title=" " alt="" coords="772,243,754,264,740,287,736,314,740,341,750,366,762,388,757,391,745,368,735,342,730,314,735,285,749,261,768,240"/>
+<area shape="rect" id="Node000014" href="$tcp__dsr_8cpp.html" title="Test application that sends and receives data as well as sends progress messages to a monitor applica..." alt="" coords="413,390,566,446"/>
+<area shape="poly" id="edge33_Node000006_Node000014" title=" " alt="" coords="706,221,626,229,545,242,476,262,451,274,434,288,428,299,425,312,431,338,446,365,464,388,460,391,441,368,426,340,420,312,423,298,430,285,448,270,474,257,544,237,625,224,705,215"/>
+<area shape="poly" id="edge21_Node000006_Node000015" title=" " alt="" coords="909,229,1242,292,1241,297,908,234"/>
+<area shape="rect" id="Node000017" href="$msg__handling__start__funcs__test_8cpp.html" title="Test the msg handling start function utility code shared between net_ip tests." alt="" coords="1482,390,1660,446"/>
+<area shape="poly" id="edge30_Node000006_Node000017" title=" " alt="" coords="900,233,1079,284,1154,313,1230,339,1297,356,1350,365,1472,387,1483,390,1482,395,1470,393,1349,370,1296,361,1229,345,1152,318,1077,289,899,238"/>
+<area shape="poly" id="edge26_Node000006_Node000018" title=" " alt="" coords="909,212,1054,220,1239,233,1444,254,1649,284,1681,291,1680,296,1648,289,1443,259,1239,238,1054,225,908,218"/>
+<area shape="poly" id="edge29_Node000006_Node000019" title=" " alt="" coords="855,237,935,283,933,288,852,241"/>
+<area shape="poly" id="edge10_Node000007_Node000003" title=" " alt="" coords="474,343,345,399,343,394,472,338"/>
+<area shape="poly" id="edge11_Node000007_Node000004" title=" " alt="" coords="430,340,198,393,170,400,169,394,197,387,429,335"/>
+<area shape="poly" id="edge12_Node000007_Node000005" title=" " alt="" coords="633,334,878,387,906,394,905,399,877,393,632,339"/>
+<area shape="poly" id="edge13_Node000007_Node000008" title=" " alt="" coords="633,322,1012,356,1191,374,1294,387,1323,394,1322,400,1293,393,1191,379,1012,361,633,327"/>
+<area shape="poly" id="edge14_Node000007_Node000009" title=" " alt="" coords="633,323,840,349,1081,387,1093,390,1092,395,1080,393,840,354,632,329"/>
+<area shape="poly" id="edge15_Node000007_Node000010" title=" " alt="" coords="555,346,580,389,605,443,623,492,618,494,600,445,575,391,550,348"/>
+<area shape="poly" id="edge17_Node000007_Node000012" title=" " alt="" coords="594,338,714,387,712,392,592,343"/>
+<area shape="poly" id="edge20_Node000007_Node000014" title=" " alt="" coords="520,350,503,390,498,388,515,348"/>
+<area shape="rect" id="Node000011" href="$monitor__connector__test_8cpp.html" title="Unit tests for monitor_connector.hpp." alt="" coords="544,597,716,653"/>
+<area shape="poly" id="edge16_Node000010_Node000011" title=" " alt="" coords="632,565,632,597,627,597,627,565"/>
+<area shape="poly" id="edge18_Node000012_Node000010" title=" " alt="" coords="728,457,671,495,668,491,725,452"/>
+<area shape="rect" id="Node000013" href="$monitor__msg__test_8cpp.html" title="Unit tests for selected parts of monitor_msg.hpp." alt="" coords="740,494,912,549"/>
+<area shape="poly" id="edge19_Node000012_Node000013" title=" " alt="" coords="800,459,816,492,811,494,795,461"/>
+<area shape="poly" id="edge23_Node000015_Node000008" title=" " alt="" coords="1357,355,1376,396,1371,398,1352,357"/>
+<area shape="poly" id="edge24_Node000015_Node000009" title=" " alt="" coords="1285,353,1229,392,1226,387,1282,349"/>
+<area shape="poly" id="edge22_Node000015_Node000016" title=" " alt="" coords="1446,340,1620,366,1789,385,2060,408,2060,414,1788,391,1619,371,1446,345"/>
+<area shape="poly" id="edge25_Node000015_Node000017" title=" " alt="" coords="1414,346,1509,387,1507,392,1412,351"/>
+<area shape="poly" id="edge36_Node000020_Node000008" title=" " alt="" coords="1490,353,1415,399,1412,395,1487,348"/>
+<area shape="poly" id="edge37_Node000020_Node000017" title=" " alt="" coords="1559,357,1567,389,1562,390,1554,358"/>
+<area shape="poly" id="edge48_Node000022_Node000008" title=" " alt="" coords="1942,250,1900,288,1876,319,1865,332,1847,344,1794,367,1748,380,1705,384,1664,384,1578,381,1528,384,1472,393,1443,400,1442,394,1470,387,1528,378,1578,376,1664,379,1705,379,1747,374,1793,362,1844,340,1861,328,1872,315,1896,285,1939,246"/>
+<area shape="poly" id="edge44_Node000022_Node000016" title=" " alt="" coords="2073,244,2099,262,2121,285,2136,310,2145,338,2153,389,2148,390,2140,339,2131,312,2117,288,2096,266,2070,248"/>
+<area shape="poly" id="edge49_Node000022_Node000017" title=" " alt="" coords="2047,247,2064,264,2077,285,2088,315,2086,329,2077,344,2049,365,2007,382,1955,395,1897,404,1772,415,1660,419,1660,414,1772,410,1896,399,1954,389,2005,377,2046,360,2073,340,2081,328,2082,316,2073,287,2060,268,2043,250"/>
+<area shape="poly" id="edge47_Node000022_Node000018" title=" " alt="" coords="1909,247,1794,296,1792,291,1907,242"/>
+<area shape="poly" id="edge46_Node000022_Node000021" title=" " alt="" coords="2076,241,2192,283,2190,288,2074,246"/>
+<area shape="rect" id="Node000023" href="$tcp__io__test_8cpp.html" title="Test scenarios for tcp_io detail class." alt="" coords="1909,286,2062,342"/>
+<area shape="poly" id="edge45_Node000022_Node000023" title=" " alt="" coords="1988,254,1988,286,1983,286,1983,254"/>
+</map>

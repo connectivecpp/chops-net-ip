@@ -1,0 +1,9 @@
+<map id="/github/workspace/test/test_data_blaster/monitor_msg.hpp" name="/github/workspace/test/test_data_blaster/monitor_msg.hpp">
+<area shape="rect" id="Node000001" title="Data structures sent between nodes in test data blaster." alt="" coords="103,5,275,61"/>
+<area shape="rect" id="Node000002" href="$monitor__connector_8hpp.html" title="Monitor message serializing, deserializing, sending, and shutdown msg handling." alt="" coords="5,109,178,165"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="154,74,120,110,116,107,150,71"/>
+<area shape="rect" id="Node000004" href="$monitor__msg__test_8cpp.html" title="Unit tests for selected parts of monitor_msg.hpp." alt="" coords="201,109,374,165"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="228,70,263,106,259,110,224,74"/>
+<area shape="rect" id="Node000003" href="$monitor__connector__test_8cpp.html" title="Unit tests for monitor_connector.hpp." alt="" coords="5,213,178,268"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="94,180,94,212,89,212,89,180"/>
+</map>
