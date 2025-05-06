@@ -1,28 +1,25 @@
 /** @file
  *
- *  @ingroup test_module
+ * @brief Test scenarios for @c output_queue detail class.
  *
- *  @brief Test scenarios for @c output_queue detail class.
+ * @author Cliff Green
  *
- *  @author Cliff Green
+ * @copyright (c) 2017-2025 by Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
- *
- *  Distributed under the Boost Software License, Version 1.0. 
- *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+ * Distributed under the Boost Software License, Version 1.0. 
+ * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <vector>
 #include <cassert>
+#include <ranges> // std::views::iota
 
 #include "net_ip/detail/output_queue.hpp"
 
-#include "marshall/shared_buffer.hpp"
-
-#include "utility/repeat.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "shared_test/io_buf.hpp"
 
@@ -30,11 +27,11 @@ template <typename E>
 std::size_t add_to_q(const std::vector<E>& data_vec, 
                      chops::net::detail::output_queue<E>& outq,
                      int multiplier) {
-  chops::repeat(multiplier, [&data_vec, &outq] {
-      for (const auto& i : data_vec) {
-        outq.add_element(i);
-      }
-  } );
+  for (int i : std::views::iota(0, multiplier)) {
+    for (const auto& j : data_vec) {
+      outq.add_element(j);
+    }
+  }
   return data_vec.size() * multiplier;
 }
 
@@ -50,12 +47,11 @@ void output_queue_test(const std::vector<E>& data_vec, int multiplier) {
   REQUIRE (qs.output_queue_size == tot);
   REQUIRE (qs.bytes_in_output_queue == chops::test::accum_io_buf_size(data_vec) * multiplier);
 
-  chops::repeat(static_cast<int>(tot), [&outq] {
-      auto e = outq.get_next_element();
-//      REQUIRE (e);
-      assert (e);
-    }
-  );
+  for (int i : std::views::iota(0, static_cast<int>(tot))) {
+    auto e = outq.get_next_element();
+//    REQUIRE (e);
+    assert (e);
+  }
   auto e = outq.get_next_element(); // should be empty optional
   REQUIRE_FALSE (e); // no element val available
   qs = outq.get_queue_stats();

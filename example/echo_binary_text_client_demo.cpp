@@ -10,6 +10,8 @@
  * 
  *  Copyright (c) Thurman Gillespy
  *  2019-10-21
+ *
+ *  Updated 2025-04-23 by Cliff Green for library dependency changes
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -38,7 +40,7 @@ echo_binary_text_client_demo.cpp -lpthread -o echo_client
 #include "net_ip/net_ip.hpp"
 #include "net_ip/net_entity.hpp"
 #include "net_ip_component/worker.hpp"
-#include "marshall/extract_append.hpp"
+#include "serialize/extract_append.hpp"
 #include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;
@@ -127,7 +129,7 @@ int main(int argc, char* argv[]) {
             hdr_processed = true;
             // 1st 2 bytes is message size
             // endian correct data marshalling
-	    std::uint16_t size = chops::extract_val<std::uint16_t> 
+	    std::uint16_t size = chops::extract_val<std::endian::big, std::uint16_t> 
                                 (chops::cast_ptr_to<std::byte>(buf.data()));
             
             return size;
@@ -201,7 +203,7 @@ int main(int argc, char* argv[]) {
         // endian correct data marshalling
         std::byte tbuf[HDR_SIZE]; // temp buffer to hold the header
         // write those 2 bytes to the temp buffer
-        std::size_t result = chops::append_val<std::uint16_t>(tbuf, size_val);
+        std::size_t result = chops::append_val<std::endian::big, std::uint16_t>(tbuf, size_val);
         assert(result == HDR_SIZE);
         // now append our header and string data to the output buffer
         buf_out.append(tbuf, sizeof(tbuf)); // write the header

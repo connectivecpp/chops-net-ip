@@ -21,10 +21,8 @@
 #include <numeric> // std::accumulate
 #include <vector>
 
-#include "marshall/shared_buffer.hpp"
-
-#include "utility/repeat.hpp"
-#include "utility/make_byte_array.hpp"
+#include "buffer/shared_buffer.hpp"
+#include "utility/byte_array.hpp"
 
 
 namespace chops {

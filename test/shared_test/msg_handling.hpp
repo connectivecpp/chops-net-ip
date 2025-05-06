@@ -30,7 +30,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -50,6 +50,7 @@
 #include <chrono>
 #include <thread>
 #include <future>
+#include <ranges> // std::views::iota
 
 #include <cassert>
 #include <limits>
@@ -58,11 +59,10 @@
 #include "asio/ip/udp.hpp" // ip::udp::endpoint
 #include "asio/ip/address.hpp" // make_address
 
-#include "utility/repeat.hpp"
-#include "utility/make_byte_array.hpp"
+#include "utility/byte_array.hpp"
 
-#include "marshall/extract_append.hpp"
-#include "marshall/shared_buffer.hpp"
+#include "serialize/extract_append.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include "net_ip/basic_io_output.hpp"
 #include "net_ip/queue_stats.hpp"
@@ -72,7 +72,7 @@ namespace test {
 
 inline std::size_t decode_variable_len_msg_hdr(const std::byte* buf_ptr, std::size_t sz) {
   assert (sz == 2u);
-  return extract_val<std::uint16_t>(buf_ptr);
+  return extract_val<std::endian::big, std::uint16_t>(buf_ptr);
 }
 
 inline chops::mutable_shared_buffer make_body_buf(std::string_view pre, 
@@ -86,7 +86,7 @@ inline chops::mutable_shared_buffer make_body_buf(std::string_view pre,
 inline chops::const_shared_buffer make_variable_len_msg(const chops::mutable_shared_buffer& body) {
   assert(body.size() < std::numeric_limits<std::uint16_t>::max());
   std::byte hdr[2];
-  auto sz = append_val(hdr, static_cast<std::uint16_t>(body.size()));
+  auto sz = append_val<std::endian::big, std::uint16_t>(hdr, static_cast<std::uint16_t>(body.size()));
   chops::mutable_shared_buffer msg(hdr, 2);
   return chops::const_shared_buffer(std::move(msg.append(body.data(), body.size())));
 }
@@ -117,10 +117,9 @@ using vec_buf = std::vector<chops::const_shared_buffer>;
 template <typename F>
 vec_buf make_msg_vec(F&& func, std::string_view pre, char body_char, int num_msgs) {
   vec_buf vec;
-  chops::repeat(num_msgs, [&vec, f = std::forward<F>(func), pre, body_char] (int i) {
-      vec.push_back (f(make_body_buf(pre, body_char, i+1)));
-    }
-  );
+  for (int i : std::views::iota(0, num_msgs)) {
+    vec.push_back (func(make_body_buf(pre, body_char, i+1)));
+  }
   return vec;
 }
 
@@ -139,10 +138,9 @@ inline chops::const_shared_buffer make_fixed_size_buf() {
 
 inline vec_buf make_fixed_size_msg_vec(int num_msgs) {
   vec_buf vec;
-  chops::repeat(num_msgs, [&vec] {
-      vec.push_back (make_fixed_size_buf());
-    }
-  );
+  for (int i : std::views::iota(0, num_msgs)) {
+    vec.push_back (make_fixed_size_buf());
+  }
   return vec;
 }
 

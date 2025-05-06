@@ -7,14 +7,14 @@
  *  Concurrency protection is needed at a higher level to enforce data structure and flag
  *  consistency for data sending, as well as to ensure that only one write is in process at 
  *  a time. There are multiple ways to accomplish this goal, whether with locks (mutex or 
- *  spin-lock or semaphore, etc), or by posting all write operations through the Asio 
+ *  spin-lock or semaphore, etc), or by posting all write operations through the @c asio 
  *  executor.
  *
  *  @note For internal use only.
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)

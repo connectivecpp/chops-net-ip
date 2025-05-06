@@ -8,6 +8,8 @@
  * 
  *  Copyright (c) 2019 Thurman Gillespy
  *  2019-10-28
+ *
+ *  Updated 2025-04-23 by Cliff Green for library dependency changes
  * 
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -35,7 +37,6 @@ chat_server_demo.cpp -lpthread -o chat_server
 #include "net_ip/net_entity.hpp"
 #include "net_ip_component/worker.hpp"
 #include "net_ip_component/send_to_all.hpp"
-#include "marshall/extract_append.hpp"
 #include "net_ip/io_type_decls.hpp"
 
 using io_context = asio::io_context;

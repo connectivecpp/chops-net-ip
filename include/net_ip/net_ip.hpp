@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -26,7 +26,7 @@
 #include <variant> // std::visit
 #include <type_traits> // std::enable_if
 
-#include <mutex>
+#include <mutex> // std::scoped_lock, std::mutex
 
 #include "asio/io_context.hpp"
 #include "asio/ip/tcp.hpp"
@@ -40,9 +40,6 @@
 #include "net_ip/detail/udp_entity_io.hpp"
 
 #include "net_ip/tcp_connector_timeout.hpp"
-
-#include "utility/erase_where.hpp"
-#include "utility/overloaded.hpp"
 
 namespace chops {
 namespace net {
@@ -97,7 +94,10 @@ namespace net {
  *  other words, no event loop or @c run methods are available. Instead, the
  *  @c net_ip class takes an @c asio @c io_context as a constructor parameter and 
  *  application code will use the @c asio executor methods for invoking
- *  the underlying asynchronous operations.
+ *  the underlying asynchronous operations. The most current (as of early 2025)
+ *  @c asio executor class, matching the C++ 26 standard executor, is the @c asio 
+ *  @c any_io_executor class.
+ *
  *
  *  For convenience, a class named @c worker in the @c net_ip_component directory 
  *  combines an executor with a work guard and creates a thread to invoke the asynchronous 
@@ -130,7 +130,7 @@ private:
   std::vector<detail::udp_entity_io_shared_ptr> m_udp_entities;
 
 private:
-  using lg = std::lock_guard<std::mutex>;
+  using lg = std::scoped_lock<std::mutex>;
 
 public:
 
@@ -391,10 +391,17 @@ public:
  */
   void remove(net_entity ent) {
     lg g(m_mutex);
-    std::visit (chops::overloaded {
-        [this] (detail::tcp_acceptor_weak_ptr p) { chops::erase_where(m_acceptors, p.lock()); },
-        [this] (detail::tcp_connector_weak_ptr p) { chops::erase_where(m_connectors, p.lock()); },
-        [this] (detail::udp_entity_io_weak_ptr p) { chops::erase_where(m_udp_entities, p.lock()); },
+// overloaded utility brought in from net_entity.hpp
+    std::visit (detail::overloaded {
+        [this] (detail::tcp_acceptor_weak_ptr p) { 
+          std::erase_if(m_acceptors, [p] (detail::tcp_acceptor_shared_ptr sp) { return sp == p.lock(); } );
+	},
+        [this] (detail::tcp_connector_weak_ptr p) { 
+          std::erase_if(m_connectors, [p] (detail::tcp_connector_shared_ptr sp) { return sp == p.lock(); } );
+	},
+        [this] (detail::udp_entity_io_weak_ptr p) {
+          std::erase_if(m_udp_entities, [p] (detail::udp_entity_io_shared_ptr sp) { return sp == p.lock(); } );
+	}
       }, ent.m_wptr);
   }
 

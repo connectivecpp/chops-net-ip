@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018-2019 by Cliff Green
+ *  Copyright (c) 2018-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -38,8 +38,6 @@
 #include "net_ip/detail/net_entity_common.hpp"
 
 #include "net_ip/basic_io_output.hpp"
-
-#include "utility/erase_where.hpp"
 
 namespace chops {
 namespace net {
@@ -231,7 +229,7 @@ private:
   // this code invoked via a posted function object, allowing the TCP IO handler
   // to completely shut down 
   void notify_me(std::error_code err, tcp_io_shared_ptr iop) {
-    chops::erase_where(m_io_handlers, iop);
+    std::erase_if (m_io_handlers, [iop] (auto sp) { return iop == sp; } );
     m_entity_common.call_error_cb(iop, err);
     m_entity_common.call_io_state_chg_cb(iop, m_io_handlers.size(), false);
   }

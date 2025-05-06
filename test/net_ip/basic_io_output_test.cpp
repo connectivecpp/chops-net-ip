@@ -1,30 +1,29 @@
 /** @file
  *
- *  @ingroup test_module
+ * @brief Test scenarios for @c basic_io_output class template.
  *
- *  @brief Test scenarios for @c basic_io_output class template.
+ * @author Cliff Green
  *
- *  @author Cliff Green
+ * @copyright (c) 2018-2025 by Cliff Green
  *
- *  Copyright (c) 2018-2019 by Cliff Green
- *
- *  Distributed under the Boost Software License, Version 1.0. 
- *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+ * Distributed under the Boost Software License, Version 1.0. 
+ * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <memory> // std::shared_ptr
 #include <set>
 #include <cstddef> // std::size_t
+#include <span>
 
 #include "net_ip/queue_stats.hpp"
 #include "net_ip/basic_io_interface.hpp"
 #include "net_ip/basic_io_output.hpp"
 
-#include "marshall/shared_buffer.hpp"
-#include "utility/make_byte_array.hpp"
+#include "buffer/shared_buffer.hpp"
+#include "utility/byte_array.hpp"
 
 #include "shared_test/mock_classes.hpp"
 
@@ -58,7 +57,8 @@ void basic_io_output_test_sends() {
   REQUIRE ((*s).output_queue_size == chops::test::io_handler_mock::qs_base);
   REQUIRE ((*s).bytes_in_output_queue == (chops::test::io_handler_mock::qs_base + 1));
 
-  chops::const_shared_buffer buf(nullptr, 0);
+  std::byte b { 0x0 };
+  chops::const_shared_buffer buf(std::span<const std::byte>(&b, 0u));
   using endp_t = typename IOT::endpoint_type;
 
   REQUIRE (io_out.is_valid());

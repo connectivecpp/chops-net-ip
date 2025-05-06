@@ -6,7 +6,7 @@
  *
  *  @author (fill in)
  *
- *  Copyright (c) 2019 by Cliff Green, (fill in)
+ *  Copyright (c) 2019-2025 by Cliff Green, (fill in)
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -56,26 +56,30 @@ struct shutdown_msg {
 };
 
 
-inline chops::const_shared_buffer marshall_monitor_msg_data (const monitor_msg_data& msg_data) {
+/*
+inline chops::const_shared_buffer serialize_monitor_msg_data (const monitor_msg_data& msg_data) {
     // work in progress
     return null;
 }
 
-inline monitor_msg_data unmarshall_monitor_msg_data (const chops::const_shared_buffer& buf) {
+inline monitor_msg_data deserialize_monitor_msg_data (const chops::const_shared_buffer& buf) {
     // work in progress
     return null;
 }
 
-inline chops::const_shared_buffer marshall_shutdown_message() {
+inline chops::const_shared_buffer serialize_shutdown_message() {
     // work in progress
     return null;
 }
 
-inline std::string unmarshall_shutdown_message() {
+inline std::string deserialize_shutdown_message() {
   // work in progress
   return null;
 }
+*/
 
 
 }
 }
+#endif
+

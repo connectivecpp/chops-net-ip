@@ -6,7 +6,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -37,16 +37,15 @@
 
 #include "net_ip/io_type_decls.hpp"
 
-#include "utility/overloaded.hpp"
-
 namespace chops {
 namespace net {
 
-// Cliff note: when C++ 20 lambda templates are available much of this code can be simplified,
-// since most of it is generic (just doesn't have the specific type parameter available as 
-// needed in the right place). Stating it another way, there is waaaaaaay too much boilerplate 
-// code (it may be possible to simplify with C++17 techniques that I don't know yet).
-  
+namespace detail {
+// std::visit utility taken directly from cppreference
+  template<class... Ts>
+  struct overloaded : Ts... { using Ts::operator()...; };
+}
+
 /**
  *  @brief The @c net_entity class provides the primary application interface 
  *  into the TCP acceptor, TCP connector, and UDP entity functionality.
@@ -137,7 +136,7 @@ public:
  */
   auto is_started() const -> 
           nonstd::expected<bool, std::error_code> {
-    return std::visit(chops::overloaded {
+    return std::visit(detail::overloaded {
         [] (const udp_wp& wp) -> nonstd::expected<bool, std::error_code> {
           return detail::wp_access<bool>(wp, 
                  [] (detail::udp_entity_io_shared_ptr sp) { return sp->is_started(); } );
@@ -169,13 +168,14 @@ public:
  *  Within the function object socket options can be queried or modified or any valid
  *  socket method called.
  *
- *  @return @c nonstd::expected - socket has been visited on success; on error (if no 
+ *  @return @c nonstd::expected - @c bool socket has been visited; on error (if no 
  *  associated IO handler), a @c std::error_code is returned.
  */
+
   template <typename F>
   auto visit_socket(F&& func) const ->
           nonstd::expected<void, std::error_code> {
-    return std::visit(chops::overloaded {
+    return std::visit(detail::overloaded {
         [&func] (const udp_wp& wp) -> nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F, asio::ip::udp::socket&>) {
             return detail::wp_access_void(wp,
@@ -225,7 +225,7 @@ public:
   template <typename F>
   auto visit_io_output(F&& func) const ->
           nonstd::expected<std::size_t, std::error_code> {
-    return std::visit(chops::overloaded {
+    return std::visit(detail::overloaded {
         [&func] (const udp_wp& wp)-> nonstd::expected<std::size_t, std::error_code>  {
           if constexpr (std::is_invocable_v<F, chops::net::udp_io_output>) {
             return detail::wp_access<std::size_t>(wp,
@@ -343,7 +343,7 @@ public:
   template <typename F1, typename F2>
   auto start(F1&& io_state_chg_func, F2&& err_func) ->
           nonstd::expected<void, std::error_code> {
-    return std::visit(chops::overloaded {
+    return std::visit(detail::overloaded {
         [&io_state_chg_func, &err_func] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
           if constexpr (std::is_invocable_v<F1, udp_io_interface, std::size_t, bool> &&
                         std::is_invocable_v<F2, udp_io_interface, std::error_code>) {
@@ -389,7 +389,7 @@ public:
  */
   auto stop() ->
           nonstd::expected<void, std::error_code> {
-    return std::visit(chops::overloaded {
+    return std::visit(detail::overloaded {
         [] (const udp_wp& wp)->nonstd::expected<void, std::error_code> {
           return detail::wp_access_void(wp, 
               [] (detail::udp_entity_io_shared_ptr sp) { return sp->stop(); } );
@@ -414,7 +414,7 @@ public:
  *
  */
   std::string_view stream_out() const noexcept {
-    return std::visit(chops::overloaded {
+    return std::visit(detail::overloaded {
         [] (const udp_wp& wp) { return "[UDP network entity]"; },
         [] (const acc_wp& wp) { return "[TCP acceptor network entity]"; },
         [] (const conn_wp& wp) { return "[TCP connector network entity]"; },
@@ -442,7 +442,7 @@ public:
  */
 
 inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
-  return std::visit(chops::overloaded {
+  return std::visit(detail::overloaded {
     [] (const net_entity::udp_wp& lwp, const net_entity::udp_wp& rwp) {
           return lwp.lock() == rwp.lock();
         },
@@ -487,7 +487,7 @@ inline bool operator==(const net_entity& lhs, const net_entity& rhs) noexcept {
  *  @return As described in the comments.
  */
 inline bool operator<(const net_entity& lhs, const net_entity& rhs) noexcept {
-  return std::visit(chops::overloaded {
+  return std::visit(detail::overloaded {
     [] (const net_entity::udp_wp& lwp, const net_entity::udp_wp& rwp) {
           return lwp.lock() < rwp.lock();
         },

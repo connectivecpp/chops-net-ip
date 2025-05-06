@@ -1,19 +1,17 @@
 /** @file
  *
- *  @ingroup test_module
+ * @brief Test scenarios for @c tcp_io detail class.
  *
- *  @brief Test scenarios for @c tcp_io detail class.
+ * @author Cliff Green
  *
- *  @author Cliff Green
+ * @copyright (c) 2017-2025 by Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
- *
- *  Distributed under the Boost Software License, Version 1.0. 
- *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+ * Distributed under the Boost Software License, Version 1.0. 
+ * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include "asio/ip/tcp.hpp"
 #include "asio/connect.hpp"
@@ -40,7 +38,7 @@
 
 #include "net_ip/endpoints_resolver.hpp"
 
-#include "marshall/shared_buffer.hpp"
+#include "buffer/shared_buffer.hpp"
 
 #include <iostream>
 

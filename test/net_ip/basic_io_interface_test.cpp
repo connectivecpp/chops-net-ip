@@ -1,19 +1,17 @@
 /** @file
  *
- *  @ingroup test_module
+ * @brief Test scenarios for @c basic_io_interface class template.
  *
- *  @brief Test scenarios for @c basic_io_interface class template.
+ * @author Cliff Green
  *
- *  @author Cliff Green
+ * @copyright (c) 2017-2025 by Cliff Green
  *
- *  Copyright (c) 2017-2018 by Cliff Green
- *
- *  Distributed under the Boost Software License, Version 1.0. 
- *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+ * Distributed under the Boost Software License, Version 1.0. 
+ * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <memory> // std::shared_ptr
 #include <set>
@@ -194,7 +192,7 @@ void basic_io_interface_test_compare() {
 }
 
 TEST_CASE ( "Basic io interface test, io_handler_mock used for IO handler type",
-           "[basic_io_interface] [io_handler_mock]" ) {
+            "[basic_io_interface] [io_handler_mock]" ) {
   basic_io_interface_test_default_constructed<chops::test::io_handler_mock>();
   basic_io_interface_test_all_start_io<chops::test::io_handler_mock>();
   basic_io_interface_test_other_methods<chops::test::io_handler_mock>();

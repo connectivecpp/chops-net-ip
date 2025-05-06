@@ -6,14 +6,14 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2019 by Cliff Green
+ *  Copyright (c) 2019-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <vector>
 #include <list>
@@ -27,8 +27,8 @@
 
 #include "shared_test/mock_classes.hpp"
 
-SCENARIO ( "Testing accumulate_output_queue_stats for io_output objects",
-           "[accumulate_output_queue_stats]" ) {
+TEST_CASE ( "Testing accumulate_output_queue_stats for io_output objects",
+            "[accumulate_output_queue_stats]" ) {
 
   using namespace chops::test;
   using io_out_mock = chops::net::basic_io_output<io_handler_mock>;
@@ -54,8 +54,8 @@ SCENARIO ( "Testing accumulate_output_queue_stats for io_output objects",
 
 }
 
-SCENARIO ( "Testing accumulate_output_queue_stats for net_entity objects",
-           "[accumulate_net_entity_output_queue_stats]" ) {
+TEST_CASE ( "Testing accumulate_output_queue_stats for net_entity objects",
+            "[accumulate_net_entity_output_queue_stats]" ) {
 
 // Not much runtime testing, as of yet, in this scenario, mostly compile time, using default
 // constructed net_entity objects

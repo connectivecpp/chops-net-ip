@@ -1,19 +1,17 @@
 /** @file
  *
- *  @ingroup test_module
+ * @brief Test scenarios for @c net_entity class.
  *
- *  @brief Test scenarios for @c net_entity class.
+ * @author Cliff Green
  *
- *  @author Cliff Green
+ * @copyright (c) 2018-2025 by Cliff Green
  *
- *  Copyright (c) 2018-2019 by Cliff Green
- *
- *  Distributed under the Boost Software License, Version 1.0. 
- *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+ * Distributed under the Boost Software License, Version 1.0. 
+ * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
  *
  */
 
-#include "catch2/catch.hpp"
+#include "catch2/catch_test_macros.hpp"
 
 #include <memory> // std::shared_ptr
 #include <functional> // std::ref
@@ -359,7 +357,7 @@ TEST_CASE ( "Net entity method and comparison testing, UDP entity, TCP acceptor,
   while (!err_wq.empty()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  err_wq.close();
+  err_wq.request_stop();
   auto err_cnt = err_fut.get();
   INFO ("Num err messages in sink: " << err_cnt);
 

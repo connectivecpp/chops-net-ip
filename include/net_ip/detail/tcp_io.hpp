@@ -8,7 +8,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2017-2019 by Cliff Green
+ *  Copyright (c) 2017-2025 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -19,7 +19,7 @@
 #define TCP_IO_HPP_INCLUDED
 
 #include "asio/io_context.hpp"
-#include "asio/executor.hpp"
+#include "asio/any_io_executor.hpp"
 #include "asio/read.hpp"
 #include "asio/read_until.hpp"
 #include "asio/write.hpp"
@@ -42,7 +42,7 @@
 #include "net_ip/basic_io_output.hpp"
 #include "net_ip/simple_variable_len_msg_frame.hpp"
 
-#include "marshall/shared_buffer.hpp"
+#include "buffer/shared_buffer.hpp"
 
 namespace chops {
 namespace net {

@@ -21,8 +21,6 @@
 
 #include <cstddef> // std::size_t, std::byte
 
-#include "utility/cast_ptr_to.hpp"
-
 namespace chops {
 namespace net {
 
@@ -68,7 +66,7 @@ public:
 
   std::size_t operator() (asio::mutable_buffer buf) noexcept {
     if (!m_hdr_processed) {
-      auto sz = m_hdr_decoder_func(cast_ptr_to<std::byte>(buf.data()), buf.size());
+      auto sz = m_hdr_decoder_func(static_cast<const std::byte*>(buf.data()), buf.size());
       m_hdr_processed = (sz != 0u);
       return sz;
     }
