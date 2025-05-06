@@ -22,29 +22,16 @@ void will_throw() {
   throw ex;
 }
 
-SCENARIO ( "Error code and exception test", "[error_code_exception]" ) {
+TEST_CASE ( "Error code and exception test", "[error_code_exception]" ) {
 
-  GIVEN ("A function that throws a net_ip exception") {
-    WHEN ("The function throws") {
-      THEN ("an exception is present") {
-        REQUIRE_THROWS (will_throw());
-      }
-    }
-  } // end given
+  REQUIRE_THROWS (will_throw());
 
-  GIVEN ("A function that throws a net_ip exception") {
-    WHEN ("The function throws") {
-      THEN ("the exception will contain a custom error message") {
-        try {
-          will_throw();
-        }
-        catch (const chops::net::net_ip_exception& e) {
-          INFO ("Error code message: " << e.err.message());
-          REQUIRE(e.err);
-        }
-      }
-    }
-  } // end given
-
+  try {
+    will_throw();
+  }
+  catch (const chops::net::net_ip_exception& e) {
+    INFO ("Error code message: " << e.err.message());
+    REQUIRE(e.err);
+  }
 }
 

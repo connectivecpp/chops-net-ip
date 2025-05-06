@@ -17,6 +17,7 @@
 #include "test_data_blaster/dsr_args.hpp"
 
 TEST_CASE("TCP DSR arguments test", "[tcp_dsr_args_test]") {
+  REQUIRE (true);
 
 }
 

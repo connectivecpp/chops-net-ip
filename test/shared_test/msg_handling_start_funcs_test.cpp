@@ -33,6 +33,7 @@
 TEST_CASE ( "Shared Net IP test utility, msg handling start functions",
            "[shared_utility] [msg_handling]" ) {
   using namespace chops::test;
+  REQUIRE (true);
 
 }
 

@@ -32,8 +32,8 @@
 
 #include "shared_test/mock_classes.hpp"
 
-SCENARIO ( "Testing ostream_error_sink_with_wait_queue function",
-           "[error_delivery]" ) {
+TEST_CASE ( "Testing ostream_error_sink_with_wait_queue function",
+            "[error_delivery]" ) {
 
   using namespace chops::test;
 

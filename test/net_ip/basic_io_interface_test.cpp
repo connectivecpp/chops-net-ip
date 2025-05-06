@@ -192,7 +192,7 @@ void basic_io_interface_test_compare() {
 }
 
 TEST_CASE ( "Basic io interface test, io_handler_mock used for IO handler type",
-           "[basic_io_interface] [io_handler_mock]" ) {
+            "[basic_io_interface] [io_handler_mock]" ) {
   basic_io_interface_test_default_constructed<chops::test::io_handler_mock>();
   basic_io_interface_test_all_start_io<chops::test::io_handler_mock>();
   basic_io_interface_test_other_methods<chops::test::io_handler_mock>();

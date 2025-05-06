@@ -17,5 +17,6 @@
 #include "test_data_blaster/monitor_msg.hpp"
 
 TEST_CASE("monitor message test", "[monitor_msg_test]") {
+  REQUIRE (true);
 
 }

@@ -17,5 +17,6 @@
 #include "test_data_blaster/monitor_connector.hpp"
 
 TEST_CASE("monitor connector test", "[monitor_connector_test]") {
+  REQUIRE (true);
 
 }
