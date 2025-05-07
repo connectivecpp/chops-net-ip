@@ -2,8 +2,6 @@
 
 ## Unit Tests
 
-There is a `Catch2` main source named `main_test.cpp` in the `test` directory, which is used in building `Catch2` based unit tests. Each individual unit test is in a subdirectory corresponding to the production source subdirectory.
-
 All of the unit tests run on one host, with the networking unit tests using `localhost` (or equivalent).
 
 ### Shared Test

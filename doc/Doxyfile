@@ -937,6 +937,9 @@ FILE_PATTERNS          = *.c \
                          *.vhdl \
                          *.ucf \
                          *.qsf \
+                         *.jpg \
+                         *.png \
+                         *.svg \
                          *.ice
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should

@@ -8,10 +8,10 @@ Chops Net IP is layered on top of the Asio asynchronous networking library, taki
 
 Chops Net IP:
 
-1. Asio gotchas
-2. Simplifies many use cases
-3. API between TCP and UDP is similar, allowing shared code
-4. Provides callback points 
+1. Handles most of the Asio "gotchas", such as keeping buffers "alive" in asynchronous designs.
+2. Simplifies many networking use cases, allowing simpler callbacks to be used.
+3. Provides a similar API between TCP and UDP, allowing shared code and easy switching between protocols.
+4. Provides callback interfaces for all of the "state" change points in TCP and UDP, allowing customized code (for example logging or statistics collection).
 
 #### Unit Test and Documentation Generation Workflow Status
 
@@ -23,13 +23,38 @@ Chops Net IP:
 
 ![GH Tag](https://img.shields.io/github/v/tag/connectivecpp/chops-net-ip?label=GH%20tag)
 
-## Overview
-
-(fill in)
-
 ## Generated Documentation
 
 The generated Doxygen documentation for `chops_net_ip` is [here](https://connectivecpp.github.io/chops-net-ip/).
+
+## Overview
+
+For many software developers, asynchronous network programming in C++ is not easy. It is complex, has many pitfalls, and requires designing C++ code in a way that is not natural, even for those with years of experience. Chops Net IP ("C"onnective "H"andcrafted "Op"enwork "S"oftware, Networking over Internet Protocol) simplifies asynchronous network programming and provides useful (and tasty!) abstractions for many types of communication patterns.
+
+Chops Net IP is layered on top of Chris Kohlhoff's Asio library (see [References](https://connectivecpp.github.io/doc/references.html)) allowing it to be portable across many compilers and platforms. If networking is standardized in C++ Chops Net IP will directly use the networking facilities of the C++ standard library.
+
+### Tasty Uses
+
+Example environments where Chops Net IP is a good fit:
+
+- Applications that are event driven or highly asynchronous in nature.
+- Applications where data is generated and handled in a non-symmetric manner. For example, data may be generated on the TCP acceptor side, or may be generated on a TCP connector side, or on both sides depending on the use case. Similarly, applications where the data flow is bi-directional and sends or receives are data-driven versus pattern-driven work well with this library.
+- Applications interacting with multiple (many) connections (e.g. handling multiple sensors or inputs or outputs), each with low to moderate throughput needs (i.e. IoT environments, chat networks, gaming networks).
+- Small footprint or embedded environments, where all network processing is run inside a single thread. In particular, environments where a JVM (or similar run-time support) is too costly in terms of system resources, but have a relatively rich operating environment (e.g. Linux running on a small chip) are a very good fit. (Currently the main constraint is small system support in the Asio library implementation.)
+- Applications with relatively simple network processing that need an easy-to-use and quick-for-development networking library.
+- Applications with configuration driven networks that may need to switch (for example) between TCP connect versus TCP accept for a given connection, or between TCP and UDP for a given communication path.
+- Peer-to-peer applications where the application doesn't care which side connects or accepts.
+- Frameworks or groups of applications where abstracting wire-protocol logic from message processing logic makes sense.
+
+### Examples
+
+Example demo programs are in the [`/example`](./example) directory.
+
+The `simple_chat_demo.cpp` program has a listing of the multiple steps to set up a working example.
+
+### Want More?
+
+A detailed overview, a C++ socket library comparison, and a FAQ is [available here](doc/overview.md).
 
 ## Library Dependencies
 
