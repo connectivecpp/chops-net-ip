@@ -15,9 +15,9 @@ The secondary criteria includes:
 - Highly scalable
 - Bi-directional data flow
 
-## Asio and C++ Networking TS
+## Asio and C++ Networking Standardization
 
-Asio provides the foundation and underlying asynchronous model for Chops Net IP. The C++ Networking TS is still in development, awaiting standardization and modularization of core components such as executors. Chops Net IP provides usage and abstraction advantages as outlined in the overview documentation.
+Asio provides the foundation and underlying asynchronous model for Chops Net IP. C++ standardization efforts for networking have been ongoing for years (over a decade), with a major part of the effort working on `std::execution` (which covers many areas besides networking). If a C++ networking standard becomes official, Chops Net IP and Asio will likely change accordingly.
 
 ## ACE
 

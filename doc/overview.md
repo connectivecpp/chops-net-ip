@@ -60,7 +60,7 @@ Even though an implicit state transition table exists within the Chops Net IP li
 
 Pro tip - Chops Net IP follows the implicit state model of the Asio library (and similar libraries) where state transitions are implemented through chaining function objects on asynchronous operations. Developers familiar with implicit or explicit state transition models will be familiar with the application model defined for Chops Net IP. Chops Net IP insulates the application from the intricacies of the Asio library and simplifies the state transition details.
 
-![Image of Chops Net IP objects and states](object_states_diagram.png)
+[Click for image of Chops Net IP objects and states](object_states_diagram.png)
 
 ## Constraints
 
@@ -132,9 +132,9 @@ Future versions of the library may have more move semantics and less reference c
 
 Most of the Chops Net IP public classes (`net_entity`, `basic_io_interface`, `basic_io_output`) use `std::weak_ptr` references to the internal reference counted objects. This means that application code which ignores state changes (e.g. a TCP connection that has ended) will have errors returned by the Chops Net IP library when trying to access a non-existent object (e.g. trying to send data through a TCP connection that has gone away). This is preferred to "dangling pointers" that result in process crashes or requiring the application to continually query the Chops Net IP library for state information.
 
-![Image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.png)
+[Click for image of Chops Net IP Tcp Acceptor internal](tcp_acceptor_internal_diagram.png)
 
-![Image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.png)
+[Click for image of Chops Net IP Tcp Connector and UDP internal](tcp_connector_udp_internal_diagram.png)
 
 Where to provide the customization points in the API is one of the most crucial design choices. Using template parameters for function objects and passing them through call chains is preferred to storing the function object in a `std::function`. In general, performance critical paths, primarily reading and writing data, always use function objects passed through as template parameters, while less performance critical paths may use a `std::function`.
 
@@ -147,10 +147,9 @@ Many of the public methods that call into internal handlers use a `std::future` 
 ## Future Directions
 
 - Strand design and support will be considered and likely implemented, allowing thread pools to be used for a given `net_ip` instance, instead of limiting it to a single thread.
-- Older compiler (along with older C++ standard) support is likely to be implemented, depending on availability and collaboration support.
+- Older compiler (along with older C++ standard) support may be implemented, depending on availability and collaboration support.
 - The outgoing queue container is likely to become a template parameter. This would allow circular buffers (ring spans) or other data structures to be used instead of the default `std::queue` (which is instantiated to use a `std::deque`).
 - The reference counted outgoing buffer type is likely to become a template parameter, allowing applications to use a different reference counting scheme, or a wrapper over some form of static memory (the requirement will be that the memory is valid while the write is in progress). Alternatively, a generic copy and move, versus reference counting, may be supported in future versions.
-- Containers used internally in Chops Net IP (other than the outgoing queue) may also be templatized. These include the container used in the TCP acceptor for TCP connection objects, and the container used in the `net_ip` object that holds all of the network entities.
 - SSL or TLS support may be added, depending on collaborators with expertise being available.
 - Additional protocols may be added, but would be in a separate library (Bluetooth, serial I/O, MQTT, etc). Chops Net IP focuses on TCP, UDP unicast, and UDP multicast support. If a reliable UDP multicast protocol is popular enough, support may be added.
 

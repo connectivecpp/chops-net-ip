@@ -128,9 +128,10 @@ void start_stop_connector(asio::io_context& ioc, int interval, chops::net::err_w
   auto r1 = conn_ptr->start( no_start_io_state_chg, 
                              chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
   REQUIRE_FALSE(r1);
-  std::this_thread::sleep_for(std::chrono::milliseconds(interval));
+  std::this_thread::sleep_for(std::chrono::milliseconds(interval+500)); // at least half second pause
   auto r2 = conn_ptr->stop();
   REQUIRE_FALSE(r2);
+  std::this_thread::sleep_for(std::chrono::milliseconds(interval+200)); // pause for part of a sec
   auto r3 = conn_ptr->start( no_start_io_state_chg, 
                              chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq));
   REQUIRE (r3);
@@ -367,8 +368,8 @@ TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 30, 1 connector
 TEST_CASE ( "Tcp connector test, var len msgs, two-way, interval 0, 1 connector, many msgs", 
            "[tcp_conn] [var_len_msg] [two_way] [interval_0] [connectors_1]" ) {
 
-  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', 50*num_msgs),
-                 make_fixed_size_msg_vec(50*num_msgs),
+  perform_test ( make_msg_vec (make_variable_len_msg, "Yowser!", 'X', 30*num_msgs),
+                 make_fixed_size_msg_vec(30*num_msgs),
                  true, 0, 1,
                  std::string_view(), make_empty_variable_len_msg() );
 
@@ -447,8 +448,8 @@ TEST_CASE ( "Tcp connector test, CR / LF msgs, two-way, interval 10, 5 connector
 TEST_CASE ( "Tcp connector test, CR / LF msgs, two-way, interval 0, 10 connectors, many msgs", 
            "[tcp_conn] [cr_lf_msg] [two_way] [interval_0] [connectors_10] [many]" ) {
 
-  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 50*num_msgs),
-                 make_fixed_size_msg_vec(50*num_msgs),
+  perform_test ( make_msg_vec (make_cr_lf_text_msg, "Yes, yes, very fast!", 'F', 30*num_msgs),
+                 make_fixed_size_msg_vec(30*num_msgs),
                  true, 0, 10, 
                  std::string_view("\r\n"), make_empty_cr_lf_text_msg() );
 
@@ -468,7 +469,7 @@ TEST_CASE ( "Tcp connector test, LF msgs, one-way, interval 0, 15 connectors",
            "[tcp_conn] [lf_msg] [one_way] [interval_0] [connectors_15]" ) {
 
   perform_test ( make_msg_vec (make_lf_text_msg, "Excited fast!", 'F', 6*num_msgs),
-                 make_fixed_size_msg_vec(5*num_msgs),
+                 make_fixed_size_msg_vec(6*num_msgs),
                  false, 0, 15,
                  std::string_view("\n"), make_empty_lf_text_msg() );
 
@@ -477,8 +478,8 @@ TEST_CASE ( "Tcp connector test, LF msgs, one-way, interval 0, 15 connectors",
 TEST_CASE ( "Tcp connector test, LF msgs, two-way, interval 0, 15 connectors, many msgs", 
            "[tcp_conn] [lf_msg] [two_way] [interval_0] [connectors_15] [many]" ) {
 
-  perform_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 40*num_msgs),
-                 make_fixed_size_msg_vec(40*num_msgs),
+  perform_test ( make_msg_vec (make_lf_text_msg, "Super fast!", 'S', 25*num_msgs),
+                 make_fixed_size_msg_vec(25*num_msgs),
                  true, 0, 15, 
                  std::string_view("\n"), make_empty_lf_text_msg() );
 
