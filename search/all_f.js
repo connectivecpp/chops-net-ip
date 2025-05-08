@@ -23,7 +23,7 @@ var searchData=
   ['net_5fip_5ferror_5ftest_2ecpp_20',['net_ip_error_test.cpp',['../net__ip__error__test_8cpp.html',1,'']]],
   ['net_5fip_5fexception_21',['net_ip_exception',['../classchops_1_1net_1_1net__ip__exception.html',1,'chops::net']]],
   ['net_5fip_5ftest_2ecpp_22',['net_ip_test.cpp',['../net__ip__test_8cpp.html',1,'']]],
-  ['networking_20ts_23',['Asio and C++ Networking TS',['../md_lib__comparison.html#autotoc_md43',1,'']]],
+  ['networking_20standardization_23',['Asio and C++ Networking Standardization',['../md_lib__comparison.html#autotoc_md43',1,'']]],
   ['next_20steps_20todo_20s_20problems_20and_20constraints_3a_24',['Next Steps ToDo s Problems and Constraints:',['../md_release.html#autotoc_md60',1,'Next Steps, ToDo&apos;s, Problems, and Constraints:'],['../md_release.html#autotoc_md64',1,'Next Steps, ToDo&apos;s, Problems, and Constraints:']]],
   ['no_5fstart_5fio_5fstate_5fchg_25',['no_start_io_state_chg',['../structno__start__io__state__chg.html',1,'']]],
   ['note_20on_20the_20chops_20name_26',['A Cliff Note on the Chops Name',['../md_cliff__notes.html',1,'']]],

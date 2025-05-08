@@ -5,7 +5,7 @@ var searchData=
   ['release_200_201_2',['Release 0.1',['../md_release.html#autotoc_md66',1,'']]],
   ['release_200_202_3',['Release 0.2',['../md_release.html#autotoc_md62',1,'']]],
   ['release_200_203_4',['Release 0.3',['../md_release.html#autotoc_md61',1,'']]],
-  ['release_201_200_5',['Release 1.0',['../md_release.html#autotoc_md59',1,'']]],
+  ['release_201_20x_5',['Release 1.x',['../md_release.html#autotoc_md59',1,'']]],
   ['release_20status_6',['Chops Net IP Release Status',['../md_release.html',1,'']]],
   ['remove_7',['remove',['../classchops_1_1net_1_1net__ip.html#a2e50046458701e785305f6637fb09701',1,'chops::net::net_ip']]],
   ['remove_5fall_8',['remove_all',['../classchops_1_1net_1_1net__ip.html#a2036a4786ba37f42ecd48e7ebc788d54',1,'chops::net::net_ip']]],

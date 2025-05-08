@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['c_20networking_20ts_0',['Asio and C++ Networking TS',['../md_lib__comparison.html#autotoc_md43',1,'']]],
+  ['c_20networking_20standardization_0',['Asio and C++ Networking Standardization',['../md_lib__comparison.html#autotoc_md43',1,'']]],
   ['c_20socket_20library_20comparisons_1',['C++ Socket Library Comparisons',['../md_lib__comparison.html',1,'']]],
   ['cancel_2',['cancel',['../classchops_1_1net_1_1endpoints__resolver.html#a780a7f5611fe3348d70b85d9a169c327',1,'chops::net::endpoints_resolver']]],
   ['change_20customization_20point_3',['State Change Customization Point',['../index.html#autotoc_md53',1,'']]],

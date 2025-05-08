@@ -7,7 +7,7 @@ var searchData=
   ['accumulate_5foutput_5fqueue_5fstats_5funtil_4',['accumulate_output_queue_stats_until',['../output__queue__stats_8hpp.html#a0e02158f1b986ecd852fa5dd7c9eece8',1,'chops::net']]],
   ['ace_5',['ACE',['../md_lib__comparison.html#autotoc_md44',1,'']]],
   ['add_5fio_5foutput_6',['add_io_output',['../classchops_1_1net_1_1send__to__all.html#ab1dca34c04fc2786265f1adfc2885784',1,'chops::net::send_to_all']]],
-  ['and_20c_20networking_20ts_7',['Asio and C++ Networking TS',['../md_lib__comparison.html#autotoc_md43',1,'']]],
+  ['and_20c_20networking_20standardization_7',['Asio and C++ Networking Standardization',['../md_lib__comparison.html#autotoc_md43',1,'']]],
   ['and_20constraints_3a_8',['and Constraints:',['../md_release.html#autotoc_md60',1,'Next Steps, ToDo&apos;s, Problems, and Constraints:'],['../md_release.html#autotoc_md64',1,'Next Steps, ToDo&apos;s, Problems, and Constraints:']]],
   ['and_20design_9',['Internals and Design',['../md__2github_2workspace_2test_2test__data__blaster_2README.html#autotoc_md8',1,'']]],
   ['and_20design_20model_10',['General Usage and Design Model',['../index.html#autotoc_md47',1,'']]],
@@ -21,5 +21,5 @@ var searchData=
   ['application_20source_20code_18',['Example Application Source Code',['../md__2github_2workspace_2example_2README.html#autotoc_md15',1,'']]],
   ['applications_19',['Distributed Test Applications',['../md__2github_2workspace_2test_2README.html#autotoc_md3',1,'']]],
   ['apps_20',['Building and Running Individual Example Apps',['../md__2github_2workspace_2example_2README.html#autotoc_md17',1,'']]],
-  ['asio_20and_20c_20networking_20ts_21',['Asio and C++ Networking TS',['../md_lib__comparison.html#autotoc_md43',1,'']]]
+  ['asio_20and_20c_20networking_20standardization_21',['Asio and C++ Networking Standardization',['../md_lib__comparison.html#autotoc_md43',1,'']]]
 ];

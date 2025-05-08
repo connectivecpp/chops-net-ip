@@ -33,6 +33,5 @@ var searchData=
   ['the_20chops_20net_20ip_20library_30',['Classes and functions for the Chops Net IP library.',['../group__net__ip__module.html',1,'']]],
   ['todo_20s_20problems_20and_20constraints_3a_31',['ToDo s Problems and Constraints:',['../md_release.html#autotoc_md60',1,'Next Steps, ToDo&apos;s, Problems, and Constraints:'],['../md_release.html#autotoc_md64',1,'Next Steps, ToDo&apos;s, Problems, and Constraints:']]],
   ['transitions_32',['States and Transitions',['../index.html#autotoc_md50',1,'']]],
-  ['ts_33',['Asio and C++ Networking TS',['../md_lib__comparison.html#autotoc_md43',1,'']]],
-  ['tutorial_34',['Tutorial',['../md_tutorial.html',1,'']]]
+  ['tutorial_33',['Tutorial',['../md_tutorial.html',1,'']]]
 ];
