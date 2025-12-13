@@ -170,8 +170,8 @@ void test_tcp_msg_send (const vec_buf& in_msg_vec,
   // wait for another io_output to signal end of processing
   io_out = *(out_wq.wait_and_pop());
 
-  net_conn.stop();
-  net_acc.stop();
+  auto r1 {net_conn.stop()};
+  auto r2 {net_acc.stop()};
 
   REQUIRE (in_msg_vec.size() == acc_cnt);
   REQUIRE (in_msg_vec.size() == conn_cnt);
@@ -223,8 +223,8 @@ void test_udp_msg_send (const vec_buf& in_msg_vec,
 
   std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-  net_udp_send.stop();
-  net_udp_recv.stop();
+  auto r1 {net_udp_send.stop()};
+  auto r2 {net_udp_recv.stop()};
 
 
   REQUIRE_FALSE (*(net_udp_send.is_started()));
