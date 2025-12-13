@@ -22,7 +22,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2018-2019 by Cliff Green
+ *  Copyright (c) 2018-2026 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -67,7 +67,7 @@ auto make_simple_variable_len_msg_frame_io_state_change (std::size_t hdr_size,
   return [hdr_size, hdr_func, mh = std::move(msg_hdlr)] 
                   (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io(hdr_size, std::move(mh), hdr_func);
+      auto r{io.start_io(hdr_size, std::move(mh), hdr_func)};
     }
   };
 }
@@ -96,7 +96,7 @@ auto make_msg_frame_io_state_change (std::size_t hdr_size,
   return [hdr_size, mh = std::move(msg_hdlr), mf = std::move(msg_frame)] 
                   (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io(hdr_size, std::move(mh), std::move(mf));
+      auto r{io.start_io(hdr_size, std::move(mh), std::move(mf))};
     }
   };
 }
@@ -121,7 +121,7 @@ auto make_delimiter_read_io_state_change (std::string_view delim, MH&& msg_hdlr)
   return [delim, mh = std::move(msg_hdlr)] 
                   (tcp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io(delim, std::move(mh));
+      auto r{io.start_io(delim, std::move(mh))};
     }
   };
 }
@@ -147,7 +147,7 @@ auto make_read_io_state_change (std::size_t rd_size, MH&& msg_hdlr) {
   return [rd_size, mh = std::move(msg_hdlr)] 
                   (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io(rd_size, std::move(mh));
+      auto r{io.start_io(rd_size, std::move(mh))};
     }
   };
 }
@@ -163,7 +163,7 @@ template <typename IOT>
 auto make_send_only_io_state_change () {
   return [] (basic_io_interface<IOT> io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io();
+      auto r{io.start_io()};
     }
   };
 }
@@ -191,7 +191,7 @@ auto make_default_endp_io_state_change (const asio::ip::udp::endpoint& endp,
   return [max_size, endp, mh = std::move(msg_hdlr)] 
                   (udp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io(endp, max_size, std::move(mh));
+      auto r{io.start_io(endp, max_size, std::move(mh))};
     }
   };
 }
@@ -210,7 +210,7 @@ inline
 auto make_send_only_default_endp_io_state_change (const asio::ip::udp::endpoint& endp) {
   return [endp] (udp_io_interface io, std::size_t num, bool starting) {
     if (starting) {
-      io.start_io(endp);
+      auto r {io.start_io(endp)};
     }
   };
 }
