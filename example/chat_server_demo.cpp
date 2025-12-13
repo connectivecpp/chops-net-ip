@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
       // add to or remove @c io_interface from list in sta
       sta(iof, n, flag);
       if (flag) {
-         iof.start_io(DELIM, msg_hndlr);
+         auto e{iof.start_io(DELIM, msg_hndlr)};
       }
    };
 
@@ -159,7 +159,7 @@ int main(int argc, char *argv[])
    auto net_entity = server.make_tcp_acceptor(port.c_str());
    assert(net_entity.is_valid());
    // start network entity, emplace handlers
-   net_entity.start(io_state_chng_hndlr, err_func);
+   auto se{net_entity.start(io_state_chng_hndlr, err_func)};
 
    std::cout << "chops-net-ip chat server demo" << std::endl;
    std::cout << "  port: " << port << std::endl;
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
    // shutdown
    std::cerr << "shutdown...\n";
-   net_entity.stop();
+   auto e{net_entity.stop()};
    
    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 

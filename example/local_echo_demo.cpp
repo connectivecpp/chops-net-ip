@@ -80,7 +80,7 @@ int main() {
     auto io_state_chng_connect = [msg_hndlr_connect] 
         (tcp_io_interface iof, std::size_t n, bool flag) {
             if (flag && n == 1) {
-                iof.start_io("\n", msg_hndlr_connect);
+                auto e{iof.start_io("\n", msg_hndlr_connect)};
             }
             
         };
@@ -90,7 +90,7 @@ int main() {
         (tcp_io_interface iof, std::size_t n, bool flag)
         {
             if (flag && n == 1) {
-                iof.start_io("\n", msg_hndlr_accept);
+                auto e{iof.start_io("\n", msg_hndlr_accept)};
             }
         };
 
@@ -140,14 +140,14 @@ int main() {
         s += "\n"; // needed for deliminator
         // send string from @c tcp_connector to @c tcp_acceptor
         auto visit_out = [&s] (io_output io_out) { io_out.send(s.data(), s.size());};
-        tcne.visit_io_output(visit_out);
+        auto e{tcne.visit_io_output(visit_out)};
         // pause so returned string is displayed before next prompt
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     
     // must shutdown the net entities
-    tcne.stop();
-    tane.stop();
+    auto e1{tcne.stop()};
+    auto e2{tane.stop()};
     wk.reset();
 
     return EXIT_SUCCESS;

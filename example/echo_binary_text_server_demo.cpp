@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
         (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
-            iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
+            auto e{iof.start_io(HDR_SIZE, msg_hndlr, msg_frame)};
         }
     
     };
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
     net_entity_accept = echo_server.make_tcp_acceptor(port.c_str());
     assert(net_entity_accept.is_valid());
     // start network entity, emplace handlers
-    net_entity_accept.start(io_state_chng_hndlr, err_func);
+    auto se{net_entity_accept.start(io_state_chng_hndlr, err_func)};
 
     // begin
     std::cout << "chops-net-ip binary text echo demo - server" << std::endl;
@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
     std::getline(std::cin, s); // pause until return
     
     // cleanup
-    net_entity_accept.stop();
+    auto e{net_entity_accept.stop()};
     wk.reset();
 
     return EXIT_SUCCESS;
