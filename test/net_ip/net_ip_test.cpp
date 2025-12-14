@@ -4,7 +4,7 @@
  *
  * @author Cliff Green
  *
- * @copyright (c) 2018-2025 by Cliff Green
+ * @copyright (c) 2018-2026 by Cliff Green
  *
  * Distributed under the Boost Software License, Version 1.0. 
  * (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -43,12 +43,12 @@
 
 using namespace chops::test;
 
-const char* tcp_test_port = "30465";
-const char* tcp_test_host = "localhost";
-constexpr int num_msgs = 50;
+const char* tcp_test_port {"30465"};
+const char* tcp_test_host {"localhost"};
+constexpr int num_msgs {50};
 
-const char*   udp_test_addr = "127.0.0.1";
-constexpr int udp_port_base = 31445;
+const char*   udp_test_addr {"127.0.0.1"};
+constexpr int udp_port_base {31445};
 
 // Catch test framework not thread-safe, all REQUIRE clauses must be in single thread
 
@@ -105,28 +105,27 @@ std::size_t acc_conn_var_test (asio::io_context& ioc, chops::net::err_wait_q& er
                                std::string_view delim, chops::const_shared_buffer empty_msg) {
 
   chops::net::net_ip nip(ioc);
-  auto acc = nip.make_tcp_acceptor(tcp_test_port, tcp_test_host);
+  auto acc {nip.make_tcp_acceptor(tcp_test_port, tcp_test_host)};
   REQUIRE (acc.is_valid());
 
-  test_counter acc_cnt = 0;
-  auto st = start_tcp_acceptor(acc, err_wq, reply, delim, acc_cnt);
+  test_counter acc_cnt {0};
+  auto st {start_tcp_acceptor(acc, err_wq, reply, delim, acc_cnt)};
   REQUIRE (st);
 
-  auto r = acc.is_started();
+  auto r {acc.is_started()};
   REQUIRE(r);
   REQUIRE(*r);
 
   std::vector< chops::net::tcp_io_output > send_vec;
   std::vector< chops::net::tcp_io_output_future > conn_fut_vec;
 
-  test_counter conn_cnt = 0;
+  test_counter conn_cnt {0};
   INFO("Acceptor created, now creating connectors and futures, num: " << num_conns);
 
   for (int i : std::views::iota(0, num_conns)) {
 
-    auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host);
-    auto conn_futs = get_tcp_io_futures(conn, err_wq,
-                                        false, delim, conn_cnt);
+    auto conn {nip.make_tcp_connector(tcp_test_port, tcp_test_host)};
+    auto conn_futs {get_tcp_io_futures(conn, err_wq, false, delim, conn_cnt)};
 
     send_vec.emplace_back(conn_futs.start_fut.get()); // block until connector connects
     conn_fut_vec.emplace_back(std::move(conn_futs.stop_fut)); // add disconnect future
@@ -143,10 +142,10 @@ std::size_t acc_conn_var_test (asio::io_context& ioc, chops::net::err_wait_q& er
   }
 
   for (auto& fut : conn_fut_vec) {
-    auto io = fut.get(); // block for all disconnects
+    auto io {fut.get()}; // block for all disconnects
   }
 
-  acc.stop();
+  auto stopr{acc.stop()};
   nip.remove(acc);
   INFO ("Acceptor stopped and removed");
 
@@ -165,9 +164,9 @@ std::size_t acc_conn_fixed_test (asio::io_context& ioc, chops::net::err_wait_q& 
   std::promise<std::size_t> prom;
   auto acc_start_fut = prom.get_future();
   auto acc = nip.make_tcp_acceptor(tcp_test_port, tcp_test_host);
-  acc.start([num_conns, &prom] (chops::net::tcp_io_interface io_intf, std::size_t num, bool starting) {
+  auto r {acc.start([num_conns, &prom] (chops::net::tcp_io_interface io_intf, std::size_t num, bool starting) {
         if (starting) {
-          auto r = io_intf.start_io(); // send only through acceptor
+          auto r {io_intf.start_io()}; // send only through acceptor
           assert(r);
           if (num == num_conns) {
             prom.set_value(num);
@@ -175,36 +174,36 @@ std::size_t acc_conn_fixed_test (asio::io_context& ioc, chops::net::err_wait_q& 
         }
       },
     chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-  );
-  auto acc_st = acc.is_started();
+  )};
+  auto acc_st {acc.is_started()};
   REQUIRE (acc_st);
   REQUIRE (*acc_st);
 
   INFO("Acceptor created, now creating connectors and futures, num: " << num_conns);
 
-  test_counter conn_cnt = 0;
+  test_counter conn_cnt {0};
   std::vector<std::future<std::size_t>> conn_futs;
 
   for (int i : std::views::iota(0, num_conns)) {
 
-    auto exp = fixed_msg_vec.size();
-    auto conn = nip.make_tcp_connector(tcp_test_port, tcp_test_host);
-    auto prom_ptr = std::make_shared<test_prom>();
+    auto exp {fixed_msg_vec.size()};
+    auto conn {nip.make_tcp_connector(tcp_test_port, tcp_test_host)};
+    auto prom_ptr {std::make_shared<test_prom>()};
     conn_futs.push_back(std::move(prom_ptr->get_future()));
-    auto r = conn.start( [&conn_cnt, exp, &err_wq, prom_ptr]
+    auto r1 {conn.start( [&conn_cnt, exp, &err_wq, prom_ptr]
                      (chops::net::tcp_io_interface io, std::size_t num, bool starting) {
           if (starting) {
-            auto r = io.start_io(fixed_size_buf_size,
-                                 tcp_fixed_size_msg_hdlr(std::move(*prom_ptr), exp, conn_cnt));
-            assert(r);
+            auto r2 {io.start_io(fixed_size_buf_size,
+                                 tcp_fixed_size_msg_hdlr(std::move(*prom_ptr), exp, conn_cnt))};
+            assert(r2);
           }
         },
       chops::net::make_error_func_with_wait_queue<chops::net::tcp_io>(err_wq)
-    );
-    assert (r);
+    )};
+    assert (r1);
   }
 
-  auto n = acc_start_fut.get(); // means all connectors have connected
+  auto n {acc_start_fut.get()}; // means all connectors have connected
   REQUIRE (n == num_conns);
 
   for (const auto& buf : fixed_msg_vec) {
@@ -216,10 +215,10 @@ std::size_t acc_conn_fixed_test (asio::io_context& ioc, chops::net::err_wait_q& 
   }
 
   for (auto& fut : conn_futs) { // wait for all connectors to finish receiving data
-    auto t = fut.get();
+    auto t {fut.get()};
   }
 
-  acc.stop();
+  auto stopr {acc.stop()};
   nip.remove(acc);
   INFO ("Acceptor stopped and removed");
 
@@ -237,22 +236,22 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
 
   INFO ("Creating " << num_udp_pairs << " udp sender receiver pairs");
 
-  test_counter recv_cnt = 0;
-  test_counter send_cnt = 0;
+  test_counter recv_cnt {0};
+  test_counter send_cnt {0};
 
   std::vector<chops::net::net_entity> senders;
 
   for (int i : std::views::iota(0, num_udp_pairs)) {
-    auto recv_endp = make_udp_endpoint(udp_test_addr, udp_port_base + i);
+    auto recv_endp {make_udp_endpoint(udp_test_addr, udp_port_base + i)};
 
-    auto udp_receiver = nip.make_udp_unicast(recv_endp);
-    auto recv_fut = get_udp_io_future(udp_receiver, err_wq,
-                                      false, recv_cnt );
-    auto udp_sender = nip.make_udp_sender();
+    auto udp_receiver {nip.make_udp_unicast(recv_endp)};
+    auto recv_fut {get_udp_io_future(udp_receiver, err_wq,
+                                     false, recv_cnt )};
+    auto udp_sender {nip.make_udp_sender()};
     senders.push_back(udp_sender);
 
-    auto sender_fut = get_udp_io_future(udp_sender, err_wq,
-                                        false, send_cnt, recv_endp );
+    auto sender_fut {get_udp_io_future(udp_sender, err_wq,
+                                       false, send_cnt, recv_endp )};
     recv_fut.get(); // block until receiver ready
     sender_fut.get(); // block until sender ready
   }
@@ -269,7 +268,7 @@ std::size_t udp_test (asio::io_context& ioc, chops::net::err_wait_q& err_wq,
   }
   // poll output queue size of all senders until 0
   chops::net::accumulate_net_entity_output_queue_stats_until<chops::net::udp_io>
-         (senders.cbegin(), senders.cend(), poll_output_queue_cond(200, std::cerr));
+        (senders.cbegin(), senders.cend(), poll_output_queue_cond(200, std::cerr));
                                                                
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -289,22 +288,22 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
   auto& ioc = wk.get_io_context();
 
   chops::net::err_wait_q err_wq;
-  auto err_fut = std::async(std::launch::async, chops::net::ostream_error_sink_with_wait_queue,
-                            std::ref(err_wq), std::ref(std::cerr));
+  auto err_fut {std::async(std::launch::async, chops::net::ostream_error_sink_with_wait_queue,
+                           std::ref(err_wq), std::ref(std::cerr))};
 
   {
     std::size_t total_msgs = num_entities * var_msg_vec.size();
-    auto cnt1 = acc_conn_var_test(ioc, err_wq, var_msg_vec, reply, num_entities, delim, empty_msg);
+    auto cnt1 {acc_conn_var_test(ioc, err_wq, var_msg_vec, reply, num_entities, delim, empty_msg)};
     REQUIRE (cnt1 == total_msgs);
-    auto cnt2 = udp_test(ioc, err_wq, var_msg_vec, interval, num_entities);
+    auto cnt2 {udp_test(ioc, err_wq, var_msg_vec, interval, num_entities)};
     CHECK (cnt2 == total_msgs);
   }
 
   {
-    std::size_t total_msgs = num_entities * fixed_msg_vec.size();
-    auto cnt1 = acc_conn_fixed_test(ioc, err_wq, fixed_msg_vec, num_entities);
+    std::size_t total_msgs {num_entities * fixed_msg_vec.size()};
+    auto cnt1 {acc_conn_fixed_test(ioc, err_wq, fixed_msg_vec, num_entities)};
     REQUIRE (cnt1 == total_msgs);
-    auto cnt2 = udp_test(ioc, err_wq, fixed_msg_vec, interval, num_entities);
+    auto cnt2 {udp_test(ioc, err_wq, fixed_msg_vec, interval, num_entities)};
     CHECK (cnt2 == total_msgs);
   }
 
@@ -312,7 +311,7 @@ void perform_test (const vec_buf& var_msg_vec, const vec_buf& fixed_msg_vec,
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   err_wq.request_stop();
-  auto err_cnt = err_fut.get();
+  auto err_cnt {err_fut.get()};
   INFO ("Num err messages in sink: " << err_cnt);
 
   wk.reset();

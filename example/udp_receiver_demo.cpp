@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
         (udp_io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
-            iof.start_io(MAX_BUF, msg_hndlr);
+            auto e{iof.start_io(MAX_BUF, msg_hndlr)};
             if (print_errors) {
                 std::cout << "io state change: start_io" << std::endl;
             }
@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
     udp_ne = udp_receive.make_udp_unicast(port.c_str());
     assert(udp_ne.is_valid());
 
-    udp_ne.start(io_state_chng_hndlr, err_func);
+    auto se {udp_ne.start(io_state_chng_hndlr, err_func)};
 
     // pause for user input, then quit
     std::string s;
@@ -177,7 +177,7 @@ int main(int argc, char* argv[]) {
     /********** shutdown **********/
     /******************************/
     
-    udp_ne.stop();
+    auto stoperr {udp_ne.stop()};
     // wk.stop();
     wk.reset();
 

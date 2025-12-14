@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
         (io_interface iof, std::size_t n, bool flag) {
         
         if (flag) {
-            iof.start_io(HDR_SIZE, msg_hndlr, msg_frame);
+            auto e{iof.start_io(HDR_SIZE, msg_hndlr, msg_frame)};
         }
     
     };
@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
     net_entity_connect = echo_client.make_tcp_connector(port.c_str(), ip_address.c_str());
     assert(net_entity_connect.is_valid());
     // start @c network_entity, emplace handlers
-    net_entity_connect.start(io_state_chng_hndlr, err_func);
+    auto se{net_entity_connect.start(io_state_chng_hndlr, err_func)};
 
     // begin
     std::cout << "chops-net-ip binary text echo demo - client" << std::endl;
@@ -210,14 +210,14 @@ int main(int argc, char* argv[]) {
         buf_out.append(s.data(), s.size()); // now add the text data
         // send message to server (TCP_acceptor)
         // tcp_iof.send(buf_out.data(), buf_out.size());
-        net_entity_connect.visit_io_output([&buf_out] (io_output io_out) {
+        auto err{net_entity_connect.visit_io_output([&buf_out] (io_output io_out) {
                 io_out.send(buf_out.data(), buf_out.size());
             } // end lambda
-        );
+        )};
     } // end while
  
     // cleanup
-    net_entity_connect.stop();
+    auto e{net_entity_connect.stop()};
     wk.reset();
 
     return EXIT_SUCCESS;

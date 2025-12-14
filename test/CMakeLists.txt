@@ -9,11 +9,11 @@ cmake_minimum_required ( VERSION 3.14 FATAL_ERROR )
 project ( chops_net_ip_test LANGUAGES CXX )
 
 # dependencies, Catch2 and Connective C++
-CPMAddPackage ( "gh:connectivecpp/utility-rack@1.0.4" )
-CPMAddPackage ( "gh:connectivecpp/wait-queue@1.2.3" )
-CPMAddPackage ( "gh:connectivecpp/binary-serialize@1.0.4" )
+CPMAddPackage ( "gh:connectivecpp/utility-rack@1.0.6" )
+CPMAddPackage ( "gh:connectivecpp/wait-queue@1.2.4" )
+CPMAddPackage ( "gh:connectivecpp/binary-serialize@1.0.5" )
 
-CPMAddPackage ( "gh:catchorg/Catch2@3.8.0" )
+CPMAddPackage ( "gh:catchorg/Catch2@3.11.0" )
 
 add_subdirectory ( net_ip )
 add_subdirectory ( net_ip_component )

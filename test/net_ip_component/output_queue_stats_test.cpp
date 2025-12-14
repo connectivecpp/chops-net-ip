@@ -6,7 +6,7 @@
  *
  *  @author Cliff Green
  *
- *  Copyright (c) 2019-2025 by Cliff Green
+ *  Copyright (c) 2019-2026 by Cliff Green
  *
  *  Distributed under the Boost Software License, Version 1.0. 
  *  (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -33,15 +33,15 @@ TEST_CASE ( "Testing accumulate_output_queue_stats for io_output objects",
   using namespace chops::test;
   using io_out_mock = chops::net::basic_io_output<io_handler_mock>;
 
-  auto ioh_mock_sp = std::make_shared<io_handler_mock>();
+  auto ioh_mock_sp {std::make_shared<io_handler_mock>()};
 
   io_out_mock io_out1(ioh_mock_sp);
-  auto io_out2 = io_out1;
-  auto io_out3 = io_out1;
+  auto io_out2 {io_out1};
+  auto io_out3 {io_out1};
 
   std::vector<io_out_mock> io_out_vec { io_out1, io_out2, io_out3 };
 
-  auto s = chops::net::accumulate_output_queue_stats(io_out_vec.cbegin(), io_out_vec.cend());
+  auto s {chops::net::accumulate_output_queue_stats(io_out_vec.cbegin(), io_out_vec.cend())};
 
   REQUIRE (s.output_queue_size == 3*io_handler_mock::qs_base);
   REQUIRE (s.bytes_in_output_queue == 3*(io_handler_mock::qs_base+1));
@@ -60,13 +60,13 @@ TEST_CASE ( "Testing accumulate_output_queue_stats for net_entity objects",
 // Not much runtime testing, as of yet, in this scenario, mostly compile time, using default
 // constructed net_entity objects
   chops::net::net_entity ne1;
-  auto ne2 = ne1;
-  auto ne3 = ne1;
-  auto ne4 = ne1;
+  auto ne2 {ne1};
+  auto ne3 {ne1};
+  auto ne4 {ne1};
   std::list<chops::net::net_entity> ne_list { ne1, ne2, ne3, ne4 };
 
-  auto s = chops::net::accumulate_net_entity_output_queue_stats<chops::net::udp_io>(ne_list.cbegin(), 
-                                                                                    ne_list.cend());
+  auto s {chops::net::accumulate_net_entity_output_queue_stats<chops::net::udp_io>(ne_list.cbegin(), 
+                                                                                   ne_list.cend())};
 
   REQUIRE (s.output_queue_size == 0u);
   REQUIRE (s.bytes_in_output_queue == 0u);

@@ -160,20 +160,20 @@ int main(int argc, char* argv[]) {
                     screen.insert_scroll_line("io_interface start" + DELIM, SYSTEM);
                     screen.draw_screen();
                 }
-                iof.start_io(DELIM, msg_hndlr);
+                auto e{iof.start_io(DELIM, msg_hndlr)};
                 // tcp_iof = iof; // return @c iof to main
             } else {
                 // since we are peer to peer, reject >1 connections
                 screen.insert_scroll_line("2nd tcp_connector client rejected" + 
                             DELIM, SYSTEM);
                 screen.draw_screen();
-                iof.start_io(DELIM, msg_hndlr);
+                auto e1{iof.start_io(DELIM, msg_hndlr)};
                 const std::string err = "only one tcp connection allowed";
                 auto ret = iof.make_io_output();
                 auto io_out = *ret;
                 io_out.send(err.data(), err.size());
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                iof.stop_io();
+                auto e2{iof.stop_io()};
             }
         } else { // flag false
             if (print_errors) {
@@ -230,7 +230,7 @@ int main(int argc, char* argv[]) {
     }
     assert(net_entity.is_valid());
      // start network entity, emplace handlers
-    net_entity.start(io_state_chng_hndlr, err_func);
+    auto se{net_entity.start(io_state_chng_hndlr, err_func)};
 
     /**************************************/
     /********** user interaction **********/
@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
     /********** shutdown **********/
     /******************************/
 
-    net_entity.stop();
+    auto e{net_entity.stop()};
     wk.reset();
 
     return EXIT_SUCCESS;
