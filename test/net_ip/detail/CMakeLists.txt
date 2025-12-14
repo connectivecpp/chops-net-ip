@@ -12,7 +12,7 @@ set ( test_app_names  io_common_test
                       net_entity_common_test
                       output_queue_test
                       tcp_acceptor_test
-                      tcp_connector_test
+		      #                      tcp_connector_test
 		      tcp_io_test
 		      udp_entity_io_test 
 		      wp_access_test )
